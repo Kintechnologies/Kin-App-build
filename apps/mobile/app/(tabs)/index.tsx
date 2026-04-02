@@ -355,8 +355,8 @@ export default function Dashboard() {
             }}
           >
             <View style={styles.summaryRow}>
-              <View style={[styles.summaryIcon, { backgroundColor: "rgba(160, 126, 200, 0.12)" }]}>
-                <Wallet size={18} color="#A07EC8" />
+              <View style={[styles.summaryIcon, { backgroundColor: "rgba(124, 184, 122, 0.12)" }]}>
+                <Wallet size={18} color="#7CB87A" />
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={styles.summaryLabel}>Budget</Text>
@@ -398,7 +398,7 @@ export default function Dashboard() {
           {[
             { icon: MessageCircle, label: "Chat", color: "#7CB87A", route: "/(tabs)/chat" as const },
             { icon: UtensilsCrossed, label: "Meals", color: "#D4A843", route: "/(tabs)/meals" as const },
-            { icon: Wallet, label: "Budget", color: "#A07EC8", route: "/(tabs)/budget" as const },
+            { icon: Wallet, label: "Budget", color: "#7CB87A", route: "/(tabs)/budget" as const },
             { icon: Calendar, label: "Calendar", color: "#7AADCE", route: "/(tabs)/settings" as const },
           ].map((action, i) =>
             animatedCard(

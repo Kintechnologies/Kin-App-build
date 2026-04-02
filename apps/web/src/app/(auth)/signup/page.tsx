@@ -25,12 +25,18 @@ function SignUpForm() {
     setLoading(true);
 
     const supabase = createClient();
-    const { error: authError } = await supabase.auth.signUp({
+
+    // When an invite is present, carry the code through the confirmation email
+    // so /auth/callback can accept the invite after the session is established.
+    // This handles the email-confirmation-ON case where signUp() returns no session.
+    const callbackUrl = inviteCode
+      ? `${window.location.origin}/auth/callback?invite=${inviteCode}`
+      : `${window.location.origin}/auth/callback`;
+
+    const { data: authData, error: authError } = await supabase.auth.signUp({
       email,
       password,
-      options: {
-        emailRedirectTo: `${window.location.origin}/auth/callback`,
-      },
+      options: { emailRedirectTo: callbackUrl },
     });
 
     if (authError) {
@@ -39,18 +45,20 @@ function SignUpForm() {
       return;
     }
 
-    // If arriving via a partner invite, accept it immediately after sign-up
-    if (inviteCode) {
+    // Email confirmation is OFF — session returned immediately. Try accept now.
+    // (If email confirmation is ON, authData.session is null and the invite will
+    // be accepted via /auth/callback after the user clicks the confirmation link.)
+    if (inviteCode && authData.session) {
       try {
         const res = await fetch(`/api/invite/${inviteCode}/accept`, {
           method: "POST",
         });
         if (res.ok) {
-          // Household linked — skip full onboarding, go straight to dashboard
-          router.push("/dashboard");
+          // Household linked — proceed to partner mini-onboarding
+          router.push("/onboarding");
           return;
         }
-        // If accept fails (e.g. expired), proceed to onboarding normally
+        // Accept failed (expired, email mismatch, etc.) — proceed to normal onboarding
       } catch {
         // Non-fatal — proceed to onboarding
       }

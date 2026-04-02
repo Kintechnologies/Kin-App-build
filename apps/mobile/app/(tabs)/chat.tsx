@@ -57,14 +57,14 @@ interface ChatThread {
 
 const CONVERSATION_IDEAS = [
   { label: "Plan this week's meals", emoji: "🍽️", color: "#D4A843" },
-  { label: "Budget check-in", emoji: "💰", color: "#A07EC8" },
+  { label: "Budget check-in", emoji: "💰", color: "#7CB87A" },
   { label: "Date night ideas", emoji: "💕", color: "#D4748A" },
   { label: "What should the kids eat today?", emoji: "👶", color: "#7AADCE" },
   { label: "Help me find a summer camp", emoji: "🏕️", color: "#7CB87A" },
   { label: "Sunday family briefing", emoji: "📋", color: "#D4A843" },
   { label: "Suggest a quick weeknight dinner", emoji: "⚡", color: "#7CB87A" },
   { label: "What's coming up on the calendar?", emoji: "📅", color: "#7AADCE" },
-  { label: "High-protein snack ideas", emoji: "💪", color: "#A07EC8" },
+  { label: "High-protein snack ideas", emoji: "💪", color: "#D4A843" },
   { label: "Help me grocery shop smarter", emoji: "🛒", color: "#D4A843" },
   { label: "Find a family-friendly activity nearby", emoji: "🎯", color: "#D4748A" },
   { label: "How can we save more this month?", emoji: "🐷", color: "#7CB87A" },

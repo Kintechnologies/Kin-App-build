@@ -103,11 +103,16 @@ export async function POST(request: Request) {
       } catch {
         // Non-fatal: invite record is created; email will need to be re-sent.
         // Log the invite URL so it can be shared manually during dev/testing.
-        console.log(`[invite] Email send failed. Invite URL: ${inviteUrl}`);
+        if (process.env.NODE_ENV !== "production") {
+          console.log(`[invite] Email send failed. Invite URL: ${inviteUrl}`);
+        }
+        // TODO: route to Sentry before GA
       }
     } else {
       // Dev mode — log the invite URL for manual testing
-      console.log(`[invite] SUPABASE_SERVICE_ROLE_KEY not set. Invite URL: ${inviteUrl}`);
+      if (process.env.NODE_ENV !== "production") {
+        console.log(`[invite] SUPABASE_SERVICE_ROLE_KEY not set. Invite URL: ${inviteUrl}`);
+      }
     }
 
     return NextResponse.json({ success: true, inviteCode });

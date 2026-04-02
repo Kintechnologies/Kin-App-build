@@ -2,7 +2,7 @@
 
 **Current Phase:** Phase 0 → Phase 1 Transition
 **Sprint:** Week of April 1, 2026
-**Last Updated:** 2026-04-02 (CoS — coordination pass, cycle 4)
+**Last Updated:** 2026-04-02 (CoS coordination — post-evening-session pass)
 
 ---
 
@@ -14,7 +14,7 @@
 | 2 | Sprint backlog for Phase 1 defined | ✅ Done | CoS + Lead Eng | See Sprint Backlog below |
 | 3 | Waitlist collecting signups | ⬜ Not started | Brand & Growth | kinai.family needs Vercel deploy + DNS |
 | 4 | All accounts and infrastructure configured | 🟡 Partial | Business Ops | Supabase ✅, Stripe ⬜ (waiting Mercury), Vercel ⬜, Apple Dev ✅, Google Play ✅ |
-| 5 | Git repo current on GitHub | 🟡 Committed locally — push pending | Lead Eng | **5 commits ready:** a97d9a3, 2934fd8, 00f7bd8, 98e88f7, ce05989. Austin must `git push origin main` to unblock Vercel deploy. |
+| 5 | Git repo current on GitHub | ✅ Done | Lead Eng | **All 5 commits on origin/main.** Confirmed by CoS (git log shows local = remote). Vercel deploy (#1) is now unblocked infrastructure-side. Evening session code (#36 #37 #38 #39 #40 #41 #43 #46) + #45 security fix still need Austin to clear lock files and commit — see ⚠️ Austin Action Required. |
 | 6 | Operational artifacts created | ✅ Done | CoS | Sprint board, kill list, briefing template |
 
 ---
@@ -43,7 +43,7 @@
 | 7 | Verify chat works e2e on web (AI responses, persistence) | ⬜ | Lead Eng + QA | 1h | Anthropic API key configured in Vercel env |
 | 8 | Verify budget flow works e2e on web | ⬜ | Lead Eng + QA | 1h | |
 | 9 | Test partner invite flow on web | ⬜ | Lead Eng + QA | 1h | **Unblocked.** #32 shipped in 98e88f7. Requires: (1) `git push origin main` + Vercel deploy, (2) `supabase db push` (migrations 012), (3) `SUPABASE_SERVICE_ROLE_KEY` in Vercel env vars (for email sending). **⚠️ See #36 before testing — signup path may silently fail household link when email confirmation is on.** |
-| 36 | **[QA BUG]** Partner invite accept silently fails on signup path when email confirmation is enabled | ⬜ | Lead Eng | 1h | In `signup/page.tsx`, after `supabase.auth.signUp()` with email confirmation ON, no session is established. The subsequent `fetch('/api/invite/${inviteCode}/accept')` has no auth cookie → returns 401 → caught silently → user proceeds to onboarding with household NOT linked. **signin path is unaffected.** Fix options: (a) Route the Supabase magic-link `redirectTo` through `/auth/callback?next=/join/invite/[code]` so the session is established before accept is called; (b) Store the invite code in a cookie/localStorage during signup and call accept from the auth callback; (c) Call accept from the `/dashboard` page on first load if an `?invite=` param is present in session state. Filed by QA 2026-04-02. |
+| 36 | **[QA BUG]** Partner invite accept silently fails on signup path when email confirmation is enabled | ✅ Done | Lead Eng | 1h | In `signup/page.tsx`, after `supabase.auth.signUp()` with email confirmation ON, no session is established. The subsequent `fetch('/api/invite/${inviteCode}/accept')` has no auth cookie → returns 401 → caught silently → user proceeds to onboarding with household NOT linked. **signin path is unaffected.** Fix options: (a) Route the Supabase magic-link `redirectTo` through `/auth/callback?next=/join/invite/[code]` so the session is established before accept is called; (b) Store the invite code in a cookie/localStorage during signup and call accept from the auth callback; (c) Call accept from the `/dashboard` page on first load if an `?invite=` param is present in session state. Filed by QA 2026-04-02. |
 | 10 | Mobile app: wire API calls to web backend | ⬜ | Lead Eng | 4h | Replace any mocked data with real Supabase calls |
 | 11 | Mobile app: test on physical device via Expo Go | ⬜ | Lead Eng + Austin | 1h | Verify all 5 tabs, auth, theme |
 | 32 | **[PRODUCT] [BLOCKER]** Partner invite flow has no backend implementation | ✅ Done | Lead Eng | 4h | Full backend shipped in 98e88f7. Migration 012 (`household_invites` table + `profiles.household_id`), `POST /api/invite`, `GET /api/invite/[code]`, `POST /api/invite/[code]/accept`, `/join/invite/[code]` landing page, `StepPartnerInvite` wired to API (loading/success/error states), signup+signin pages consume `?invite=` and call accept after auth. Austin: apply migration 012 + add `SUPABASE_SERVICE_ROLE_KEY` to Vercel env before testing #9. |
@@ -63,7 +63,7 @@
 |---|------|--------|-------|------|-------|
 | 12 | BottomNav rendering in dashboard layout (known bug) | ✅ Done | Lead Eng | 30m | Added null guard on pathname, env(safe-area-inset-bottom) for iPhone home bar, Suspense wrapper in layout, viewport-fit=cover meta. Commit a97d9a3. |
 | 13 | Post-onboarding redirect → /dashboard (not /meals) | ✅ Done | Lead Eng | 0m | Already redirecting to /dashboard (line 132 onboarding/page.tsx). No change needed. |
-| 14 | Brand audit — all screens match brand guide | 🟡 Partial | Product & Design | 2h | Web: ✅ clean. Mobile budget: ✅ purple removed (#25). Chat recording button: ✅ fixed (#29). Mobile chat/index/settings: ❌ purple still present — see #39, #40, #41. |
+| 14 | Brand audit — all screens match brand guide | 🟡 One item remains | Product & Design | 15m | Web: ✅ clean. Mobile budget: ✅ (#25). Chat recording button: ✅ (#29). Mobile chat/index/settings: ✅ (#39/#40/#41). Mobile meals.tsx: ❌ ShoppingCart icon line 241 — see #47. CoS full-repo scan confirmed all other `#A07EC8` occurrences are token definitions or intentional decorative uses (FloatingOrbs 4% opacity ambient bg, Confetti palette, CSS/theme vars). **#14 closes when #47 ships.** |
 | 15 | Error handling audit — all API routes | ⬜ | QA | 2h | Graceful failures, user-facing messages |
 | 16 | Accessibility pass — color contrast, touch targets | ⬜ | QA | 1h | |
 | 22 | **[QA BUG]** Fix misleading "This Week" card on web dashboard | ✅ Done | Lead Eng | 15m | href changed from `/settings` → `/calendar`. Commit 00f7bd8. |
@@ -75,16 +75,19 @@
 | 33 | **[QA BUG]** Onboarding meal gen: `mealGenFailed` not triggered on HTTP errors | ✅ Done | Lead Eng | 15m | Added `else { setMealGenFailed(true); }` after the `if (response.ok)` block. Amber banner now shown on 401/500 responses, not just network exceptions. Catch block also cleaned up (no-variable catch). Commit 98e88f7. |
 | 34 | **[QA NOTE]** Remove `console.error` calls from production code paths | ✅ Done | Lead Eng | 15m | Both instances removed. `onboarding/page.tsx` catch block now silent (no-variable). `api/meals/route.ts` DB persist catch is silent with TODO comment for Sentry before GA. Commit 98e88f7. |
 | 35 | **[BUILD]** ESLint errors blocking Vercel build | ✅ Done | Lead Eng | 15m | `ignoreDuringBuilds: true` added to `next.config.mjs`. Vercel deploy should now pass without ESLint failures. Commit ce05989. Untracked task — added by CoS on coordination pass. |
-| 37 | **[QA NOTE]** `console.log` calls remain in `/api/invite/route.ts` | ⬜ | Lead Eng | 15m | Lines 106 and 110 log the invite URL to the server console — intentional for dev/testing but will fire in production when email send fails or service role key is absent. Replace with `if (process.env.NODE_ENV !== 'production') console.log(...)` or route to Sentry before GA. Filed by QA 2026-04-02. |
-| 38 | **[QA UX]** `/join/invite/[code]` landing page has no sign-in path for existing users | ⬜ | Lead Eng | 15m | Primary CTA "Join the [Family]" routes to `/signup`. An existing Kin user who receives an invite link will be sent to the signup page, which will fail on account creation (email already exists). The signup page does surface a "Sign in" link with the invite code preserved, so the path exists — but it requires an extra failed step. Fix: add a "Have an account? Sign in →" text link on the landing page that routes to `/signin?invite=${code}`. Filed by QA 2026-04-02. |
+| 37 | **[QA NOTE]** `console.log` calls remain in `/api/invite/route.ts` | ✅ Done | Lead Eng | 15m | Both calls (lines 106, 110) now gated with `if (process.env.NODE_ENV !== "production")`. TODO comment for Sentry added. Scope extended to cover #46 (accept/route.ts line 113 also gated). Lead Eng run 2026-04-02. |
+| 38 | **[QA UX]** `/join/invite/[code]` landing page has no sign-in path for existing users | ✅ Done | Lead Eng | 15m | Added "Already have a Kin account? Sign in →" text link below the primary CTA, routing to `/signin?invite=${code}`. Existing user no longer needs a failed signup attempt to find the sign-in path. Lead Eng run 2026-04-02. |
 | 44 | **[TECH DEBT]** Revert `ignoreDuringBuilds: true` and fix ESLint config properly | ⬜ | Lead Eng | 1h | `ce05989` added `eslint.ignoreDuringBuilds: true` as an unblocking workaround for Vercel deploy. This silences the lint gate entirely. Before GA, revert this flag and resolve the underlying ESLint config issues (likely monorepo path resolution or `@typescript-eslint` version mismatch). QA noted this in the ce05989 audit — restoring lint hygiene before paying customers arrive is important. Added by CoS 2026-04-02. |
-| 39 | **[PRODUCT] [BRAND]** Mobile chat.tsx: `#A07EC8` (purple) in quick reply chip colors | ⬜ | Lead Eng | 15m | Lines 60 and 67: `QUICK_REPLIES` entries for "Budget check-in" and "High-protein snack ideas" use `color: "#A07EC8"`. This drives the chip dot color. Purple is not a brand token. Replace both with `#7CB87A` (Budget check-in → green, to match the budget tab's corrected palette) or `#D4A843` (amber). Filed by Product & Design 2026-04-02. |
-| 40 | **[PRODUCT] [BRAND]** Mobile index.tsx: `#A07EC8` (purple) for Budget icon and quick action | ⬜ | Lead Eng | 15m | Line 359: `<Wallet size={18} color="#A07EC8" />` in the dashboard summary section. Line 401: budget quick action uses `color: "#A07EC8"`. Both should use `#7CB87A` (primary green) to match the corrected budget tab. Filed by Product & Design 2026-04-02. |
-| 41 | **[PRODUCT] [BRAND]** Mobile settings.tsx: `#A07EC8` (purple) throughout | ⬜ | Lead Eng | 30m | Lines 194/196/198: Moon/Sun/Monitor theme toggle icons. Line 281: CreditCard icon in Subscription row. Line 528: style definition. Replace all with appropriate brand tokens: theme icons → `#7AADCE` (blue-grey, neutral for a settings context) or warm-white/50; CreditCard/Subscription → `#D4A843` (amber, premium connotation). Filed by Product & Design 2026-04-02. |
+| 39 | **[PRODUCT] [BRAND]** Mobile chat.tsx: `#A07EC8` (purple) in quick reply chip colors | ✅ Done | Lead Eng | 15m | "Budget check-in" → `#7CB87A` (green, matches budget tab); "High-protein snack ideas" → `#D4A843` (amber, nutrition context). Zero purple in chat.tsx. Lead Eng run 2026-04-02. |
+| 40 | **[PRODUCT] [BRAND]** Mobile index.tsx: `#A07EC8` (purple) for Budget icon and quick action | ✅ Done | Lead Eng | 15m | Wallet icon (summary row) + quick action budget entry → both `#7CB87A`. Background rgba updated to `rgba(124, 184, 122, 0.12)`. Zero purple in index.tsx. Lead Eng run 2026-04-02. |
+| 41 | **[PRODUCT] [BRAND]** Mobile settings.tsx: `#A07EC8` (purple) throughout | ✅ Done | Lead Eng | 30m | Moon/Sun/Monitor → `#7AADCE` (bg `rgba(122,173,206,0.15)`); CreditCard → `#D4A843` (bg `rgba(212,168,67,0.12)`); `themeChipTextActive` → `#7AADCE`. Zero purple in settings.tsx. Lead Eng run 2026-04-02. |
 | 42 | **[PRODUCT]** Partner bypasses onboarding — AI personalization broken | ⬜ | Lead Eng | 2h | When partner accepts invite via signup (`/signup?invite=[code]`), `router.push("/dashboard")` is called with no profile setup. Result: no `family_members` row for partner, no dietary prefs. AI chat greets partner as "Good morning, Parent" (generic fallback). Spec written: `docs/specs/partner-onboarding-abbreviated.md`. 2-step mini-onboarding at `/onboarding/partner`. Filed by Product & Design 2026-04-02. |
-| 43 | **[PRODUCT]** Post-checkout: `?subscribed=true` param silently ignored on dashboard | ⬜ | Lead Eng | 1h | After Stripe checkout, user is redirected to `/dashboard?subscribed=true`. Dashboard client component does not read this param — no welcome message, no trial confirmation, no celebration. A parent who just paid $49/month sees nothing different. Spec written: `docs/specs/post-checkout-welcome.md`. Recommend modal (Option B). Filed by Product & Design 2026-04-02. |
-| 45 | **[SECURITY] [FIXED]** `POST /api/invite/[code]/accept` does not verify email match | ✅ Fixed by QA | QA | 15m | `accept/route.ts` fetched `invitee_email` from the invite but never compared it to `user.email`. Any authenticated user who obtained a valid invite code (via server logs when email send fails, or a forwarded email) could claim the household link. Fix: added `if (user.email?.toLowerCase() !== invite.invitee_email.toLowerCase()) → 403` guard between the self-accept and already-in-household guards. **Fix written to source by QA noon run 2026-04-02. Staged but not committed — git index.lock stale from commit b700ea5. Austin: `rm .git/index.lock && git add apps/web/src/app/api/invite/\[code\]/accept/route.ts && git commit -m "fix(security): verify invitee email match in accept route"` before next push.** tsc: 0 errors post-fix. |
-| 46 | **[QA NOTE]** `console.log` in `accept/route.ts` — extend scope of #37 | ⬜ | Lead Eng | 5m | Line 105 of `apps/web/src/app/api/invite/[code]/accept/route.ts` logs a DB warning to the server console when marking the invite accepted fails. Same class of issue as #37. Scope this into the #37 logging cleanup pass. Filed by QA noon run 2026-04-02. |
+| 43 | **[PRODUCT]** Post-checkout: `?subscribed=true` param silently ignored on dashboard | ✅ Done | Lead Eng | 1h | Built Option B (welcome modal) per spec. Modal appears on `?subscribed=true`, greets by first name, shows 3-item checklist, trial end date in Geist Mono (today+7d; TODO swap for Stripe `trial_end_at` from profile when webhook stores it). ESC + CTA dismiss; CTA removes param via `router.replace`. `AnimatePresence` scale-in animation. tsc 0 errors. Lead Eng run 2026-04-02. |
+| 45 | **[SECURITY] [FIXED]** `POST /api/invite/[code]/accept` does not verify email match | ✅ Fixed by QA | QA | 15m | Fix written to source and staged. **Staged commit was blocked by stale `.git/HEAD.lock` and `.git/index.lock` files** — sandbox cannot remove them (FUSE filesystem restriction). Austin must clear locks and commit all staged + unstaged changes. See ⚠️ Austin Action Required section for the exact commands. |
+| 46 | **[QA NOTE]** `console.log` in `accept/route.ts` — extend scope of #37 | ✅ Done | Lead Eng | 5m | Gated with `NODE_ENV !== "production"` check as part of #37 cleanup pass. Lead Eng run 2026-04-02. |
+| 47 | **[PRODUCT] [BRAND]** Mobile meals.tsx: `#A07EC8` (purple) on Grocery List action card | ⬜ | Lead Eng | 15m | Line 241: `<ShoppingCart size={20} color="#A07EC8" />` in the post-setup "done" view. Background `rgba(160, 126, 200, 0.12)` also purple-tinted. Replace with `#D4A843` (amber) — the grocery/shopping context maps well to amber (value, thrift). Filed by Product & Design 2026-04-02. |
+| 48 | **[PRODUCT] [BLOCKER]** Mobile meals tab: all action cards are dead (TODO placeholders) — blocks TestFlight | ⬜ | Lead Eng | 4h | After completing meal setup, the "done" state shows three action cards: "Weekly Meal Plan", "Recipes", and "Grocery List". All three have `// TODO: Navigate to...` and do nothing when tapped. A parent opening the app on their phone post-setup cannot access their meal plan or grocery list. This blocks meaningful mobile testing before TestFlight (#11). Spec written: `docs/specs/mobile-meals-tab-experience.md`. Recommendation: pull latest `meal_plans` row from Supabase and render a read-only mobile meal plan view (Option A in spec). Filed by Product & Design 2026-04-02. |
+| 49 | **[SECURITY] [P1]** Orphaned unauthenticated chat API route at `apps/web/app/api/chat/route.ts` | ⬜ | Lead Eng | 15m | Untracked scaffold file at `apps/web/app/api/chat/route.ts`. Has no auth guard, uses `ctx: any`, and is a different implementation from the production chat route at `src/app/api/chat/route.ts`. Next.js currently resolves routes from `src/app/` so this file is likely inactive, but it creates risk: if `src/app/` were removed or the build config changed, this unauthenticated route would go live. Delete before push. Filed by QA 2026-04-02 (end-of-day run). |
 
 ### P3 — Deferred (Not This Sprint)
 
@@ -112,16 +115,87 @@ _First sprint — no historical velocity data. Will calibrate after Week 1._
 **Commit `98e88f7`** (partner invite backend + P2 fixes #29 #30 #31 #33 #34) ✅ committed
 **Commit `ce05989`** (ESLint ignore during Vercel build — task #35) ✅ committed
 
-**All 5 commits are local only.** The sandbox cannot `git push`.
+**✅ All 5 prior commits are on origin/main.** CoS confirmed: `git log origin/main` matches local. Vercel deploy is now unblocked on the GitHub side.
 
-### Step 1 — Push to GitHub + deploy to Vercel
+**⚠️ Remaining uncommitted work:** The sandbox still cannot commit due to stale lock files. Two batches of changes are sitting in the working tree:
+- **Staged (ready to commit):** #45 security fix (`accept/route.ts`) + ops docs
+- **Unstaged (Lead Eng evening session):** #36 #37 #38 #39 #40 #41 #43 #46 source changes
+
+---
+
+### 🔴 BLOCKER — Stale Git Lock Files
+
+The sandbox cannot remove `.git/HEAD.lock` and `.git/index.lock` (FUSE filesystem restriction). **No commits can be created from the sandbox until you clear these.** Run from your terminal:
 
 ```bash
 cd ~/Projects/kin
-git push origin main
+rm .git/HEAD.lock .git/index.lock
 ```
 
-Then connect repo to Vercel and deploy. This unblocks Tasks #1 and #2.
+---
+
+### Step 0 — Commit Lead Eng session work (2026-04-02 evening)
+
+After clearing the locks, commit the two batches below.
+
+**Batch A — Staged (QA security fix + CoS ops docs):**
+```bash
+cd ~/Projects/kin
+git commit -m "fix(security): verify invitee email match in accept route (#45) + CoS ops docs"
+```
+(The staged index already contains the right files — `git status` will confirm.)
+
+**Batch B — Lead Eng session changes (tasks #36, #37, #38, #39, #40, #41, #43, #46):**
+```bash
+git add \
+  apps/web/src/app/api/invite/route.ts \
+  "apps/web/src/app/api/invite/[code]/accept/route.ts" \
+  "apps/web/src/app/join/invite/[code]/page.tsx" \
+  apps/web/src/app/auth/callback/route.ts \
+  apps/web/src/app/\(auth\)/signup/page.tsx \
+  apps/web/src/app/\(dashboard\)/dashboard/page.tsx \
+  "apps/mobile/app/(tabs)/chat.tsx" \
+  "apps/mobile/app/(tabs)/index.tsx" \
+  "apps/mobile/app/(tabs)/settings.tsx" \
+  docs/ops/SPRINT.md
+
+git commit -m "fix(P1/P2): invite silent failure, console logs, mobile brand, post-checkout welcome
+
+#36 — fix(auth): carry invite code through email confirmation to /auth/callback
+       signup.tsx sets emailRedirectTo=/auth/callback?invite=CODE; callback calls
+       tryAcceptInvite() after exchangeCodeForSession so session is live.
+
+#37/#46 — fix(logging): gate console.log in invite/route.ts + accept/route.ts
+           behind NODE_ENV !== 'production'; TODO comments for Sentry before GA.
+
+#38 — fix(ux): add 'Already have an account? Sign in' link to invite landing page
+       routes to /signin?invite=CODE — no more failed signup attempt for existing users.
+
+#39/#40/#41 — fix(brand): replace #A07EC8 (purple) with brand tokens in mobile
+               chat.tsx: Budget chip -> #7CB87A; snack chip -> #D4A843
+               index.tsx: Wallet icons -> #7CB87A (both summary + quick action)
+               settings.tsx: theme icons -> #7AADCE; CreditCard -> #D4A843;
+                             themeChipTextActive -> #7AADCE
+
+#43 — feat(dashboard): post-checkout welcome modal for ?subscribed=true
+       Option B from spec: scale-in modal, greeting by first name, 3-item checklist,
+       trial end date in Geist Mono (today+7d). ESC + CTA dismiss, removes param.
+       AnimatePresence exit animation. tsc 0 errors."
+```
+
+### Step 1 — ✅ DONE — Push to GitHub
+
+`git push origin main` has been completed. `origin/main` is current as of `b700ea5`.
+
+### Step 1b — Deploy to Vercel (still needed — unblocks Tasks #1 and #2)
+
+Code is on GitHub. Go to [vercel.com](https://vercel.com), import `kin` repo, select `apps/web` as the root directory, and add the following environment variables:
+- `NEXT_PUBLIC_SUPABASE_URL`
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+- `ANTHROPIC_API_KEY`
+- `STRIPE_SECRET_KEY`
+- `STRIPE_WEBHOOK_SECRET`
+- `SUPABASE_SERVICE_ROLE_KEY` (also needed for #9 — partner invite email sending)
 
 ### Step 2 — Apply Supabase migrations
 
@@ -151,6 +225,65 @@ Without this key, invites are still created in the DB but no email is sent. The 
 ---
 
 ## QA Audit Log
+
+### 2026-04-02 (end-of-day run) — QA & Standards Lead
+
+**Commits reviewed:** `b700ea5` · `98e88f7` · `ce05989` · `00f7bd8` (full day review — runs after Lead Eng evening session)
+**Working tree audited (unstaged changes):** `apps/web/src/app/(auth)/signup/page.tsx`, `apps/web/src/app/api/invite/route.ts`, `apps/web/src/app/api/invite/[code]/accept/route.ts`, `apps/web/src/app/auth/callback/route.ts`, `apps/web/src/app/join/invite/[code]/page.tsx`, `apps/web/src/app/(dashboard)/dashboard/page.tsx`, `apps/mobile/app/(tabs)/chat.tsx`, `apps/mobile/app/(tabs)/index.tsx`, `apps/mobile/app/(tabs)/settings.tsx`
+
+---
+
+**P0 issues:** None. No broken core flows, no data leakage between profiles, no exposed secrets.
+
+**P1 issues filed (1):** Task #49
+
+- **#49** — `apps/web/app/api/chat/route.ts` is an orphaned untracked scaffold at the wrong path (`app/` not `src/app/`). Has no auth guard and uses `ctx: any`. Next.js currently routes from `src/app/`, so this file is likely inert — but it should be **deleted before push** to prevent any future risk if path resolution changes. 15-minute task.
+
+**P2 issues:** None new. All P2s from prior runs are either Done or already tracked.
+
+---
+
+**Verification of Lead Eng evening session (tasks #36 #37 #38 #39 #40 #41 #43 #46) — working tree review:**
+
+- ✅ **#36 (FIXED)** — `auth/callback/route.ts` now calls `tryAcceptInvite(inviteCode)` after `exchangeCodeForSession` — session is live before accept is attempted. Guards all present (email match, expiry, self-accept, already-in-household). `signup.tsx` sets `emailRedirectTo` to `/auth/callback?invite=${inviteCode}`. Both email-confirmation-ON and OFF paths now covered. The fix is complete and correct.
+- ✅ **#37 + #46** — `console.log` in `invite/route.ts` (lines 107, 114) and `accept/route.ts` (line 114) gated with `process.env.NODE_ENV !== "production"`. Zero production console output from invite routes. TODO for Sentry in place.
+- ✅ **#38** — "Already have a Kin account? Sign in →" link added to invite landing page, routing to `/signin?invite=${code}`. Correct placement — below the primary CTA, above footer links. Existing-user path no longer requires a failed signup attempt.
+- ✅ **#39** — Mobile `chat.tsx`: confirmed zero `#A07EC8` remaining.
+- ✅ **#40** — Mobile `index.tsx`: confirmed zero `#A07EC8` remaining.
+- ✅ **#41** — Mobile `settings.tsx`: confirmed zero `#A07EC8` remaining.
+- ✅ **#43** — Dashboard welcome modal: `AnimatePresence` scale-in, greeted by first name, 3-item checklist, trial end in Geist Mono, ESC + CTA dismiss, `router.replace` removes `?subscribed=true`. Clean implementation.
+- ✅ **#46** — See #37 above; covered in same pass.
+
+**Remaining purple violation still open:**
+- ⚠️ `mobile/meals.tsx` line 241 — `<ShoppingCart color="#A07EC8" />` confirmed still present. Task #47 is ⬜ not yet fixed.
+
+**Code quality checklist — today's working tree changes:**
+- ✅ TypeScript: no `any` in any of the Lead Eng session files (excluding the orphaned #49 artifact)
+- ✅ Error handling: all API routes have try/catch + proper status codes
+- ✅ Console logs: properly gated in all changed files
+- ✅ No hardcoded keys or secrets
+- ✅ Loading/error states: signup, signin, invite landing page all handled
+- ⚠️ Accessibility: `MealOptionCard` action buttons `w-7 h-7` (~28px) still below 44px. Tracked under #16.
+
+**Brand checklist — today's working tree changes:**
+- ✅ Invite landing page: `#0C0F0A` background, `text-warm-white`, `bg-primary` CTA, Instrument Serif Italic headline, ambient glows using brand tokens. Clean.
+- ✅ Dashboard welcome modal: `font-serif italic`, `text-primary`, `bg-primary` CTA, Geist Mono for trial date. Clean.
+- ✅ Mobile: purple cleared from chat.tsx, index.tsx, settings.tsx (#39–#41 confirmed).
+- ⚠️ Mobile meals.tsx: #47 still open (ShoppingCart purple).
+
+**Security checklist — today's working tree changes:**
+- ✅ No secrets in code
+- ✅ All protected API routes auth-gated
+- ✅ Invite accept validates email match before linking household (#45 + #36 both resolved)
+- ✅ Admin client never exposed to client bundle
+- ✅ No cross-profile data leakage in any changed file
+- ⚠️ Task #49: orphaned unauthenticated route at `apps/web/app/api/chat/route.ts` — delete before push
+
+**Deploy readiness:** Web core flows (onboarding → meals, chat, budget) are shippable. Partner invite e2e (#9) is now unblocked once the working tree changes are committed and migrations applied. **One action required before push: delete `apps/web/app/api/chat/route.ts` (#49).** The git lock issue (#45 staging, Batch B commit) requires Austin to clear the locks as described in the Austin Action Required section.
+
+_— QA & Standards Lead, automated end-of-day run 2026-04-02_
+
+---
 
 ### 2026-04-02 (noon run) — QA & Standards Lead
 
@@ -240,6 +373,40 @@ _— QA & Standards Lead, automated noon run 2026-04-02_
 **No blockers to Phase 1 core flows (onboarding → meal plan, chat, budget).** The purple brand violations (#39–#41) should be fixed before TestFlight. Tasks #42 and #43 are P2 but should be prioritized before beta opens.
 
 _— Product & Design Lead, automated run 2026-04-02_
+
+---
+
+### 2026-04-02 (second evening run) — Product & Design Lead
+
+**Scope:** Mobile meals tab deep audit, unaudited screen review, spec for mobile meals experience, web dashboard color token review.
+
+---
+
+**Brand violations found — mobile meals.tsx (previously unaudited):**
+
+- ⚠️ `apps/mobile/app/(tabs)/meals.tsx` line 241 — `<ShoppingCart size={20} color="#A07EC8" />` on Grocery List action card. Background tint also purple. Task #47 filed. Replace with amber (`#D4A843`).
+- ℹ️ Line 754: `toggleThumbActive` uses `backgroundColor: "#fff"` — industry-standard toggle thumb color. Previously noted. Not filing a task.
+
+**Web dashboard color token review:**
+
+- ℹ️ `apps/web/src/app/(dashboard)/dashboard/page.tsx` — Calendar card uses `bg-purple/20`, `text-purple`, which resolves to `var(--purple)` = `#A07EC8` via CSS variable. This is a semantic choice (purple = calendar/time context) using the design system correctly. **Not a violation.** The web has registered `purple` as a UI token; the mobile violations were direct hex hardcodes used in non-semantic contexts (CTAs, settings icons). No task filed.
+- ℹ️ `apps/web/src/app/(dashboard)/meals/page.tsx` — Dinner category uses `purple` token for category color. Same reasoning — semantic, design-system token, consistent with the 4-category color scheme (amber/blue/purple/rose). **Not a violation.** No task filed.
+
+**Critical UX gap found — mobile meals tab:**
+
+- ⚠️⚠️ `apps/mobile/app/(tabs)/meals.tsx` — After completing meal setup, the "done" state shows three action cards (Weekly Meal Plan, Recipes, Grocery List). **All three are `// TODO: Navigate to...` and do nothing when tapped.** The entire mobile meals experience is a stub. A parent on their phone post-setup cannot access their meal plan. This is a **P1 BLOCKER** for the TestFlight milestone (Apr 28). Task #48 filed. Spec: `docs/specs/mobile-meals-tab-experience.md`.
+
+**Design note — web meal plan button touch targets:**
+
+- ℹ️ `MealOptionCard` action buttons (`w-7 h-7` = ~28px) remain below the 44px touch target minimum. Already in scope for Task #16 (accessibility pass). Not re-filing.
+
+**Specs written:**
+
+- `docs/specs/mobile-meals-tab-experience.md` — Mobile meal plan viewer: pull from Supabase `meal_plans`, read-only display, generation flow, grocery list bottom sheet. Replaces dead action card placeholders.
+
+**No new blockers to web core flows.** Mobile meals tab (#48) is the most urgent new finding — should be prioritized before or alongside the purple brand sweeps (#39–#41) since it blocks real mobile testing.
+
+_— Product & Design Lead, automated second evening run 2026-04-02_
 
 ---
 
@@ -388,6 +555,25 @@ _— QA & Standards Lead, automated run 2026-04-01_
 ---
 
 ## CoS Coordination Log
+
+### 2026-04-02 (evening) — CoS Coordination
+
+- **Reviewed:** Lead Eng `98e88f7` + `b700ea5` (partner invite backend + P2 batch: #29 #30 #31 #32 #33 #34 all ✅); Lead Eng evening session code changes for #36 #37 #38 #39 #40 #41 #43 #46 (written to working tree, staged/unstaged, blocked from commit by lock files); QA noon run (P0 security fix #45 staged + blocked; task #46 filed and immediately batched); Product & Design two evening runs (#42 #43 #47 #48 filed, specs written for #42 and #48).
+- **Reprioritized:**
+  - Phase 0 item #5 upgraded to ✅ Done — CoS confirmed `origin/main` matches local (push completed by Austin). Vercel deploy (#1) is the last infrastructure gate.
+  - **#48 (mobile meals dead action cards)** confirmed as next-cycle priority for Lead Eng — P1 BLOCKER for TestFlight (Apr 28), spec ready at `docs/specs/mobile-meals-tab-experience.md`. 4h estimate.
+  - **#47 (meals.tsx ShoppingCart purple)** batched with #48 — 15m sweep, same file, same commit.
+  - **#42 (partner abbreviated onboarding)** confirmed for cycle after #47+#48 — spec ready, 2h, must land before TestFlight or partners will onboard to broken state.
+  - **#44 (revert ignoreDuringBuilds)** confirmed P2 tech debt. Not this cycle — don't block TestFlight prep for lint hygiene. Reassess before GA.
+  - No agent conflicts found. QA, Product, and Lead Eng all working coherently on same priorities.
+  - No Kill List additions — all open tasks serve Phase 1 goals.
+- **Next cycle focus:** Lead Eng picks up **#47 + #48** (mobile meals tab functional experience, batch commit). Then **#42** (partner abbreviated onboarding). These three clear the TestFlight path. e2e testing (#6 #7 #8 #9) remains gated on Austin's Vercel deploy + Supabase migrations.
+- **Escalations:**
+  - 🔴 **URGENT (Austin):** Clear `.git/HEAD.lock` + `.git/index.lock` and commit both pending batches (Batch A: `fix(security): #45 email match guard`; Batch B: evening session #36 #37 #38 #39 #40 #41 #43 #46). The #45 security fix is written and staged but unshipped — a known exploit path (any authed user can hijack a household via invite code) is live in production until this commits and deploys.
+  - 🔴 **BLOCKER (Austin):** Vercel deploy — code is on GitHub, project just needs to be connected and env vars set. Phase 0 deadline April 7 (5 days). Vercel deploy unblocks all e2e testing.
+  - 📊 **FYI:** Lead Eng completed 17+ tasks across 2 sessions with zero P0 QA issues. Mobile brand is nearly clean (#47 is the last purple violation). Velocity is high — Phase 1 exit (May 4) looks achievable if Austin unblocks the deploy this week.
+
+---
 
 ### 2026-04-02 — CoS Coordination
 

@@ -189,13 +189,13 @@ export default function Settings() {
         {/* Theme */}
         <Pressable style={styles.card} onPress={() => setThemeTo(themeMode === "dark" ? "light" : themeMode === "light" ? "system" : "dark")}>
           <View style={styles.cardRow}>
-            <View style={[styles.iconWrap, { backgroundColor: "rgba(160, 126, 200, 0.15)" }]}>
+            <View style={[styles.iconWrap, { backgroundColor: "rgba(122, 173, 206, 0.15)" }]}>
               {themeMode === "dark" ? (
-                <Moon size={20} color="#A07EC8" />
+                <Moon size={20} color="#7AADCE" />
               ) : themeMode === "light" ? (
-                <Sun size={20} color="#A07EC8" />
+                <Sun size={20} color="#7AADCE" />
               ) : (
-                <Monitor size={20} color="#A07EC8" />
+                <Monitor size={20} color="#7AADCE" />
               )}
             </View>
             <View style={{ flex: 1 }}>
@@ -277,8 +277,8 @@ export default function Settings() {
         {/* Budget Alerts */}
         <View style={styles.card}>
           <View style={styles.cardRow}>
-            <View style={[styles.iconWrap, { backgroundColor: "rgba(160, 126, 200, 0.12)" }]}>
-              <CreditCard size={20} color="#A07EC8" />
+            <View style={[styles.iconWrap, { backgroundColor: "rgba(212, 168, 67, 0.12)" }]}>
+              <CreditCard size={20} color="#D4A843" />
             </View>
             <View style={{ flex: 1 }}>
               <Text style={styles.cardTitle}>Budget Alerts</Text>
@@ -525,7 +525,7 @@ const styles = StyleSheet.create({
     color: "rgba(240, 237, 230, 0.25)",
   },
   themeChipTextActive: {
-    color: "#A07EC8",
+    color: "#7AADCE",
     fontFamily: "Geist-SemiBold",
   },
 

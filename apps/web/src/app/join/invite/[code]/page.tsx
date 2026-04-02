@@ -187,6 +187,17 @@ export default function InviteLandingPage() {
             You&apos;ll create your own account and set your preferences. Takes 2 minutes.
           </p>
 
+          {/* Existing-user sign-in path */}
+          <p className="text-warm-white/40 text-sm">
+            Already have a Kin account?{" "}
+            <Link
+              href={`/signin?invite=${code}`}
+              className="text-primary hover:underline"
+            >
+              Sign in →
+            </Link>
+          </p>
+
           {/* Footer links */}
           <div className="flex justify-center gap-4 mt-4">
             <Link href="/privacy" className="text-warm-white/20 text-xs hover:text-warm-white/40 transition-colors">Privacy</Link>
