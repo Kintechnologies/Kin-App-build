@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, Suspense } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -189,7 +189,7 @@ function WelcomeModal({ firstName, trialEnd, onDismiss }: WelcomeModalProps) {
 
 // ── Dashboard Page ────────────────────────────────────────────────────────────
 
-export default function DashboardPage() {
+function DashboardContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [firstName, setFirstName] = useState<string | null>(null);
@@ -339,5 +339,13 @@ export default function DashboardPage() {
         </motion.div>
       </div>
     </>
+  );
+}
+
+export default function DashboardPage() {
+  return (
+    <Suspense>
+      <DashboardContent />
+    </Suspense>
   );
 }
