@@ -487,7 +487,7 @@ export default function MealsPage() {
     setDismissedMeals((prev) => {
       const next = new Set(prev);
       next.add(id);
-      sessionStorage.setItem("dismissedMeals", JSON.stringify([...next]));
+      sessionStorage.setItem("dismissedMeals", JSON.stringify(Array.from(next)));
       return next;
     });
     setSelectedMeals((prev) => {

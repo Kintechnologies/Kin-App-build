@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import localFont from "next/font/local";
 import { Instrument_Serif } from "next/font/google";
 import ThemeProvider from "@/components/ThemeProvider";
@@ -27,6 +27,12 @@ export const metadata: Metadata = {
   title: "Kin — Family AI",
   description:
     "Your AI-powered family operating system. Meal planning, budgets, calendars, and more.",
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
 };
 
 export default function RootLayout({

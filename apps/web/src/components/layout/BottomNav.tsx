@@ -22,10 +22,15 @@ export default function BottomNav() {
   const pathname = usePathname();
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 px-4 pb-3">
+    <nav
+      className="fixed bottom-0 left-0 right-0 z-50 px-4 pb-3"
+      style={{ paddingBottom: "calc(0.75rem + env(safe-area-inset-bottom, 0px))" }}
+    >
       <div className="flex items-center justify-around h-[60px] px-3 max-w-lg mx-auto glass-strong rounded-[20px] shadow-xl shadow-black/40">
         {navItems.map(({ href, label, icon: Icon }) => {
-          const isActive = pathname === href || (href !== "/dashboard" && pathname.startsWith(href));
+          const isActive =
+            pathname !== null &&
+            (pathname === href || (href !== "/dashboard" && pathname.startsWith(href)));
           return (
             <Link
               key={href}

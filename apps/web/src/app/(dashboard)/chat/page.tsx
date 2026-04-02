@@ -476,7 +476,29 @@ export default function ChatPage() {
   );
 }
 
-// TypeScript declarations for Web Speech API
+// TypeScript declarations for Web Speech API (not yet in TypeScript's DOM lib)
+interface SpeechRecognitionEvent extends Event {
+  readonly results: SpeechRecognitionResultList;
+  readonly resultIndex: number;
+}
+
+interface SpeechRecognition extends EventTarget {
+  continuous: boolean;
+  interimResults: boolean;
+  lang: string;
+  onresult: ((event: SpeechRecognitionEvent) => void) | null;
+  onerror: ((event: Event) => void) | null;
+  onend: (() => void) | null;
+  start(): void;
+  stop(): void;
+  abort(): void;
+}
+
+declare const SpeechRecognition: {
+  prototype: SpeechRecognition;
+  new (): SpeechRecognition;
+};
+
 declare global {
   interface Window {
     SpeechRecognition: typeof SpeechRecognition;

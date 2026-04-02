@@ -158,13 +158,12 @@ export async function POST(request: Request) {
 
       // Check if Claude wants to use a tool
       const toolUseBlock = response.content.find(
-        (block): block is Anthropic.ContentBlockParam & { type: "tool_use"; id: string; name: string; input: { query: string } } =>
-          block.type === "tool_use"
+        (block): block is Anthropic.ToolUseBlock => block.type === "tool_use"
       );
 
       if (toolUseBlock) {
         // Perform the search
-        const searchResults = await performWebSearch(toolUseBlock.input.query);
+        const searchResults = await performWebSearch((toolUseBlock.input as { query: string }).query);
 
         // Send results back to Claude
         messages.push({

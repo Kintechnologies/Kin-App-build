@@ -13,7 +13,7 @@ function getAdminSupabase() {
 
 function getStripe() {
   return new Stripe(process.env.STRIPE_SECRET_KEY!, {
-    apiVersion: "2025-03-31.basil",
+    apiVersion: "2026-02-25.clover",
   });
 }
 
@@ -95,7 +95,9 @@ export async function POST(request: Request) {
 
       case "invoice.payment_succeeded": {
         const invoice = event.data.object as Stripe.Invoice;
-        const subscriptionId = invoice.subscription as string;
+        // In Stripe API 2026-02-25.clover, subscription is nested under parent.subscription_details
+        const sub = invoice.parent?.subscription_details?.subscription;
+        const subscriptionId = typeof sub === "string" ? sub : (sub as Stripe.Subscription | undefined)?.id ?? null;
 
         if (subscriptionId) {
           const stripe = getStripe();
