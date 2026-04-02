@@ -5,7 +5,7 @@ import {
   registerGoogleWebhook,
 } from "@/lib/calendar/google";
 import { syncCalendarForConnection } from "@/lib/calendar/sync";
-import { v4 as uuidv4 } from "crypto";
+import { randomUUID } from "crypto";
 
 // GET /api/calendar/google/callback — OAuth callback
 export async function GET(request: Request) {
@@ -56,7 +56,7 @@ export async function GET(request: Request) {
 
     // Register webhook for push notifications
     try {
-      const channelId = uuidv4();
+      const channelId = randomUUID();
       const webhookUrl = `${process.env.NEXT_PUBLIC_APP_URL}/api/calendar/google/webhook`;
       const webhook = await registerGoogleWebhook(
         tokens.access_token!,

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { randomUUID } from "crypto";
 
 interface MealPlanRequest {
   familyName: string;
@@ -93,7 +94,7 @@ function generateMealOptions(data: MealPlanRequest) {
   const byType = (type: string) =>
     filtered
       .filter((m) => m.meal_type === type)
-      .map((m) => ({ ...m, id: crypto.randomUUID() }));
+      .map((m) => ({ ...m, id: randomUUID() }));
 
   const breakfastOptions = byType("breakfast");
   const lunchOptions = byType("lunch");
