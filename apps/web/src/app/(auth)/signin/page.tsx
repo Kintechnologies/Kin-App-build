@@ -1,14 +1,18 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
 
-export default function SignInPage() {
+// Inner component uses useSearchParams — must be wrapped in Suspense by the page.
+function SignInForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const inviteCode = searchParams.get("invite");
+
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -31,7 +35,23 @@ export default function SignInPage() {
       return;
     }
 
-    // Check if onboarding is completed
+    // If arriving via a partner invite, accept it now that the user is signed in
+    if (inviteCode) {
+      try {
+        const res = await fetch(`/api/invite/${inviteCode}/accept`, {
+          method: "POST",
+        });
+        if (res.ok) {
+          router.push("/dashboard");
+          return;
+        }
+        // If accept fails, fall through to normal routing below
+      } catch {
+        // Non-fatal — proceed to normal routing
+      }
+    }
+
+    // Normal post-signin routing
     const { data: profile } = await supabase
       .from("profiles")
       .select("onboarding_completed")
@@ -45,14 +65,24 @@ export default function SignInPage() {
   }
 
   return (
-    <main className="min-h-screen flex flex-col items-center justify-center px-6">
-      <Link href="/" className="font-serif italic text-4xl text-primary mb-8">
-        Kin
-      </Link>
-      <h1 className="font-serif italic text-3xl text-warm-white mb-2">
-        Welcome back
-      </h1>
-      <p className="text-warm-white/60 mb-8">Sign in to your Kin account</p>
+    <>
+      {inviteCode ? (
+        <>
+          <h1 className="font-serif italic text-3xl text-warm-white mb-2">
+            Join your household
+          </h1>
+          <p className="text-warm-white/60 mb-8 text-center max-w-sm">
+            Sign in to connect with your partner on Kin
+          </p>
+        </>
+      ) : (
+        <>
+          <h1 className="font-serif italic text-3xl text-warm-white mb-2">
+            Welcome back
+          </h1>
+          <p className="text-warm-white/60 mb-8">Sign in to your Kin account</p>
+        </>
+      )}
 
       <form
         onSubmit={handleSubmit}
@@ -80,7 +110,7 @@ export default function SignInPage() {
         )}
 
         <Button type="submit" className="w-full" size="lg" disabled={loading}>
-          {loading ? "Signing in..." : "Sign In"}
+          {loading ? "Signing in…" : inviteCode ? "Sign In & Join" : "Sign In"}
         </Button>
 
         <div className="flex justify-between text-sm">
@@ -90,11 +120,27 @@ export default function SignInPage() {
           >
             Forgot password?
           </Link>
-          <Link href="/signup" className="text-primary hover:underline">
+          <Link
+            href={inviteCode ? `/signup?invite=${inviteCode}` : "/signup"}
+            className="text-primary hover:underline"
+          >
             Create account
           </Link>
         </div>
       </form>
+    </>
+  );
+}
+
+export default function SignInPage() {
+  return (
+    <main className="min-h-screen flex flex-col items-center justify-center px-6">
+      <Link href="/" className="font-serif italic text-4xl text-primary mb-8">
+        Kin
+      </Link>
+      <Suspense fallback={null}>
+        <SignInForm />
+      </Suspense>
     </main>
   );
 }

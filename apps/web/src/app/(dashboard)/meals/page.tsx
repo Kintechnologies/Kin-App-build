@@ -308,7 +308,7 @@ function MealCategorySection({
               onClick={onRefresh}
               disabled={refreshing}
               className={`w-8 h-8 rounded-full flex items-center justify-center transition-all hover:scale-110 active:scale-90 ${config.accentBg}`}
-              title="Surprise me — fresh picks"
+              title="Shuffle options"
             >
               <RefreshCw size={14} className={`${config.accent} ${refreshing ? "animate-spin" : ""}`} />
             </button>
@@ -547,7 +547,7 @@ export default function MealsPage() {
     if (!mealOptions) return;
     setRefreshingCategory(mealType);
 
-    // Simulate a refresh — shuffle the options for this category
+    // Shuffle existing options for this category (local re-order, not a new AI call)
     setTimeout(() => {
       const key = `${mealType}_options` as keyof MealOptions;
       const current = mealOptions[key] as MealOption[];

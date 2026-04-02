@@ -447,7 +447,7 @@ export default function ChatPage() {
             disabled={loading}
             className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-all disabled:opacity-30 ${
               isListening
-                ? "bg-rose text-white shadow-lg shadow-rose/25 scale-110 animate-pulse"
+                ? "bg-rose text-background shadow-lg shadow-rose/25 scale-110 animate-pulse"
                 : "bg-surface-raised text-warm-white/40 hover:text-warm-white/70 hover:scale-105 active:scale-95"
             }`}
             title={isListening ? "Stop listening" : "Voice input"}

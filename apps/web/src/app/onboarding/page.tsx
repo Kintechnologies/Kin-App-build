@@ -120,9 +120,12 @@ export default function OnboardingPage() {
       if (response.ok) {
         const { mealOptions } = await response.json();
         sessionStorage.setItem("mealOptions", JSON.stringify(mealOptions));
+      } else {
+        // HTTP error (401, 500, etc.) — surface the amber banner to the user
+        setMealGenFailed(true);
       }
-    } catch (err) {
-      console.error("Failed to generate meal options:", err);
+    } catch {
+      // Network exception — surface the amber banner to the user
       setMealGenFailed(true);
     }
 
@@ -210,14 +213,18 @@ export default function OnboardingPage() {
         Let&apos;s get to know your family
       </h1>
       <p className="text-warm-white/50 text-sm mb-8">
-        {step} of {TOTAL_STEPS} — takes about 3 minutes
+        {/* Single-parent families skip step 3 — show a sequential counter so they
+            don't see "4 of 8" as their third question. */}
+        {!showPartnerStep && step > 3 ? step - 1 : step} of {showPartnerStep ? TOTAL_STEPS : TOTAL_STEPS - 1} — takes about 3 minutes
       </p>
 
       <div className="w-full max-w-lg bg-surface rounded-xl p-6 border border-warm-white/10">
         <div className="w-full bg-background rounded-full h-1.5 mb-8">
           <div
             className="bg-primary h-1.5 rounded-full transition-all duration-500"
-            style={{ width: `${(step / TOTAL_STEPS) * 100}%` }}
+            style={{
+              width: `${((!showPartnerStep && step > 3 ? step - 1 : step) / (showPartnerStep ? TOTAL_STEPS : TOTAL_STEPS - 1)) * 100}%`,
+            }}
           />
         </div>
 

@@ -198,9 +198,9 @@ export async function POST(request: Request) {
         meal_options: mealOptions,
         week_start: weekStartStr,
       });
-    } catch (dbErr) {
-      // Non-fatal — log and continue. User still gets their meal plan in-session.
-      console.error("Failed to persist meal plan to DB:", dbErr);
+    } catch {
+      // Non-fatal — silently continue. User still gets their meal plan in-session.
+      // TODO: route to structured error logging (Sentry) before GA.
     }
 
     return NextResponse.json({ mealOptions });
