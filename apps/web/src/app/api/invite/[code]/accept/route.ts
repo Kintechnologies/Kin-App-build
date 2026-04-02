@@ -65,6 +65,14 @@ export async function POST(
       return NextResponse.json({ error: "You cannot accept your own invite" }, { status: 400 });
     }
 
+    // Guard: only the intended recipient can accept this invite (prevents leaked-code abuse)
+    if (user.email?.toLowerCase() !== invite.invitee_email.toLowerCase()) {
+      return NextResponse.json(
+        { error: "This invite was not sent to your email address" },
+        { status: 403 }
+      );
+    }
+
     // Guard: partner is already in a household
     const { data: partnerProfile } = await adminClient
       .from("profiles")
