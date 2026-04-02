@@ -23,6 +23,7 @@ export default function OnboardingPage() {
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [generatingMeals, setGeneratingMeals] = useState(false);
+  const [mealGenFailed, setMealGenFailed] = useState(false);
 
   // Step 1
   const [familyName, setFamilyName] = useState("");
@@ -122,6 +123,7 @@ export default function OnboardingPage() {
       }
     } catch (err) {
       console.error("Failed to generate meal options:", err);
+      setMealGenFailed(true);
     }
 
     await supabase
@@ -173,23 +175,30 @@ export default function OnboardingPage() {
               ))}
             </div>
           </div>
-          <div className="space-y-3 text-sm text-warm-white/40">
-            {[
-              "Matching meals to your nutrition goals...",
-              "Building options your family will love...",
-              ...(hasKids ? ["Adding kid-friendly picks..."] : []),
-              "You'll pick your favorites next",
-            ].map((text, i) => (
-              <motion.p
-                key={text}
-                initial={{ opacity: 0, x: -10 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ duration: 0.4, delay: 0.5 + i * 0.6 }}
-              >
-                {text}
-              </motion.p>
-            ))}
-          </div>
+          {mealGenFailed ? (
+            <div className="mt-2 px-5 py-3 rounded-2xl bg-amber/10 border border-amber/20 text-amber text-sm text-center">
+              We had trouble generating your meal plan — no worries. You can get it from the{" "}
+              <span className="font-semibold">Meals</span> tab anytime after setup.
+            </div>
+          ) : (
+            <div className="space-y-3 text-sm text-warm-white/40">
+              {[
+                "Matching meals to your nutrition goals...",
+                "Building options your family will love...",
+                ...(hasKids ? ["Adding kid-friendly picks..."] : []),
+                "You'll pick your favorites next",
+              ].map((text, i) => (
+                <motion.p
+                  key={text}
+                  initial={{ opacity: 0, x: -10 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ duration: 0.4, delay: 0.5 + i * 0.6 }}
+                >
+                  {text}
+                </motion.p>
+              ))}
+            </div>
+          )}
         </motion.div>
       </main>
     );

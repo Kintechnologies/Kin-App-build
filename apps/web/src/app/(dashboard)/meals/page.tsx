@@ -418,6 +418,14 @@ function GrocerySection({
   );
 }
 
+function getDefaultSelection(options: MealOptions): Set<string> {
+  const preSelected = new Set<string>();
+  [options.breakfast_options, options.lunch_options, options.dinner_options, options.snack_options].forEach((cat) => {
+    cat.slice(0, 2).forEach((m) => preSelected.add(m.id));
+  });
+  return preSelected;
+}
+
 export default function MealsPage() {
   const [mealOptions, setMealOptions] = useState<MealOptions | null>(null);
   const [selectedMeals, setSelectedMeals] = useState<Set<string>>(new Set());
@@ -427,6 +435,8 @@ export default function MealsPage() {
   const [refreshingCategory, setRefreshingCategory] = useState<string | null>(null);
   const [recipeModal, setRecipeModal] = useState<MealOption | null>(null);
   const [ratings, setRatings] = useState<Record<string, number>>({});
+  const [loadingFromDb, setLoadingFromDb] = useState(false);
+  const [dbError, setDbError] = useState(false);
 
   // Load ratings from Supabase
   useEffect(() => {
@@ -459,19 +469,55 @@ export default function MealsPage() {
     }
   }, []);
 
+  // Load meal options: sessionStorage fast path, then DB fallback (#26)
   useEffect(() => {
-    const stored = sessionStorage.getItem("mealOptions");
-    if (stored) {
-      const options: MealOptions = JSON.parse(stored);
-      setMealOptions(options);
-      const preSelected = new Set<string>();
-      [options.breakfast_options, options.lunch_options, options.dinner_options, options.snack_options].forEach((cat) => {
-        cat.slice(0, 2).forEach((m) => preSelected.add(m.id));
-      });
-      setSelectedMeals(preSelected);
+    async function loadMealOptions() {
+      // 1. Fast path — sessionStorage (same session, no DB round-trip)
+      const stored = sessionStorage.getItem("mealOptions");
+      if (stored) {
+        try {
+          const options: MealOptions = JSON.parse(stored);
+          setMealOptions(options);
+          setSelectedMeals(getDefaultSelection(options));
+          const dismissed = sessionStorage.getItem("dismissedMeals");
+          if (dismissed) setDismissedMeals(new Set(JSON.parse(dismissed)));
+          return;
+        } catch {
+          // Corrupted storage — fall through to DB
+          sessionStorage.removeItem("mealOptions");
+        }
+      }
+
+      // 2. DB fallback — fetch most recent meal plan
+      setLoadingFromDb(true);
+      try {
+        const supabase = createClient();
+        const { data: plan, error } = await supabase
+          .from("meal_plans")
+          .select("meal_options")
+          .order("generated_at", { ascending: false })
+          .limit(1)
+          .single();
+
+        if (error || !plan?.meal_options) {
+          // No plan in DB — show empty state with CTA
+          setLoadingFromDb(false);
+          return;
+        }
+
+        const options = plan.meal_options as MealOptions;
+        setMealOptions(options);
+        setSelectedMeals(getDefaultSelection(options));
+        // Re-hydrate sessionStorage for subsequent navigations
+        sessionStorage.setItem("mealOptions", JSON.stringify(options));
+      } catch {
+        setDbError(true);
+      } finally {
+        setLoadingFromDb(false);
+      }
     }
-    const dismissed = sessionStorage.getItem("dismissedMeals");
-    if (dismissed) setDismissedMeals(new Set(JSON.parse(dismissed)));
+
+    loadMealOptions();
   }, []);
 
   function toggleMeal(id: string) {
@@ -516,15 +562,61 @@ export default function MealsPage() {
   }
 
   if (!mealOptions) {
+    // DB loading state — show subtle pulse animation
+    if (loadingFromDb) {
+      return (
+        <div>
+          <h1 className="font-serif italic text-2xl text-primary mb-1">Meal Plan</h1>
+          <p className="text-warm-white/60 text-sm mb-8">Your personalized weekly meals</p>
+          <div className="bg-surface-raised rounded-2xl p-10 flex flex-col items-center gap-4">
+            <div className="flex gap-2">
+              {[0, 1, 2].map((i) => (
+                <div
+                  key={i}
+                  className="w-2.5 h-2.5 rounded-full bg-primary/50 animate-pulse"
+                  style={{ animationDelay: `${i * 150}ms` }}
+                />
+              ))}
+            </div>
+            <p className="text-warm-white/40 text-sm">Fetching your meal plan...</p>
+          </div>
+        </div>
+      );
+    }
+
+    // DB error state
+    if (dbError) {
+      return (
+        <div>
+          <h1 className="font-serif italic text-2xl text-primary mb-1">Meal Plan</h1>
+          <p className="text-warm-white/60 text-sm mb-8">Your personalized weekly meals</p>
+          <div className="bg-surface-raised rounded-2xl p-8 text-center">
+            <Sparkles size={32} className="text-primary/30 mx-auto mb-4" />
+            <p className="text-warm-white/40 text-sm mb-4">
+              Couldn&apos;t load your meal plan — try refreshing.
+            </p>
+          </div>
+        </div>
+      );
+    }
+
+    // True empty state — no plan exists yet
     return (
       <div>
         <h1 className="font-serif italic text-2xl text-primary mb-1">Meal Plan</h1>
         <p className="text-warm-white/60 text-sm mb-8">Your personalized weekly meals</p>
         <div className="bg-surface-raised rounded-2xl p-8 text-center">
           <Sparkles size={32} className="text-primary/30 mx-auto mb-4" />
-          <p className="text-warm-white/40 text-sm">
-            No meal options yet. Complete onboarding to get your personalized picks.
+          <p className="text-warm-white/40 text-sm mb-6">
+            No meal plan yet. Complete setup to get your personalized picks.
           </p>
+          <a
+            href="/onboarding"
+            className="inline-flex items-center gap-2 px-5 py-3 rounded-2xl bg-primary text-background text-sm font-semibold hover:bg-primary/90 transition-all hover:scale-105 active:scale-95"
+          >
+            <Sparkles size={14} />
+            Get your meal plan
+          </a>
         </div>
       </div>
     );

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import {
   View,
   Text,
@@ -8,29 +8,55 @@ import {
   TextInput,
   Animated,
   ActivityIndicator,
+  Modal,
+  KeyboardAvoidingView,
+  Platform,
+  TouchableWithoutFeedback,
+  Keyboard,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import * as Haptics from "expo-haptics";
 import {
   Wallet,
-  DollarSign,
-  TrendingUp,
   PiggyBank,
   ShoppingBag,
   Home,
   Plus,
   ChevronRight,
-  Check,
+  X,
+  AlertTriangle,
 } from "lucide-react-native";
 import { supabase } from "../../lib/supabase";
+import { BUDGET_CATEGORIES, type BudgetBucket } from "@kin/shared";
 
 type BudgetView = "setup" | "dashboard";
 
-const CATEGORIES = {
-  needs: { label: "Needs", percent: 50, color: "#7CB87A", icon: Home },
-  wants: { label: "Wants", percent: 30, color: "#D4A843", icon: ShoppingBag },
-  savings: { label: "Savings", percent: 20, color: "#7AADCE", icon: PiggyBank },
+// Brand-compliant category colors
+const BUCKET_COLORS: Record<BudgetBucket, string> = {
+  needs: "#7CB87A",   // primary green
+  wants: "#D4A843",   // amber
+  savings: "#7AADCE", // blue (existing, brand-neutral)
 };
+
+const BUCKET_CONFIG = {
+  needs: { label: "Needs", percent: 50, color: BUCKET_COLORS.needs, icon: Home },
+  wants: { label: "Wants", percent: 30, color: BUCKET_COLORS.wants, icon: ShoppingBag },
+  savings: { label: "Savings", percent: 20, color: BUCKET_COLORS.savings, icon: PiggyBank },
+} as const;
+
+interface Transaction {
+  id: string;
+  category: string;
+  bucket: BudgetBucket;
+  amount: number;
+  description: string | null;
+  date: string;
+}
+
+function getMonthStart(): string {
+  const now = new Date();
+  return new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split("T")[0];
+}
 
 export default function Budget() {
   const [view, setView] = useState<BudgetView>("setup");
@@ -38,7 +64,25 @@ export default function Budget() {
   const [monthlyIncome, setMonthlyIncome] = useState("");
   const [incomeType, setIncomeType] = useState<"monthly" | "annual">("monthly");
   const [savedIncome, setSavedIncome] = useState(0);
+  const [bucketSpent, setBucketSpent] = useState<Record<BudgetBucket, number>>({
+    needs: 0,
+    wants: 0,
+    savings: 0,
+  });
+  const [recentTransactions, setRecentTransactions] = useState<Transaction[]>([]);
+  const [transactionsLoading, setTransactionsLoading] = useState(false);
+
+  // Add Transaction sheet
+  const [sheetVisible, setSheetVisible] = useState(false);
+  const [txAmount, setTxAmount] = useState("");
+  const [txCategory, setTxCategory] = useState<string | null>(null);
+  const [txDescription, setTxDescription] = useState("");
+  const [txDate, setTxDate] = useState(new Date().toISOString().split("T")[0]);
+  const [txSaving, setTxSaving] = useState(false);
+  const [txError, setTxError] = useState<string | null>(null);
+
   const fadeAnim = useRef(new Animated.Value(0)).current;
+  const sheetAnim = useRef(new Animated.Value(400)).current;
 
   useEffect(() => {
     checkIncome();
@@ -48,6 +92,23 @@ export default function Budget() {
       useNativeDriver: true,
     }).start();
   }, []);
+
+  useEffect(() => {
+    if (sheetVisible) {
+      Animated.spring(sheetAnim, {
+        toValue: 0,
+        tension: 65,
+        friction: 11,
+        useNativeDriver: true,
+      }).start();
+    } else {
+      Animated.timing(sheetAnim, {
+        toValue: 400,
+        duration: 250,
+        useNativeDriver: true,
+      }).start();
+    }
+  }, [sheetVisible]);
 
   async function checkIncome() {
     const { data: { user } } = await supabase.auth.getUser();
@@ -62,9 +123,48 @@ export default function Budget() {
     if (data && data.monthly_income > 0) {
       setSavedIncome(data.monthly_income);
       setView("dashboard");
+      fetchTransactions(user.id);
     }
     setLoading(false);
   }
+
+  const fetchTransactions = useCallback(async (userId: string) => {
+    setTransactionsLoading(true);
+    try {
+      const monthStart = getMonthStart();
+
+      // Bucket totals
+      const { data: bucketData } = await supabase
+        .from("transactions")
+        .select("bucket, amount")
+        .eq("profile_id", userId)
+        .gte("date", monthStart);
+
+      if (bucketData) {
+        const totals: Record<BudgetBucket, number> = { needs: 0, wants: 0, savings: 0 };
+        bucketData.forEach((t) => {
+          const b = t.bucket as BudgetBucket;
+          if (totals[b] !== undefined) totals[b] += Number(t.amount);
+        });
+        setBucketSpent(totals);
+      }
+
+      // Recent transactions (last 10 this month)
+      const { data: recent } = await supabase
+        .from("transactions")
+        .select("id, category, bucket, amount, description, date")
+        .eq("profile_id", userId)
+        .gte("date", monthStart)
+        .order("date", { ascending: false })
+        .limit(10);
+
+      if (recent) setRecentTransactions(recent as Transaction[]);
+    } catch {
+      // Non-fatal — dashboard still shows with $0
+    } finally {
+      setTransactionsLoading(false);
+    }
+  }, []);
 
   async function saveIncome() {
     const raw = parseFloat(monthlyIncome.replace(/,/g, ""));
@@ -83,37 +183,112 @@ export default function Budget() {
 
     setSavedIncome(monthly);
     setView("dashboard");
+    fetchTransactions(user.id);
+  }
+
+  function openAddSheet() {
+    setTxAmount("");
+    setTxCategory(null);
+    setTxDescription("");
+    setTxDate(new Date().toISOString().split("T")[0]);
+    setTxError(null);
+    setTxSaving(false);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setSheetVisible(true);
+  }
+
+  function closeSheet() {
+    Keyboard.dismiss();
+    setSheetVisible(false);
+  }
+
+  async function saveTransaction() {
+    const amount = parseFloat(txAmount.replace(/,/g, ""));
+    if (isNaN(amount) || amount <= 0 || !txCategory) return;
+
+    const selectedCat = BUDGET_CATEGORIES.find((c) => c.label === txCategory);
+    if (!selectedCat) return;
+
+    setTxSaving(true);
+    setTxError(null);
+
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Not authenticated");
+
+      const { error } = await supabase.from("transactions").insert({
+        profile_id: user.id,
+        amount,
+        category: txCategory,
+        bucket: selectedCat.bucket,
+        description: txDescription.trim() || null,
+        date: txDate,
+      });
+
+      if (error) throw error;
+
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      closeSheet();
+
+      // Optimistic update on bucket totals
+      const bucket = selectedCat.bucket as BudgetBucket;
+      setBucketSpent((prev) => ({ ...prev, [bucket]: prev[bucket] + amount }));
+
+      // Prepend to recent list
+      const newTx: Transaction = {
+        id: Math.random().toString(36).slice(2),
+        category: txCategory,
+        bucket: selectedCat.bucket as BudgetBucket,
+        amount,
+        description: txDescription.trim() || null,
+        date: txDate,
+      };
+      setRecentTransactions((prev) => [newTx, ...prev].slice(0, 10));
+    } catch {
+      setTxError("Couldn't save — try again");
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+    } finally {
+      setTxSaving(false);
+    }
   }
 
   function formatCurrency(amount: number) {
     return "$" + amount.toLocaleString("en-US", { maximumFractionDigits: 0 });
   }
 
+  function formatDate(dateStr: string) {
+    const d = new Date(dateStr + "T12:00:00"); // noon to avoid UTC offset issues
+    return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  }
+
   if (loading) {
     return (
       <SafeAreaView style={styles.safeArea}>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator color="#A07EC8" size="large" />
+          <ActivityIndicator color="#7CB87A" size="large" />
         </View>
       </SafeAreaView>
     );
   }
 
-  // Income setup
+  // ─── Income Setup ───────────────────────────────────────────────────────────
   if (view === "setup") {
     return (
       <SafeAreaView style={styles.safeArea}>
-        <ScrollView style={styles.container} contentContainerStyle={styles.setupContent} showsVerticalScrollIndicator={false}>
+        <ScrollView
+          style={styles.container}
+          contentContainerStyle={styles.setupContent}
+          showsVerticalScrollIndicator={false}
+        >
           <Animated.View style={[styles.setupCenter, { opacity: fadeAnim }]}>
             <View style={styles.setupIconWrap}>
-              <Wallet size={28} color="#A07EC8" />
+              <Wallet size={28} color="#7CB87A" />
             </View>
             <Text style={styles.setupTitle}>Budget Tracker</Text>
             <Text style={styles.setupSubtitle}>
               The 50/30/20 rule made simple. Kin tracks your spending across needs, wants, and savings — and alerts you before you go over.
             </Text>
 
-            {/* Value props */}
             <View style={styles.valueProps}>
               {[
                 { emoji: "📊", text: "Automatic 50/30/20 budget breakdown" },
@@ -175,7 +350,8 @@ export default function Budget() {
             {monthlyIncome && parseFloat(monthlyIncome.replace(/,/g, "")) > 0 && (
               <View style={styles.previewCard}>
                 <Text style={styles.previewTitle}>Your 50/30/20 Breakdown</Text>
-                {Object.entries(CATEGORIES).map(([key, cat]) => {
+                {(["needs", "wants", "savings"] as const).map((key) => {
+                  const cat = BUCKET_CONFIG[key];
                   const raw = parseFloat(monthlyIncome.replace(/,/g, ""));
                   const monthly = incomeType === "annual" ? raw / 12 : raw;
                   const amount = (monthly * cat.percent) / 100;
@@ -209,28 +385,40 @@ export default function Budget() {
     );
   }
 
-  // Dashboard view
-  const needs = (savedIncome * 50) / 100;
-  const wants = (savedIncome * 30) / 100;
-  const savings = (savedIncome * 20) / 100;
+  // ─── Dashboard ──────────────────────────────────────────────────────────────
+  const budgetAllocs = {
+    needs: (savedIncome * 50) / 100,
+    wants: (savedIncome * 30) / 100,
+    savings: (savedIncome * 20) / 100,
+  };
+
+  const txAmountNum = parseFloat(txAmount.replace(/,/g, ""));
+  const canSave = !isNaN(txAmountNum) && txAmountNum > 0 && txCategory !== null;
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <ScrollView style={styles.container} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        style={styles.container}
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+      >
         <Text style={styles.pageTitle}>Budget</Text>
         <Text style={styles.incomeLabel}>
           Monthly income: {formatCurrency(savedIncome)}
         </Text>
 
         {/* 50/30/20 Cards */}
-        {[
-          { ...CATEGORIES.needs, budget: needs, spent: 0 },
-          { ...CATEGORIES.wants, budget: wants, spent: 0 },
-          { ...CATEGORIES.savings, budget: savings, spent: 0 },
-        ].map((cat) => {
-          const pct = cat.budget > 0 ? (cat.spent / cat.budget) * 100 : 0;
+        {(["needs", "wants", "savings"] as const).map((key) => {
+          const cat = BUCKET_CONFIG[key];
+          const budget = budgetAllocs[key];
+          const spent = bucketSpent[key];
+          const pct = budget > 0 ? (spent / budget) * 100 : 0;
+          const isOver = pct > 100;
+          const isNear = pct >= 85 && !isOver;
+          const barColor = isOver ? "#E57373" : isNear ? "#D4A843" : cat.color;
+
           return (
-            <View key={cat.label} style={styles.budgetCard}>
+            <View key={key} style={styles.budgetCard}>
               <View style={styles.budgetCardHeader}>
                 <View style={[styles.budgetIconWrap, { backgroundColor: `${cat.color}15` }]}>
                   <cat.icon size={18} color={cat.color} />
@@ -239,13 +427,21 @@ export default function Budget() {
                   <Text style={styles.budgetCardTitle}>{cat.label}</Text>
                   <Text style={styles.budgetCardPercent}>{cat.percent}% of income</Text>
                 </View>
-                <View style={{ alignItems: "flex-end" }}>
-                  <Text style={[styles.budgetAmount, { color: cat.color }]}>
-                    {formatCurrency(cat.budget)}
-                  </Text>
-                  <Text style={styles.budgetSpent}>
-                    {formatCurrency(cat.spent)} spent
-                  </Text>
+                <View style={{ alignItems: "flex-end", flexDirection: "row", gap: 8, alignSelf: "center" }}>
+                  {(isOver || isNear) && (
+                    <AlertTriangle
+                      size={15}
+                      color={isOver ? "#E57373" : "#D4A843"}
+                    />
+                  )}
+                  <View style={{ alignItems: "flex-end" }}>
+                    <Text style={[styles.budgetAmount, { color: cat.color }]}>
+                      {formatCurrency(budget)}
+                    </Text>
+                    <Text style={[styles.budgetSpent, isOver && styles.budgetSpentOver]}>
+                      {formatCurrency(spent)} spent
+                    </Text>
+                  </View>
                 </View>
               </View>
 
@@ -255,8 +451,8 @@ export default function Budget() {
                   style={[
                     styles.progressBarFill,
                     {
-                      width: `${Math.min(pct, 100)}%`,
-                      backgroundColor: cat.color,
+                      width: `${Math.min(pct, 100)}%` as `${number}%`,
+                      backgroundColor: barColor,
                     },
                   ]}
                 />
@@ -271,12 +467,166 @@ export default function Budget() {
             styles.addTransactionButton,
             pressed && { opacity: 0.85, transform: [{ scale: 0.98 }] },
           ]}
-          onPress={() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)}
+          onPress={openAddSheet}
         >
-          <Plus size={18} color="#A07EC8" />
+          <Plus size={18} color="#7CB87A" />
           <Text style={styles.addTransactionText}>Add Transaction</Text>
         </Pressable>
+
+        {/* Recent transactions */}
+        <View style={styles.recentSection}>
+          <Text style={styles.recentTitle}>This Month</Text>
+          {transactionsLoading ? (
+            <ActivityIndicator color="#7CB87A" style={{ marginTop: 16 }} />
+          ) : recentTransactions.length === 0 ? (
+            <View style={styles.emptyTransactions}>
+              <Text style={styles.emptyTransactionsText}>
+                No transactions yet — tap + to log your first
+              </Text>
+            </View>
+          ) : (
+            recentTransactions.map((tx) => {
+              const bucketColor = BUCKET_COLORS[tx.bucket] ?? "#F0EDE6";
+              return (
+                <View key={tx.id} style={styles.txRow}>
+                  <View style={[styles.txDot, { backgroundColor: bucketColor }]} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.txCategory}>{tx.category}</Text>
+                    {tx.description ? (
+                      <Text style={styles.txDesc}>{tx.description}</Text>
+                    ) : null}
+                  </View>
+                  <View style={{ alignItems: "flex-end" }}>
+                    <Text style={[styles.txAmount, { color: bucketColor }]}>
+                      -{formatCurrency(tx.amount)}
+                    </Text>
+                    <Text style={styles.txDate}>{formatDate(tx.date)}</Text>
+                  </View>
+                </View>
+              );
+            })
+          )}
+        </View>
       </ScrollView>
+
+      {/* ─── Add Transaction Bottom Sheet ──────────────────────────────────── */}
+      <Modal
+        visible={sheetVisible}
+        transparent
+        animationType="none"
+        onRequestClose={closeSheet}
+        statusBarTranslucent
+      >
+        <TouchableWithoutFeedback onPress={closeSheet}>
+          <View style={styles.sheetOverlay} />
+        </TouchableWithoutFeedback>
+
+        <KeyboardAvoidingView
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          style={styles.sheetContainer}
+          pointerEvents="box-none"
+        >
+          <Animated.View
+            style={[styles.sheet, { transform: [{ translateY: sheetAnim }] }]}
+          >
+            {/* Drag handle */}
+            <View style={styles.sheetHandle} />
+
+            {/* Header */}
+            <View style={styles.sheetHeader}>
+              <Text style={styles.sheetTitle}>Add Transaction</Text>
+              <Pressable onPress={closeSheet} style={styles.sheetCloseBtn} hitSlop={12}>
+                <X size={18} color="rgba(240,237,230,0.4)" />
+              </Pressable>
+            </View>
+
+            {/* Amount input */}
+            <View style={styles.amountRow}>
+              <Text style={styles.amountDollar}>$</Text>
+              <TextInput
+                style={styles.amountInput}
+                value={txAmount}
+                onChangeText={setTxAmount}
+                placeholder="0"
+                placeholderTextColor="rgba(240,237,230,0.15)"
+                keyboardType="decimal-pad"
+                autoFocus
+                selectTextOnFocus
+              />
+            </View>
+
+            {/* Category picker */}
+            <Text style={styles.sheetLabel}>Category</Text>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              style={styles.categoryScroll}
+              contentContainerStyle={styles.categoryScrollContent}
+            >
+              {(["needs", "wants", "savings"] as const).map((bucket) => (
+                <View key={bucket} style={styles.bucketGroup}>
+                  <Text style={[styles.bucketGroupLabel, { color: BUCKET_COLORS[bucket] }]}>
+                    {BUCKET_CONFIG[bucket].label}
+                  </Text>
+                  {BUDGET_CATEGORIES.filter((c) => c.bucket === bucket).map((cat) => {
+                    const isSelected = txCategory === cat.label;
+                    return (
+                      <Pressable
+                        key={cat.label}
+                        style={[
+                          styles.categoryPill,
+                          isSelected && { backgroundColor: `${BUCKET_COLORS[bucket]}20`, borderColor: BUCKET_COLORS[bucket] },
+                        ]}
+                        onPress={() => {
+                          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                          setTxCategory(cat.label);
+                        }}
+                      >
+                        <Text
+                          style={[
+                            styles.categoryPillText,
+                            isSelected && { color: BUCKET_COLORS[bucket], fontFamily: "Geist-SemiBold" },
+                          ]}
+                        >
+                          {cat.label}
+                        </Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+              ))}
+            </ScrollView>
+
+            {/* Description (optional) */}
+            <Text style={styles.sheetLabel}>Description <Text style={styles.sheetLabelOptional}>(optional)</Text></Text>
+            <TextInput
+              style={styles.descInput}
+              value={txDescription}
+              onChangeText={setTxDescription}
+              placeholder="e.g. Whole Foods run"
+              placeholderTextColor="rgba(240,237,230,0.15)"
+              returnKeyType="done"
+              onSubmitEditing={Keyboard.dismiss}
+            />
+
+            {/* Error */}
+            {txError && (
+              <Text style={styles.txErrorText}>{txError}</Text>
+            )}
+
+            {/* Add button */}
+            <Pressable
+              style={[styles.addButton, !canSave && styles.addButtonDisabled]}
+              onPress={saveTransaction}
+              disabled={!canSave || txSaving}
+            >
+              <Text style={styles.addButtonText}>
+                {txSaving ? "Saving..." : "Add Transaction"}
+              </Text>
+            </Pressable>
+          </Animated.View>
+        </KeyboardAvoidingView>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -294,7 +644,7 @@ const styles = StyleSheet.create({
     width: 64,
     height: 64,
     borderRadius: 24,
-    backgroundColor: "rgba(160, 126, 200, 0.1)",
+    backgroundColor: "rgba(124, 184, 122, 0.12)",
     alignItems: "center",
     justifyContent: "center",
     marginBottom: 20,
@@ -349,7 +699,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
   },
   toggleOptionActive: {
-    backgroundColor: "rgba(160, 126, 200, 0.2)",
+    backgroundColor: "rgba(124, 184, 122, 0.18)",
   },
   toggleOptionText: {
     fontFamily: "Geist",
@@ -357,7 +707,7 @@ const styles = StyleSheet.create({
     color: "rgba(240, 237, 230, 0.35)",
   },
   toggleOptionTextActive: {
-    color: "#A07EC8",
+    color: "#7CB87A",
     fontFamily: "Geist-SemiBold",
   },
 
@@ -369,14 +719,14 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     paddingHorizontal: 20,
     borderWidth: 1,
-    borderColor: "rgba(160, 126, 200, 0.15)",
+    borderColor: "rgba(124, 184, 122, 0.15)",
     width: "100%",
     marginBottom: 8,
   },
   dollarSign: {
     fontFamily: "Geist-SemiBold",
     fontSize: 28,
-    color: "#A07EC8",
+    color: "rgba(240, 237, 230, 0.3)",
     marginRight: 4,
   },
   incomeInput: {
@@ -439,13 +789,13 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     gap: 6,
-    backgroundColor: "#A07EC8",
+    backgroundColor: "#7CB87A",
     borderRadius: 16,
     paddingVertical: 16,
     width: "100%",
-    shadowColor: "#A07EC8",
+    shadowColor: "#7CB87A",
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
+    shadowOpacity: 0.28,
     shadowRadius: 12,
   },
   saveButtonDisabled: {
@@ -461,7 +811,7 @@ const styles = StyleSheet.create({
   pageTitle: {
     fontFamily: "InstrumentSerif-Italic",
     fontSize: 28,
-    color: "#A07EC8",
+    color: "#F0EDE6",
     marginTop: 8,
     marginBottom: 4,
   },
@@ -515,6 +865,9 @@ const styles = StyleSheet.create({
     color: "rgba(240, 237, 230, 0.25)",
     marginTop: 1,
   },
+  budgetSpentOver: {
+    color: "#E57373",
+  },
 
   // Progress bar
   progressBarBg: {
@@ -539,12 +892,242 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     marginTop: 8,
     borderWidth: 1,
-    borderColor: "rgba(160, 126, 200, 0.12)",
+    borderColor: "rgba(124, 184, 122, 0.18)",
     borderStyle: "dashed",
   },
   addTransactionText: {
     fontFamily: "Geist-SemiBold",
     fontSize: 14,
-    color: "#A07EC8",
+    color: "#7CB87A",
+  },
+
+  // Recent transactions
+  recentSection: {
+    marginTop: 28,
+  },
+  recentTitle: {
+    fontFamily: "Geist-SemiBold",
+    fontSize: 13,
+    color: "rgba(240, 237, 230, 0.35)",
+    textTransform: "uppercase",
+    letterSpacing: 1,
+    marginBottom: 12,
+  },
+  emptyTransactions: {
+    backgroundColor: "#141810",
+    borderRadius: 16,
+    padding: 20,
+    alignItems: "center",
+  },
+  emptyTransactionsText: {
+    fontFamily: "Geist",
+    fontSize: 13,
+    color: "rgba(240, 237, 230, 0.3)",
+    textAlign: "center",
+  },
+  txRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    backgroundColor: "#141810",
+    borderRadius: 14,
+    padding: 14,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: "rgba(240, 237, 230, 0.04)",
+  },
+  txDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  txCategory: {
+    fontFamily: "Geist-SemiBold",
+    fontSize: 13,
+    color: "#F0EDE6",
+  },
+  txDesc: {
+    fontFamily: "Geist",
+    fontSize: 11,
+    color: "rgba(240, 237, 230, 0.3)",
+    marginTop: 1,
+  },
+  txAmount: {
+    fontFamily: "GeistMono-Regular",
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  txDate: {
+    fontFamily: "Geist",
+    fontSize: 11,
+    color: "rgba(240, 237, 230, 0.25)",
+    marginTop: 1,
+  },
+
+  // Bottom sheet
+  sheetOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(0,0,0,0.55)",
+  },
+  sheetContainer: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: "flex-end",
+    pointerEvents: "box-none",
+  },
+  sheet: {
+    backgroundColor: "#1A1D17",
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    paddingHorizontal: 20,
+    paddingBottom: 40,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderColor: "rgba(240, 237, 230, 0.06)",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: -8 },
+    shadowOpacity: 0.35,
+    shadowRadius: 24,
+    elevation: 24,
+  },
+  sheetHandle: {
+    width: 32,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: "rgba(240, 237, 230, 0.15)",
+    alignSelf: "center",
+    marginBottom: 18,
+  },
+  sheetHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 24,
+  },
+  sheetTitle: {
+    fontFamily: "Geist-SemiBold",
+    fontSize: 17,
+    color: "#F0EDE6",
+  },
+  sheetCloseBtn: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: "rgba(240,237,230,0.05)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  // Amount input in sheet
+  amountRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 24,
+    backgroundColor: "rgba(240,237,230,0.04)",
+    borderRadius: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 4,
+  },
+  amountDollar: {
+    fontFamily: "Geist-SemiBold",
+    fontSize: 32,
+    color: "rgba(240,237,230,0.3)",
+    marginRight: 4,
+  },
+  amountInput: {
+    flex: 1,
+    fontFamily: "Geist-SemiBold",
+    fontSize: 32,
+    color: "#F0EDE6",
+    paddingVertical: 14,
+  },
+
+  // Category picker
+  sheetLabel: {
+    fontFamily: "Geist-SemiBold",
+    fontSize: 12,
+    color: "rgba(240,237,230,0.35)",
+    textTransform: "uppercase",
+    letterSpacing: 0.8,
+    marginBottom: 10,
+  },
+  sheetLabelOptional: {
+    fontFamily: "Geist",
+    color: "rgba(240,237,230,0.2)",
+    textTransform: "none",
+    letterSpacing: 0,
+    fontSize: 12,
+  },
+  categoryScroll: {
+    marginBottom: 20,
+  },
+  categoryScrollContent: {
+    gap: 16,
+    paddingRight: 8,
+  },
+  bucketGroup: {
+    gap: 6,
+  },
+  bucketGroupLabel: {
+    fontFamily: "Geist-SemiBold",
+    fontSize: 11,
+    letterSpacing: 0.5,
+    marginBottom: 4,
+  },
+  categoryPill: {
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 20,
+    backgroundColor: "rgba(240,237,230,0.05)",
+    borderWidth: 1,
+    borderColor: "rgba(240,237,230,0.08)",
+    marginBottom: 6,
+  },
+  categoryPillText: {
+    fontFamily: "Geist",
+    fontSize: 13,
+    color: "rgba(240,237,230,0.5)",
+  },
+
+  // Description input
+  descInput: {
+    backgroundColor: "rgba(240,237,230,0.04)",
+    borderRadius: 14,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    fontFamily: "Geist",
+    fontSize: 14,
+    color: "#F0EDE6",
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: "rgba(240,237,230,0.06)",
+  },
+
+  // Error text
+  txErrorText: {
+    fontFamily: "Geist",
+    fontSize: 13,
+    color: "#E57373",
+    marginBottom: 12,
+    textAlign: "center",
+  },
+
+  // Add button
+  addButton: {
+    backgroundColor: "#7CB87A",
+    borderRadius: 16,
+    paddingVertical: 17,
+    alignItems: "center",
+    shadowColor: "#7CB87A",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 10,
+  },
+  addButtonDisabled: {
+    opacity: 0.35,
+  },
+  addButtonText: {
+    fontFamily: "Geist-SemiBold",
+    fontSize: 15,
+    color: "#0C0F0A",
   },
 });

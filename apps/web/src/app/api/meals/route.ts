@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { randomUUID } from "crypto";
 import { getAuthenticatedUser } from "@/lib/supabase/api-auth";
+import { createClient } from "@/lib/supabase/server";
 
 interface MealPlanRequest {
   familyName: string;
@@ -41,6 +42,18 @@ interface MealOption {
   fat: number;
   kid_friendly: boolean;
   description: string;
+}
+
+/**
+ * Simple deterministic hash to pick a store index from an item name.
+ * Consistent across calls — avoids Math.random() non-determinism (#23).
+ */
+function storeIndexForItem(itemName: string, storeCount: number): number {
+  let hash = 0;
+  for (let i = 0; i < itemName.length; i++) {
+    hash = (hash * 31 + itemName.charCodeAt(i)) | 0;
+  }
+  return Math.abs(hash) % storeCount;
 }
 
 function generateMealOptions(data: MealPlanRequest) {
@@ -102,7 +115,7 @@ function generateMealOptions(data: MealPlanRequest) {
   const dinnerOptions = byType("dinner");
   const snackOptions = byType("snack");
 
-  // Build grocery item templates keyed to stores user actually has
+  // Deterministic store assignment per grocery item — consistent across calls (#23 fix)
   const groceryItems = [
     { name: "Chicken breasts (2 lbs)", quantity: "1 pack", estimated_cost: 8.99, section: "Meat", savings_tip: "Buy the family pack for better value" },
     { name: "Ground beef or turkey (1 lb)", quantity: "1 pack", estimated_cost: 5.99, section: "Meat" },
@@ -126,7 +139,7 @@ function generateMealOptions(data: MealPlanRequest) {
     { name: "Honey", quantity: "1 bottle", estimated_cost: 5.99, section: "Pantry" },
   ].map((item) => ({
     ...item,
-    recommended_store: stores[Math.floor(Math.random() * stores.length)],
+    recommended_store: stores[storeIndexForItem(item.name, stores.length)],
   }));
 
   // Kid-specific grocery items
@@ -168,6 +181,28 @@ export async function POST(request: Request) {
 
     const data: MealPlanRequest = await request.json();
     const mealOptions = generateMealOptions(data);
+
+    // Persist meal plan to DB so it survives page refresh (#26)
+    try {
+      const supabase = createClient();
+      // Calculate week_start (Monday of current week)
+      const now = new Date();
+      const dayOfWeek = now.getDay(); // 0 = Sunday
+      const daysToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+      const weekStart = new Date(now);
+      weekStart.setDate(now.getDate() + daysToMonday);
+      const weekStartStr = weekStart.toISOString().split("T")[0];
+
+      await supabase.from("meal_plans").insert({
+        profile_id: user.id,
+        meal_options: mealOptions,
+        week_start: weekStartStr,
+      });
+    } catch (dbErr) {
+      // Non-fatal — log and continue. User still gets their meal plan in-session.
+      console.error("Failed to persist meal plan to DB:", dbErr);
+    }
+
     return NextResponse.json({ mealOptions });
   } catch {
     return NextResponse.json({ error: "Failed to generate meal options" }, { status: 500 });

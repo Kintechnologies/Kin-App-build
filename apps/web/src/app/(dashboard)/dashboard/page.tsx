@@ -1,8 +1,10 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import Link from "next/link";
 import { UtensilsCrossed, Wallet, MessageCircle, Calendar, Sparkles, ArrowRight } from "lucide-react";
+import { createClient } from "@/lib/supabase/client";
 
 const cards = [
   {
@@ -36,7 +38,7 @@ const cards = [
     glowHover: "hover:shadow-primary/10",
   },
   {
-    href: "/settings",
+    href: "/calendar",
     icon: Calendar,
     label: "This Week",
     desc: "Calendar highlights will appear here",
@@ -60,7 +62,59 @@ const item = {
   show: { opacity: 1, y: 0, transition: { duration: 0.4, ease: "easeOut" as const } },
 };
 
+function getGreeting(): string {
+  const hour = new Date().getHours();
+  if (hour < 12) return "Good morning";
+  if (hour < 17) return "Good afternoon";
+  return "Good evening";
+}
+
 export default function DashboardPage() {
+  const [firstName, setFirstName] = useState<string | null>(null);
+
+  useEffect(() => {
+    async function loadName() {
+      try {
+        const supabase = createClient();
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+
+        // Try family_members first (adult member with this profile_id)
+        const { data: member } = await supabase
+          .from("family_members")
+          .select("name")
+          .eq("profile_id", user.id)
+          .eq("member_type", "adult")
+          .order("created_at", { ascending: true })
+          .limit(1)
+          .single();
+
+        if (member?.name) {
+          // Use first name only
+          setFirstName(member.name.split(" ")[0]);
+          return;
+        }
+
+        // Fallback: profile display_name or email prefix
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("display_name")
+          .eq("id", user.id)
+          .single();
+
+        if (profile?.display_name) {
+          setFirstName(profile.display_name.split(" ")[0]);
+        }
+      } catch {
+        // Non-fatal — greeting still shows without name
+      }
+    }
+    loadName();
+  }, []);
+
+  const greeting = getGreeting();
+  const greetingText = firstName ? `${greeting}, ${firstName}` : greeting;
+
   return (
     <div className="relative">
       {/* Ambient glow */}
@@ -74,7 +128,7 @@ export default function DashboardPage() {
         className="mb-8"
       >
         <h1 className="font-serif italic text-3xl text-primary mb-1.5 tracking-tight">
-          Good morning
+          {greetingText}
         </h1>
         <p className="text-warm-white/40 text-sm tracking-wide">
           Here&apos;s what&apos;s happening with your family today
