@@ -96,14 +96,18 @@ export async function POST(request: Request) {
         .limit(50),
     ]);
 
+    const adults = (members || []).filter((m) => m.member_type === "adult");
     const kids = (members || []).filter((m) => m.member_type === "child");
     const pets = (members || []).filter((m) => m.member_type === "pet");
+
+    // Use first adult's name from family members; fall back to a friendly default
+    const p1Name = adults[0]?.name || "Parent";
 
     // Build system prompt with family context
     const systemPrompt = buildSystemPrompt({
       family_name: profile?.family_name || "your",
       household_type: profile?.household_type || "unknown",
-      p1_name: user.email?.split("@")[0] || "Parent",
+      p1_name: p1Name,
       kids: kids.map((k) => ({ name: k.name, age: k.age || 0 })),
       pets: pets.map((p) => ({ name: p.name })),
       grocery_budget: prefs?.weekly_grocery_budget || 200,

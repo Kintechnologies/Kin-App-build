@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { randomUUID } from "crypto";
+import { getAuthenticatedUser } from "@/lib/supabase/api-auth";
 
 interface MealPlanRequest {
   familyName: string;
@@ -160,9 +161,13 @@ function generateMealOptions(data: MealPlanRequest) {
 
 export async function POST(request: Request) {
   try {
+    const user = await getAuthenticatedUser(request);
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const data: MealPlanRequest = await request.json();
     const mealOptions = generateMealOptions(data);
-    await new Promise((resolve) => setTimeout(resolve, 2000));
     return NextResponse.json({ mealOptions });
   } catch {
     return NextResponse.json({ error: "Failed to generate meal options" }, { status: 500 });

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { getAuthenticatedUser } from "@/lib/supabase/api-auth";
 
 // Mock recipes keyed by meal name
 const mockRecipes: Record<string, string> = {};
@@ -34,6 +35,11 @@ Calories, protein, carbs, and fat will vary based on specific ingredients used. 
 
 export async function POST(request: Request) {
   try {
+    const user = await getAuthenticatedUser(request);
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const { mealName } = await request.json();
 
     if (!mealName) {
