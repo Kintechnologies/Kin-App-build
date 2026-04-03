@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import { getAuthenticatedUser } from "@/lib/supabase/api-auth";
-import { createClient } from "@/lib/supabase/server";
 
 /**
  * POST /api/invite/[code]/accept

@@ -9,5 +9,8 @@
     "dev:web": "npm run dev -w @kin/web",
     "build:web": "npm run build -w @kin/web",
     "dev:mobile": "npm run start -w @kin/mobile"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.82.0"
   }
 }

@@ -209,7 +209,7 @@ function kinEventToICS(event: CalendarEvent): string {
     ? `DTEND;VALUE=DATE:${formatDate(event.end_time, true)}`
     : `DTEND:${formatDate(event.end_time, false)}`;
 
-  let ics = [
+  const ics = [
     "BEGIN:VCALENDAR",
     "VERSION:2.0",
     "PRODID:-//Kin Family AI//EN",

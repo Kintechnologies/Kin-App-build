@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
-import { Sparkles, Check, UtensilsCrossed, Wallet, Calendar, MessageCircle } from "lucide-react";
+import { Sparkles, UtensilsCrossed, Wallet, Calendar, MessageCircle } from "lucide-react";
 
 export default async function ReferralLandingPage({
   params,

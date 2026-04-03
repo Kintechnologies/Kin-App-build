@@ -7,6 +7,8 @@ import {
   MessageCircle,
   UtensilsCrossed,
   Wallet,
+  Users,
+  Dumbbell,
   Settings,
 } from "lucide-react-native";
 import type { BottomTabBarProps } from "@react-navigation/bottom-tabs";
@@ -16,6 +18,8 @@ const TABS = [
   { name: "chat", label: "Chat", Icon: MessageCircle },
   { name: "meals", label: "Meals", Icon: UtensilsCrossed },
   { name: "budget", label: "Budget", Icon: Wallet },
+  { name: "family", label: "Family", Icon: Users },
+  { name: "fitness", label: "Fitness", Icon: Dumbbell },
   { name: "settings", label: "Settings", Icon: Settings },
 ];
 

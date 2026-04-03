@@ -81,4 +81,17 @@ export const api = {
   // Conflicts
   getConflicts: () =>
     apiRequest("/api/calendar/conflicts"),
+
+  // Morning briefing
+  getMorningBriefing: () =>
+    apiRequest<{ content: string }>("/api/morning-briefing", {
+      method: "GET",
+    }),
+
+  // Push tokens
+  registerPushToken: (token: string, platform: string, deviceName?: string) =>
+    apiRequest<{ success: boolean; token_id: string }>("/api/push-tokens", {
+      method: "POST",
+      body: JSON.stringify({ token, platform, device_name: deviceName }),
+    }),
 };

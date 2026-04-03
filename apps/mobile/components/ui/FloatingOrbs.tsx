@@ -36,7 +36,7 @@ const ORBS: Orb[] = [
     opacity: 0.05,
   },
   {
-    color: "#A07EC8",
+    color: "#7AADCE",
     size: 200,
     startX: SCREEN_WIDTH * 0.3,
     startY: SCREEN_HEIGHT * 0.6,

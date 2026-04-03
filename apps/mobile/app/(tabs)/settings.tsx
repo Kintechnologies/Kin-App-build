@@ -517,7 +517,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   themeChipActive: {
-    backgroundColor: "rgba(160, 126, 200, 0.2)",
+    backgroundColor: "rgba(122, 173, 206, 0.18)",
   },
   themeChipText: {
     fontFamily: "Geist",

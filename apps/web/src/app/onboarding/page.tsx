@@ -21,7 +21,7 @@ const TOTAL_STEPS = 8;
 export default function OnboardingPage() {
   const router = useRouter();
   const [step, setStep] = useState(1);
-  const [loading, setLoading] = useState(false);
+  const [, setLoading] = useState(false);
   const [generatingMeals, setGeneratingMeals] = useState(false);
   const [mealGenFailed, setMealGenFailed] = useState(false);
 

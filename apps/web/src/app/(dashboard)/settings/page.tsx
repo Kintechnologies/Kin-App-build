@@ -4,7 +4,6 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
-import Button from "@/components/ui/Button";
 import { Settings as SettingsIcon, Crown, Sparkles, LogOut, User, CreditCard, Gift, Sun, Moon, Monitor, Calendar, RefreshCw, CheckCircle2, AlertCircle, Loader2 } from "lucide-react";
 import { useTheme } from "@/components/ThemeProvider";
 
@@ -216,9 +215,9 @@ export default function SettingsPage() {
         {/* Theme toggle */}
         <div className="bg-gradient-to-br from-surface-raised to-background rounded-2xl p-5 border border-warm-white/5">
           <div className="flex items-center gap-3 mb-4">
-            <div className="w-11 h-11 rounded-2xl bg-purple/15 flex items-center justify-center">
+            <div className="w-11 h-11 rounded-2xl bg-blue/15 flex items-center justify-center">
               {theme === "light" ? <Sun size={20} className="text-amber" /> :
-               theme === "dark" ? <Moon size={20} className="text-purple" /> :
+               theme === "dark" ? <Moon size={20} className="text-blue" /> :
                <Monitor size={20} className="text-blue" />}
             </div>
             <div>

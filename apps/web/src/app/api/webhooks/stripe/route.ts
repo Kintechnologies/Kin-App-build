@@ -3,12 +3,15 @@ import { headers } from "next/headers";
 import Stripe from "stripe";
 import { createClient } from "@supabase/supabase-js";
 
-// Use service role for webhook handlers (no user session)
+// Use service role for webhook handlers (no user session).
+// Throws if SUPABASE_SERVICE_ROLE_KEY is absent — caller's try/catch returns 500
+// so Stripe will retry rather than silently accepting a broken handler.
 function getAdminSupabase() {
-  return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  );
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!key) {
+    throw new Error("SUPABASE_SERVICE_ROLE_KEY is required for Stripe webhook handling");
+  }
+  return createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, key);
 }
 
 function getStripe() {

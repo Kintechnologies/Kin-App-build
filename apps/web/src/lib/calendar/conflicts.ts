@@ -10,7 +10,7 @@ interface ConflictCandidate {
 // Detect conflicts in a merged household event list
 export function detectConflicts(
   events: CalendarEvent[],
-  householdId: string
+  _householdId: string
 ): ConflictCandidate[] {
   const conflicts: ConflictCandidate[] = [];
 
@@ -28,7 +28,6 @@ export function detectConflicts(
       const a = active[i];
       const b = active[j];
 
-      const aStart = new Date(a.start_time).getTime();
       const aEnd = new Date(a.end_time).getTime();
       const bStart = new Date(b.start_time).getTime();
 

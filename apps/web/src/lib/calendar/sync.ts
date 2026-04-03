@@ -248,7 +248,7 @@ async function processOutboundQueue(connection: CalendarConnection) {
       }
 
       if (connection.provider === "google") {
-        let accessToken = connection.access_token!;
+        const accessToken = connection.access_token!;
 
         if (item.action === "delete" && event.external_id) {
           await deleteGoogleEvent(accessToken, event.external_id);
