@@ -19,6 +19,7 @@ import {
   Pressable,
   RefreshControl,
   Animated,
+  Easing,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -54,6 +55,15 @@ interface MorningBriefing {
   content: string;
   briefing_date: string;
   delivery_status: string;
+}
+
+interface ScheduleEvent {
+  id: string;
+  title: string;
+  start_time: string;
+  end_time: string;
+  owner_parent_id: string;
+  all_day: boolean;
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -99,6 +109,7 @@ function BriefingSkeletonCard() {
     <Animated.View style={[styles.briefingCard, { opacity: pulse }]}>
       <View style={styles.skeletonTitle} />
       <View style={styles.skeletonLine} />
+      <View style={styles.skeletonLine} />
       <View style={[styles.skeletonLine, { width: "75%" }]} />
       <View style={[styles.skeletonLine, { width: "55%" }]} />
     </Animated.View>
@@ -135,7 +146,7 @@ function AlertCard({
     return (
       <Animated.View style={[styles.alertCardResolved, { opacity: fadeAnim }]}>
         <CheckCircle size={14} color="rgba(124, 184, 122, 0.5)" />
-        <Text style={styles.alertResolvedText}>Sorted. I'll let you know if anything changes.</Text>
+        <Text style={styles.alertResolvedText}>Sorted. I'll flag it if anything changes.</Text>
       </Animated.View>
     );
   }
@@ -164,7 +175,7 @@ function AlertCard({
     >
       <View style={styles.alertOpenHeader}>
         <View style={styles.alertOpenDot} />
-        <Text style={styles.alertOpenLabel}>Heads up</Text>
+        <View style={{ flex: 1 }} />
         <Pressable
           onPress={(e) => {
             e.stopPropagation();
@@ -242,6 +253,54 @@ function CleanDayState() {
   );
 }
 
+/**
+ * Today's Schedule section — spec §5.
+ * Shows today's calendar events sorted ascending by start time.
+ * Per-person color: Parent A (#7AADCE), Partner (#D4748A).
+ * Empty state: render nothing (no placeholder per spec).
+ */
+function TodayScheduleSection({
+  events,
+  profileId,
+}: {
+  events: ScheduleEvent[];
+  profileId: string;
+}) {
+  if (events.length === 0) return null;
+
+  function formatEventTime(event: ScheduleEvent): string {
+    if (event.all_day) return "All day";
+    return new Date(event.start_time).toLocaleTimeString("en-US", {
+      hour: "numeric",
+      minute: "2-digit",
+      hour12: true,
+    });
+  }
+
+  return (
+    <View style={styles.scheduleSection}>
+      <Text style={styles.scheduleSectionHeader}>TODAY</Text>
+      {events.map((event, index) => {
+        const isOwn = event.owner_parent_id === profileId;
+        const personColor = isOwn ? "#7AADCE" : "#D4748A";
+        const isLast = index === events.length - 1;
+        return (
+          <View
+            key={event.id}
+            style={[styles.scheduleEventRow, !isLast && styles.scheduleEventRowBorder]}
+          >
+            <View style={[styles.schedulePersonDot, { backgroundColor: personColor }]} />
+            <Text style={styles.scheduleEventTime}>{formatEventTime(event)}</Text>
+            <Text style={styles.scheduleEventTitle} numberOfLines={1}>
+              {event.title}
+            </Text>
+          </View>
+        );
+      })}
+    </View>
+  );
+}
+
 // ─── Main Screen ──────────────────────────────────────────────────────────────
 
 export default function TodayScreen() {
@@ -262,21 +321,46 @@ export default function TodayScreen() {
   // Check-ins (static seed for now — replaced by real data in Layer 2)
   const [checkins, setCheckins] = useState<CheckInCard[]>([]);
 
+  // Today's schedule (spec §5)
+  const [todayEvents, setTodayEvents] = useState<ScheduleEvent[]>([]);
+
   // First-use flag
   const [isFirstOpen, setIsFirstOpen] = useState(false);
 
   // Refresh
   const [refreshing, setRefreshing] = useState(false);
 
+  // Load error (B15 — surface retry when loadAll fails)
+  const [loadError, setLoadError] = useState(false);
+
   // Entrance animations
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(16)).current;
+
+  // First-use entrance animation — spec first-use-spec.md §5: 400ms ease-in, deliberate
+  const firstUseFadeAnim = useRef(new Animated.Value(0)).current;
+  const firstUseSlideAnim = useRef(new Animated.Value(16)).current;
 
   useEffect(() => {
     loadAll();
     Animated.parallel([
       Animated.timing(fadeAnim, { toValue: 1, duration: 420, useNativeDriver: true }),
       Animated.timing(slideAnim, { toValue: 0, duration: 420, useNativeDriver: true }),
+    ]).start();
+    // First-use moment: 400ms ease-in per first-use-spec.md §5 ("unhurried, deliberate")
+    Animated.parallel([
+      Animated.timing(firstUseFadeAnim, {
+        toValue: 1,
+        duration: 400,
+        easing: Easing.in(Easing.ease),
+        useNativeDriver: true,
+      }),
+      Animated.timing(firstUseSlideAnim, {
+        toValue: 0,
+        duration: 400,
+        easing: Easing.in(Easing.ease),
+        useNativeDriver: true,
+      }),
     ]).start();
   }, []);
 
@@ -306,42 +390,72 @@ export default function TodayScreen() {
     };
   }, [householdId]);
 
+  // Supabase realtime: subscribe to calendar_events (spec §5 — Today's Schedule)
+  useEffect(() => {
+    if (!profileId) return;
+
+    const channel = supabase
+      .channel(`calendar_events:${profileId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "calendar_events",
+        },
+        () => {
+          loadTodayEvents(profileId);
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [profileId]);
+
   async function loadAll() {
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-    if (!user) return;
+    setLoadError(false);
+    try {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) return;
 
-    setProfileId(user.id);
+      setProfileId(user.id);
 
-    // Load profile + household
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("first_name, household_id, today_screen_first_opened")
-      .eq("id", user.id)
-      .single();
+      // Load profile + household
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("first_name, household_id, today_screen_first_opened")
+        .eq("id", user.id)
+        .single();
 
-    if (profile) {
-      setFirstName(profile.first_name || "");
-      setHouseholdId(profile.household_id || null);
+      if (profile) {
+        setFirstName(profile.first_name || "");
+        setHouseholdId(profile.household_id || null);
 
-      // First-use detection: if today_screen_first_opened is null, this is the first open
-      if (!profile.today_screen_first_opened) {
-        setIsFirstOpen(true);
-        // Mark it so it never fires again
-        await supabase
-          .from("profiles")
-          .update({ today_screen_first_opened: new Date().toISOString() })
-          .eq("id", user.id);
+        // First-use detection: if today_screen_first_opened is null, this is the first open
+        if (!profile.today_screen_first_opened) {
+          setIsFirstOpen(true);
+          // Mark it so it never fires again
+          await supabase
+            .from("profiles")
+            .update({ today_screen_first_opened: new Date().toISOString() })
+            .eq("id", user.id);
+        }
+
+        if (profile.household_id) {
+          await loadIssues(profile.household_id);
+        }
       }
 
-      if (profile.household_id) {
-        await loadIssues(profile.household_id);
-      }
+      await loadBriefing(user.id);
+      await loadCheckins(user.id);
+      await loadTodayEvents(user.id);
+    } catch {
+      setLoadError(true);
     }
-
-    await loadBriefing(user.id);
-    await loadCheckins(user.id);
   }
 
   async function loadBriefing(uid: string) {
@@ -363,26 +477,31 @@ export default function TodayScreen() {
   }
 
   async function loadIssues(hid: string) {
-    const { data } = await supabase
-      .from("coordination_issues")
-      .select(
-        "id, trigger_type, state, content, surfaced_at, acknowledged_at, resolved_at"
-      )
-      .eq("household_id", hid)
-      // Show OPEN + ACKNOWLEDGED + recently-resolved (for closure line)
-      .in("state", ["OPEN", "ACKNOWLEDGED", "RESOLVED"])
-      .order("surfaced_at", { ascending: false })
-      .limit(10);
+    try {
+      const { data } = await supabase
+        .from("coordination_issues")
+        .select(
+          "id, trigger_type, state, content, surfaced_at, acknowledged_at, resolved_at"
+        )
+        .eq("household_id", hid)
+        // Show OPEN + ACKNOWLEDGED + recently-resolved (for closure line)
+        .in("state", ["OPEN", "ACKNOWLEDGED", "RESOLVED"])
+        .order("surfaced_at", { ascending: false })
+        .limit(10);
 
-    if (data) {
-      // Filter out RESOLVED issues older than 30 seconds (already faded out)
-      const thirtySecondsAgo = new Date(Date.now() - 30_000).toISOString();
-      const visible = data.filter(
-        (i) =>
-          i.state !== "RESOLVED" ||
-          (i.resolved_at && i.resolved_at > thirtySecondsAgo)
-      );
-      setIssues(visible as CoordinationIssue[]);
+      if (data) {
+        // Filter out RESOLVED issues older than 30 seconds (already faded out)
+        const thirtySecondsAgo = new Date(Date.now() - 30_000).toISOString();
+        const visible = data.filter(
+          (i) =>
+            i.state !== "RESOLVED" ||
+            (i.resolved_at && i.resolved_at > thirtySecondsAgo)
+        );
+        setIssues(visible as CoordinationIssue[]);
+      }
+    } catch {
+      // Supabase error: silently clear alert cards rather than leaving stale data
+      setIssues([]);
     }
   }
 
@@ -409,19 +528,54 @@ export default function TodayScreen() {
     }
   }
 
+  async function loadTodayEvents(uid: string) {
+    // Build today's date window in local time
+    const dayStart = new Date();
+    dayStart.setHours(0, 0, 0, 0);
+    const dayEnd = new Date();
+    dayEnd.setHours(23, 59, 59, 999);
+
+    try {
+      const { data } = await supabase
+        .from("calendar_events")
+        .select("id, title, start_time, end_time, owner_parent_id, all_day")
+        .gte("start_time", dayStart.toISOString())
+        .lte("start_time", dayEnd.toISOString())
+        .is("deleted_at", null)
+        // Show own events + shared events + kid events (mirrors API household view)
+        .or(`owner_parent_id.eq.${uid},is_shared.eq.true,is_kid_event.eq.true`)
+        .order("start_time", { ascending: true })
+        .limit(20);
+
+      if (data) setTodayEvents(data as ScheduleEvent[]);
+    } catch {
+      // Calendar may not be connected — silently skip
+    }
+  }
+
   async function handleAcknowledge(issueId: string) {
-    setIssues((prev) =>
-      prev.map((i) =>
+    // Capture previous state before optimistic update so we can roll back on error
+    let previousIssues: CoordinationIssue[] = [];
+    setIssues((prev) => {
+      previousIssues = prev;
+      return prev.map((i) =>
         i.id === issueId
           ? { ...i, state: "ACKNOWLEDGED", acknowledged_at: new Date().toISOString() }
           : i
-      )
-    );
+      );
+    });
 
-    await supabase
-      .from("coordination_issues")
-      .update({ state: "ACKNOWLEDGED", acknowledged_at: new Date().toISOString() })
-      .eq("id", issueId);
+    try {
+      const { error } = await supabase
+        .from("coordination_issues")
+        .update({ state: "ACKNOWLEDGED", acknowledged_at: new Date().toISOString() })
+        .eq("id", issueId);
+
+      if (error) throw error;
+    } catch {
+      // DB write failed — roll back optimistic update so UI stays consistent with DB
+      setIssues(previousIssues);
+    }
   }
 
   function handleTapToChat(issueId: string, content: string) {
@@ -484,11 +638,14 @@ export default function TodayScreen() {
     activeOpenAlert !== null ||
     acknowledgedIssues.length > 0 ||
     resolvedIssues.length > 0 ||
+    todayEvents.length > 0 ||
     (showCheckins && checkins.filter((c) => !c.dismissed).length > 0);
 
-  // First-use: engineered day-one message shown once, in place of clean-day state
+  // First-use: engineered day-one message shown once, in place of clean-day state.
+  // Spec §21: no setup language, must be specific to user's life.
+  // Static fallback per PD-1 until first-use-prompt.md is wired.
   const firstUseContent = isFirstOpen
-    ? "Good to meet you. I've connected to your calendar and I'm getting oriented. I'll flag anything that needs your attention and stay quiet when things look clear."
+    ? "Got your week. I'll flag anything that needs your attention and stay quiet when things look clear."
     : null;
 
   // ── Render ─────────────────────────────────────────────────────────────────
@@ -526,6 +683,21 @@ export default function TodayScreen() {
           </Text>
         </Animated.View>
 
+        {/* ── LOAD ERROR STATE (B15) — shown when loadAll() throws ── */}
+        {loadError && (
+          <Pressable
+            style={styles.loadErrorCard}
+            onPress={() => {
+              setLoadError(false);
+              loadAll();
+            }}
+          >
+            <Text style={styles.loadErrorText}>
+              Couldn&apos;t load your day. Tap to retry.
+            </Text>
+          </Pressable>
+        )}
+
         {/* ── LAYER 1: MORNING BRIEFING ── */}
         {briefingLoading ? (
           <BriefingSkeletonCard />
@@ -561,11 +733,12 @@ export default function TodayScreen() {
         ) : null /* spec §7: render nothing when empty */}
 
         {/* ── FIRST-USE MOMENT (§21) — shown once, on first open ── */}
+        {/* first-use-spec.md §5: dedicated 400ms ease-in animation ("unhurried") */}
         {!briefingBeats && firstUseContent && (
           <Animated.View
             style={[
               styles.briefingCard,
-              { opacity: fadeAnim, transform: [{ translateY: slideAnim }] },
+              { opacity: firstUseFadeAnim, transform: [{ translateY: firstUseSlideAnim }] },
             ]}
           >
             <View style={styles.briefingTitleRow}>
@@ -576,7 +749,7 @@ export default function TodayScreen() {
             </View>
             <Text style={styles.briefingHook}>{firstUseContent}</Text>
             <Text style={styles.firstUseClosingLine}>
-              I'll keep an eye on it and flag anything that changes.
+              I'll flag it if anything changes.
             </Text>
           </Animated.View>
         )}
@@ -611,6 +784,12 @@ export default function TodayScreen() {
             onTapToChat={handleTapToChat}
           />
         ))}
+
+        {/* ── TODAY'S SCHEDULE (spec §5) ── */}
+        {/* Renders between alert cards and check-in cards. Empty state = nothing rendered. */}
+        {profileId && (
+          <TodayScheduleSection events={todayEvents} profileId={profileId} />
+        )}
 
         {/* ── LAYER 3: CHECK-IN CARDS ── */}
         {/* Suppressed when any High-priority (OPEN) alert exists (spec §5) */}
@@ -796,14 +975,6 @@ const styles = StyleSheet.create({
     borderRadius: 3.5,
     backgroundColor: "#D4A843",
   },
-  alertOpenLabel: {
-    fontFamily: "GeistMono-Regular",
-    fontSize: 10,
-    color: "rgba(212, 168, 67, 0.8)",
-    textTransform: "uppercase",
-    letterSpacing: 1,
-    flex: 1,
-  },
   alertDismissBtn: {
     width: 28,
     height: 28,
@@ -916,5 +1087,64 @@ const styles = StyleSheet.create({
     color: "rgba(240, 237, 230, 0.22)",
     textAlign: "center",
     lineHeight: 24,
+  },
+
+  // Today's schedule section (spec §5)
+  scheduleSection: {
+    marginBottom: 16,
+  },
+  scheduleSectionHeader: {
+    fontFamily: "GeistMono-Regular",
+    fontSize: 10,
+    color: "rgba(240, 237, 230, 0.25)",
+    textTransform: "uppercase",
+    letterSpacing: 1.5,
+    marginBottom: 8,
+  },
+  scheduleEventRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    paddingVertical: 10,
+  },
+  scheduleEventRowBorder: {
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(240, 237, 230, 0.04)",
+  },
+  schedulePersonDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    flexShrink: 0,
+  },
+  scheduleEventTime: {
+    fontFamily: "GeistMono-Regular",
+    fontSize: 12,
+    color: "rgba(240, 237, 230, 0.45)",
+    width: 72,
+    flexShrink: 0,
+  },
+  scheduleEventTitle: {
+    fontFamily: "Geist",
+    fontSize: 14,
+    color: "rgba(240, 237, 230, 0.75)",
+    flex: 1,
+  },
+
+  // Load error state (B15)
+  loadErrorCard: {
+    backgroundColor: "rgba(212, 116, 108, 0.08)",
+    borderRadius: 14,
+    padding: 16,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: "rgba(212, 116, 108, 0.18)",
+    alignItems: "center",
+  },
+  loadErrorText: {
+    fontFamily: "Geist",
+    fontSize: 14,
+    color: "rgba(240, 237, 230, 0.55)",
+    textAlign: "center",
   },
 });

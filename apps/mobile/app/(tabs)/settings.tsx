@@ -41,6 +41,8 @@ import { supabase } from "../../lib/supabase";
 import { formatFamilyName } from "../../lib/utils";
 import { useTheme, ThemeMode } from "../../lib/theme";
 import { useSettings } from "../../lib/settings";
+import { initRevenueCat } from "../../lib/revenuecat";
+import PaywallModal from "../../components/paywall/PaywallModal";
 
 export default function Settings() {
   const { user, signOut } = useAuth();
@@ -52,6 +54,7 @@ export default function Settings() {
     trial_ends_at: string;
     referral_code: string;
   } | null>(null);
+  const [showPaywall, setShowPaywall] = useState(false);
 
   useEffect(() => {
     if (!user) return;
@@ -63,6 +66,9 @@ export default function Settings() {
       .then(({ data }) => {
         if (data) setProfile(data);
       });
+    // Initialise RevenueCat with the authenticated user ID so RC can link
+    // purchases to the Supabase account. Safe to call multiple times.
+    initRevenueCat(user.id);
   }, [user]);
 
   function handleSignOut() {
@@ -124,7 +130,13 @@ export default function Settings() {
         </Pressable>
 
         {/* Subscription */}
-        <Pressable style={styles.card}>
+        <Pressable
+          style={styles.card}
+          onPress={() => {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            setShowPaywall(true);
+          }}
+        >
           <View style={styles.cardRow}>
             <View style={[styles.iconWrap, { backgroundColor: `${tierColor}15` }]}>
               <TierIcon size={20} color={tierColor} />
@@ -139,16 +151,38 @@ export default function Settings() {
                       (new Date(profile.trial_ends_at).getTime() - Date.now()) / 86400000
                     )
                   )}{" "}
-                  days left in trial
+                  days left in trial — tap to upgrade
                 </Text>
+              )}
+              {tier === "free" && !profile?.trial_ends_at && (
+                <Text style={styles.cardSubtitle}>Start your 7-day free trial</Text>
               )}
               {tier !== "free" && (
                 <Text style={styles.cardSubtitle}>Manage subscription</Text>
               )}
             </View>
-            <ChevronRight size={16} color="rgba(240, 237, 230, 0.15)" />
+            <ChevronRight size={16} color={tierColor === "rgba(240, 237, 230, 0.6)" ? "rgba(240, 237, 230, 0.15)" : tierColor} />
           </View>
         </Pressable>
+
+        {/* Paywall modal */}
+        <PaywallModal
+          visible={showPaywall}
+          onClose={() => setShowPaywall(false)}
+          onSuccess={() => {
+            // Re-fetch profile to refresh the subscription tier shown in settings
+            if (user) {
+              supabase
+                .from("profiles")
+                .select("family_name, subscription_tier, trial_ends_at, referral_code")
+                .eq("id", user.id)
+                .single()
+                .then(({ data }) => {
+                  if (data) setProfile(data);
+                });
+            }
+          }}
+        />
 
         {/* Family Members */}
         <Pressable style={styles.card}>

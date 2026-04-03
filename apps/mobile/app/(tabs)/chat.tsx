@@ -24,6 +24,7 @@ import {
   Platform,
   Image,
   Animated,
+  ActivityIndicator,
 } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -191,6 +192,7 @@ export default function ConversationsScreen() {
   // Thread state
   const [currentThread, setCurrentThread] = useState<ChatThread | null>(null);
   const [generalThreads, setGeneralThreads] = useState<ChatThread[]>([]);
+  const [threadsLoading, setThreadsLoading] = useState(false);
 
   // Pinned threads
   const [personalThread, setPersonalThread] = useState<ChatThread | null>(null);
@@ -279,23 +281,28 @@ export default function ConversationsScreen() {
   }
 
   async function loadGeneralThreads(uid: string) {
-    const { data } = await supabase
-      .from("chat_threads")
-      .select("id, title, thread_type, is_private, updated_at, household_id")
-      .eq("profile_id", uid)
-      .eq("thread_type", "general")
-      .order("updated_at", { ascending: false })
-      .limit(20);
+    setThreadsLoading(true);
+    try {
+      const { data } = await supabase
+        .from("chat_threads")
+        .select("id, title, thread_type, is_private, updated_at, household_id")
+        .eq("profile_id", uid)
+        .eq("thread_type", "general")
+        .order("updated_at", { ascending: false })
+        .limit(20);
 
-    if (!data) return;
+      if (!data) return;
 
-    const withPreviews = await Promise.all(
-      data.map(async (t) => ({
-        ...t,
-        preview: await getThreadPreview(t.id),
-      }))
-    );
-    setGeneralThreads(withPreviews as ChatThread[]);
+      const withPreviews = await Promise.all(
+        data.map(async (t) => ({
+          ...t,
+          preview: await getThreadPreview(t.id),
+        }))
+      );
+      setGeneralThreads(withPreviews as ChatThread[]);
+    } finally {
+      setThreadsLoading(false);
+    }
   }
 
   async function loadMessages(threadId: string) {
@@ -584,6 +591,15 @@ export default function ConversationsScreen() {
                 Start a conversation above to build your history.
               </Text>
             </View>
+          }
+          ListFooterComponent={
+            threadsLoading ? (
+              <ActivityIndicator
+                size="small"
+                color="rgba(240, 237, 230, 0.18)"
+                style={styles.threadsLoadingIndicator}
+              />
+            ) : null
           }
         />
       </SafeAreaView>
@@ -1346,5 +1362,8 @@ const styles = StyleSheet.create({
     fontFamily: "Geist",
     fontSize: 11,
     color: "rgba(240, 237, 230, 0.2)",
+  },
+  threadsLoadingIndicator: {
+    paddingVertical: 20,
   },
 });
