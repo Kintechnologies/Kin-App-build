@@ -4,7 +4,7 @@
 
 create table if not exists coordination_issues (
   id uuid primary key default gen_random_uuid(),
-  household_id uuid references households(id) on delete cascade not null,
+  household_id uuid references profiles(id) on delete cascade not null,
   trigger_type text not null check (
     trigger_type in (
       'pickup_risk',
@@ -37,25 +37,22 @@ alter table coordination_issues enable row level security;
 create policy "Users can view their household's coordination issues"
   on coordination_issues for select
   using (
-    household_id in (
-      select household_id from profiles where id = auth.uid()
-    )
+    household_id = auth.uid()
+    or household_id = (select household_id from profiles where id = auth.uid() and household_id is not null)
   );
 
 create policy "Users can insert coordination issues for their household"
   on coordination_issues for insert
   with check (
-    household_id in (
-      select household_id from profiles where id = auth.uid()
-    )
+    household_id = auth.uid()
+    or household_id = (select household_id from profiles where id = auth.uid() and household_id is not null)
   );
 
 create policy "Users can update coordination issues for their household"
   on coordination_issues for update
   using (
-    household_id in (
-      select household_id from profiles where id = auth.uid()
-    )
+    household_id = auth.uid()
+    or household_id = (select household_id from profiles where id = auth.uid() and household_id is not null)
   );
 
 -- Auto-update updated_at on row changes
