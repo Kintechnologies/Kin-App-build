@@ -2,24 +2,12 @@ import { useEffect, useRef } from "react";
 import { View, Pressable, StyleSheet, Animated } from "react-native";
 import { BlurView } from "expo-blur";
 import * as Haptics from "expo-haptics";
-import {
-  Home,
-  MessageCircle,
-  UtensilsCrossed,
-  Wallet,
-  Users,
-  Dumbbell,
-  Settings,
-} from "lucide-react-native";
+import { Sun, MessageCircle, Settings } from "lucide-react-native";
 import type { BottomTabBarProps } from "@react-navigation/bottom-tabs";
 
 const TABS = [
-  { name: "index", label: "Home", Icon: Home },
-  { name: "chat", label: "Chat", Icon: MessageCircle },
-  { name: "meals", label: "Meals", Icon: UtensilsCrossed },
-  { name: "budget", label: "Budget", Icon: Wallet },
-  { name: "family", label: "Family", Icon: Users },
-  { name: "fitness", label: "Fitness", Icon: Dumbbell },
+  { name: "index", label: "Today", Icon: Sun },
+  { name: "chat", label: "Conversations", Icon: MessageCircle },
   { name: "settings", label: "Settings", Icon: Settings },
 ];
 
@@ -29,7 +17,7 @@ function TabBarItem({
   active,
   onPress,
 }: {
-  icon: typeof Home;
+  icon: typeof Sun;
   label: string;
   active: boolean;
   onPress: () => void;

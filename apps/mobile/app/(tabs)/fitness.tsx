@@ -172,7 +172,7 @@ export default function Fitness() {
         setWorkouts(sessions);
       }
     } catch (e) {
-      console.error("Error loading fitness data:", e);
+      if (__DEV__) console.error("Error loading fitness data:", e);
     } finally {
       setLoading(false);
     }
@@ -247,7 +247,7 @@ export default function Fitness() {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       closeModal();
     } catch (e) {
-      console.error("Error saving fitness profile:", e);
+      if (__DEV__) console.error("Error saving fitness profile:", e);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
     } finally {
       setSetupSaving(false);
@@ -285,7 +285,7 @@ export default function Fitness() {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       closeModal();
     } catch (e) {
-      console.error("Error saving workout:", e);
+      if (__DEV__) console.error("Error saving workout:", e);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
     } finally {
       setLogSaving(false);
@@ -375,7 +375,7 @@ export default function Fitness() {
       }
     } catch (e) {
       // Non-fatal — overload check should never block the workout save
-      console.error("Progressive overload check failed:", e);
+      if (__DEV__) console.error("Progressive overload check failed:", e);
     }
 
     return suggestions;

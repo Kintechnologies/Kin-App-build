@@ -1,4 +1,18 @@
-import { useState, useRef, useEffect } from "react";
+/**
+ * Conversations Screen — Kin v0
+ *
+ * Two persistent pinned threads per user (ARCH-PIVOT-2026-04-03 §Conversations):
+ *   "Kin"  — personal thread (is_private: true, only the logged-in user sees)
+ *   "Home" — household thread (shared, both parents see; shows invite prompt
+ *             if partner hasn't accepted invite yet)
+ *
+ * Below the pinned threads: recent general threads from legacy / ad-hoc chats.
+ *
+ * Conversation detail: chat UI backed by `api.chat()` + persisted to
+ * the `conversations` table via `chat_threads`.
+ */
+
+import { useState, useRef, useEffect, useCallback } from "react";
 import {
   View,
   Text,
@@ -11,6 +25,7 @@ import {
   Image,
   Animated,
 } from "react-native";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import * as Haptics from "expo-haptics";
 import * as Speech from "expo-speech";
@@ -25,20 +40,16 @@ import {
   Volume2,
   ChevronLeft,
   Plus,
-  MessageCircle,
   Lock,
   Globe,
-  Lightbulb,
-  Heart,
-  Calendar,
-  ShoppingCart,
-  TrendingUp,
-  Baby,
-  Dog,
+  Users,
+  UserPlus,
 } from "lucide-react-native";
 import { api } from "../../lib/api";
 import { supabase } from "../../lib/supabase";
 import FloatingOrbs from "../../components/ui/FloatingOrbs";
+
+// ─── Types ────────────────────────────────────────────────────────────────────
 
 interface Message {
   id: string;
@@ -47,32 +58,127 @@ interface Message {
   image?: string;
 }
 
+type ThreadType = "personal" | "household" | "general";
+
 interface ChatThread {
   id: string;
   title: string | null;
+  thread_type: ThreadType;
   is_private: boolean;
   updated_at: string;
   preview?: string;
+  household_id?: string | null;
 }
-
-const CONVERSATION_IDEAS = [
-  { label: "Plan this week's meals", emoji: "🍽️", color: "#7CB87A" },   // Nutrition domain: #7CB87A
-  { label: "Budget check-in", emoji: "💰", color: "#D4A843" },          // Budget domain: #D4A843
-  { label: "Date night ideas", emoji: "💕", color: "#A07EC8" },         // Date Night domain: #A07EC8
-  { label: "What should the kids eat today?", emoji: "👶", color: "#E07B5A" }, // Kids domain: #E07B5A
-  { label: "Help me find a summer camp", emoji: "🏕️", color: "#E07B5A" },    // Kids domain: #E07B5A
-  { label: "Sunday family briefing", emoji: "📋", color: "#A07EC8" },   // Family Coordination domain: #A07EC8
-  { label: "Suggest a quick weeknight dinner", emoji: "⚡", color: "#7CB87A" }, // Nutrition domain: #7CB87A
-  { label: "What's coming up on the calendar?", emoji: "📅", color: "#A07EC8" }, // Calendar domain: #A07EC8
-  { label: "High-protein snack ideas", emoji: "💪", color: "#7AADCE" }, // Fitness domain: #7AADCE
-  { label: "Help me grocery shop smarter", emoji: "🛒", color: "#7CB87A" }, // Nutrition domain: #7CB87A
-  { label: "Find a family-friendly activity nearby", emoji: "🎯", color: "#E07B5A" }, // Kids domain: #E07B5A
-  { label: "How can we save more this month?", emoji: "🐷", color: "#D4A843" }, // Budget domain: #D4A843
-];
 
 type ChatView = "list" | "conversation";
 
-export default function Chat() {
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+/** Get or create a single persistent thread of a given type for the user. */
+async function upsertPinnedThread(
+  profileId: string,
+  type: "personal" | "household",
+  householdId: string | null
+): Promise<ChatThread | null> {
+  // Look for existing pinned thread
+  const query = supabase
+    .from("chat_threads")
+    .select("id, title, thread_type, is_private, updated_at, household_id")
+    .eq("profile_id", profileId)
+    .eq("thread_type", type)
+    .limit(1);
+
+  const { data: existing, error: fetchErr } = await query.maybeSingle();
+
+  if (fetchErr && fetchErr.code !== "PGRST116") {
+    return null;
+  }
+
+  if (existing) return existing as ChatThread;
+
+  // Create a new pinned thread
+  const { data: created, error: insertErr } = await supabase
+    .from("chat_threads")
+    .insert({
+      profile_id: profileId,
+      title: type === "personal" ? "Kin" : "Home",
+      thread_type: type,
+      is_private: type === "personal",
+      household_id: type === "household" ? householdId : null,
+      updated_at: new Date().toISOString(),
+    })
+    .select()
+    .single();
+
+  if (insertErr) return null;
+  return created as ChatThread;
+}
+
+// ─── Sub-components ───────────────────────────────────────────────────────────
+
+function TypingIndicator() {
+  const opacity = useRef(new Animated.Value(0.3)).current;
+
+  useEffect(() => {
+    const anim = Animated.loop(
+      Animated.sequence([
+        Animated.timing(opacity, { toValue: 1, duration: 600, useNativeDriver: true }),
+        Animated.timing(opacity, { toValue: 0.3, duration: 600, useNativeDriver: true }),
+      ])
+    );
+    anim.start();
+    return () => anim.stop();
+  }, []);
+
+  return (
+    <View style={styles.typingRow}>
+      <View style={styles.avatar}>
+        <Sparkles size={14} color="#7CB87A" />
+      </View>
+      <View style={styles.typingBubble}>
+        <Animated.View style={[styles.typingDots, { opacity }]}>
+          {[0, 1, 2].map((i) => (
+            <View key={i} style={styles.dot} />
+          ))}
+        </Animated.View>
+        <Text style={styles.typingText}>Kin is thinking...</Text>
+      </View>
+    </View>
+  );
+}
+
+/** Household thread invite prompt — shown when partner hasn't linked yet */
+function PartnerInvitePrompt({ onInvite }: { onInvite: () => void }) {
+  return (
+    <View style={styles.inviteContainer}>
+      <View style={styles.inviteOrb}>
+        <Users size={20} color="rgba(240, 237, 230, 0.3)" />
+      </View>
+      <Text style={styles.inviteTitle}>Invite your partner</Text>
+      <Text style={styles.inviteBody}>
+        The Home thread is shared with your partner. Once they join, you'll both see
+        coordination decisions here — schedules, pickups, planning.
+      </Text>
+      <Pressable
+        style={({ pressed }) => [styles.inviteBtn, pressed && { opacity: 0.85 }]}
+        onPress={() => {
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+          onInvite();
+        }}
+      >
+        <UserPlus size={16} color="#0C0F0A" />
+        <Text style={styles.inviteBtnText}>Send partner invite</Text>
+      </Pressable>
+    </View>
+  );
+}
+
+// ─── Main Screen ──────────────────────────────────────────────────────────────
+
+export default function ConversationsScreen() {
+  const params = useLocalSearchParams<{ prefill?: string; issue_id?: string }>();
+  const router = useRouter();
+
   const [view, setView] = useState<ChatView>("list");
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
@@ -83,132 +189,157 @@ export default function Chat() {
   const flatListRef = useRef<FlatList>(null);
 
   // Thread state
-  const [currentThreadId, setCurrentThreadId] = useState<string | null>(null);
-  const [isPrivate, setIsPrivate] = useState(false);
-  const [threads, setThreads] = useState<ChatThread[]>([]);
-  const [subscriptionTier, setSubscriptionTier] = useState("free");
+  const [currentThread, setCurrentThread] = useState<ChatThread | null>(null);
+  const [generalThreads, setGeneralThreads] = useState<ChatThread[]>([]);
+
+  // Pinned threads
+  const [personalThread, setPersonalThread] = useState<ChatThread | null>(null);
+  const [householdThread, setHouseholdThread] = useState<ChatThread | null>(null);
+  const [partnerLinked, setPartnerLinked] = useState(false);
+
+  // User context
+  const [profileId, setProfileId] = useState<string | null>(null);
+  const [householdId, setHouseholdId] = useState<string | null>(null);
+  const [familyName, setFamilyName] = useState<string>("");
+
+  const listLoaded = useRef(false);
 
   useEffect(() => {
-    loadThreads();
-    checkSubscription();
+    initConversations();
   }, []);
 
-  async function checkSubscription() {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("subscription_tier")
-        .eq("id", user.id)
-        .single();
-      if (error) throw error;
-      if (data) setSubscriptionTier(data.subscription_tier || "free");
-    } catch (error) {
-      console.error("Error checking subscription:", error);
+  // Handle prefill from Today screen (alert card tap)
+  useEffect(() => {
+    if (params.prefill && view === "list" && personalThread) {
+      openThread(personalThread, params.prefill);
     }
+  }, [params.prefill, personalThread]);
+
+  async function initConversations() {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) return;
+
+    setProfileId(user.id);
+
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("family_name, household_id")
+      .eq("id", user.id)
+      .single();
+
+    const hid = profile?.household_id ?? null;
+    setHouseholdId(hid);
+    setFamilyName(profile?.family_name || "Home");
+
+    // Check partner linked status
+    if (hid) {
+      const { data: partner } = await supabase
+        .from("profiles")
+        .select("id")
+        .eq("household_id", hid)
+        .neq("id", user.id)
+        .limit(1)
+        .maybeSingle();
+      setPartnerLinked(partner !== null);
+    }
+
+    // Ensure pinned threads exist
+    const [personal, household] = await Promise.all([
+      upsertPinnedThread(user.id, "personal", null),
+      upsertPinnedThread(user.id, "household", hid),
+    ]);
+
+    if (personal) {
+      const preview = await getThreadPreview(personal.id);
+      setPersonalThread({ ...personal, preview });
+    }
+    if (household) {
+      const preview = await getThreadPreview(household.id);
+      setHouseholdThread({ ...household, preview });
+    }
+
+    await loadGeneralThreads(user.id);
+    listLoaded.current = true;
   }
 
-  async function loadThreads() {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+  async function getThreadPreview(threadId: string): Promise<string> {
+    const { data } = await supabase
+      .from("conversations")
+      .select("content, role")
+      .eq("thread_id", threadId)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
 
-      const { data, error } = await supabase
-        .from("chat_threads")
-        .select("id, title, is_private, updated_at")
-        .eq("profile_id", user.id)
-        .order("updated_at", { ascending: false })
-        .limit(20);
+    if (!data) return "";
+    const prefix = data.role === "assistant" ? "Kin: " : "You: ";
+    return prefix + (data.content?.slice(0, 60) || "");
+  }
 
-      if (error) throw error;
+  async function loadGeneralThreads(uid: string) {
+    const { data } = await supabase
+      .from("chat_threads")
+      .select("id, title, thread_type, is_private, updated_at, household_id")
+      .eq("profile_id", uid)
+      .eq("thread_type", "general")
+      .order("updated_at", { ascending: false })
+      .limit(20);
 
-      if (data && data.length > 0) {
-        const threadsWithPreviews = await Promise.all(
-          data.map(async (thread) => {
-            const { data: lastMsg, error: msgError } = await supabase
-              .from("conversations")
-              .select("content")
-              .eq("thread_id", thread.id)
-              .eq("role", "user")
-              .order("created_at", { ascending: false })
-              .limit(1)
-              .single();
-            if (msgError && msgError.code !== "PGRST116") {
-              console.error("Error loading thread preview:", msgError);
-            }
-            return {
-              ...thread,
-              preview: lastMsg?.content?.slice(0, 60) || "New conversation",
-            };
-          })
-        );
-        setThreads(threadsWithPreviews);
-      }
-    } catch (error) {
-      console.error("Error loading chat threads:", error);
-    }
+    if (!data) return;
+
+    const withPreviews = await Promise.all(
+      data.map(async (t) => ({
+        ...t,
+        preview: await getThreadPreview(t.id),
+      }))
+    );
+    setGeneralThreads(withPreviews as ChatThread[]);
   }
 
   async function loadMessages(threadId: string) {
-    try {
-      const { data, error } = await supabase
-        .from("conversations")
-        .select("id, role, content")
-        .eq("thread_id", threadId)
-        .order("created_at", { ascending: true })
-        .limit(50);
+    const { data } = await supabase
+      .from("conversations")
+      .select("id, role, content")
+      .eq("thread_id", threadId)
+      .order("created_at", { ascending: true })
+      .limit(60);
 
-      if (error) throw error;
-
-      if (data) {
-        setMessages(data.map((m) => ({ ...m, role: m.role as "user" | "assistant" })));
-      }
-    } catch (error) {
-      console.error("Error loading messages:", error);
+    if (data) {
+      setMessages(data.map((m) => ({ ...m, role: m.role as "user" | "assistant" })));
     }
   }
 
-  async function openThread(thread: ChatThread) {
+  async function openThread(thread: ChatThread, prefillText?: string) {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    setCurrentThreadId(thread.id);
-    setIsPrivate(thread.is_private);
+    setCurrentThread(thread);
     await loadMessages(thread.id);
     setView("conversation");
-  }
-
-  async function startNewChat(initialMessage?: string) {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    setCurrentThreadId(null);
-    setMessages([]);
-    setIsPrivate(false);
-    setView("conversation");
-    if (initialMessage) {
-      // Small delay to let view switch happen
-      setTimeout(() => sendMessage(initialMessage), 100);
+    if (prefillText) {
+      setInput(prefillText);
     }
   }
 
   function goBackToList() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    loadThreads(); // Refresh list
     setView("list");
-  }
-
-  async function togglePrivacy() {
-    try {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-      const newPrivate = !isPrivate;
-      setIsPrivate(newPrivate);
-      if (currentThreadId) {
-        const { error } = await supabase
-          .from("chat_threads")
-          .update({ is_private: newPrivate })
-          .eq("id", currentThreadId);
-        if (error) throw error;
+    setMessages([]);
+    setInput("");
+    setCurrentThread(null);
+    // Refresh pinned thread previews
+    if (profileId) {
+      if (personalThread) {
+        getThreadPreview(personalThread.id).then((preview) =>
+          setPersonalThread((t) => (t ? { ...t, preview } : t))
+        );
       }
-    } catch (error) {
-      console.error("Error toggling privacy:", error);
+      if (householdThread) {
+        getThreadPreview(householdThread.id).then((preview) =>
+          setHouseholdThread((t) => (t ? { ...t, preview } : t))
+        );
+      }
+      loadGeneralThreads(profileId);
     }
   }
 
@@ -218,37 +349,24 @@ export default function Chat() {
 
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
-    let threadId = currentThreadId;
-    if (!threadId) {
-      try {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) return;
-        const { data, error } = await supabase
-          .from("chat_threads")
-          .insert({
-            profile_id: user.id,
-            title: messageText.slice(0, 60),
-            is_private: isPrivate,
-          })
-          .select()
-          .single();
-        if (error) throw error;
-        if (data) {
-          threadId = data.id;
-          setCurrentThreadId(data.id);
-        }
-      } catch (error) {
-        console.error("Error creating chat thread:", error);
-        setLoading(false);
-        return;
+    // Ensure we have a thread
+    let thread = currentThread;
+    if (!thread && profileId) {
+      // Fallback: open personal thread
+      const personal = await upsertPinnedThread(profileId, "personal", null);
+      if (personal) {
+        thread = personal;
+        setCurrentThread(personal);
+        setPersonalThread(personal);
       }
     }
+    if (!thread) return;
 
     const userMessage: Message = {
       id: Date.now().toString(),
       role: "user",
       content: messageText,
-      image: selectedImage || undefined,
+      image: selectedImage ?? undefined,
     };
 
     setMessages((prev) => [...prev, userMessage]);
@@ -259,7 +377,7 @@ export default function Chat() {
     setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 100);
 
     try {
-      const { response } = await api.chat(messageText, selectedImage || undefined);
+      const { response } = await api.chat(messageText, selectedImage ?? undefined);
       const assistantMessage: Message = {
         id: (Date.now() + 1).toString(),
         role: "assistant",
@@ -268,17 +386,12 @@ export default function Chat() {
       setMessages((prev) => [...prev, assistantMessage]);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
-      if (threadId) {
-        const { error: updateError } = await supabase
-          .from("chat_threads")
-          .update({ updated_at: new Date().toISOString() })
-          .eq("id", threadId);
-        if (updateError) {
-          console.error("Error updating thread timestamp:", updateError);
-        }
-      }
-    } catch (error) {
-      console.error("Error sending message:", error);
+      // Update thread timestamp
+      await supabase
+        .from("chat_threads")
+        .update({ updated_at: new Date().toISOString() })
+        .eq("id", thread.id);
+    } catch {
       setMessages((prev) => [
         ...prev,
         {
@@ -321,104 +434,155 @@ export default function Chat() {
     }
   }
 
-  const isFamily = subscriptionTier === "family";
+  function handleInvitePartner() {
+    router.push("/(tabs)/settings");
+  }
+
+  const isHouseholdView =
+    currentThread?.thread_type === "household";
+  const isPersonalView =
+    currentThread?.thread_type === "personal";
 
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  // CONVERSATION LIST VIEW
+  // LIST VIEW
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   if (view === "list") {
     return (
       <SafeAreaView style={styles.safeArea}>
         <FloatingOrbs />
         <FlatList
-          data={[]}
-          renderItem={() => null}
+          data={generalThreads}
+          keyExtractor={(item) => item.id}
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.listContent}
           ListHeaderComponent={
             <>
               {/* Header */}
               <View style={styles.listHeader}>
-                <View style={styles.listHeaderLeft}>
-                  <View style={styles.kinOrbSmall}>
-                    <Sparkles size={16} color="#7CB87A" />
+                <Text style={styles.listTitle}>Conversations</Text>
+              </View>
+
+              {/* ── PINNED: Kin (personal) ── */}
+              {personalThread && (
+                <Pressable
+                  style={({ pressed }) => [
+                    styles.pinnedCard,
+                    styles.pinnedPersonal,
+                    pressed && { opacity: 0.88, transform: [{ scale: 0.99 }] },
+                  ]}
+                  onPress={() => openThread(personalThread)}
+                >
+                  <View style={styles.pinnedCardLeft}>
+                    <View style={styles.pinnedAvatarKin}>
+                      <Sparkles size={18} color="#7CB87A" />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <View style={styles.pinnedTitleRow}>
+                        <Text style={styles.pinnedThreadName}>Kin</Text>
+                        <View style={styles.privatePill}>
+                          <Lock size={9} color="rgba(240, 237, 230, 0.3)" />
+                          <Text style={styles.privatePillText}>Private</Text>
+                        </View>
+                      </View>
+                      <Text style={styles.pinnedPreview} numberOfLines={1}>
+                        {personalThread.preview || "Your personal thread with Kin"}
+                      </Text>
+                    </View>
                   </View>
-                  <Text style={styles.listTitle}>Kin</Text>
-                </View>
-              </View>
+                </Pressable>
+              )}
 
-              {/* New chat CTA */}
-              <Pressable
-                style={({ pressed }) => [
-                  styles.newChatCta,
-                  pressed && { opacity: 0.85, transform: [{ scale: 0.98 }] },
-                ]}
-                onPress={() => startNewChat()}
-              >
-                <Plus size={20} color="#7CB87A" />
-                <Text style={styles.newChatCtaText}>New conversation</Text>
-              </Pressable>
+              {/* ── PINNED: Home (household) ── */}
+              {householdThread && (
+                <Pressable
+                  style={({ pressed }) => [
+                    styles.pinnedCard,
+                    styles.pinnedHousehold,
+                    pressed && { opacity: 0.88, transform: [{ scale: 0.99 }] },
+                  ]}
+                  onPress={() => {
+                    if (!partnerLinked) {
+                      // Show invite prompt inline
+                      openThread(householdThread);
+                    } else {
+                      openThread(householdThread);
+                    }
+                  }}
+                >
+                  <View style={styles.pinnedCardLeft}>
+                    <View style={styles.pinnedAvatarHome}>
+                      <Users size={18} color="rgba(122, 173, 206, 0.8)" />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <View style={styles.pinnedTitleRow}>
+                        <Text style={styles.pinnedThreadName}>
+                          {familyName ? `${familyName} Home` : "Home"}
+                        </Text>
+                        {partnerLinked && (
+                          <View style={styles.sharedPill}>
+                            <Globe size={9} color="rgba(122, 173, 206, 0.5)" />
+                            <Text style={styles.sharedPillText}>Shared</Text>
+                          </View>
+                        )}
+                        {!partnerLinked && (
+                          <View style={styles.invitePill}>
+                            <UserPlus size={9} color="rgba(212, 168, 67, 0.6)" />
+                            <Text style={styles.invitePillText}>Invite partner</Text>
+                          </View>
+                        )}
+                      </View>
+                      <Text style={styles.pinnedPreview} numberOfLines={1}>
+                        {partnerLinked
+                          ? householdThread.preview || "Shared coordination thread"
+                          : "Send an invite to connect your partner"}
+                      </Text>
+                    </View>
+                  </View>
+                </Pressable>
+              )}
 
-              {/* Conversation ideas */}
-              <Text style={styles.sectionLabel}>Try asking Kin</Text>
-              <View style={styles.ideasGrid}>
-                {CONVERSATION_IDEAS.map((idea) => (
-                  <Pressable
-                    key={idea.label}
-                    style={({ pressed }) => [
-                      styles.ideaCard,
-                      pressed && { opacity: 0.75, transform: [{ scale: 0.97 }] },
-                    ]}
-                    onPress={() => startNewChat(idea.label)}
-                  >
-                    <Text style={styles.ideaEmoji}>{idea.emoji}</Text>
-                    <Text style={styles.ideaText}>{idea.label}</Text>
-                  </Pressable>
-                ))}
-              </View>
-
-              {/* Past conversations */}
-              {threads.length > 0 && (
-                <Text style={[styles.sectionLabel, { marginTop: 24 }]}>
-                  Recent conversations
-                </Text>
+              {/* General threads header */}
+              {generalThreads.length > 0 && (
+                <Text style={styles.sectionLabel}>Previous conversations</Text>
               )}
             </>
           }
-          ListFooterComponent={
-            <View>
-              {threads.map((thread) => (
-                <Pressable
-                  key={thread.id}
-                  style={({ pressed }) => [
-                    styles.threadCard,
-                    pressed && { opacity: 0.7 },
-                  ]}
-                  onPress={() => openThread(thread)}
-                >
-                  <View style={styles.threadIconWrap}>
-                    {thread.is_private ? (
-                      <Lock size={14} color="#D4748A" />
-                    ) : (
-                      <MessageCircle size={14} color="rgba(240, 237, 230, 0.3)" />
-                    )}
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.threadTitle} numberOfLines={1}>
-                      {thread.title || "Untitled"}
-                    </Text>
-                    <Text style={styles.threadPreview} numberOfLines={1}>
-                      {thread.preview}
-                    </Text>
-                  </View>
-                  <Text style={styles.threadTime}>
-                    {new Date(thread.updated_at).toLocaleDateString(undefined, {
-                      month: "short",
-                      day: "numeric",
-                    })}
-                  </Text>
-                </Pressable>
-              ))}
+          renderItem={({ item: thread }) => (
+            <Pressable
+              style={({ pressed }) => [
+                styles.threadCard,
+                pressed && { opacity: 0.7 },
+              ]}
+              onPress={() => openThread(thread)}
+            >
+              <View style={styles.threadIconWrap}>
+                {thread.is_private ? (
+                  <Lock size={13} color="#D4748A" />
+                ) : (
+                  <Sparkles size={13} color="rgba(240, 237, 230, 0.25)" />
+                )}
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.threadTitle} numberOfLines={1}>
+                  {thread.title || "Conversation"}
+                </Text>
+                <Text style={styles.threadPreview} numberOfLines={1}>
+                  {thread.preview || "No messages yet"}
+                </Text>
+              </View>
+              <Text style={styles.threadTime}>
+                {new Date(thread.updated_at).toLocaleDateString(undefined, {
+                  month: "short",
+                  day: "numeric",
+                })}
+              </Text>
+            </Pressable>
+          )}
+          ListEmptyComponent={
+            <View style={styles.emptyListState}>
+              <Text style={styles.emptyListText}>
+                Start a conversation above to build your history.
+              </Text>
             </View>
           }
         />
@@ -427,9 +591,43 @@ export default function Chat() {
   }
 
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  // ACTIVE CONVERSATION VIEW
+  // CONVERSATION DETAIL VIEW
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   const isEmpty = messages.length === 0 && !loading;
+  const threadDisplayName =
+    currentThread?.thread_type === "personal"
+      ? "Kin"
+      : currentThread?.thread_type === "household"
+      ? familyName
+        ? `${familyName} Home`
+        : "Home"
+      : currentThread?.title || "Conversation";
+
+  // Household thread + partner not linked → show invite prompt
+  if (isHouseholdView && !partnerLinked) {
+    return (
+      <SafeAreaView style={styles.safeArea}>
+        <FloatingOrbs />
+        {/* Header */}
+        <View style={styles.header}>
+          <Pressable
+            onPress={goBackToList}
+            style={({ pressed }) => [styles.backButton, pressed && { opacity: 0.6 }]}
+          >
+            <ChevronLeft size={22} color="#F0EDE6" />
+          </Pressable>
+          <View style={styles.headerCenter}>
+            <View style={styles.headerAvatarHome}>
+              <Users size={14} color="rgba(122, 173, 206, 0.8)" />
+            </View>
+            <Text style={styles.headerTitle}>{threadDisplayName}</Text>
+          </View>
+          <View style={{ width: 36 }} />
+        </View>
+        <PartnerInvitePrompt onInvite={handleInvitePartner} />
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.safeArea} edges={["top"]}>
@@ -449,50 +647,68 @@ export default function Chat() {
           </Pressable>
 
           <View style={styles.headerCenter}>
-            <View style={styles.headerAvatar}>
-              <Sparkles size={14} color="#7CB87A" />
-            </View>
+            {isHouseholdView ? (
+              <View style={styles.headerAvatarHome}>
+                <Users size={14} color="rgba(122, 173, 206, 0.8)" />
+              </View>
+            ) : (
+              <View style={styles.headerAvatarKin}>
+                <Sparkles size={14} color="#7CB87A" />
+              </View>
+            )}
             <View>
-              <Text style={styles.headerTitle}>Kin</Text>
-              {isPrivate && (
+              <Text style={styles.headerTitle}>{threadDisplayName}</Text>
+              {isPersonalView && (
                 <View style={styles.privateBadge}>
                   <Lock size={8} color="#D4748A" />
                   <Text style={styles.privateBadgeText}>Private</Text>
                 </View>
               )}
+              {isHouseholdView && partnerLinked && (
+                <View style={styles.sharedBadge}>
+                  <Globe size={8} color="rgba(122, 173, 206, 0.6)" />
+                  <Text style={styles.sharedBadgeText}>Shared</Text>
+                </View>
+              )}
             </View>
           </View>
 
-          <View style={styles.headerActions}>
-            {isFamily && (
-              <Pressable
-                onPress={togglePrivacy}
-                style={({ pressed }) => [styles.headerButton, pressed && { opacity: 0.6 }]}
-              >
-                {isPrivate ? (
-                  <Lock size={18} color="#D4748A" />
-                ) : (
-                  <Globe size={18} color="rgba(240, 237, 230, 0.35)" />
-                )}
-              </Pressable>
-            )}
-            <Pressable
-              onPress={() => startNewChat()}
-              style={({ pressed }) => [styles.headerButton, pressed && { opacity: 0.6 }]}
-            >
-              <Plus size={18} color="rgba(240, 237, 230, 0.35)" />
-            </Pressable>
-          </View>
+          <View style={{ width: 36 }} />
         </View>
 
         {/* Messages */}
         {isEmpty ? (
           <View style={styles.emptyState}>
-            <Text style={styles.emptyTitle}>Hey, I'm Kin</Text>
-            <Text style={styles.emptySubtitle}>
-              Your family's AI chief of staff. Ask me about meals, budget,
-              scheduling — or just say hi.
-            </Text>
+            {isPersonalView ? (
+              <>
+                <View style={styles.emptyKinOrb}>
+                  <Sparkles size={24} color="#7CB87A" />
+                </View>
+                <Text style={styles.emptyTitle}>Hey, I'm Kin</Text>
+                <Text style={styles.emptySubtitle}>
+                  Ask me about anything — schedules, what's coming up, what you should
+                  be thinking about. This is your private thread.
+                </Text>
+              </>
+            ) : isHouseholdView ? (
+              <>
+                <View style={styles.emptyHomeOrb}>
+                  <Users size={24} color="rgba(122, 173, 206, 0.7)" />
+                </View>
+                <Text style={styles.emptyTitle}>{threadDisplayName}</Text>
+                <Text style={styles.emptySubtitle}>
+                  Coordination decisions, schedule conflicts, and shared planning
+                  happen here. Both parents can see and respond.
+                </Text>
+              </>
+            ) : (
+              <>
+                <Text style={styles.emptyTitle}>New conversation</Text>
+                <Text style={styles.emptySubtitle}>
+                  Ask Kin anything about your household.
+                </Text>
+              </>
+            )}
           </View>
         ) : (
           <FlatList
@@ -501,10 +717,16 @@ export default function Chat() {
             renderItem={({ item }) => {
               const isUser = item.role === "user";
               return (
-                <View style={[styles.messageRow, isUser && styles.messageRowUser]}>
+                <View
+                  style={[styles.messageRow, isUser && styles.messageRowUser]}
+                >
                   {!isUser && (
-                    <View style={styles.avatar}>
-                      <Sparkles size={14} color="#7CB87A" />
+                    <View style={isHouseholdView ? styles.avatarHome : styles.avatar}>
+                      {isHouseholdView ? (
+                        <Users size={13} color="rgba(122, 173, 206, 0.8)" />
+                      ) : (
+                        <Sparkles size={13} color="#7CB87A" />
+                      )}
                     </View>
                   )}
                   <View
@@ -535,7 +757,7 @@ export default function Chat() {
                       >
                         <Volume2
                           size={14}
-                          color={speaking ? "#7CB87A" : "rgba(240, 237, 230, 0.25)"}
+                          color={speaking ? "#7CB87A" : "rgba(240, 237, 230, 0.2)"}
                         />
                       </Pressable>
                     )}
@@ -558,7 +780,10 @@ export default function Chat() {
               style={styles.previewThumb}
               resizeMode="cover"
             />
-            <Pressable onPress={() => setSelectedImage(null)} style={styles.removeImage}>
+            <Pressable
+              onPress={() => setSelectedImage(null)}
+              style={styles.removeImage}
+            >
               <X size={12} color="#F0EDE6" />
             </Pressable>
           </View>
@@ -595,10 +820,13 @@ export default function Chat() {
             style={styles.input}
             value={input}
             onChangeText={setInput}
-            placeholder="Ask Kin anything..."
+            placeholder={
+              isHouseholdView ? "Message Home..." : "Ask Kin anything..."
+            }
             placeholderTextColor="rgba(240, 237, 230, 0.2)"
             multiline
             maxLength={2000}
+            onSubmitEditing={() => sendMessage()}
           />
 
           <Pressable
@@ -606,7 +834,9 @@ export default function Chat() {
             disabled={(!input.trim() && !selectedImage) || loading}
             style={({ pressed }) => [
               styles.sendButton,
-              (input.trim() || selectedImage) && !loading ? styles.sendButtonActive : {},
+              (input.trim() || selectedImage) && !loading
+                ? styles.sendButtonActive
+                : {},
               pressed && { opacity: 0.8, transform: [{ scale: 0.95 }] },
             ]}
           >
@@ -625,36 +855,7 @@ export default function Chat() {
   );
 }
 
-function TypingIndicator() {
-  const opacity = useRef(new Animated.Value(0.3)).current;
-
-  useEffect(() => {
-    const anim = Animated.loop(
-      Animated.sequence([
-        Animated.timing(opacity, { toValue: 1, duration: 600, useNativeDriver: true }),
-        Animated.timing(opacity, { toValue: 0.3, duration: 600, useNativeDriver: true }),
-      ])
-    );
-    anim.start();
-    return () => anim.stop();
-  }, []);
-
-  return (
-    <View style={styles.typingRow}>
-      <View style={styles.avatar}>
-        <Sparkles size={14} color="#7CB87A" />
-      </View>
-      <View style={styles.typingBubble}>
-        <Animated.View style={[styles.typingDots, { opacity }]}>
-          {[0, 1, 2].map((i) => (
-            <View key={i} style={styles.dot} />
-          ))}
-        </Animated.View>
-        <Text style={styles.typingText}>Kin is thinking...</Text>
-      </View>
-    </View>
-  );
-}
+// ─── Styles ───────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: "#0C0F0A" },
@@ -663,120 +864,177 @@ const styles = StyleSheet.create({
   // ── LIST VIEW ──
   listContent: { paddingHorizontal: 20, paddingBottom: 120 },
   listHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginTop: 8,
-    marginBottom: 20,
+    marginTop: 12,
+    marginBottom: 22,
   },
-  listHeaderLeft: {
+  listTitle: {
+    fontFamily: "InstrumentSerif-Italic",
+    fontSize: 28,
+    color: "#F0EDE6",
+  },
+
+  // Pinned cards
+  pinnedCard: {
+    borderRadius: 18,
+    padding: 16,
+    marginBottom: 10,
+    borderWidth: 1,
+  },
+  pinnedPersonal: {
+    backgroundColor: "#141810",
+    borderColor: "rgba(124, 184, 122, 0.15)",
+  },
+  pinnedHousehold: {
+    backgroundColor: "#121618",
+    borderColor: "rgba(122, 173, 206, 0.12)",
+  },
+  pinnedCardLeft: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 10,
+    gap: 12,
   },
-  kinOrbSmall: {
-    width: 36,
-    height: 36,
-    borderRadius: 14,
+  pinnedAvatarKin: {
+    width: 42,
+    height: 42,
+    borderRadius: 16,
     backgroundColor: "rgba(124, 184, 122, 0.12)",
     alignItems: "center",
     justifyContent: "center",
   },
-  listTitle: {
-    fontFamily: "InstrumentSerif-Italic",
-    fontSize: 26,
-    color: "#7CB87A",
-  },
-
-  // New chat CTA
-  newChatCta: {
-    flexDirection: "row",
+  pinnedAvatarHome: {
+    width: 42,
+    height: 42,
+    borderRadius: 16,
+    backgroundColor: "rgba(122, 173, 206, 0.08)",
     alignItems: "center",
     justifyContent: "center",
-    gap: 8,
-    backgroundColor: "rgba(124, 184, 122, 0.08)",
-    borderRadius: 18,
-    paddingVertical: 16,
-    marginBottom: 28,
-    borderWidth: 1,
-    borderColor: "rgba(124, 184, 122, 0.15)",
   },
-  newChatCtaText: {
-    fontFamily: "Geist-SemiBold",
-    fontSize: 15,
-    color: "#7CB87A",
-  },
-
-  // Section labels
-  sectionLabel: {
-    fontFamily: "GeistMono-Regular",
-    fontSize: 11,
-    color: "rgba(240, 237, 230, 0.2)",
-    textTransform: "uppercase",
-    letterSpacing: 2,
-    marginBottom: 12,
-  },
-
-  // Ideas grid
-  ideasGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 8,
-  },
-  ideaCard: {
+  pinnedTitleRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
-    backgroundColor: "#141810",
-    borderRadius: 14,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    borderWidth: 1,
-    borderColor: "rgba(240, 237, 230, 0.04)",
+    marginBottom: 3,
   },
-  ideaEmoji: { fontSize: 16 },
-  ideaText: {
+  pinnedThreadName: {
+    fontFamily: "Geist-SemiBold",
+    fontSize: 15,
+    color: "#F0EDE6",
+  },
+  pinnedPreview: {
     fontFamily: "Geist",
     fontSize: 13,
-    color: "rgba(240, 237, 230, 0.45)",
-    flexShrink: 1,
+    color: "rgba(240, 237, 230, 0.32)",
+    lineHeight: 19,
   },
 
-  // Thread cards
+  // Pills
+  privatePill: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 3,
+    backgroundColor: "rgba(212, 116, 138, 0.08)",
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 10,
+  },
+  privatePillText: {
+    fontFamily: "GeistMono-Regular",
+    fontSize: 9,
+    color: "rgba(212, 116, 138, 0.6)",
+    letterSpacing: 0.4,
+    textTransform: "uppercase",
+  },
+  sharedPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 3,
+    backgroundColor: "rgba(122, 173, 206, 0.08)",
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 10,
+  },
+  sharedPillText: {
+    fontFamily: "GeistMono-Regular",
+    fontSize: 9,
+    color: "rgba(122, 173, 206, 0.5)",
+    letterSpacing: 0.4,
+    textTransform: "uppercase",
+  },
+  invitePill: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 3,
+    backgroundColor: "rgba(212, 168, 67, 0.08)",
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 10,
+  },
+  invitePillText: {
+    fontFamily: "GeistMono-Regular",
+    fontSize: 9,
+    color: "rgba(212, 168, 67, 0.55)",
+    letterSpacing: 0.4,
+    textTransform: "uppercase",
+  },
+
+  // Section label
+  sectionLabel: {
+    fontFamily: "GeistMono-Regular",
+    fontSize: 10,
+    color: "rgba(240, 237, 230, 0.18)",
+    textTransform: "uppercase",
+    letterSpacing: 2,
+    marginTop: 20,
+    marginBottom: 10,
+  },
+
+  // General thread cards
   threadCard: {
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
     backgroundColor: "#141810",
-    borderRadius: 16,
-    padding: 14,
-    marginBottom: 6,
+    borderRadius: 14,
+    padding: 13,
+    marginBottom: 5,
     borderWidth: 1,
     borderColor: "rgba(240, 237, 230, 0.03)",
   },
   threadIconWrap: {
-    width: 32,
-    height: 32,
-    borderRadius: 12,
+    width: 30,
+    height: 30,
+    borderRadius: 10,
     backgroundColor: "rgba(240, 237, 230, 0.04)",
     alignItems: "center",
     justifyContent: "center",
   },
   threadTitle: {
     fontFamily: "Geist-SemiBold",
-    fontSize: 14,
+    fontSize: 13,
     color: "#F0EDE6",
     marginBottom: 2,
   },
   threadPreview: {
     fontFamily: "Geist",
     fontSize: 12,
-    color: "rgba(240, 237, 230, 0.25)",
+    color: "rgba(240, 237, 230, 0.22)",
   },
   threadTime: {
     fontFamily: "GeistMono-Regular",
     fontSize: 10,
-    color: "rgba(240, 237, 230, 0.15)",
+    color: "rgba(240, 237, 230, 0.14)",
+  },
+
+  emptyListState: {
+    alignItems: "center",
+    paddingTop: 16,
+  },
+  emptyListText: {
+    fontFamily: "Geist",
+    fontSize: 13,
+    color: "rgba(240, 237, 230, 0.2)",
+    textAlign: "center",
+    fontStyle: "italic",
   },
 
   // ── CONVERSATION VIEW ──
@@ -802,7 +1060,7 @@ const styles = StyleSheet.create({
     gap: 10,
     marginLeft: 4,
   },
-  headerAvatar: {
+  headerAvatarKin: {
     width: 32,
     height: 32,
     borderRadius: 12,
@@ -810,10 +1068,18 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
+  headerAvatarHome: {
+    width: 32,
+    height: 32,
+    borderRadius: 12,
+    backgroundColor: "rgba(122, 173, 206, 0.1)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
   headerTitle: {
     fontFamily: "InstrumentSerif-Italic",
     fontSize: 18,
-    color: "#7CB87A",
+    color: "#F0EDE6",
   },
   privateBadge: {
     flexDirection: "row",
@@ -828,38 +1094,104 @@ const styles = StyleSheet.create({
     textTransform: "uppercase",
     letterSpacing: 0.5,
   },
-  headerActions: {
+  sharedBadge: {
     flexDirection: "row",
-    gap: 4,
-  },
-  headerButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 12,
     alignItems: "center",
-    justifyContent: "center",
+    gap: 3,
+    marginTop: 1,
+  },
+  sharedBadgeText: {
+    fontFamily: "GeistMono-Regular",
+    fontSize: 9,
+    color: "rgba(122, 173, 206, 0.6)",
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
   },
 
-  // Empty state
+  // Empty states
   emptyState: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
     paddingHorizontal: 40,
   },
+  emptyKinOrb: {
+    width: 56,
+    height: 56,
+    borderRadius: 20,
+    backgroundColor: "rgba(124, 184, 122, 0.1)",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 16,
+  },
+  emptyHomeOrb: {
+    width: 56,
+    height: 56,
+    borderRadius: 20,
+    backgroundColor: "rgba(122, 173, 206, 0.08)",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 16,
+  },
   emptyTitle: {
     fontFamily: "InstrumentSerif-Italic",
-    fontSize: 32,
+    fontSize: 28,
     color: "#F0EDE6",
     textAlign: "center",
-    marginBottom: 8,
+    marginBottom: 10,
   },
   emptySubtitle: {
     fontFamily: "Geist",
-    fontSize: 15,
+    fontSize: 14,
+    color: "rgba(240, 237, 230, 0.38)",
+    textAlign: "center",
+    lineHeight: 22,
+  },
+
+  // Invite prompt
+  inviteContainer: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 36,
+  },
+  inviteOrb: {
+    width: 60,
+    height: 60,
+    borderRadius: 22,
+    backgroundColor: "rgba(240, 237, 230, 0.04)",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 20,
+  },
+  inviteTitle: {
+    fontFamily: "InstrumentSerif-Italic",
+    fontSize: 24,
+    color: "#F0EDE6",
+    marginBottom: 12,
+    textAlign: "center",
+  },
+  inviteBody: {
+    fontFamily: "Geist",
+    fontSize: 14,
     color: "rgba(240, 237, 230, 0.4)",
     textAlign: "center",
     lineHeight: 22,
+    marginBottom: 28,
+  },
+  inviteBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    backgroundColor: "#7CB87A",
+    paddingVertical: 13,
+    paddingHorizontal: 22,
+    borderRadius: 14,
+  },
+  inviteBtnText: {
+    fontFamily: "Geist-SemiBold",
+    fontSize: 14,
+    color: "#0C0F0A",
   },
 
   // Messages
@@ -868,7 +1200,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "flex-end",
     gap: 8,
-    marginBottom: 16,
+    marginBottom: 14,
   },
   messageRowUser: { justifyContent: "flex-end" },
   avatar: {
@@ -876,6 +1208,14 @@ const styles = StyleSheet.create({
     height: 28,
     borderRadius: 12,
     backgroundColor: "rgba(124, 184, 122, 0.15)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  avatarHome: {
+    width: 28,
+    height: 28,
+    borderRadius: 12,
+    backgroundColor: "rgba(122, 173, 206, 0.1)",
     alignItems: "center",
     justifyContent: "center",
   },
@@ -981,7 +1321,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "flex-end",
     gap: 8,
-    marginBottom: 16,
+    marginBottom: 14,
   },
   typingBubble: {
     flexDirection: "row",

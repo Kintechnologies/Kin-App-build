@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   View,
   Text,
@@ -11,9 +11,7 @@ import {
   Modal,
   KeyboardAvoidingView,
   Platform,
-  TouchableWithoutFeedback,
   Keyboard,
-  FlatList,
   Alert,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -24,7 +22,6 @@ import {
   X,
   Edit2,
   Trash2,
-  AlertCircle,
   Heart,
   Activity,
 } from "lucide-react-native";
@@ -124,6 +121,7 @@ const SEVERITY_TEXT_COLOR: Record<string, string> = {
 export default function Family() {
   const { colors } = useTheme();
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [children, setChildren] = useState<Child[]>([]);
   const [pets, setPets] = useState<Pet[]>([]);
 
@@ -219,7 +217,8 @@ export default function Family() {
         setPets(formattedPets);
       }
     } catch (e) {
-      console.error("Error loading family members:", e);
+      if (__DEV__) console.error("Error loading family members:", e);
+      setLoadError(true);
     } finally {
       setLoading(false);
     }
@@ -303,7 +302,7 @@ export default function Family() {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       closeModal();
     } catch (e) {
-      console.error("Error saving child:", e);
+      if (__DEV__) console.error("Error saving child:", e);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
     } finally {
       setChildSaving(false);
@@ -359,7 +358,7 @@ export default function Family() {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       closeModal();
     } catch (e) {
-      console.error("Error saving pet:", e);
+      if (__DEV__) console.error("Error saving pet:", e);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
     } finally {
       setPetSaving(false);
@@ -382,7 +381,7 @@ export default function Family() {
               setChildren((prev) => prev.filter((c) => c.id !== childId));
               Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
             } catch (e) {
-              console.error("Error deleting child:", e);
+              if (__DEV__) console.error("Error deleting child:", e);
             }
           },
         },
@@ -406,7 +405,7 @@ export default function Family() {
               setPets((prev) => prev.filter((p) => p.id !== petId));
               Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
             } catch (e) {
-              console.error("Error deleting pet:", e);
+              if (__DEV__) console.error("Error deleting pet:", e);
             }
           },
         },
@@ -419,6 +418,28 @@ export default function Family() {
       <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]}>
         <View style={styles.loadingContainer}>
           <ActivityIndicator color={colors.primary} size="large" />
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  if (loadError) {
+    return (
+      <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]}>
+        <View style={styles.loadingContainer}>
+          <Text style={[styles.errorText, { color: colors.textMuted }]}>
+            Couldn't load your family info. Pull down to retry.
+          </Text>
+          <Pressable
+            onPress={() => {
+              setLoadError(false);
+              setLoading(true);
+              loadFamilyMembers();
+            }}
+            style={styles.retryButton}
+          >
+            <Text style={[styles.retryButtonText, { color: colors.primary }]}>Retry</Text>
+          </Pressable>
         </View>
       </SafeAreaView>
     );
@@ -798,6 +819,9 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   content: { paddingHorizontal: 20, paddingVertical: 16, paddingBottom: 100 },
   loadingContainer: { flex: 1, justifyContent: "center", alignItems: "center" },
+  errorText: { fontFamily: "Geist", fontSize: 14, textAlign: "center", paddingHorizontal: 32, lineHeight: 22, marginBottom: 16 },
+  retryButton: { paddingHorizontal: 24, paddingVertical: 10, borderRadius: 12, backgroundColor: "rgba(240, 237, 230, 0.06)" },
+  retryButtonText: { fontFamily: "Geist-SemiBold", fontSize: 14 },
 
   headerRow: {
     flexDirection: "row",

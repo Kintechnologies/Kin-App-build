@@ -12,10 +12,6 @@ export default function TabLayout() {
     >
       <Tabs.Screen name="index" />
       <Tabs.Screen name="chat" />
-      <Tabs.Screen name="meals" />
-      <Tabs.Screen name="budget" />
-      <Tabs.Screen name="family" />
-      <Tabs.Screen name="fitness" />
       <Tabs.Screen name="settings" />
     </Tabs>
   );
