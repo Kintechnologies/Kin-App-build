@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 
-const colors = ["#7CB87A", "#D4A843", "#A07EC8", "#7AADCE", "#D4748A", "#F0EDE6"];
+const colors = ["#7CB87A", "#D4A843", "#7AADCE", "#D4748A", "#F0EDE6", "#A8D5A6"];
 
 interface Particle {
   id: number;

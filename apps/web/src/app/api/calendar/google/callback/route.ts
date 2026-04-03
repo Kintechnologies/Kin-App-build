@@ -74,9 +74,9 @@ export async function GET(request: Request) {
           updated_at: new Date().toISOString(),
         })
         .eq("id", connection.id);
-    } catch (webhookError) {
-      console.error("Failed to register webhook:", webhookError);
+    } catch {
       // Non-fatal — sync will fall back to polling
+      // TODO: log to Sentry before GA
     }
 
     // Trigger initial sync
@@ -85,8 +85,8 @@ export async function GET(request: Request) {
     return NextResponse.redirect(
       `${process.env.NEXT_PUBLIC_APP_URL}/settings?calendar_connected=google`
     );
-  } catch (err) {
-    console.error("Google OAuth callback error:", err);
+  } catch {
+    // TODO: log to Sentry before GA
     return NextResponse.redirect(
       `${process.env.NEXT_PUBLIC_APP_URL}/settings?calendar_error=auth_failed`
     );

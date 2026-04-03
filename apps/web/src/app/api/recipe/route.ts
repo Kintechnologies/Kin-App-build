@@ -56,9 +56,6 @@ export async function POST(request: Request) {
     const recipe = generateMockRecipe(mealName);
     mockRecipes[mealName] = recipe;
 
-    // Small delay to feel realistic
-    await new Promise((r) => setTimeout(r, 800));
-
     return NextResponse.json({ recipe });
   } catch {
     return NextResponse.json({ error: "Failed to generate recipe" }, { status: 500 });

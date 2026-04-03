@@ -53,11 +53,31 @@ export async function POST(request: Request) {
         const plan = session.metadata?.plan;
 
         if (userId && plan) {
+          // Fetch subscription to get the real trial_end timestamp
+          let trialEndsAt: string | null = null;
+          if (session.subscription) {
+            try {
+              const stripe = getStripe();
+              const subId =
+                typeof session.subscription === "string"
+                  ? session.subscription
+                  : session.subscription.id;
+              const sub = await stripe.subscriptions.retrieve(subId);
+              if (sub.trial_end) {
+                trialEndsAt = new Date(sub.trial_end * 1000).toISOString();
+              }
+            } catch {
+              // Non-fatal — profile trial_ends_at falls back to signup value
+            }
+          }
+
           await supabase
             .from("profiles")
             .update({
               subscription_tier: plan === "family" ? "family" : "starter",
               stripe_customer_id: session.customer as string,
+              // Store real trial end from Stripe (null = no trial / already ended)
+              ...(trialEndsAt !== null ? { trial_ends_at: trialEndsAt } : {}),
               // Clear cancellation data on reactivation
               cancelled_at: null,
               data_deletion_at: null,
@@ -88,7 +108,10 @@ export async function POST(request: Request) {
 
           // TODO: Send cancellation email via Beehiiv
           // Include: 90-day grace period notice, reactivation link
-          console.log(`Subscription cancelled for user ${userId}. Data deletion scheduled for ${deletionDate.toISOString()}`);
+          // TODO: Replace with structured logging (Sentry) before GA
+          if (process.env.NODE_ENV !== "production") {
+            console.log(`Subscription cancelled for user ${userId}. Data deletion scheduled for ${deletionDate.toISOString()}`);
+          };
         }
         break;
       }
@@ -122,7 +145,10 @@ export async function POST(request: Request) {
               // Referral unlock at charge count === 2
               if (newCount === 2) {
                 // TODO: Trigger referral reward (e.g., send email, add credit)
-                console.log(`Referral unlocked for user ${userId}`);
+                // TODO: Replace with structured logging (Sentry) before GA
+                if (process.env.NODE_ENV !== "production") {
+                  console.log(`Referral unlocked for user ${userId}`);
+                }
               }
             }
           }
@@ -135,7 +161,10 @@ export async function POST(request: Request) {
         const customerId = invoice.customer as string;
 
         // TODO: Send payment failed email notification
-        console.log(`Payment failed for customer ${customerId}`);
+        // TODO: Replace with structured logging (Sentry) before GA
+        if (process.env.NODE_ENV !== "production") {
+          console.log(`Payment failed for customer ${customerId}`);
+        }
         break;
       }
     }

@@ -50,11 +50,11 @@ const cards = [
     href: "/calendar",
     icon: Calendar,
     label: "This Week",
-    desc: "Calendar highlights will appear here",
-    iconBg: "bg-purple/20",
-    iconColor: "text-purple",
-    borderHover: "hover:border-purple/25",
-    glowHover: "hover:shadow-purple/10",
+    desc: "Connect your calendar to see what's coming up",
+    iconBg: "bg-blue/20",
+    iconColor: "text-blue",
+    borderHover: "hover:border-blue/25",
+    glowHover: "hover:shadow-blue/10",
   },
 ];
 
@@ -194,7 +194,7 @@ function DashboardContent() {
   const searchParams = useSearchParams();
   const [firstName, setFirstName] = useState<string | null>(null);
   const [showWelcome, setShowWelcome] = useState(false);
-  const [trialEnd] = useState(() => formatTrialEnd(null)); // TODO: read from profile.trial_end_at (Stripe webhook)
+  const [trialEnd, setTrialEnd] = useState(() => formatTrialEnd(null));
 
   // Show welcome modal when ?subscribed=true is present
   useEffect(() => {
@@ -213,13 +213,26 @@ function DashboardContent() {
   }, [router, searchParams]);
 
   useEffect(() => {
-    async function loadName() {
+    async function loadProfile() {
       try {
         const supabase = createClient();
         const {
           data: { user },
         } = await supabase.auth.getUser();
         if (!user) return;
+
+        // Load profile for trial date + display name fallback
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("display_name, trial_ends_at")
+          .eq("id", user.id)
+          .single();
+
+        // Use real Stripe trial_ends_at if available; otherwise keep today+7d fallback
+        if (profile?.trial_ends_at) {
+          const trialMs = new Date(profile.trial_ends_at).getTime() / 1000;
+          setTrialEnd(formatTrialEnd(trialMs));
+        }
 
         // Try family_members first (adult member with this profile_id)
         const { data: member } = await supabase
@@ -236,21 +249,14 @@ function DashboardContent() {
           return;
         }
 
-        // Fallback: profile display_name
-        const { data: profile } = await supabase
-          .from("profiles")
-          .select("display_name")
-          .eq("id", user.id)
-          .single();
-
         if (profile?.display_name) {
           setFirstName(profile.display_name.split(" ")[0]);
         }
       } catch {
-        // Non-fatal — greeting still shows without name
+        // Non-fatal — greeting and trial date still show with fallback values
       }
     }
-    loadName();
+    loadProfile();
   }, []);
 
   const greeting = getGreeting();

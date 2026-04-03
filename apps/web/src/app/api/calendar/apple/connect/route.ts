@@ -67,8 +67,8 @@ export async function POST(request: Request) {
         name: c.displayName,
       })),
     });
-  } catch (err) {
-    console.error("Apple Calendar connect error:", err);
+  } catch {
+    // TODO: log to Sentry before GA
     return NextResponse.json(
       { error: "Failed to connect Apple Calendar. Check your credentials." },
       { status: 400 }

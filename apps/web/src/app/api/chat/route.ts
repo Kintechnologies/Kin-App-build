@@ -55,8 +55,9 @@ async function performWebSearch(query: string): Promise<string> {
 
         return resultText || "No results found.";
       }
-    } catch (err) {
-      console.error("Tavily search error:", err);
+    } catch {
+      // Non-fatal — falls through to the fallback message below
+      // TODO: log to Sentry before GA
     }
   }
 
@@ -218,8 +219,8 @@ export async function POST(request: Request) {
     });
 
     return NextResponse.json({ response: finalText });
-  } catch (error) {
-    console.error("Chat API error:", error);
+  } catch {
+    // TODO: log to Sentry before GA
     return NextResponse.json(
       { error: "Failed to process chat message" },
       { status: 500 }

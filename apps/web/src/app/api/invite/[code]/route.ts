@@ -13,6 +13,7 @@ export async function GET(
   _request: Request,
   { params }: { params: { code: string } }
 ) {
+  try {
   const { code } = params;
   if (!code) {
     return NextResponse.json({ valid: false, reason: "not_found" as const });
@@ -101,4 +102,9 @@ export async function GET(
     inviteeEmail: invite.invitee_email,
     expiresAt: invite.expires_at,
   });
+  } catch {
+    // Unexpected DB / import error — return safe not_found rather than a 500
+    // TODO: log to Sentry before GA
+    return NextResponse.json({ valid: false, reason: "not_found" as const });
+  }
 }

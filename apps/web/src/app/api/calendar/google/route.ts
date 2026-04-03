@@ -9,10 +9,15 @@ export async function GET(request: Request) {
   if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
-  const supabase = createClient();
-
-  const authUrl = getGoogleAuthUrl(user.id);
-  return NextResponse.json({ url: authUrl });
+  try {
+    const authUrl = getGoogleAuthUrl(user.id);
+    return NextResponse.json({ url: authUrl });
+  } catch {
+    return NextResponse.json(
+      { error: "Google Calendar is not configured. Add GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET to your environment." },
+      { status: 503 }
+    );
+  }
 }
 
 // DELETE /api/calendar/google — disconnect Google Calendar
