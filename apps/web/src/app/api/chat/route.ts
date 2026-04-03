@@ -79,12 +79,13 @@ export async function POST(request: Request) {
 
     const supabase = createClient();
 
-    // Fetch family context
+    // Fetch family context — CRITICAL: allergies are non-negotiable for meal safety
     const [
       { data: profile },
       { data: members },
       { data: prefs },
       { data: history },
+      { data: allergies },
     ] = await Promise.all([
       supabase.from("profiles").select("*").eq("id", user.id).single(),
       supabase.from("family_members").select("*").eq("profile_id", user.id),
@@ -95,6 +96,10 @@ export async function POST(request: Request) {
         .eq("profile_id", user.id)
         .order("created_at", { ascending: true })
         .limit(50),
+      supabase
+        .from("children_allergies")
+        .select("*, family_member:family_members(name)")
+        .eq("profile_id", user.id),
     ]);
 
     const adults = (members || []).filter((m) => m.member_type === "adult");
@@ -103,6 +108,23 @@ export async function POST(request: Request) {
 
     // Use first adult's name from family members; fall back to a friendly default
     const p1Name = adults[0]?.name || "Parent";
+
+    // Build allergen context for meal safety
+    interface AllergyRow {
+      allergen: string;
+      severity: string;
+      notes?: string | null;
+      family_member?: { name: string } | null;
+    }
+    const allergenList =
+      allergies && allergies.length > 0
+        ? (allergies as AllergyRow[])
+            .map(
+              (a) =>
+                `${a.family_member?.name || "Child"}: ${a.allergen} (${a.severity}${a.notes ? ` — ${a.notes}` : ""})`
+            )
+            .join(", ")
+        : "No known allergies";
 
     // Build system prompt with family context
     const systemPrompt = buildSystemPrompt({
@@ -115,6 +137,7 @@ export async function POST(request: Request) {
       dietary_preferences: prefs?.dietary_preferences || [],
       food_loves: prefs?.food_loves || [],
       food_dislikes: prefs?.food_dislikes || [],
+      children_allergies: allergenList,
     });
 
     // Build message history

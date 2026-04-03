@@ -1,0 +1,175 @@
+==========================================================================
+KIN AI MORNING BRIEFING SYSTEM - FILES CREATED
+==========================================================================
+
+MOBILE APP (React Native / Expo)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+1. apps/mobile/lib/kin-ai.ts
+   - assembleFamilyContext(profileId): Promise<string>
+     * Queries Supabase for all family data
+     * Includes allergies, children, pets, schedule, budget, fitness
+     * CRITICAL: Allergy context always included
+   
+   - kinChat(profileId, message, threadId?): Promise<string>
+     * Sends messages to Claude with family context
+     * Maintains conversation history
+   
+   - generateMorningBriefing(profileId): Promise<string>
+     * Gets today's briefing via API
+
+2. apps/mobile/lib/push-notifications.ts
+   - registerForPushNotifications(): Promise<string | null>
+     * Gets Expo push token
+     * Saves to push_tokens table via API
+   
+   - setupNotificationHandlers(): void
+     * Handles foreground/background notifications
+     * Routes to appropriate screens
+
+3. apps/mobile/lib/api.ts (MODIFIED)
+   - Added: getMorningBriefing()
+   - Added: registerPushToken(token, platform, deviceName?)
+
+WEB APP (Next.js)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+4. apps/web/src/app/api/morning-briefing/route.ts
+   - GET: Returns today's briefing (or generates new)
+     * Queries calendar, schedule, kids, budget, pet care
+     * Uses Claude to generate warm briefing
+     * Stores in morning_briefings table
+     * Returns: { content, deliveryStatus }
+   
+   - POST: Forces regeneration of today's briefing
+     * Deletes existing, generates new
+     * Returns: { content, deliveryStatus }
+
+5. apps/web/src/app/api/push-tokens/route.ts
+   - GET: Returns all active push tokens for user
+     * Returns: { tokens }
+   
+   - POST: Saves a push token
+     * Request: { token, platform, device_name? }
+     * Upserts to push_tokens table
+     * Returns: { success, token_id }
+   
+   - DELETE: Deactivates a push token
+     * Request: { token }
+     * Soft delete: sets active = false
+     * Returns: { success }
+
+SUPABASE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+6. supabase/functions/morning-briefing/index.ts
+   - Deno/TypeScript edge function
+   - Runs daily at 6am to generate and send briefings
+   - Process:
+     * Gets all profiles with onboarding_completed = true
+     * For each: generates briefing, gets push tokens, sends notification
+     * Stores in morning_briefings table
+     * Handles errors gracefully per-user
+   - Environment variables:
+     * SUPABASE_URL
+     * SUPABASE_SERVICE_ROLE_KEY
+     * ANTHROPIC_API_KEY
+     * EXPO_ACCESS_TOKEN (optional)
+   - Response: { processed, succeeded, failed, errors }
+
+7. supabase/functions/morning-briefing/deno.json
+   - Configuration for Deno runtime
+   - Imports for std and Supabase SDK
+
+8. supabase/config.toml
+   - Supabase project configuration
+   - Edge function settings
+   - Auth configuration
+
+DATABASE SCHEMA (Already in migrations)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+- push_tokens (013_push_tokens.sql)
+  * Stores Expo push tokens per device
+  * profile_id, token, platform (ios/android/web), device_name
+
+- morning_briefings (018_schedule_and_briefings.sql)
+  * Stores generated briefings
+  * profile_id, briefing_date, content, delivery_status
+
+- parent_schedules (018_schedule_and_briefings.sql)
+  * Parent's personal schedule (private)
+  * home_location, work_location, commute_mode
+
+- children_details, children_allergies, children_activities (014)
+  * Child profiles and allergy info (SAFETY CRITICAL)
+
+- pet_details, pet_medications, pet_vaccinations (015)
+  * Pet info and care schedules
+
+- fitness_profiles, workout_sessions (016)
+  * PRIVATE per parent - never shared with household partner
+
+- budget_categories, budget_summary_view (017)
+  * Budget tracking with RPC function get_budget_summary()
+
+DOCUMENTATION
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+9. docs/MORNING_BRIEFING_SYSTEM.md
+   - Complete system documentation
+   - Architecture overview
+   - API endpoints
+   - Database schema
+   - Kin voice rules
+   - Privacy & safety guidelines
+   - Deployment checklist
+   - Testing instructions
+
+MIGRATIONS MODIFIED
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+- supabase/migrations/017_budget_categories.sql
+  * Added RPC function: get_budget_summary(user_id)
+  * Returns budget category summary for briefings
+
+==========================================================================
+KEY FEATURES
+==========================================================================
+
+SAFETY & PRIVACY
+- Allergy context ALWAYS included (non-negotiable)
+- Fitness data strictly private per parent
+- Budget shows only totals, not line items
+- Calendar respects shared/private event boundaries
+
+VOICE & TONE
+- No hedging ("I think", "perhaps")
+- Always specific numbers
+- One question maximum per briefing
+- Warm, direct, human language
+- No corporate jargon
+- 30-60 second read time
+
+INTEGRATION POINTS
+- Mobile app registers for push on startup
+- Web API generates briefings on-demand or scheduled
+- Supabase edge function sends daily at 6am
+- Claude used for warm, natural briefing generation
+- Expo used for push delivery
+
+==========================================================================
+DEPLOYMENT STEPS
+==========================================================================
+
+1. Apply migrations 013-018 to Supabase
+2. Set environment variables in edge function:
+   - ANTHROPIC_API_KEY
+   - EXPO_ACCESS_TOKEN
+3. Deploy edge function and set schedule (6am UTC)
+4. Deploy web API routes
+5. Update mobile app with new libraries
+6. Initialize push notifications on app startup
+7. Test end-to-end: register token → generate briefing → verify storage
+
+==========================================================================

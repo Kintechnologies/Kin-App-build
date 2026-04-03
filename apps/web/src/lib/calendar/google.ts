@@ -155,13 +155,20 @@ export async function registerGoogleWebhook(
 ): Promise<{ channelId: string; resourceId: string; expiration: string }> {
   const calendar = getCalendarClient(accessToken);
 
+  const requestBody: { id: string; type: string; address: string; token?: string } = {
+    id: channelId,
+    type: "web_hook",
+    address: webhookUrl,
+  };
+  // Pass shared secret as channel token so Google echoes it in X-Goog-Channel-Token.
+  // Requires GOOGLE_WEBHOOK_SECRET to be set in env vars.
+  if (process.env.GOOGLE_WEBHOOK_SECRET) {
+    requestBody.token = process.env.GOOGLE_WEBHOOK_SECRET;
+  }
+
   const response = await calendar.events.watch({
     calendarId,
-    requestBody: {
-      id: channelId,
-      type: "web_hook",
-      address: webhookUrl,
-    },
+    requestBody,
   });
 
   return {

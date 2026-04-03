@@ -24,6 +24,7 @@ import {
   Lock,
   TrendingUp,
   Calendar,
+  Check,
 } from "lucide-react-native";
 import { supabase } from "../../lib/supabase";
 import { useTheme } from "../../lib/theme";
@@ -85,11 +86,25 @@ const GOALS = [
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
+// ─── Progressive Overload Types ───────────────────────────────────────────────
+
+interface OverloadSuggestion {
+  exercise: string;
+  currentWeight: number;
+  suggestedWeight: number;
+  currentReps: number;
+}
+
+// ─── Component ────────────────────────────────────────────────────────────────
+
 export default function Fitness() {
   const { colors } = useTheme();
   const [loading, setLoading] = useState(true);
   const [fitnessProfile, setFitnessProfile] = useState<FitnessProfile | null>(null);
   const [workouts, setWorkouts] = useState<WorkoutSession[]>([]);
+
+  // Progressive overload suggestions — cleared when dismissed
+  const [overloadSuggestions, setOverloadSuggestions] = useState<OverloadSuggestion[]>([]);
 
   // Modal
   const [modalType, setModalType] = useState<ModalType>(null);
@@ -111,6 +126,8 @@ export default function Fitness() {
     Array<{ name: string; sets?: number; reps?: number; weight?: number }>
   >([]);
   const [logSaving, setLogSaving] = useState(false);
+  // Quick-log UI: toggles inline custom-exercise input
+  const [showCustomInput, setShowCustomInput] = useState(false);
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
@@ -177,6 +194,7 @@ export default function Fitness() {
     setLogDuration("");
     setLogNotes("");
     setLogExercises([]);
+    setShowCustomInput(false);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setModalType("log-workout");
   }
@@ -254,6 +272,15 @@ export default function Fitness() {
 
       if (error) throw error;
 
+      // Check for progressive overload suggestions after saving
+      const suggestions = await checkProgressiveOverload(
+        user.id,
+        logExercises
+      );
+      if (suggestions.length > 0) {
+        setOverloadSuggestions(suggestions);
+      }
+
       await loadFitnessData();
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       closeModal();
@@ -263,6 +290,95 @@ export default function Fitness() {
     } finally {
       setLogSaving(false);
     }
+  }
+
+  /**
+   * C5.3 — Progressive Overload Tracker
+   *
+   * After each workout save, for every weighted exercise logged today, fetches
+   * the last 2 prior sessions containing that exercise and checks whether the
+   * user hit their rep count both times without increasing weight. If so,
+   * suggests a 5–10 lb weight increase.
+   *
+   * Logic: if the previous 2 sessions for an exercise both had:
+   *   - the same weight as today, AND
+   *   - reps >= today's reps (i.e., they hit target twice)
+   * → prompt to increase weight.
+   */
+  async function checkProgressiveOverload(
+    userId: string,
+    exercisesLogged: Array<{ name: string; sets?: number; reps?: number; weight?: number }>
+  ): Promise<OverloadSuggestion[]> {
+    const suggestions: OverloadSuggestion[] = [];
+    const todayStr = new Date().toISOString().split("T")[0];
+
+    // Only check exercises with weight and reps logged
+    const weightedExercises = exercisesLogged.filter(
+      (ex) => ex.weight && ex.weight > 0 && ex.reps && ex.reps > 0
+    );
+
+    if (weightedExercises.length === 0) return suggestions;
+
+    try {
+      // Fetch the last 20 sessions (enough history to find 2 sessions per exercise)
+      const { data: sessions } = await supabase
+        .from("workout_sessions")
+        .select("workout_date, exercises")
+        .eq("profile_id", userId)
+        .lt("workout_date", todayStr)
+        .order("workout_date", { ascending: false })
+        .limit(20);
+
+      if (!sessions || sessions.length < 2) return suggestions;
+
+      for (const todayEx of weightedExercises) {
+        const exName = todayEx.name.toLowerCase();
+
+        // Find all prior sessions containing this exercise (by name, case-insensitive)
+        type ExerciseEntry = { name: string; sets?: number; reps?: number; weight?: number };
+        const priorSessions: Array<ExerciseEntry> = [];
+
+        for (const session of sessions as WorkoutSession[]) {
+          const match = session.exercises.find(
+            (ex) => ex.name.toLowerCase() === exName
+          );
+          if (match) {
+            priorSessions.push(match);
+          }
+          if (priorSessions.length >= 2) break;
+        }
+
+        // Need exactly 2 prior sessions with this exercise
+        if (priorSessions.length < 2) continue;
+
+        const [prev1, prev2] = priorSessions; // prev1 = most recent, prev2 = second most recent
+
+        // Check if both prior sessions had same weight as today and >= today's reps
+        const todayWeight = todayEx.weight!;
+        const todayReps = todayEx.reps!;
+
+        const bothSameWeight =
+          prev1.weight === todayWeight && prev2.weight === todayWeight;
+        const bothHitReps =
+          (prev1.reps ?? 0) >= todayReps && (prev2.reps ?? 0) >= todayReps;
+
+        if (bothSameWeight && bothHitReps) {
+          // Suggest 5 lb increase for <100 lbs, 10 lbs for ≥100 lbs
+          const increment = todayWeight < 100 ? 5 : 10;
+          suggestions.push({
+            exercise: todayEx.name,
+            currentWeight: todayWeight,
+            suggestedWeight: todayWeight + increment,
+            currentReps: todayReps,
+          });
+        }
+      }
+    } catch (e) {
+      // Non-fatal — overload check should never block the workout save
+      console.error("Progressive overload check failed:", e);
+    }
+
+    return suggestions;
   }
 
   function getWorkoutsThisWeek(): number {
@@ -479,6 +595,36 @@ export default function Fitness() {
           <Text style={styles.logButtonText}>Log Today's Workout</Text>
         </Pressable>
 
+        {/* Progressive Overload Suggestions */}
+        {overloadSuggestions.length > 0 && (
+          <View style={styles.overloadCard}>
+            <View style={styles.overloadHeader}>
+              <TrendingUp size={16} color="#7CB87A" />
+              <Text style={styles.overloadTitle}>Ready to level up</Text>
+              <Pressable
+                onPress={() => setOverloadSuggestions([])}
+                hitSlop={12}
+              >
+                <X size={14} color="rgba(240, 237, 230, 0.4)" />
+              </Pressable>
+            </View>
+            {overloadSuggestions.map((s, idx) => (
+              <Text key={idx} style={styles.overloadLine}>
+                <Text style={styles.overloadExercise}>{s.exercise}</Text>
+                {" — you've hit "}
+                <Text style={styles.overloadExercise}>
+                  {s.currentReps} reps @ {s.currentWeight}lbs
+                </Text>
+                {" twice. Try "}
+                <Text style={styles.overloadHighlight}>
+                  {s.suggestedWeight}lbs
+                </Text>
+                {" next session."}
+              </Text>
+            ))}
+          </View>
+        )}
+
         {/* Recent Workouts */}
         <View style={styles.recentSection}>
           <Text style={styles.recentTitle}>Recent Workouts</Text>
@@ -619,6 +765,12 @@ export default function Fitness() {
       </Modal>
 
       {/* ─── Log Workout Modal ────────────────────────────────────────────── */}
+      {/*
+       * QUICK-LOG REDESIGN (Product & Design — Apr 2026)
+       * Old flow: type name → type sets → type reps → type weight → tap "Add" → repeat. Min 5 taps/exercise.
+       * New flow: tap chip → exercise added instantly with defaults → enter weight inline → tap Save.
+       * Min 2 interactions per exercise (tap chip + weight). Common exercises = 1 tap + weight.
+       */}
       <Modal
         visible={modalType === "log-workout"}
         transparent
@@ -641,98 +793,158 @@ export default function Fitness() {
               style={styles.modalContent}
               contentContainerStyle={styles.modalScroll}
               showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
             >
-              {/* Exercise input */}
-              <Text style={styles.fieldLabel}>Exercise</Text>
-              <TextInput
-                style={[styles.input, { color: colors.text, borderColor: colors.border }]}
-                value={logExercise}
-                onChangeText={setLogExercise}
-                placeholder="e.g. Bench Press"
-                placeholderTextColor={colors.textMuted}
-                autoFocus
-              />
-
-              {/* Sets / Reps / Weight */}
-              <View style={styles.metaRow}>
-                <View style={{ flex: 0.3 }}>
-                  <Text style={styles.fieldLabel}>Sets</Text>
-                  <TextInput
-                    style={[styles.input, { color: colors.text, borderColor: colors.border }]}
-                    value={logSets}
-                    onChangeText={setLogSets}
-                    placeholder="3"
-                    keyboardType="number-pad"
-                    placeholderTextColor={colors.textMuted}
-                  />
-                </View>
-                <View style={{ flex: 0.3 }}>
-                  <Text style={styles.fieldLabel}>Reps</Text>
-                  <TextInput
-                    style={[styles.input, { color: colors.text, borderColor: colors.border }]}
-                    value={logReps}
-                    onChangeText={setLogReps}
-                    placeholder="8"
-                    keyboardType="number-pad"
-                    placeholderTextColor={colors.textMuted}
-                  />
-                </View>
-                <View style={{ flex: 0.4 }}>
-                  <Text style={styles.fieldLabel}>Weight (lbs)</Text>
-                  <TextInput
-                    style={[styles.input, { color: colors.text, borderColor: colors.border }]}
-                    value={logWeight}
-                    onChangeText={setLogWeight}
-                    placeholder="185"
-                    keyboardType="number-pad"
-                    placeholderTextColor={colors.textMuted}
-                  />
-                </View>
-              </View>
-
-              {/* Add exercise button */}
-              <Pressable
-                style={[
-                  styles.addExerciseBtn,
-                  !logExercise.trim() && styles.addExerciseBtnDisabled,
-                ]}
-                onPress={addExercise}
-                disabled={!logExercise.trim()}
-              >
-                <Plus size={16} color="#7CB87A" />
-                <Text style={styles.addExerciseBtnText}>Add Exercise</Text>
-              </Pressable>
-
-              {/* Exercise list */}
+              {/* ── Session so far ── */}
               {logExercises.length > 0 && (
-                <View style={styles.exerciseListWrap}>
-                  <Text style={styles.exerciseListTitle}>
-                    Exercises ({logExercises.length})
+                <View style={styles.sessionList}>
+                  <Text style={styles.sessionListTitle}>
+                    TODAY · {logExercises.length} EXERCISE{logExercises.length !== 1 ? "S" : ""}
                   </Text>
                   {logExercises.map((ex, idx) => (
-                    <View key={idx} style={styles.exerciseListItem}>
-                      <View>
-                        <Text style={styles.exerciseListName}>{ex.name}</Text>
-                        {(ex.sets || ex.reps || ex.weight) && (
-                          <Text style={styles.exerciseListMeta}>
-                            {ex.sets && `${ex.sets}×${ex.reps || "?"}`}
-                            {ex.weight && ` @ ${ex.weight}lbs`}
-                          </Text>
-                        )}
+                    <View key={idx} style={styles.sessionExRow}>
+                      <View style={styles.sessionExLeft}>
+                        <Text style={styles.sessionExName}>{ex.name}</Text>
+                        <Text style={styles.sessionExMeta}>
+                          {ex.sets ?? 3}×{ex.reps ?? 8}
+                          {ex.weight ? `  ·  ${ex.weight} lbs` : ""}
+                        </Text>
                       </View>
-                      <Pressable
-                        onPress={() => removeExercise(idx)}
-                        hitSlop={12}
-                      >
-                        <X size={16} color="rgba(240, 237, 230, 0.3)" />
-                      </Pressable>
+                      <View style={styles.sessionExRight}>
+                        {/* Inline weight — one field, instant edit */}
+                        <TextInput
+                          style={styles.inlineWeightInput}
+                          value={ex.weight ? String(ex.weight) : ""}
+                          onChangeText={(val) => {
+                            const w = parseInt(val, 10);
+                            setLogExercises((prev) =>
+                              prev.map((e, i) =>
+                                i === idx ? { ...e, weight: isNaN(w) ? undefined : w } : e
+                              )
+                            );
+                          }}
+                          placeholder="lbs"
+                          keyboardType="number-pad"
+                          placeholderTextColor="rgba(240, 237, 230, 0.2)"
+                          maxLength={4}
+                        />
+                        <Pressable onPress={() => removeExercise(idx)} hitSlop={12}>
+                          <X size={14} color="rgba(240, 237, 230, 0.2)" />
+                        </Pressable>
+                      </View>
                     </View>
                   ))}
+                  <View style={styles.sessionDivider} />
                 </View>
               )}
 
-              {/* Duration & Notes */}
-              <Text style={styles.fieldLabel}>Duration (minutes) <Text style={styles.fieldOptional}>(optional)</Text></Text>
+              {/* ── Quick-add chips ── */}
+              <Text style={styles.quickAddLabel}>
+                {logExercises.length === 0 ? "What did you do?" : "Add more"}
+              </Text>
+              <View style={styles.chipGrid}>
+                {COMMON_EXERCISES.slice(0, 16).map((name) => {
+                  const added = logExercises.some((e) => e.name === name);
+                  return (
+                    <Pressable
+                      key={name}
+                      style={({ pressed }) => [
+                        styles.exerciseChip,
+                        added && styles.exerciseChipAdded,
+                        pressed && !added && { opacity: 0.75 },
+                      ]}
+                      onPress={() => {
+                        if (added) return;
+                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                        setLogExercises((prev) => [
+                          ...prev,
+                          { name, sets: 3, reps: 8, weight: undefined },
+                        ]);
+                      }}
+                    >
+                      {added && (
+                        <Check
+                          size={11}
+                          color="#7CB87A"
+                          style={{ marginRight: 3 }}
+                        />
+                      )}
+                      <Text
+                        style={[
+                          styles.exerciseChipText,
+                          added && styles.exerciseChipTextAdded,
+                        ]}
+                      >
+                        {name}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+
+              {/* ── Custom exercise ── */}
+              {showCustomInput ? (
+                <View style={styles.customInputRow}>
+                  <TextInput
+                    style={[styles.customInput, { color: colors.text }]}
+                    value={logExercise}
+                    onChangeText={setLogExercise}
+                    placeholder="Exercise name..."
+                    placeholderTextColor="rgba(240, 237, 230, 0.25)"
+                    autoFocus
+                    returnKeyType="done"
+                    onSubmitEditing={() => {
+                      if (!logExercise.trim()) {
+                        setShowCustomInput(false);
+                        return;
+                      }
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                      setLogExercises((prev) => [
+                        ...prev,
+                        { name: logExercise.trim(), sets: 3, reps: 8, weight: undefined },
+                      ]);
+                      setLogExercise("");
+                      setShowCustomInput(false);
+                    }}
+                  />
+                  <Pressable
+                    onPress={() => {
+                      if (!logExercise.trim()) {
+                        setShowCustomInput(false);
+                        return;
+                      }
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                      setLogExercises((prev) => [
+                        ...prev,
+                        { name: logExercise.trim(), sets: 3, reps: 8, weight: undefined },
+                      ]);
+                      setLogExercise("");
+                      setShowCustomInput(false);
+                    }}
+                    style={styles.customInputAdd}
+                    hitSlop={8}
+                  >
+                    <Plus size={16} color="#7CB87A" />
+                  </Pressable>
+                </View>
+              ) : (
+                <Pressable
+                  style={styles.customExerciseBtn}
+                  onPress={() => {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    setShowCustomInput(true);
+                  }}
+                >
+                  <Plus size={14} color="rgba(240, 237, 230, 0.3)" />
+                  <Text style={styles.customExerciseBtnText}>Custom exercise</Text>
+                </Pressable>
+              )}
+
+              {/* ── Duration (optional) ── */}
+              <Text style={[styles.fieldLabel, { marginTop: 28 }]}>
+                Duration{" "}
+                <Text style={styles.fieldOptional}>(minutes, optional)</Text>
+              </Text>
               <TextInput
                 style={[styles.input, { color: colors.text, borderColor: colors.border }]}
                 value={logDuration}
@@ -742,25 +954,22 @@ export default function Fitness() {
                 placeholderTextColor={colors.textMuted}
               />
 
-              <Text style={styles.fieldLabel}>Notes <Text style={styles.fieldOptional}>(optional)</Text></Text>
-              <TextInput
-                style={[styles.input, { color: colors.text, borderColor: colors.border, height: 80 }]}
-                value={logNotes}
-                onChangeText={setLogNotes}
-                placeholder="How did it go?"
-                placeholderTextColor={colors.textMuted}
-                multiline
-                textAlignVertical="top"
-              />
-
-              {/* Save button */}
+              {/* ── Save ── */}
               <Pressable
-                style={[styles.saveBtn, logExercises.length === 0 && styles.saveBtnDisabled]}
+                style={[
+                  styles.saveBtn,
+                  logExercises.length === 0 && styles.saveBtnDisabled,
+                  { marginTop: 28 },
+                ]}
                 onPress={saveWorkout}
                 disabled={logExercises.length === 0 || logSaving}
               >
                 <Text style={styles.saveBtnText}>
-                  {logSaving ? "Saving..." : "Log Workout"}
+                  {logSaving
+                    ? "Saving..."
+                    : logExercises.length === 0
+                    ? "Add at least one exercise"
+                    : `Save ${logExercises.length} exercise${logExercises.length !== 1 ? "s" : ""}`}
                 </Text>
               </Pressable>
             </ScrollView>
@@ -975,6 +1184,43 @@ const styles = StyleSheet.create({
     color: "#0C0F0A",
   },
 
+  // ─── Progressive Overload Card ─────────────────────────────────────────────
+  overloadCard: {
+    backgroundColor: "rgba(124, 184, 122, 0.08)",
+    borderWidth: 1,
+    borderColor: "rgba(124, 184, 122, 0.25)",
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 16,
+  },
+  overloadHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginBottom: 8,
+  },
+  overloadTitle: {
+    fontFamily: "Geist-SemiBold",
+    fontSize: 13,
+    color: "#7CB87A",
+    flex: 1,
+  },
+  overloadLine: {
+    fontFamily: "Geist",
+    fontSize: 13,
+    color: "rgba(240, 237, 230, 0.7)",
+    lineHeight: 20,
+    marginBottom: 4,
+  },
+  overloadExercise: {
+    fontFamily: "Geist-SemiBold",
+    color: "rgba(240, 237, 230, 0.9)",
+  },
+  overloadHighlight: {
+    fontFamily: "Geist-SemiBold",
+    color: "#7CB87A",
+  },
+
   recentSection: {
     marginBottom: 40,
   },
@@ -1162,6 +1408,144 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: "rgba(122, 173, 206, 0.7)",
     marginTop: 2,
+  },
+
+  // ── Quick-log UI ─────────────────────────────────────────────────────────────
+
+  // Session list (exercises added so far, shown at top of modal)
+  sessionList: {
+    marginBottom: 20,
+  },
+  sessionListTitle: {
+    fontFamily: "GeistMono-Regular",
+    fontSize: 10,
+    color: "rgba(240, 237, 230, 0.25)",
+    letterSpacing: 1.5,
+    marginBottom: 10,
+  },
+  sessionExRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingVertical: 9,
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(240, 237, 230, 0.03)",
+  },
+  sessionExLeft: {
+    flex: 1,
+  },
+  sessionExName: {
+    fontFamily: "Geist-SemiBold",
+    fontSize: 14,
+    color: "#F0EDE6",
+    marginBottom: 2,
+  },
+  sessionExMeta: {
+    fontFamily: "Geist",
+    fontSize: 12,
+    color: "rgba(122, 173, 206, 0.7)",
+  },
+  sessionExRight: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  // Inline weight input — compact, single field next to each exercise
+  inlineWeightInput: {
+    width: 52,
+    backgroundColor: "rgba(240, 237, 230, 0.04)",
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "rgba(240, 237, 230, 0.08)",
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    fontFamily: "Geist-SemiBold",
+    fontSize: 13,
+    color: "#F0EDE6",
+    textAlign: "center",
+  },
+  sessionDivider: {
+    height: 1,
+    backgroundColor: "rgba(240, 237, 230, 0.04)",
+    marginTop: 8,
+  },
+
+  // Quick-add section
+  quickAddLabel: {
+    fontFamily: "InstrumentSerif-Italic",
+    fontSize: 18,
+    color: "#F0EDE6",
+    marginBottom: 14,
+  },
+  chipGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    marginBottom: 12,
+  },
+  exerciseChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: "rgba(240, 237, 230, 0.1)",
+    backgroundColor: "rgba(240, 237, 230, 0.04)",
+  },
+  exerciseChipAdded: {
+    borderColor: "rgba(124, 184, 122, 0.35)",
+    backgroundColor: "rgba(124, 184, 122, 0.08)",
+  },
+  exerciseChipText: {
+    fontFamily: "Geist",
+    fontSize: 13,
+    color: "rgba(240, 237, 230, 0.55)",
+  },
+  exerciseChipTextAdded: {
+    color: "#7CB87A",
+  },
+
+  // Custom exercise input row
+  customExerciseBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingVertical: 8,
+    paddingHorizontal: 4,
+    marginTop: 4,
+  },
+  customExerciseBtnText: {
+    fontFamily: "Geist",
+    fontSize: 13,
+    color: "rgba(240, 237, 230, 0.3)",
+  },
+  customInputRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    marginTop: 8,
+  },
+  customInput: {
+    flex: 1,
+    backgroundColor: "rgba(240, 237, 230, 0.04)",
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "rgba(124, 184, 122, 0.25)",
+    paddingHorizontal: 14,
+    paddingVertical: 11,
+    fontFamily: "Geist",
+    fontSize: 14,
+  },
+  customInputAdd: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: "rgba(124, 184, 122, 0.1)",
+    borderWidth: 1,
+    borderColor: "rgba(124, 184, 122, 0.2)",
+    alignItems: "center",
+    justifyContent: "center",
   },
 
   goalsGrid: {

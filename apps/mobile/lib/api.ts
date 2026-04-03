@@ -94,4 +94,20 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ token, platform, device_name: deviceName }),
     }),
+
+  // C3 — Overspend push notification
+  // Fire-and-forget: call after a transaction is saved. No throw on failure.
+  checkBudgetOverspend: async (categoryId: string): Promise<void> => {
+    try {
+      await apiRequest<{ sent?: boolean; skipped?: boolean }>(
+        "/api/budget/check-overspend",
+        {
+          method: "POST",
+          body: JSON.stringify({ categoryId }),
+        }
+      );
+    } catch {
+      // Silently swallow — notification failure should never block the UI
+    }
+  },
 };

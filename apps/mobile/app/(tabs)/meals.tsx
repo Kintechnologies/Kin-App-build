@@ -49,6 +49,18 @@ interface GroceryItem {
   savings_tip?: string;
 }
 
+// Realtime-synced grocery list item (from grocery_list_items table)
+interface DBGroceryItem {
+  id: string;
+  name: string;
+  quantity: string;
+  estimated_cost: number;
+  store: string;
+  is_kid_item: boolean;
+  checked: boolean;
+  sort_order: number;
+}
+
 interface MealOptions {
   breakfast_options: MealOption[];
   lunch_options: MealOption[];
@@ -124,6 +136,11 @@ export default function Meals() {
   const [generationError, setGenerationError] = useState(false);
   const [showGrocery, setShowGrocery] = useState(false);
 
+  // C2 — Realtime grocery list state
+  const [syncedGroceryItems, setSyncedGroceryItems] = useState<DBGroceryItem[]>([]);
+  const [householdId, setHouseholdId] = useState<string | null>(null);
+  const groceryChannelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
+
   // Generating animation
   const [genMsgIdx, setGenMsgIdx] = useState(0);
   const genMsgTimer = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -158,9 +175,116 @@ export default function Meals() {
     };
   }, [setupStep]);
 
+  // C2 — Subscribe to grocery_list_items Realtime when householdId is known
+  useEffect(() => {
+    if (!householdId) return;
+
+    // Fetch initial grocery list
+    loadGroceryList(householdId);
+
+    // Subscribe to changes
+    const channel = supabase
+      .channel(`grocery:${householdId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "grocery_list_items",
+          filter: `household_id=eq.${householdId}`,
+        },
+        () => {
+          // Re-fetch on any change to keep state accurate
+          loadGroceryList(householdId);
+        }
+      )
+      .subscribe();
+
+    groceryChannelRef.current = channel;
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [householdId]);
+
+  async function loadGroceryList(hid: string) {
+    const { data } = await supabase
+      .from("grocery_list_items")
+      .select("id, name, quantity, estimated_cost, store, is_kid_item, checked, sort_order")
+      .eq("household_id", hid)
+      .order("checked", { ascending: true })       // unchecked first
+      .order("sort_order", { ascending: true });    // then original meal plan order
+
+    if (data) {
+      setSyncedGroceryItems(data as DBGroceryItem[]);
+    }
+  }
+
+  async function toggleItemChecked(itemId: string, currentlyChecked: boolean) {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    await supabase
+      .from("grocery_list_items")
+      .update({
+        checked: !currentlyChecked,
+        checked_by_profile_id: !currentlyChecked ? user.id : null,
+        checked_at: !currentlyChecked ? new Date().toISOString() : null,
+      })
+      .eq("id", itemId);
+    // Realtime subscription will fire and reload the list
+  }
+
+  async function syncGroceryListFromMealPlan(userId: string, plan: MealOptions, hid: string) {
+    // Replace all items in the household's grocery list with the new meal plan's items
+    await supabase
+      .from("grocery_list_items")
+      .delete()
+      .eq("household_id", hid);
+
+    const allItems: Omit<DBGroceryItem, "id">[] = [
+      ...(plan.grocery_items ?? []).map((item, idx) => ({
+        name: item.name,
+        quantity: item.quantity,
+        estimated_cost: item.estimated_cost,
+        store: item.recommended_store || "Other",
+        is_kid_item: false,
+        checked: false,
+        sort_order: idx,
+      })),
+      ...(plan.kid_grocery_items ?? []).map((item, idx) => ({
+        name: item.name,
+        quantity: item.quantity,
+        estimated_cost: item.estimated_cost,
+        store: item.recommended_store || "Other",
+        is_kid_item: true,
+        checked: false,
+        sort_order: (plan.grocery_items?.length ?? 0) + idx,
+      })),
+    ];
+
+    if (allItems.length > 0) {
+      await supabase.from("grocery_list_items").insert(
+        allItems.map((item) => ({ ...item, household_id: hid }))
+      );
+    }
+  }
+
   async function checkPreferences() {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) { setLoading(false); return; }
+
+    // C2 — Resolve household_id for Realtime grocery list subscription
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("household_id")
+      .eq("id", user.id)
+      .single();
+
+    // Primary parent: household_id = null → their own id is the canonical household key
+    // Partner: household_id = primary parent's id
+    const resolvedHouseholdId = profile?.household_id ?? user.id;
+    setHouseholdId(resolvedHouseholdId);
 
     const { data: prefs } = await supabase
       .from("onboarding_preferences")
@@ -196,6 +320,15 @@ export default function Meals() {
 
       if (plan?.meal_options) {
         setMealPlan(plan.meal_options as MealOptions);
+        // Sync to grocery_list_items table if there are no synced items yet
+        const { count } = await supabase
+          .from("grocery_list_items")
+          .select("id", { count: "exact", head: true })
+          .eq("household_id", resolvedHouseholdId);
+
+        if (!count || count === 0) {
+          await syncGroceryListFromMealPlan(user.id, plan.meal_options as MealOptions, resolvedHouseholdId);
+        }
       }
       setPlanLoading(false);
     }
@@ -219,10 +352,18 @@ export default function Meals() {
 
   /** Build API request body from current state + DB context, then call /api/meals */
   async function callMealsApi(userId: string): Promise<MealOptions> {
-    const [{ data: profile }, { data: members }] = await Promise.all([
+    // CRITICAL: Always fetch allergies for meal plan safety
+    const [{ data: profile }, { data: members }, { data: allergies }] = await Promise.all([
       supabase.from("profiles").select("family_name").eq("id", userId).single(),
       supabase.from("family_members").select("name, age, member_type").eq("profile_id", userId),
+      supabase.from("children_allergies").select("allergen").eq("profile_id", userId),
     ]);
+
+    // Extract allergen names for filtering
+    interface AllergyRow {
+      allergen: string;
+    }
+    const allergenList = (allergies as AllergyRow[])?.map((a) => a.allergen) ?? [];
 
     const result = await api.generateMealPlan({
       familyName: profile?.family_name ?? "Your family",
@@ -235,6 +376,7 @@ export default function Meals() {
       dietaryPrefs: selectedDietary,
       foodLoves: foodLoves.split(",").map((f) => f.trim()).filter(Boolean),
       foodDislikes: foodDislikes.split(",").map((f) => f.trim()).filter(Boolean),
+      childrenAllergies: allergenList,
       nutritionGoals: nutritionGoal ? [nutritionGoal] : [],
       calorieTarget: dailyCalories ? parseInt(dailyCalories, 10) : undefined,
       separateKidGroceries: separateKidsMeals,
@@ -280,6 +422,11 @@ export default function Meals() {
 
       setMealPlan(options);
       setHasPrefs(true);
+
+      // C2 — Sync new meal plan's grocery items to the Realtime table
+      if (householdId) {
+        await syncGroceryListFromMealPlan(user.id, options, householdId);
+      }
     } catch {
       setGenerationError(true);
     } finally {
@@ -306,6 +453,10 @@ export default function Meals() {
       });
 
       setMealPlan(options);
+      // C2 — Sync new grocery items to Realtime table
+      if (householdId) {
+        await syncGroceryListFromMealPlan(user.id, options, householdId);
+      }
     } catch {
       setGenerationError(true);
     } finally {
@@ -320,13 +471,46 @@ export default function Meals() {
 
   // ── Grocery list helpers ────────────────────────────────────────────────────
 
+  // C2 — Use synced items when available, fall back to local meal plan items
+  const activeGroceryItems: DBGroceryItem[] = syncedGroceryItems.length > 0
+    ? syncedGroceryItems
+    : [
+        ...(mealPlan?.grocery_items ?? []).map((item, idx) => ({
+          id: `local-${idx}`,
+          name: item.name,
+          quantity: item.quantity,
+          estimated_cost: item.estimated_cost,
+          store: item.recommended_store || "Other",
+          is_kid_item: false,
+          checked: false,
+          sort_order: idx,
+        })),
+        ...(mealPlan?.kid_grocery_items ?? []).map((item, idx) => ({
+          id: `local-kid-${idx}`,
+          name: item.name,
+          quantity: item.quantity,
+          estimated_cost: item.estimated_cost,
+          store: item.recommended_store || "Other",
+          is_kid_item: true,
+          checked: false,
+          sort_order: (mealPlan?.grocery_items?.length ?? 0) + idx,
+        })),
+      ];
+
   function getGroceryTotal(): number {
-    return (
-      (mealPlan?.grocery_items ?? []).reduce((sum, i) => sum + i.estimated_cost, 0) +
-      (mealPlan?.kid_grocery_items ?? []).reduce((sum, i) => sum + i.estimated_cost, 0)
-    );
+    return activeGroceryItems.reduce((sum, i) => sum + i.estimated_cost, 0);
   }
 
+  function getSyncedGroceryByStore(): Record<string, DBGroceryItem[]> {
+    return activeGroceryItems.reduce<Record<string, DBGroceryItem[]>>((acc, item) => {
+      const store = item.store || "Other";
+      if (!acc[store]) acc[store] = [];
+      acc[store].push(item);
+      return acc;
+    }, {});
+  }
+
+  // Legacy fallback (unused when synced items are present)
   function getGroceryByStore(): Record<string, GroceryItem[]> {
     const all = [
       ...(mealPlan?.grocery_items ?? []),
@@ -371,8 +555,8 @@ export default function Meals() {
   // ── Done state — meal plan view ────────────────────────────────────────────
   if (setupStep === "done") {
     const groceryTotal = getGroceryTotal();
-    const groceryCount = (mealPlan?.grocery_items?.length ?? 0) + (mealPlan?.kid_grocery_items?.length ?? 0);
-    const groceryByStore = getGroceryByStore();
+    const groceryCount = activeGroceryItems.length;
+    const groceryByStore = getSyncedGroceryByStore();
 
     return (
       <SafeAreaView style={styles.safeArea}>
@@ -399,7 +583,7 @@ export default function Meals() {
           <View style={styles.goalsSummaryCard}>
             <View style={styles.goalsSummaryHeader}>
               <View style={styles.setupIconWrap}>
-                <UtensilsCrossed size={22} color="#D4A843" />
+                <UtensilsCrossed size={22} color="#7CB87A" />
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={styles.goalsSummaryTitle}>Your Goals</Text>
@@ -601,31 +785,44 @@ export default function Meals() {
                 contentContainerStyle={styles.modalContent}
                 showsVerticalScrollIndicator={false}
               >
+                {/* C2 — Realtime grocery list: items sorted unchecked first, grouped by store */}
                 {Object.entries(groceryByStore).map(([store, items]) => (
                   <View key={store} style={styles.storeSection}>
                     <Text style={styles.storeLabel}>{store.toUpperCase()}</Text>
-                    {items.map((item, idx) => (
-                      <View key={`${item.name}-${idx}`} style={styles.groceryItem}>
+                    {items.map((item) => (
+                      <Pressable
+                        key={item.id}
+                        style={({ pressed }) => [
+                          styles.groceryItem,
+                          item.checked && styles.groceryItemChecked,
+                          pressed && { opacity: 0.75 },
+                        ]}
+                        onPress={() => {
+                          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                          // Only toggle if item is from DB (has a real UUID)
+                          if (!item.id.startsWith("local-")) {
+                            toggleItemChecked(item.id, item.checked);
+                          }
+                        }}
+                      >
+                        {/* Checkbox */}
+                        <View style={[styles.groceryCheckbox, item.checked && styles.groceryCheckboxChecked]}>
+                          {item.checked && <Check size={12} color="#0C0F0A" strokeWidth={3} />}
+                        </View>
                         <View style={{ flex: 1 }}>
-                          <Text style={styles.groceryItemName}>{item.name}</Text>
+                          <Text style={[styles.groceryItemName, item.checked && styles.groceryItemNameChecked]}>
+                            {item.name}
+                            {item.is_kid_item ? " 🧒" : ""}
+                          </Text>
                           <Text style={styles.groceryItemQty}>{item.quantity}</Text>
                         </View>
-                        <Text style={styles.groceryItemCost}>
+                        <Text style={[styles.groceryItemCost, item.checked && { opacity: 0.3 }]}>
                           ${item.estimated_cost.toFixed(2)}
                         </Text>
-                      </View>
+                      </Pressable>
                     ))}
                   </View>
                 ))}
-
-                {/* Kids items section */}
-                {(mealPlan?.kid_grocery_items?.length ?? 0) > 0 && (
-                  <View style={styles.kidsGroceryNote}>
-                    <Text style={styles.kidsGroceryNoteText}>
-                      🧒 Kids' items included above
-                    </Text>
-                  </View>
-                )}
 
                 {/* Total */}
                 <View style={styles.groceryTotal}>
@@ -651,7 +848,7 @@ export default function Meals() {
         >
           <View style={{ alignItems: "center" }}>
             <View style={styles.setupIconWrap}>
-              <UtensilsCrossed size={28} color="#D4A843" />
+              <UtensilsCrossed size={28} color="#7CB87A" />
             </View>
             <Text style={styles.pageTitle}>Meal Planning</Text>
             <Text style={[styles.pageSubtitle, { textAlign: "center", marginBottom: 28 }]}>
@@ -715,7 +912,7 @@ export default function Meals() {
 
         <View style={styles.setupHeader}>
           <View style={styles.setupIconWrap}>
-            <UtensilsCrossed size={24} color="#D4A843" />
+            <UtensilsCrossed size={24} color="#7CB87A" />
           </View>
           <Text style={styles.pageTitle}>Meal Planning</Text>
           <Text style={styles.setupSubtitle}>
@@ -1560,14 +1757,36 @@ const styles = StyleSheet.create({
   groceryItem: {
     flexDirection: "row",
     alignItems: "center",
+    gap: 10,
     paddingVertical: 10,
     borderBottomWidth: 1,
     borderBottomColor: "rgba(240, 237, 230, 0.04)",
+  },
+  groceryItemChecked: {
+    opacity: 0.45,
+  },
+  groceryCheckbox: {
+    width: 22,
+    height: 22,
+    borderRadius: 6,
+    borderWidth: 1.5,
+    borderColor: "rgba(240, 237, 230, 0.2)",
+    alignItems: "center",
+    justifyContent: "center",
+    flexShrink: 0,
+  },
+  groceryCheckboxChecked: {
+    backgroundColor: "#7CB87A",
+    borderColor: "#7CB87A",
   },
   groceryItemName: {
     fontFamily: "Geist",
     fontSize: 14,
     color: "#F0EDE6",
+  },
+  groceryItemNameChecked: {
+    textDecorationLine: "line-through",
+    color: "rgba(240, 237, 230, 0.4)",
   },
   groceryItemQty: {
     fontFamily: "Geist",

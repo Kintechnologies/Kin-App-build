@@ -34,7 +34,10 @@ export async function GET(request: Request) {
     for (const user of reminderUsers) {
       // TODO: Send reminder email via Beehiiv
       // "Your Kin data will be deleted on [date]. Reactivate to keep your family profile."
-      console.log(`Day-75 reminder: ${user.email} — deletion on ${user.data_deletion_at}`);
+      // TODO: Replace with structured logging (Sentry) before GA
+      if (process.env.NODE_ENV !== "production") {
+        console.log(`Day-75 reminder: ${user.email} — deletion on ${user.data_deletion_at}`);
+      }
 
       await supabase
         .from("profiles")
@@ -71,7 +74,10 @@ export async function GET(request: Request) {
       // Delete the auth user
       await supabase.auth.admin.deleteUser(user.id);
 
-      console.log(`Deleted user data: ${user.email}`);
+      // TODO: Replace with structured logging (Sentry) before GA
+      if (process.env.NODE_ENV !== "production") {
+        console.log(`Deleted user data: ${user.email}`);
+      }
       deletedCount++;
     }
   }

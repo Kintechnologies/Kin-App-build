@@ -14,6 +14,7 @@ export function buildSystemPrompt(context: {
   dietary_preferences: string[];
   food_loves: string[];
   food_dislikes: string[];
+  children_allergies?: string;
   home_region?: string;
   current_meal_plan_summary?: string;
   grocery_status?: string;
@@ -56,6 +57,8 @@ ${c.p2_name ? `Parent 2 (${c.p2_name}${c.p2_age ? `, ${c.p2_age}` : ""}):
   - Shared calendar events only: ${c.p2_shared_calendar || "no shared events yet"}` : ""}
 Kids:
 ${kidsBlock}
+CHILDREN'S ALLERGIES (NON-NEGOTIABLE SAFETY — ALWAYS INCLUDE IN MEAL SUGGESTIONS):
+${c.children_allergies || "No known allergies"}
 Pets:
 ${petsBlock}
 Grocery budget: $${c.grocery_budget}/week

@@ -8,7 +8,7 @@ const features = [
   { icon: UtensilsCrossed, label: "Meal Planning", color: "text-amber", bg: "bg-amber/15" },
   { icon: Wallet, label: "Smart Budget", color: "text-blue", bg: "bg-blue/15" },
   { icon: MessageCircle, label: "AI Assistant", color: "text-primary", bg: "bg-primary/15" },
-  { icon: Calendar, label: "Family Calendar", color: "text-purple", bg: "bg-purple/15" },
+  { icon: Calendar, label: "Family Calendar", color: "text-blue", bg: "bg-blue/15" },
 ];
 
 export default function Home() {
@@ -17,7 +17,7 @@ export default function Home() {
       {/* Gradient mesh background */}
       <div className="absolute inset-0 pointer-events-none">
         <div className="absolute top-[15%] left-[20%] w-[400px] h-[400px] rounded-full bg-primary/8 blur-[150px] pulse-soft" />
-        <div className="absolute top-[60%] right-[15%] w-[350px] h-[350px] rounded-full bg-purple/6 blur-[130px] pulse-soft" style={{ animationDelay: "2s" }} />
+        <div className="absolute top-[60%] right-[15%] w-[350px] h-[350px] rounded-full bg-blue/6 blur-[130px] pulse-soft" style={{ animationDelay: "2s" }} />
         <div className="absolute bottom-[20%] left-[40%] w-[300px] h-[300px] rounded-full bg-amber/5 blur-[120px] pulse-soft" style={{ animationDelay: "4s" }} />
       </div>
 
@@ -59,7 +59,7 @@ export default function Home() {
           transition={{ duration: 0.6, delay: 0.5 }}
           className="flex flex-wrap justify-center gap-2 mb-10"
         >
-          {features.map(({ icon: Icon, label, color, bg }, i) => (
+          {features.map(({ icon: Icon, label, color }, i) => (
             <motion.div
               key={label}
               initial={{ opacity: 0, scale: 0.8 }}

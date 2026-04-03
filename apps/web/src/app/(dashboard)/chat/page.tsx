@@ -16,7 +16,7 @@ const quickReplies = [
   { label: "Plan my meals", icon: UtensilsCrossed, color: "bg-amber/15 text-amber border-amber/20" },
   { label: "Budget check", icon: Wallet, color: "bg-blue/15 text-blue border-blue/20" },
   { label: "Date night ideas", icon: Heart, color: "bg-rose/15 text-rose border-rose/20" },
-  { label: "What should the kids eat today?", icon: Baby, color: "bg-purple/15 text-purple border-purple/20" },
+  { label: "What should the kids eat today?", icon: Baby, color: "bg-blue/15 text-blue border-blue/20" },
 ];
 
 function TypingIndicator() {
@@ -85,6 +85,7 @@ function MessageBubble({
         {!isUser && (
           <button
             onClick={() => onSpeak(message.content)}
+            aria-label={isSpeaking ? "Stop reading aloud" : "Read message aloud"}
             className={`absolute -bottom-1 -right-1 w-7 h-7 rounded-full flex items-center justify-center transition-all ${
               isSpeaking
                 ? "bg-primary text-background scale-110"
@@ -92,7 +93,7 @@ function MessageBubble({
             }`}
             title={isSpeaking ? "Stop reading" : "Read aloud"}
           >
-            {isSpeaking ? <VolumeX size={12} /> : <Volume2 size={12} />}
+            {isSpeaking ? <VolumeX size={12} aria-hidden="true" /> : <Volume2 size={12} aria-hidden="true" />}
           </button>
         )}
       </div>
@@ -343,7 +344,13 @@ export default function ChatPage() {
       </div>
 
       {/* Messages area */}
-      <div className="flex-1 overflow-y-auto px-1 -mx-1">
+      <div
+        className="flex-1 overflow-y-auto px-1 -mx-1"
+        role="log"
+        aria-label="Conversation with Kin"
+        aria-live="polite"
+        aria-atomic="false"
+      >
         {initialLoading ? (
           <div className="flex items-center justify-center h-full">
             <div className="flex gap-1.5">
@@ -445,14 +452,15 @@ export default function ChatPage() {
             type="button"
             onClick={isListening ? stopListening : startListening}
             disabled={loading}
+            aria-label={isListening ? "Stop voice input" : "Start voice input"}
+            aria-pressed={isListening}
             className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-all disabled:opacity-30 ${
               isListening
                 ? "bg-rose text-background shadow-lg shadow-rose/25 scale-110 animate-pulse"
                 : "bg-surface-raised text-warm-white/40 hover:text-warm-white/70 hover:scale-105 active:scale-95"
             }`}
-            title={isListening ? "Stop listening" : "Voice input"}
           >
-            {isListening ? <MicOff size={18} /> : <Mic size={18} />}
+            {isListening ? <MicOff size={18} aria-hidden="true" /> : <Mic size={18} aria-hidden="true" />}
           </button>
         )}
         <input
@@ -461,15 +469,17 @@ export default function ChatPage() {
           value={input}
           onChange={(e) => setInput(e.target.value)}
           placeholder={isListening ? "Listening..." : "Ask Kin anything..."}
+          aria-label="Message to Kin"
           disabled={loading || isListening}
           className="flex-1 bg-surface-raised rounded-2xl px-4 py-3.5 text-sm text-warm-white placeholder:text-warm-white/25 focus:outline-none focus:ring-2 focus:ring-primary/30 disabled:opacity-50 transition-all"
         />
         <button
           type="submit"
           disabled={!input.trim() || loading}
+          aria-label="Send message"
           className="w-12 h-12 rounded-2xl bg-primary flex items-center justify-center text-background disabled:opacity-30 hover:shadow-lg hover:shadow-primary/25 hover:scale-105 active:scale-95 transition-all"
         >
-          <Send size={18} />
+          <Send size={18} aria-hidden="true" />
         </button>
       </form>
     </div>

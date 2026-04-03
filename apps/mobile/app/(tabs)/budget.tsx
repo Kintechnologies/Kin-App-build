@@ -18,15 +18,13 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import * as Haptics from "expo-haptics";
 import {
   Wallet,
-  PiggyBank,
-  ShoppingBag,
-  Home,
   Plus,
   ChevronRight,
   X,
   AlertTriangle,
 } from "lucide-react-native";
 import { supabase } from "../../lib/supabase";
+import { api } from "../../lib/api";
 import { BUDGET_CATEGORIES, type BudgetBucket } from "@kin/shared";
 
 type BudgetView = "setup" | "dashboard";
@@ -38,19 +36,33 @@ const BUCKET_COLORS: Record<BudgetBucket, string> = {
   savings: "#7AADCE", // blue (existing, brand-neutral)
 };
 
-const BUCKET_CONFIG = {
-  needs: { label: "Needs", percent: 50, color: BUCKET_COLORS.needs, icon: Home },
-  wants: { label: "Wants", percent: 30, color: BUCKET_COLORS.wants, icon: ShoppingBag },
-  savings: { label: "Savings", percent: 20, color: BUCKET_COLORS.savings, icon: PiggyBank },
-} as const;
+interface BudgetCategory {
+  id: string;
+  profile_id: string;
+  name: string;
+  monthly_limit: number;
+  color: string;
+  active: boolean;
+}
 
 interface Transaction {
   id: string;
-  category: string;
-  bucket: BudgetBucket;
+  category_id: string;
   amount: number;
   description: string | null;
   date: string;
+  category_name?: string;
+  category_color?: string;
+}
+
+// Raw row returned by Supabase join (transactions + budget_categories)
+interface RawTransactionRow {
+  id: string;
+  category_id: string;
+  amount: number;
+  description: string | null;
+  date: string;
+  budget_categories?: { name?: string; color?: string } | null;
 }
 
 function getMonthStart(): string {
@@ -58,24 +70,26 @@ function getMonthStart(): string {
   return new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split("T")[0];
 }
 
+const SUGGESTED_CATEGORIES = [
+  { name: "Groceries", monthly_limit: 400, color: "#7CB87A" },
+  { name: "Dining Out", monthly_limit: 200, color: "#D4A843" },
+  { name: "Entertainment", monthly_limit: 100, color: "#A07EC8" },
+  { name: "Household", monthly_limit: 300, color: "#7AADCE" },
+  { name: "Subscriptions", monthly_limit: 150, color: "#D4748A" },
+  { name: "Other", monthly_limit: 100, color: "rgba(240, 237, 230, 0.2)" },
+];
+
 export default function Budget() {
   const [view, setView] = useState<BudgetView>("setup");
   const [loading, setLoading] = useState(true);
-  const [monthlyIncome, setMonthlyIncome] = useState("");
-  const [incomeType, setIncomeType] = useState<"monthly" | "annual">("monthly");
-  const [savedIncome, setSavedIncome] = useState(0);
-  const [bucketSpent, setBucketSpent] = useState<Record<BudgetBucket, number>>({
-    needs: 0,
-    wants: 0,
-    savings: 0,
-  });
+  const [categories, setCategories] = useState<BudgetCategory[]>([]);
   const [recentTransactions, setRecentTransactions] = useState<Transaction[]>([]);
   const [transactionsLoading, setTransactionsLoading] = useState(false);
 
   // Add Transaction sheet
   const [sheetVisible, setSheetVisible] = useState(false);
   const [txAmount, setTxAmount] = useState("");
-  const [txCategory, setTxCategory] = useState<string | null>(null);
+  const [txCategoryId, setTxCategoryId] = useState<string | null>(null);
   const [txDescription, setTxDescription] = useState("");
   const [txDate, setTxDate] = useState(new Date().toISOString().split("T")[0]);
   const [txSaving, setTxSaving] = useState(false);
@@ -85,7 +99,7 @@ export default function Budget() {
   const sheetAnim = useRef(new Animated.Value(400)).current;
 
   useEffect(() => {
-    checkIncome();
+    checkCategories();
     Animated.timing(fadeAnim, {
       toValue: 1,
       duration: 500,
@@ -110,18 +124,19 @@ export default function Budget() {
     }
   }, [sheetVisible]);
 
-  async function checkIncome() {
+  async function checkCategories() {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) { setLoading(false); return; }
 
     const { data } = await supabase
-      .from("household_income")
-      .select("monthly_income")
+      .from("budget_categories")
+      .select("*")
       .eq("profile_id", user.id)
-      .single();
+      .eq("active", true)
+      .order("name");
 
-    if (data && data.monthly_income > 0) {
-      setSavedIncome(data.monthly_income);
+    if (data && data.length > 0) {
+      setCategories(data);
       setView("dashboard");
       fetchTransactions(user.id);
     }
@@ -133,62 +148,75 @@ export default function Budget() {
     try {
       const monthStart = getMonthStart();
 
-      // Bucket totals
-      const { data: bucketData } = await supabase
-        .from("transactions")
-        .select("bucket, amount")
-        .eq("profile_id", userId)
-        .gte("date", monthStart);
-
-      if (bucketData) {
-        const totals: Record<BudgetBucket, number> = { needs: 0, wants: 0, savings: 0 };
-        bucketData.forEach((t) => {
-          const b = t.bucket as BudgetBucket;
-          if (totals[b] !== undefined) totals[b] += Number(t.amount);
-        });
-        setBucketSpent(totals);
-      }
-
-      // Recent transactions (last 10 this month)
+      // Recent transactions (last 15 this month) with category join
       const { data: recent } = await supabase
         .from("transactions")
-        .select("id, category, bucket, amount, description, date")
+        .select(
+          `
+          id,
+          category_id,
+          amount,
+          description,
+          date,
+          budget_categories!category_id (name, color)
+          `
+        )
         .eq("profile_id", userId)
         .gte("date", monthStart)
         .order("date", { ascending: false })
-        .limit(10);
+        .limit(15);
 
-      if (recent) setRecentTransactions(recent as Transaction[]);
-    } catch {
-      // Non-fatal — dashboard still shows with $0
+      if (recent) {
+        const formatted = (recent as RawTransactionRow[]).map((t) => ({
+          id: t.id,
+          category_id: t.category_id,
+          amount: t.amount,
+          description: t.description,
+          date: t.date,
+          category_name: t.budget_categories?.name,
+          category_color: t.budget_categories?.color,
+        }));
+        setRecentTransactions(formatted);
+      }
+    } catch (e) {
+      console.error("Error fetching transactions:", e);
     } finally {
       setTransactionsLoading(false);
     }
   }, []);
 
-  async function saveIncome() {
-    const raw = parseFloat(monthlyIncome.replace(/,/g, ""));
-    if (isNaN(raw) || raw <= 0) return;
-
-    const monthly = incomeType === "annual" ? raw / 12 : raw;
+  async function initializeCategories() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
-    await supabase.from("household_income").upsert({
-      profile_id: user.id,
-      monthly_income: monthly,
-    });
+    try {
+      // Insert suggested categories
+      const categoriesToInsert = SUGGESTED_CATEGORIES.map((cat) => ({
+        profile_id: user.id,
+        name: cat.name,
+        monthly_limit: cat.monthly_limit,
+        color: cat.color,
+        active: true,
+      }));
 
-    setSavedIncome(monthly);
-    setView("dashboard");
-    fetchTransactions(user.id);
+      const { error } = await supabase
+        .from("budget_categories")
+        .insert(categoriesToInsert);
+
+      if (error) throw error;
+
+      await checkCategories();
+    } catch (e) {
+      console.error("Error initializing categories:", e);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+    }
   }
 
   function openAddSheet() {
     setTxAmount("");
-    setTxCategory(null);
+    setTxCategoryId(null);
     setTxDescription("");
     setTxDate(new Date().toISOString().split("T")[0]);
     setTxError(null);
@@ -204,10 +232,7 @@ export default function Budget() {
 
   async function saveTransaction() {
     const amount = parseFloat(txAmount.replace(/,/g, ""));
-    if (isNaN(amount) || amount <= 0 || !txCategory) return;
-
-    const selectedCat = BUDGET_CATEGORIES.find((c) => c.label === txCategory);
-    if (!selectedCat) return;
+    if (isNaN(amount) || amount <= 0 || !txCategoryId) return;
 
     setTxSaving(true);
     setTxError(null);
@@ -219,8 +244,7 @@ export default function Budget() {
       const { error } = await supabase.from("transactions").insert({
         profile_id: user.id,
         amount,
-        category: txCategory,
-        bucket: selectedCat.bucket,
+        category_id: txCategoryId,
         description: txDescription.trim() || null,
         date: txDate,
       });
@@ -230,21 +254,18 @@ export default function Budget() {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       closeSheet();
 
-      // Optimistic update on bucket totals
-      const bucket = selectedCat.bucket as BudgetBucket;
-      setBucketSpent((prev) => ({ ...prev, [bucket]: prev[bucket] + amount }));
+      // Reload to keep data fresh
+      const { data: { user: currentUser } } = await supabase.auth.getUser();
+      if (currentUser) {
+        await fetchTransactions(currentUser.id);
+      }
 
-      // Prepend to recent list
-      const newTx: Transaction = {
-        id: Math.random().toString(36).slice(2),
-        category: txCategory,
-        bucket: selectedCat.bucket as BudgetBucket,
-        amount,
-        description: txDescription.trim() || null,
-        date: txDate,
-      };
-      setRecentTransactions((prev) => [newTx, ...prev].slice(0, 10));
-    } catch {
+      // C3 — Fire overspend check in background (non-blocking)
+      if (txCategoryId) {
+        api.checkBudgetOverspend(txCategoryId);
+      }
+    } catch (e) {
+      console.error("Error saving transaction:", e);
       setTxError("Couldn't save — try again");
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
     } finally {
@@ -271,7 +292,7 @@ export default function Budget() {
     );
   }
 
-  // ─── Income Setup ───────────────────────────────────────────────────────────
+  // ─── Budget Setup ───────────────────────────────────────────────────────────
   if (view === "setup") {
     return (
       <SafeAreaView style={styles.safeArea}>
@@ -282,19 +303,19 @@ export default function Budget() {
         >
           <Animated.View style={[styles.setupCenter, { opacity: fadeAnim }]}>
             <View style={styles.setupIconWrap}>
-              <Wallet size={28} color="#7CB87A" />
+              <Wallet size={28} color="#D4A843" />
             </View>
             <Text style={styles.setupTitle}>Budget Tracker</Text>
             <Text style={styles.setupSubtitle}>
-              The 50/30/20 rule made simple. Kin tracks your spending across needs, wants, and savings — and alerts you before you go over.
+              Organize spending by category. Set monthly limits and track where your money goes.
             </Text>
 
             <View style={styles.valueProps}>
               {[
-                { emoji: "📊", text: "Automatic 50/30/20 budget breakdown" },
-                { emoji: "🔔", text: "Alerts when you hit 90% of a category" },
-                { emoji: "🔒", text: "Private spending — your partner only sees combined totals" },
-                { emoji: "📈", text: "Monthly trends and insights from Kin" },
+                { emoji: "💰", text: "Create custom spending categories" },
+                { emoji: "🔔", text: "Alerts when you approach your limits" },
+                { emoji: "🔒", text: "Private spending — your partner sees only summary" },
+                { emoji: "📊", text: "Track and analyze your spending patterns" },
               ].map((prop) => (
                 <View key={prop.text} style={styles.valuePropRow}>
                   <Text style={{ fontSize: 18 }}>{prop.emoji}</Text>
@@ -303,80 +324,24 @@ export default function Budget() {
               ))}
             </View>
 
-            {/* Income type toggle */}
-            <View style={styles.incomeToggle}>
-              <Pressable
-                style={[styles.toggleOption, incomeType === "monthly" && styles.toggleOptionActive]}
-                onPress={() => {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  setIncomeType("monthly");
-                }}
-              >
-                <Text style={[styles.toggleOptionText, incomeType === "monthly" && styles.toggleOptionTextActive]}>
-                  Monthly
-                </Text>
-              </Pressable>
-              <Pressable
-                style={[styles.toggleOption, incomeType === "annual" && styles.toggleOptionActive]}
-                onPress={() => {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  setIncomeType("annual");
-                }}
-              >
-                <Text style={[styles.toggleOptionText, incomeType === "annual" && styles.toggleOptionTextActive]}>
-                  Annual
-                </Text>
-              </Pressable>
+            {/* Suggested categories preview */}
+            <View style={styles.previewCard}>
+              <Text style={styles.previewTitle}>Suggested Categories</Text>
+              {SUGGESTED_CATEGORIES.map((cat) => (
+                <View key={cat.name} style={styles.previewRow}>
+                  <View style={[styles.previewDot, { backgroundColor: cat.color }]} />
+                  <Text style={styles.previewLabel}>{cat.name}</Text>
+                  <Text style={styles.previewAmount}>${cat.monthly_limit.toLocaleString()}</Text>
+                </View>
+              ))}
             </View>
 
-            {/* Income input */}
-            <View style={styles.incomeInputWrap}>
-              <Text style={styles.dollarSign}>$</Text>
-              <TextInput
-                style={styles.incomeInput}
-                value={monthlyIncome}
-                onChangeText={setMonthlyIncome}
-                placeholder={incomeType === "monthly" ? "8,000" : "96,000"}
-                placeholderTextColor="rgba(240, 237, 230, 0.15)"
-                keyboardType="numeric"
-                autoFocus
-              />
-            </View>
-            <Text style={styles.incomeHint}>
-              {incomeType === "annual" ? "We'll divide by 12 for monthly budgets" : "Combined household take-home pay"}
-            </Text>
-
-            {/* Preview breakdown */}
-            {monthlyIncome && parseFloat(monthlyIncome.replace(/,/g, "")) > 0 && (
-              <View style={styles.previewCard}>
-                <Text style={styles.previewTitle}>Your 50/30/20 Breakdown</Text>
-                {(["needs", "wants", "savings"] as const).map((key) => {
-                  const cat = BUCKET_CONFIG[key];
-                  const raw = parseFloat(monthlyIncome.replace(/,/g, ""));
-                  const monthly = incomeType === "annual" ? raw / 12 : raw;
-                  const amount = (monthly * cat.percent) / 100;
-                  return (
-                    <View key={key} style={styles.previewRow}>
-                      <View style={[styles.previewDot, { backgroundColor: cat.color }]} />
-                      <Text style={styles.previewLabel}>{cat.label} ({cat.percent}%)</Text>
-                      <Text style={[styles.previewAmount, { color: cat.color }]}>
-                        {formatCurrency(amount)}/mo
-                      </Text>
-                    </View>
-                  );
-                })}
-              </View>
-            )}
-
+            {/* Initialize button */}
             <Pressable
-              style={[
-                styles.saveButton,
-                (!monthlyIncome || parseFloat(monthlyIncome.replace(/,/g, "")) <= 0) && styles.saveButtonDisabled,
-              ]}
-              onPress={saveIncome}
-              disabled={!monthlyIncome || parseFloat(monthlyIncome.replace(/,/g, "")) <= 0}
+              style={styles.saveButton}
+              onPress={initializeCategories}
             >
-              <Text style={styles.saveButtonText}>Set Up My Budget</Text>
+              <Text style={styles.saveButtonText}>Get Started with Suggested Categories</Text>
               <ChevronRight size={16} color="#0C0F0A" />
             </Pressable>
           </Animated.View>
@@ -386,14 +351,20 @@ export default function Budget() {
   }
 
   // ─── Dashboard ──────────────────────────────────────────────────────────────
-  const budgetAllocs = {
-    needs: (savedIncome * 50) / 100,
-    wants: (savedIncome * 30) / 100,
-    savings: (savedIncome * 20) / 100,
-  };
+  // Calculate spent per category
+  const spentByCategory: Record<string, number> = {};
+  const monthStart = getMonthStart();
+  recentTransactions.forEach((tx) => {
+    if (tx.category_id) {
+      spentByCategory[tx.category_id] = (spentByCategory[tx.category_id] || 0) + tx.amount;
+    }
+  });
+
+  const totalSpent = Object.values(spentByCategory).reduce((a, b) => a + b, 0);
+  const totalBudget = categories.reduce((sum, cat) => sum + cat.monthly_limit, 0);
 
   const txAmountNum = parseFloat(txAmount.replace(/,/g, ""));
-  const canSave = !isNaN(txAmountNum) && txAmountNum > 0 && txCategory !== null;
+  const canSave = !isNaN(txAmountNum) && txAmountNum > 0 && txCategoryId !== null;
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -403,40 +374,67 @@ export default function Budget() {
         showsVerticalScrollIndicator={false}
       >
         <Text style={styles.pageTitle}>Budget</Text>
-        <Text style={styles.incomeLabel}>
-          Monthly income: {formatCurrency(savedIncome)}
-        </Text>
 
-        {/* 50/30/20 Cards */}
-        {(["needs", "wants", "savings"] as const).map((key) => {
-          const cat = BUCKET_CONFIG[key];
-          const budget = budgetAllocs[key];
-          const spent = bucketSpent[key];
-          const pct = budget > 0 ? (spent / budget) * 100 : 0;
+        {/* Overall summary */}
+        <View style={styles.summaryCard}>
+          <View style={styles.summaryRow}>
+            <View>
+              <Text style={styles.summaryLabel}>Spent this month</Text>
+              <Text style={styles.summaryValue}>{formatCurrency(totalSpent)}</Text>
+            </View>
+            <View style={{ alignItems: "flex-end" }}>
+              <Text style={styles.summaryLabel}>Total budget</Text>
+              <Text style={styles.summaryValue}>{formatCurrency(totalBudget)}</Text>
+            </View>
+          </View>
+          <View style={styles.progressBarBg}>
+            <View
+              style={[
+                styles.progressBarFill,
+                {
+                  width: `${Math.min((totalSpent / totalBudget) * 100, 100)}%` as `${number}%`,
+                  backgroundColor: totalSpent > totalBudget ? "#E57373" : "#D4A843",
+                },
+              ]}
+            />
+          </View>
+        </View>
+
+        {/* Category Cards */}
+        {categories.map((cat) => {
+          const spent = spentByCategory[cat.id] || 0;
+          const pct = cat.monthly_limit > 0 ? (spent / cat.monthly_limit) * 100 : 0;
           const isOver = pct > 100;
           const isNear = pct >= 85 && !isOver;
-          const barColor = isOver ? "#E57373" : isNear ? "#D4A843" : cat.color;
+          const barColor = isOver ? "#E57373" : isNear ? cat.color : cat.color;
 
           return (
-            <View key={key} style={styles.budgetCard}>
+            <View key={cat.id} style={styles.budgetCard}>
               <View style={styles.budgetCardHeader}>
                 <View style={[styles.budgetIconWrap, { backgroundColor: `${cat.color}15` }]}>
-                  <cat.icon size={18} color={cat.color} />
+                  <View
+                    style={{
+                      width: 12,
+                      height: 12,
+                      borderRadius: 6,
+                      backgroundColor: cat.color,
+                    }}
+                  />
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.budgetCardTitle}>{cat.label}</Text>
-                  <Text style={styles.budgetCardPercent}>{cat.percent}% of income</Text>
+                  <Text style={styles.budgetCardTitle}>{cat.name}</Text>
+                  <Text style={styles.budgetCardPercent}>Monthly limit</Text>
                 </View>
                 <View style={{ alignItems: "flex-end", flexDirection: "row", gap: 8, alignSelf: "center" }}>
                   {(isOver || isNear) && (
                     <AlertTriangle
                       size={15}
-                      color={isOver ? "#E57373" : "#D4A843"}
+                      color={isOver ? "#E57373" : cat.color}
                     />
                   )}
                   <View style={{ alignItems: "flex-end" }}>
                     <Text style={[styles.budgetAmount, { color: cat.color }]}>
-                      {formatCurrency(budget)}
+                      {formatCurrency(cat.monthly_limit)}
                     </Text>
                     <Text style={[styles.budgetSpent, isOver && styles.budgetSpentOver]}>
                       {formatCurrency(spent)} spent
@@ -477,7 +475,7 @@ export default function Budget() {
         <View style={styles.recentSection}>
           <Text style={styles.recentTitle}>This Month</Text>
           {transactionsLoading ? (
-            <ActivityIndicator color="#7CB87A" style={{ marginTop: 16 }} />
+            <ActivityIndicator color="#D4A843" style={{ marginTop: 16 }} />
           ) : recentTransactions.length === 0 ? (
             <View style={styles.emptyTransactions}>
               <Text style={styles.emptyTransactionsText}>
@@ -486,18 +484,18 @@ export default function Budget() {
             </View>
           ) : (
             recentTransactions.map((tx) => {
-              const bucketColor = BUCKET_COLORS[tx.bucket] ?? "#F0EDE6";
+              const catColor = tx.category_color ?? "#F0EDE6";
               return (
                 <View key={tx.id} style={styles.txRow}>
-                  <View style={[styles.txDot, { backgroundColor: bucketColor }]} />
+                  <View style={[styles.txDot, { backgroundColor: catColor }]} />
                   <View style={{ flex: 1 }}>
-                    <Text style={styles.txCategory}>{tx.category}</Text>
+                    <Text style={styles.txCategory}>{tx.category_name}</Text>
                     {tx.description ? (
                       <Text style={styles.txDesc}>{tx.description}</Text>
                     ) : null}
                   </View>
                   <View style={{ alignItems: "flex-end" }}>
-                    <Text style={[styles.txAmount, { color: bucketColor }]}>
+                    <Text style={[styles.txAmount, { color: catColor }]}>
                       -{formatCurrency(tx.amount)}
                     </Text>
                     <Text style={styles.txDate}>{formatDate(tx.date)}</Text>
@@ -563,38 +561,31 @@ export default function Budget() {
               style={styles.categoryScroll}
               contentContainerStyle={styles.categoryScrollContent}
             >
-              {(["needs", "wants", "savings"] as const).map((bucket) => (
-                <View key={bucket} style={styles.bucketGroup}>
-                  <Text style={[styles.bucketGroupLabel, { color: BUCKET_COLORS[bucket] }]}>
-                    {BUCKET_CONFIG[bucket].label}
-                  </Text>
-                  {BUDGET_CATEGORIES.filter((c) => c.bucket === bucket).map((cat) => {
-                    const isSelected = txCategory === cat.label;
-                    return (
-                      <Pressable
-                        key={cat.label}
-                        style={[
-                          styles.categoryPill,
-                          isSelected && { backgroundColor: `${BUCKET_COLORS[bucket]}20`, borderColor: BUCKET_COLORS[bucket] },
-                        ]}
-                        onPress={() => {
-                          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                          setTxCategory(cat.label);
-                        }}
-                      >
-                        <Text
-                          style={[
-                            styles.categoryPillText,
-                            isSelected && { color: BUCKET_COLORS[bucket], fontFamily: "Geist-SemiBold" },
-                          ]}
-                        >
-                          {cat.label}
-                        </Text>
-                      </Pressable>
-                    );
-                  })}
-                </View>
-              ))}
+              {categories.map((cat) => {
+                const isSelected = txCategoryId === cat.id;
+                return (
+                  <Pressable
+                    key={cat.id}
+                    style={[
+                      styles.categoryPill,
+                      isSelected && { backgroundColor: `${cat.color}20`, borderColor: cat.color },
+                    ]}
+                    onPress={() => {
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                      setTxCategoryId(cat.id);
+                    }}
+                  >
+                    <Text
+                      style={[
+                        styles.categoryPillText,
+                        isSelected && { color: cat.color, fontFamily: "Geist-SemiBold" },
+                      ]}
+                    >
+                      {cat.name}
+                    </Text>
+                  </Pressable>
+                );
+              })}
             </ScrollView>
 
             {/* Description (optional) */}
@@ -813,13 +804,33 @@ const styles = StyleSheet.create({
     fontSize: 28,
     color: "#F0EDE6",
     marginTop: 8,
+    marginBottom: 24,
+  },
+
+  // Summary card
+  summaryCard: {
+    backgroundColor: "#141810",
+    borderRadius: 20,
+    padding: 18,
+    marginBottom: 24,
+    borderWidth: 1,
+    borderColor: "rgba(240, 237, 230, 0.04)",
+  },
+  summaryRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginBottom: 12,
+  },
+  summaryLabel: {
+    fontFamily: "Geist",
+    fontSize: 12,
+    color: "rgba(240, 237, 230, 0.4)",
     marginBottom: 4,
   },
-  incomeLabel: {
-    fontFamily: "Geist",
-    fontSize: 14,
-    color: "rgba(240, 237, 230, 0.3)",
-    marginBottom: 24,
+  summaryValue: {
+    fontFamily: "Geist-SemiBold",
+    fontSize: 20,
+    color: "#F0EDE6",
   },
 
   // Budget cards

@@ -13,28 +13,33 @@ import { useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import * as Haptics from "expo-haptics";
 import {
-  MessageCircle,
   UtensilsCrossed,
   Wallet,
   Calendar,
   Sparkles,
   ChevronRight,
-  TrendingUp,
-  CloudSun,
-  Sun,
-  Cloud,
-  CloudRain,
-  ShoppingCart,
-  CheckCircle2,
-  Circle,
   ArrowRight,
 } from "lucide-react-native";
 import { supabase } from "../../lib/supabase";
 import { formatFamilyName, getGreeting } from "../../lib/utils";
 import FloatingOrbs from "../../components/ui/FloatingOrbs";
 import OnboardingSurvey from "../../components/onboarding/OnboardingSurvey";
+import CalendarConnectModal from "../../components/onboarding/CalendarConnectModal";
+import { saveOnboardingData, type OnboardingData } from "../../components/onboarding/save-onboarding";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
+
+// Returns the ISO date string for the first day of the current calendar month
+function getMonthStart(): string {
+  const now = new Date();
+  return new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split("T")[0];
+}
+
+interface StoredMealOptions {
+  breakfast_options?: { name: string }[];
+  lunch_options?: { name: string }[];
+  dinner_options?: { name: string }[];
+}
 
 // Onboarding questions for progressive profile building
 const ONBOARDING_QUESTIONS = [
@@ -74,6 +79,8 @@ interface DailyData {
   budgetSpent: number;
   budgetTotal: number;
   calendarEvents: { title: string; time: string }[];
+  morningBriefingContent: string | null;
+  morningBriefingStatus: "generated" | "sent" | "failed" | "none";
 }
 
 export default function Dashboard() {
@@ -90,8 +97,11 @@ export default function Dashboard() {
     budgetSpent: 0,
     budgetTotal: 0,
     calendarEvents: [],
+    morningBriefingContent: null,
+    morningBriefingStatus: "none",
   });
   const [refreshing, setRefreshing] = useState(false);
+  const [showCalendarModal, setShowCalendarModal] = useState(false);
 
   // Animations
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -162,16 +172,29 @@ export default function Dashboard() {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
+    const monthStart = getMonthStart();
+
+    const todayDate = new Date().toISOString().split("T")[0];
+
     const [
       { data: profile },
       { data: prefs },
       { data: lastChat },
       { data: income },
+      { data: txData },
+      { data: mealPlan },
+      { data: todayBriefing },
     ] = await Promise.all([
       supabase.from("profiles").select("family_name, parent_role").eq("id", user.id).single(),
       supabase.from("onboarding_preferences").select("*").eq("profile_id", user.id).single(),
       supabase.from("conversations").select("content").eq("profile_id", user.id).eq("role", "user").order("created_at", { ascending: false }).limit(1).single(),
       supabase.from("household_income").select("monthly_income").eq("profile_id", user.id).single(),
+      // Sum all transaction amounts for the current calendar month (#65)
+      supabase.from("transactions").select("amount").eq("profile_id", user.id).gte("date", monthStart),
+      // Latest persisted meal plan to surface today's meals (#10)
+      supabase.from("meal_plans").select("meal_options").eq("profile_id", user.id).order("generated_at", { ascending: false }).limit(1).single(),
+      // Today's morning briefing
+      supabase.from("morning_briefings").select("content, delivery_status").eq("profile_id", user.id).eq("briefing_date", todayDate).single(),
     ]);
 
     // Calculate onboarding progress
@@ -191,13 +214,30 @@ export default function Dashboard() {
       questionsAnswered: answered,
     });
 
+    // Sum this month's transactions for real budgetSpent (#65)
+    const budgetSpent = txData
+      ? txData.reduce((sum, t) => sum + Number(t.amount), 0)
+      : 0;
+
+    // Extract today's meals from the latest stored meal plan (#10)
+    // Show one representative meal per category (breakfast / lunch / dinner)
+    const todaysMeals: string[] = [];
+    if (mealPlan?.meal_options) {
+      const opts = mealPlan.meal_options as StoredMealOptions;
+      if (opts.breakfast_options?.[0]?.name) todaysMeals.push(`Breakfast: ${opts.breakfast_options[0].name}`);
+      if (opts.lunch_options?.[0]?.name)     todaysMeals.push(`Lunch: ${opts.lunch_options[0].name}`);
+      if (opts.dinner_options?.[0]?.name)    todaysMeals.push(`Dinner: ${opts.dinner_options[0].name}`);
+    }
+
     setDailyData({
       lastChatTopic: lastChat?.content?.slice(0, 60) || null,
-      todaysMeals: [],
+      todaysMeals,
       groceryReminder: false,
-      budgetSpent: 0,
+      budgetSpent,
       budgetTotal: income?.monthly_income || 0,
       calendarEvents: [],
+      morningBriefingContent: todayBriefing?.content || null,
+      morningBriefingStatus: todayBriefing?.delivery_status || "none",
     });
   }
 
@@ -206,6 +246,22 @@ export default function Dashboard() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     await loadAll();
     setRefreshing(false);
+  }
+
+  async function handleOnboardingComplete(data: OnboardingData) {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const result = await saveOnboardingData(user.id, data);
+    if (result.success) {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+      loadAll();
+      // B6: Show calendar connect prompt after successful onboarding
+      setShowCalendarModal(true);
+    } else {
+      console.error("Onboarding save error:", result.error);
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+    }
   }
 
   const greeting = getGreeting();
@@ -225,6 +281,33 @@ export default function Dashboard() {
       >
         {children}
       </Animated.View>
+    );
+  }
+
+  /**
+   * Renders morning briefing content as structured beats.
+   * Splits on sentence boundaries so each thought gets its own line with a
+   * green accent dot — first sentence uses Instrument Serif italic as the hook.
+   */
+  function renderBriefingBeats(content: string) {
+    const raw = content.trim();
+    const sentences = raw.split(/\.\s+/).map((s) => s.trim()).filter(Boolean);
+    if (sentences.length <= 1) {
+      return <Text style={styles.briefingText}>{raw}</Text>;
+    }
+    const [hook, ...beats] = sentences;
+    return (
+      <>
+        <Text style={styles.briefingHookText}>{hook}.</Text>
+        {beats.map((beat, i) => (
+          <View key={i} style={styles.briefingBeatRow}>
+            <View style={styles.briefingBeatDot} />
+            <Text style={styles.briefingBeatText}>
+              {beat}{beat.endsWith("?") || beat.endsWith("!") ? "" : "."}
+            </Text>
+          </View>
+        ))}
+      </>
     );
   }
 
@@ -250,9 +333,52 @@ export default function Dashboard() {
           <Text style={styles.familyName}>{displayName}</Text>
         </Animated.View>
 
-        {/* ── KIN AI CARD ── */}
+        {/* ── MORNING BRIEFING CARD ── */}
         {animatedCard(
           0,
+          <View style={styles.briefingCard}>
+            {dailyData.morningBriefingContent ? (
+              <>
+                {/* Title row: "Morning" + live pill */}
+                <View style={styles.briefingTitleRow}>
+                  <Text style={styles.briefingTitle}>Morning</Text>
+                  <View style={styles.briefingLivePill}>
+                    <View style={styles.briefingLiveDot} />
+                    <Text style={styles.briefingLiveLabel}>Today</Text>
+                  </View>
+                </View>
+                {renderBriefingBeats(dailyData.morningBriefingContent)}
+              </>
+            ) : (
+              <>
+                <Text style={styles.briefingTitle}>Morning Briefing</Text>
+                {/* Dimmed preview so users know exactly what they're unlocking */}
+                <View style={styles.briefingPreviewContainer}>
+                  <Text style={styles.briefingPreviewText} numberOfLines={3}>
+                    "Leave by 5:55 — traffic on 315. Your 9:30 sync is in 3 hours. You're $23 under grocery budget. Chipotle?"
+                  </Text>
+                </View>
+                <Text style={styles.briefingPromptText}>
+                  Arrives at 6am, built from your calendar and life context.
+                </Text>
+                <Pressable
+                  style={({ pressed }) => [styles.connectCalendarBtn, pressed && { opacity: 0.85 }]}
+                  onPress={() => {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    router.push("/(tabs)/settings");
+                  }}
+                >
+                  <Calendar size={16} color="#0C0F0A" />
+                  <Text style={styles.connectCalendarBtnText}>Connect Calendar</Text>
+                </Pressable>
+              </>
+            )}
+          </View>
+        )}
+
+        {/* ── KIN AI CARD ── */}
+        {animatedCard(
+          1,
           <Pressable
             style={({ pressed }) => [styles.kinCard, pressed && { opacity: 0.9, transform: [{ scale: 0.99 }] }]}
             onPress={() => {
@@ -282,12 +408,17 @@ export default function Dashboard() {
 
         {/* Calendar / Schedule */}
         {animatedCard(
-          1,
+          2,
           <Pressable
             style={({ pressed }) => [styles.summaryCard, pressed && { opacity: 0.9 }]}
             onPress={() => {
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              router.push("/(tabs)/settings");
+              // If no events loaded, open calendar connect flow directly — not Settings
+              if (dailyData.calendarEvents.length === 0) {
+                setShowCalendarModal(true);
+              } else {
+                router.push("/(tabs)/settings");
+              }
             }}
           >
             <View style={styles.summaryRow}>
@@ -304,7 +435,7 @@ export default function Dashboard() {
                   ))
                 ) : (
                   <Text style={styles.summaryValueMuted}>
-                    No events today. Connect your calendar in Settings.
+                    Tap to connect your calendar
                   </Text>
                 )}
               </View>
@@ -315,7 +446,7 @@ export default function Dashboard() {
 
         {/* Meals */}
         {animatedCard(
-          2,
+          3,
           <Pressable
             style={({ pressed }) => [styles.summaryCard, pressed && { opacity: 0.9 }]}
             onPress={() => {
@@ -324,8 +455,8 @@ export default function Dashboard() {
             }}
           >
             <View style={styles.summaryRow}>
-              <View style={[styles.summaryIcon, { backgroundColor: "rgba(212, 168, 67, 0.12)" }]}>
-                <UtensilsCrossed size={18} color="#D4A843" />
+              <View style={[styles.summaryIcon, { backgroundColor: "rgba(124, 184, 122, 0.12)" }]}>
+                <UtensilsCrossed size={18} color="#7CB87A" />
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={styles.summaryLabel}>Meals</Text>
@@ -346,7 +477,7 @@ export default function Dashboard() {
 
         {/* Budget */}
         {animatedCard(
-          3,
+          4,
           <Pressable
             style={({ pressed }) => [styles.summaryCard, pressed && { opacity: 0.9 }]}
             onPress={() => {
@@ -355,8 +486,8 @@ export default function Dashboard() {
             }}
           >
             <View style={styles.summaryRow}>
-              <View style={[styles.summaryIcon, { backgroundColor: "rgba(124, 184, 122, 0.12)" }]}>
-                <Wallet size={18} color="#7CB87A" />
+              <View style={[styles.summaryIcon, { backgroundColor: "rgba(212, 168, 67, 0.12)" }]}>
+                <Wallet size={18} color="#D4A843" />
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={styles.summaryLabel}>Budget</Text>
@@ -380,49 +511,22 @@ export default function Dashboard() {
           <>
             <Text style={styles.sectionTitle}>Getting to know you</Text>
             {animatedCard(
-              4,
+              5,
               <OnboardingSurvey
-                onComplete={() => loadAll()}
-                onProgress={(pct) => {
-                  // Survey progress is handled by the component
-                }}
+                onComplete={handleOnboardingComplete}
               />
             )}
           </>
         )}
 
-        {/* ── QUICK ACTIONS ── */}
-        <Text style={styles.sectionTitle}>Quick Actions</Text>
-
-        <View style={styles.actionsRow}>
-          {[
-            { icon: MessageCircle, label: "Chat", color: "#7CB87A", route: "/(tabs)/chat" as const },
-            { icon: UtensilsCrossed, label: "Meals", color: "#D4A843", route: "/(tabs)/meals" as const },
-            { icon: Wallet, label: "Budget", color: "#7CB87A", route: "/(tabs)/budget" as const },
-            { icon: Calendar, label: "Calendar", color: "#7AADCE", route: "/(tabs)/settings" as const },
-          ].map((action, i) =>
-            animatedCard(
-              5 + i,
-              <Pressable
-                style={({ pressed }) => [
-                  styles.quickAction,
-                  pressed && { opacity: 0.8, transform: [{ scale: 0.95 }] },
-                ]}
-                onPress={() => {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  router.push(action.route);
-                }}
-              >
-                <View style={[styles.quickActionIcon, { backgroundColor: `${action.color}18` }]}>
-                  <action.icon size={20} color={action.color} />
-                </View>
-                <Text style={styles.quickActionLabel}>{action.label}</Text>
-              </Pressable>,
-              action.label
-            )
-          )}
-        </View>
+        {/* Quick Actions removed — all domains are one tap away in the tab bar */}
       </ScrollView>
+
+      {/* B6 — Calendar connect prompt shown after onboarding */}
+      <CalendarConnectModal
+        visible={showCalendarModal}
+        onDismiss={() => setShowCalendarModal(false)}
+      />
     </SafeAreaView>
   );
 }
@@ -460,6 +564,124 @@ const styles = StyleSheet.create({
     fontSize: 30,
     color: "#F0EDE6",
     textAlign: "center",
+  },
+
+  // Morning Briefing Card
+  briefingCard: {
+    backgroundColor: "#141810",
+    borderRadius: 20,
+    padding: 20,
+    marginBottom: 24,
+    borderWidth: 1,
+    borderColor: "rgba(124, 184, 122, 0.18)",
+    shadowColor: "#7CB87A",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 12,
+  },
+  briefingTitleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 14,
+  },
+  briefingTitle: {
+    fontFamily: "InstrumentSerif-Italic",
+    fontSize: 20,
+    color: "#7CB87A",
+    marginBottom: 12,
+  },
+  briefingLivePill: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    backgroundColor: "rgba(124, 184, 122, 0.1)",
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 20,
+  },
+  briefingLiveDot: {
+    width: 5,
+    height: 5,
+    borderRadius: 2.5,
+    backgroundColor: "#7CB87A",
+  },
+  briefingLiveLabel: {
+    fontFamily: "GeistMono-Regular",
+    fontSize: 10,
+    color: "rgba(124, 184, 122, 0.8)",
+    letterSpacing: 0.5,
+    textTransform: "uppercase",
+  },
+  briefingHookText: {
+    fontFamily: "InstrumentSerif-Italic",
+    fontSize: 18,
+    color: "#F0EDE6",
+    lineHeight: 26,
+    marginBottom: 10,
+  },
+  briefingBeatRow: {
+    flexDirection: "row",
+    gap: 10,
+    marginBottom: 7,
+    alignItems: "flex-start",
+  },
+  briefingBeatDot: {
+    width: 4,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: "rgba(124, 184, 122, 0.5)",
+    marginTop: 9,
+    flexShrink: 0,
+  },
+  briefingBeatText: {
+    fontFamily: "Geist",
+    fontSize: 14,
+    color: "rgba(240, 237, 230, 0.82)",
+    lineHeight: 22,
+    flex: 1,
+  },
+  briefingText: {
+    fontFamily: "Geist",
+    fontSize: 14,
+    color: "#F0EDE6",
+    lineHeight: 22,
+  },
+  briefingPreviewContainer: {
+    backgroundColor: "rgba(240, 237, 230, 0.03)",
+    borderRadius: 10,
+    padding: 12,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: "rgba(240, 237, 230, 0.06)",
+  },
+  briefingPreviewText: {
+    fontFamily: "InstrumentSerif-Italic",
+    fontSize: 14,
+    color: "rgba(240, 237, 230, 0.22)",
+    lineHeight: 22,
+  },
+  briefingPromptText: {
+    fontFamily: "Geist",
+    fontSize: 13,
+    color: "rgba(240, 237, 230, 0.38)",
+    lineHeight: 18,
+    marginBottom: 14,
+  },
+  connectCalendarBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    paddingVertical: 11,
+    paddingHorizontal: 14,
+    borderRadius: 12,
+    backgroundColor: "#7CB87A",
+  },
+  connectCalendarBtnText: {
+    fontFamily: "Geist-SemiBold",
+    fontSize: 13,
+    color: "#0C0F0A",
   },
 
   // Kin Card
@@ -634,28 +856,4 @@ const styles = StyleSheet.create({
     fontStyle: "italic",
   },
 
-  // Quick actions
-  actionsRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    gap: 10,
-    marginBottom: 20,
-  },
-  quickAction: {
-    alignItems: "center",
-    flex: 1,
-  },
-  quickActionIcon: {
-    width: 52,
-    height: 52,
-    borderRadius: 18,
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 6,
-  },
-  quickActionLabel: {
-    fontFamily: "Geist",
-    fontSize: 12,
-    color: "rgba(240, 237, 230, 0.35)",
-  },
 });

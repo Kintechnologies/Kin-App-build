@@ -2,6 +2,7 @@
 
 **Week of:** April 1, 2026
 **Reviewed by Austin:** ⬜ Pending
+**CoS reviewed:** 2026-04-02 (second pass — no new kills. New Family OS foundations work (#69–#72) is in-scope for the FVM pivot, not a kill candidate. Hold on #71 pending Austin scope decision.)
 
 ---
 

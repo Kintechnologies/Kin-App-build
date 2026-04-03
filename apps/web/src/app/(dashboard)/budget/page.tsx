@@ -42,12 +42,12 @@ const bucketConfig = {
   wants: {
     label: "Wants",
     percent: 30,
-    color: "text-purple",
-    bg: "bg-purple/10",
-    bgStrong: "bg-purple/20",
-    barColor: "bg-purple",
-    barTrack: "border-purple/30",
-    gradientFrom: "from-purple/20",
+    color: "text-amber",
+    bg: "bg-amber/10",
+    bgStrong: "bg-amber/20",
+    barColor: "bg-amber",
+    barTrack: "border-amber/30",
+    gradientFrom: "from-amber/20",
     icon: ShoppingBag,
     description: "Dining out, entertainment, subscriptions, shopping",
   },
@@ -179,23 +179,40 @@ function AddTransactionModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center">
-      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
+    <div
+      className="fixed inset-0 z-50 flex items-end md:items-center justify-center"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="add-transaction-heading"
+    >
+      <div
+        className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+        onClick={onClose}
+        onKeyDown={(e) => { if (e.key === "Escape") onClose(); }}
+        role="button"
+        aria-label="Close dialog"
+        tabIndex={-1}
+      />
       <div className="relative w-full max-w-lg bg-background rounded-t-3xl md:rounded-3xl p-5 max-h-[85vh] overflow-y-auto">
         <div className="flex justify-between items-center mb-5">
-          <h2 className="text-warm-white font-semibold text-lg">Add Transaction</h2>
-          <button onClick={onClose} className="w-8 h-8 rounded-full bg-surface-raised flex items-center justify-center text-warm-white/40">
-            <X size={16} />
+          <h2 id="add-transaction-heading" className="text-warm-white font-semibold text-lg">Add Transaction</h2>
+          <button
+            onClick={onClose}
+            aria-label="Close dialog"
+            className="w-8 h-8 rounded-full bg-surface-raised flex items-center justify-center text-warm-white/40"
+          >
+            <X size={16} aria-hidden="true" />
           </button>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           {/* Amount — large, prominent */}
           <div>
-            <label className="block text-sm text-warm-white/70 mb-1.5">Amount</label>
+            <label htmlFor="txn-amount" className="block text-sm text-warm-white/70 mb-1.5">Amount</label>
             <div className="flex items-center bg-surface-raised rounded-2xl px-4 py-4 border border-warm-white/10 focus-within:border-primary/40 transition-all">
-              <span className="text-warm-white/30 text-2xl font-mono mr-1">$</span>
+              <span className="text-warm-white/30 text-2xl font-mono mr-1" aria-hidden="true">$</span>
               <input
+                id="txn-amount"
                 type="text"
                 inputMode="decimal"
                 placeholder="0.00"
@@ -271,33 +288,39 @@ export default function BudgetPage() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [showAddModal, setShowAddModal] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
 
   useEffect(() => {
     async function load() {
-      const supabase = createClient();
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+      try {
+        const supabase = createClient();
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
 
-      const { data: income } = await supabase
-        .from("household_income")
-        .select("monthly_income")
-        .eq("profile_id", user.id)
-        .single();
-      if (income) {
-        setMonthlyIncome(income.monthly_income);
-        setIncomeInput(income.monthly_income.toString());
+        const { data: income } = await supabase
+          .from("household_income")
+          .select("monthly_income")
+          .eq("profile_id", user.id)
+          .single();
+        if (income) {
+          setMonthlyIncome(income.monthly_income);
+          setIncomeInput(income.monthly_income.toString());
+        }
+
+        const now = new Date();
+        const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split("T")[0];
+        const { data: txns } = await supabase
+          .from("transactions")
+          .select("*")
+          .eq("profile_id", user.id)
+          .gte("date", monthStart)
+          .order("date", { ascending: false });
+        if (txns) setTransactions(txns as Transaction[]);
+      } catch {
+        setLoadError(true);
+      } finally {
+        setLoading(false);
       }
-
-      const now = new Date();
-      const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split("T")[0];
-      const { data: txns } = await supabase
-        .from("transactions")
-        .select("*")
-        .eq("profile_id", user.id)
-        .gte("date", monthStart)
-        .order("date", { ascending: false });
-      if (txns) setTransactions(txns as Transaction[]);
-      setLoading(false);
     }
     load();
   }, []);
@@ -354,6 +377,20 @@ export default function BudgetPage() {
           {[0, 1, 2].map((i) => (
             <div key={i} className="w-2.5 h-2.5 rounded-full bg-primary/30 animate-pulse" style={{ animationDelay: `${i * 0.2}s` }} />
           ))}
+        </div>
+      </div>
+    );
+  }
+
+  if (loadError) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-center">
+          <div className="w-12 h-12 rounded-2xl bg-rose/10 flex items-center justify-center mx-auto mb-3">
+            <AlertTriangle size={20} className="text-rose/60" />
+          </div>
+          <p className="text-warm-white/60 text-sm font-medium mb-1">Couldn&apos;t load your budget data.</p>
+          <p className="text-warm-white/30 text-xs">Please refresh the page to try again.</p>
         </div>
       </div>
     );
@@ -455,9 +492,15 @@ export default function BudgetPage() {
             <DollarSign size={28} className="text-amber/40" />
           </div>
           <p className="text-warm-white/60 text-sm mb-2 font-medium">Set your monthly income to get started</p>
-          <p className="text-warm-white/30 text-xs max-w-xs mx-auto">
+          <p className="text-warm-white/30 text-xs max-w-xs mx-auto mb-5">
             Kin uses the 50/30/20 rule to help you budget — 50% needs, 30% wants, 20% savings
           </p>
+          <button
+            onClick={() => setEditingIncome(true)}
+            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-amber/15 text-amber text-sm font-semibold hover:bg-amber/25 transition-all"
+          >
+            Set your monthly income to start tracking →
+          </button>
         </div>
       ) : (
         <>
@@ -501,8 +544,11 @@ export default function BudgetPage() {
             </div>
             {transactions.length === 0 ? (
               <div className="bg-gradient-to-br from-surface-raised to-background rounded-2xl p-8 text-center border border-warm-white/5">
-                <p className="text-warm-white/40 text-sm mb-1">No transactions yet</p>
-                <p className="text-warm-white/20 text-xs">Tap + to log your first expense</p>
+                <div className="w-10 h-10 rounded-2xl bg-warm-white/5 flex items-center justify-center mx-auto mb-3">
+                  <Wallet size={18} className="text-warm-white/20" />
+                </div>
+                <p className="text-warm-white/30 text-sm mb-0.5">No transactions logged yet this month.</p>
+                <p className="text-warm-white/20 text-xs">Tap + to add your first.</p>
               </div>
             ) : (
               <div className="space-y-2">

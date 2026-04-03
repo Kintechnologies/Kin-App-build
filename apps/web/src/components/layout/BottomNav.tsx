@@ -23,6 +23,7 @@ export default function BottomNav() {
 
   return (
     <nav
+      aria-label="Main navigation"
       className="fixed bottom-0 left-0 right-0 z-50 px-4 pb-3"
       style={{ paddingBottom: "calc(0.75rem + env(safe-area-inset-bottom, 0px))" }}
     >
@@ -35,6 +36,7 @@ export default function BottomNav() {
             <Link
               key={href}
               href={href}
+              aria-current={isActive ? "page" : undefined}
               className={`relative flex flex-col items-center gap-0.5 px-4 py-1.5 rounded-2xl transition-all duration-300 ${
                 isActive
                   ? "text-primary"
@@ -42,9 +44,9 @@ export default function BottomNav() {
               }`}
             >
               {isActive && (
-                <div className="absolute -top-1 left-1/2 -translate-x-1/2 w-5 h-[3px] rounded-full bg-primary" />
+                <div className="absolute -top-1 left-1/2 -translate-x-1/2 w-5 h-[3px] rounded-full bg-primary" aria-hidden="true" />
               )}
-              <Icon size={isActive ? 22 : 20} strokeWidth={isActive ? 2.5 : 1.6} />
+              <Icon size={isActive ? 22 : 20} strokeWidth={isActive ? 2.5 : 1.6} aria-hidden="true" />
               <span className={`text-[10px] font-medium tracking-wide ${isActive ? "text-primary" : ""}`}>
                 {label}
               </span>

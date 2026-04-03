@@ -1,0 +1,9 @@
+# Edge Functions Configuration
+[functions.morning-briefing]
+verify_jwt = false
+
+[auth]
+enable_signup = true
+
+[auth.external.google]
+enabled = false

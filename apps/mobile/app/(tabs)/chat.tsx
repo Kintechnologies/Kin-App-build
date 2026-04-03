@@ -56,18 +56,18 @@ interface ChatThread {
 }
 
 const CONVERSATION_IDEAS = [
-  { label: "Plan this week's meals", emoji: "🍽️", color: "#D4A843" },
-  { label: "Budget check-in", emoji: "💰", color: "#7CB87A" },
-  { label: "Date night ideas", emoji: "💕", color: "#D4748A" },
-  { label: "What should the kids eat today?", emoji: "👶", color: "#7AADCE" },
-  { label: "Help me find a summer camp", emoji: "🏕️", color: "#7CB87A" },
-  { label: "Sunday family briefing", emoji: "📋", color: "#D4A843" },
-  { label: "Suggest a quick weeknight dinner", emoji: "⚡", color: "#7CB87A" },
-  { label: "What's coming up on the calendar?", emoji: "📅", color: "#7AADCE" },
-  { label: "High-protein snack ideas", emoji: "💪", color: "#D4A843" },
-  { label: "Help me grocery shop smarter", emoji: "🛒", color: "#D4A843" },
-  { label: "Find a family-friendly activity nearby", emoji: "🎯", color: "#D4748A" },
-  { label: "How can we save more this month?", emoji: "🐷", color: "#7CB87A" },
+  { label: "Plan this week's meals", emoji: "🍽️", color: "#7CB87A" },   // Nutrition domain: #7CB87A
+  { label: "Budget check-in", emoji: "💰", color: "#D4A843" },          // Budget domain: #D4A843
+  { label: "Date night ideas", emoji: "💕", color: "#A07EC8" },         // Date Night domain: #A07EC8
+  { label: "What should the kids eat today?", emoji: "👶", color: "#E07B5A" }, // Kids domain: #E07B5A
+  { label: "Help me find a summer camp", emoji: "🏕️", color: "#E07B5A" },    // Kids domain: #E07B5A
+  { label: "Sunday family briefing", emoji: "📋", color: "#A07EC8" },   // Family Coordination domain: #A07EC8
+  { label: "Suggest a quick weeknight dinner", emoji: "⚡", color: "#7CB87A" }, // Nutrition domain: #7CB87A
+  { label: "What's coming up on the calendar?", emoji: "📅", color: "#A07EC8" }, // Calendar domain: #A07EC8
+  { label: "High-protein snack ideas", emoji: "💪", color: "#7AADCE" }, // Fitness domain: #7AADCE
+  { label: "Help me grocery shop smarter", emoji: "🛒", color: "#7CB87A" }, // Nutrition domain: #7CB87A
+  { label: "Find a family-friendly activity nearby", emoji: "🎯", color: "#E07B5A" }, // Kids domain: #E07B5A
+  { label: "How can we save more this month?", emoji: "🐷", color: "#D4A843" }, // Budget domain: #D4A843
 ];
 
 type ChatView = "list" | "conversation";
@@ -94,58 +94,78 @@ export default function Chat() {
   }, []);
 
   async function checkSubscription() {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
-    const { data } = await supabase
-      .from("profiles")
-      .select("subscription_tier")
-      .eq("id", user.id)
-      .single();
-    if (data) setSubscriptionTier(data.subscription_tier || "free");
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("subscription_tier")
+        .eq("id", user.id)
+        .single();
+      if (error) throw error;
+      if (data) setSubscriptionTier(data.subscription_tier || "free");
+    } catch (error) {
+      console.error("Error checking subscription:", error);
+    }
   }
 
   async function loadThreads() {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
 
-    const { data } = await supabase
-      .from("chat_threads")
-      .select("id, title, is_private, updated_at")
-      .eq("profile_id", user.id)
-      .order("updated_at", { ascending: false })
-      .limit(20);
+      const { data, error } = await supabase
+        .from("chat_threads")
+        .select("id, title, is_private, updated_at")
+        .eq("profile_id", user.id)
+        .order("updated_at", { ascending: false })
+        .limit(20);
 
-    if (data && data.length > 0) {
-      const threadsWithPreviews = await Promise.all(
-        data.map(async (thread) => {
-          const { data: lastMsg } = await supabase
-            .from("conversations")
-            .select("content")
-            .eq("thread_id", thread.id)
-            .eq("role", "user")
-            .order("created_at", { ascending: false })
-            .limit(1)
-            .single();
-          return {
-            ...thread,
-            preview: lastMsg?.content?.slice(0, 60) || "New conversation",
-          };
-        })
-      );
-      setThreads(threadsWithPreviews);
+      if (error) throw error;
+
+      if (data && data.length > 0) {
+        const threadsWithPreviews = await Promise.all(
+          data.map(async (thread) => {
+            const { data: lastMsg, error: msgError } = await supabase
+              .from("conversations")
+              .select("content")
+              .eq("thread_id", thread.id)
+              .eq("role", "user")
+              .order("created_at", { ascending: false })
+              .limit(1)
+              .single();
+            if (msgError && msgError.code !== "PGRST116") {
+              console.error("Error loading thread preview:", msgError);
+            }
+            return {
+              ...thread,
+              preview: lastMsg?.content?.slice(0, 60) || "New conversation",
+            };
+          })
+        );
+        setThreads(threadsWithPreviews);
+      }
+    } catch (error) {
+      console.error("Error loading chat threads:", error);
     }
   }
 
   async function loadMessages(threadId: string) {
-    const { data } = await supabase
-      .from("conversations")
-      .select("id, role, content")
-      .eq("thread_id", threadId)
-      .order("created_at", { ascending: true })
-      .limit(50);
+    try {
+      const { data, error } = await supabase
+        .from("conversations")
+        .select("id, role, content")
+        .eq("thread_id", threadId)
+        .order("created_at", { ascending: true })
+        .limit(50);
 
-    if (data) {
-      setMessages(data.map((m) => ({ ...m, role: m.role as "user" | "assistant" })));
+      if (error) throw error;
+
+      if (data) {
+        setMessages(data.map((m) => ({ ...m, role: m.role as "user" | "assistant" })));
+      }
+    } catch (error) {
+      console.error("Error loading messages:", error);
     }
   }
 
@@ -176,14 +196,19 @@ export default function Chat() {
   }
 
   async function togglePrivacy() {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    const newPrivate = !isPrivate;
-    setIsPrivate(newPrivate);
-    if (currentThreadId) {
-      await supabase
-        .from("chat_threads")
-        .update({ is_private: newPrivate })
-        .eq("id", currentThreadId);
+    try {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      const newPrivate = !isPrivate;
+      setIsPrivate(newPrivate);
+      if (currentThreadId) {
+        const { error } = await supabase
+          .from("chat_threads")
+          .update({ is_private: newPrivate })
+          .eq("id", currentThreadId);
+        if (error) throw error;
+      }
+    } catch (error) {
+      console.error("Error toggling privacy:", error);
     }
   }
 
@@ -195,20 +220,27 @@ export default function Chat() {
 
     let threadId = currentThreadId;
     if (!threadId) {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-      const { data } = await supabase
-        .from("chat_threads")
-        .insert({
-          profile_id: user.id,
-          title: messageText.slice(0, 60),
-          is_private: isPrivate,
-        })
-        .select()
-        .single();
-      if (data) {
-        threadId = data.id;
-        setCurrentThreadId(data.id);
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+        const { data, error } = await supabase
+          .from("chat_threads")
+          .insert({
+            profile_id: user.id,
+            title: messageText.slice(0, 60),
+            is_private: isPrivate,
+          })
+          .select()
+          .single();
+        if (error) throw error;
+        if (data) {
+          threadId = data.id;
+          setCurrentThreadId(data.id);
+        }
+      } catch (error) {
+        console.error("Error creating chat thread:", error);
+        setLoading(false);
+        return;
       }
     }
 
@@ -237,12 +269,16 @@ export default function Chat() {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
       if (threadId) {
-        await supabase
+        const { error: updateError } = await supabase
           .from("chat_threads")
           .update({ updated_at: new Date().toISOString() })
           .eq("id", threadId);
+        if (updateError) {
+          console.error("Error updating thread timestamp:", updateError);
+        }
       }
-    } catch {
+    } catch (error) {
+      console.error("Error sending message:", error);
       setMessages((prev) => [
         ...prev,
         {

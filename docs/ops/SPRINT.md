@@ -2,7 +2,7 @@
 
 **Current Phase:** Phase 0 → Phase 1 Transition
 **Sprint:** Week of April 1, 2026
-**Last Updated:** 2026-04-02 (Lead Eng automated run — #16 accessibility pass complete (web). morning-briefing route: fixed 9 ESLint errors (unused vars + 7 `any` types) + gated 3 console.error calls behind NODE_ENV. 20 files staged for Step 1 commit. ⚠️ Git index.lock re-created by sandbox during git commit attempt (FUSE restriction). Austin: `rm -f .git/index.lock` then run Step 1–6 commits below.)
+**Last Updated:** 2026-04-03 14:00 (CoS second pass — Austin confirmed iOS-first FVM pivot April 2. P1.5 scope issue is resolved: Family OS foundations (#69–#72) are now in-scope and in working tree. Stale P1.5 "awaiting scope decision" note updated below. CRITICAL: working tree has grown significantly since last CoS pass — family.tsx, kin-ai.ts, push-notifications.ts, migrations 013–020, commute.ts, date-night.ts, 8+ API routes, specs all UNTRACKED. Austin must commit + push before Lead Eng builds Track E. Git: 2 commits ahead of origin + large untracked working tree. #73 still pending.)
 
 ---
 
@@ -25,15 +25,19 @@
 
 **Priority order** (sequenced by dependency + user impact):
 
-### P0 — Ship Blockers
+### P0 — Ship Blockers (Updated April 3, 2026 — iOS Sprint Now Primary Track)
+
+> **CoS note (2026-04-03):** Austin pivoted to iOS-first on April 2. The primary ship target is now April 16 TestFlight via `apps/mobile`, not the Vercel web deploy. Tasks #1-#5 below are secondary to the iOS sprint. Track E (RevenueCat billing) is the new P0 blocker for TestFlight. Tasks #1 and #2 (Vercel deploy) are deferred until after TestFlight is live.
 
 | # | Task | Status | Owner | Est. | Notes |
 |---|------|--------|-------|------|-------|
-| 1 | Deploy web app to Vercel | ⬜ | Lead Eng | 1h | Next.js monorepo config, env vars |
-| 2 | Connect kinai.family domain (Namecheap → Vercel) | ⬜ | Lead Eng + Austin | 30m | DNS propagation may take hours |
-| 3 | Fix web app build errors (monorepo paths) | ✅ Done | Lead Eng | 2h | `npx tsc --noEmit` passes 0 errors. Fixed: Stripe API version (basil→clover), invoice.subscription→parent.subscription_details.subscription, Anthropic ToolUseBlock type, framer-motion ease literal, Set spread, SpeechRecognition decls. Commit a97d9a3. |
+| E1 | **[NEW P0]** Track E: RevenueCat paywall + 7-day trial arc (mobile) | ⬜ **NEXT** | Lead Eng (after Austin commits/pushes) | 1 day | Install `react-native-purchases`, build paywall screen, 7-day trial arc. Blocked on Austin: (1) commit + push working tree, (2) create RevenueCat products `kin_monthly_3999` + `kin_annual_29900`. Code can be built with placeholder key. |
+| E2 | **[NEW P0]** Austin: Configure RevenueCat products | ⬜ | Austin (HUMAN) | 15m | Create `kin_monthly_3999` ($39/mo) and `kin_annual_29900` ($299/yr) in RevenueCat dashboard. Add `EXPO_PUBLIC_REVENUECAT_API_KEY` to `apps/mobile/.env`. |
+| 1 | Deploy web app to Vercel | ⬜ Deferred | Lead Eng | 1h | Deferred — iOS TestFlight is primary. Required for web Stripe checkout (#5). |
+| 2 | Connect kinai.family domain (Namecheap → Vercel) | ⬜ Deferred | Lead Eng + Austin | 30m | Deferred until after TestFlight. |
+| 3 | Fix web app build errors (monorepo paths) | ✅ Done | Lead Eng | 2h | `npx tsc --noEmit` passes 0 errors. Commit a97d9a3. |
 | 4 | Stripe Connect to Mercury bank | ⬜ | Austin (HUMAN) | 15m | Waiting on Mercury routing/account numbers |
-| 5 | Test Stripe checkout end-to-end (test mode) | ⬜ | Lead Eng | 1h | Pricing page → checkout → webhook → subscription active. Spec + test plan: `docs/specs/stripe-checkout-flow.md`. #51 ✅ + #52 ✅ unblock this — **code-side is ready.** Still gated on Austin's Vercel deploy (#1) + Stripe Connect (#4). Queue after brand sweep #54–#59 + #10. |
+| 5 | Test Stripe checkout end-to-end (test mode) | ⬜ | Lead Eng | 1h | Gated on Vercel deploy (#1). Queue after TestFlight launch. |
 
 ### P1 — Core Experience
 
@@ -107,17 +111,18 @@
 | 66 | **[QA NOTE] [LOGGING]** Stripe webhook + cron cleanup routes log PII without NODE_ENV guard | ✅ Done | Lead Eng | 15m | `stripe/route.ts`: 3 `console.log` calls (subscription cancelled, referral unlock, payment failed) gated with `if (process.env.NODE_ENV !== "production")`. `cron/cleanup/route.ts`: 2 `console.log` calls (Day-75 reminder with `user.email`, deletion with `user.email`) gated same pattern. Sentry TODO comment added to each. Consistent with #37/#46/#52. tsc + ESLint → 0 errors. Lead Eng automated run 2026-04-02. |
 | 67 | **[PRODUCT] [UX] ⚠️ NEEDS AUSTIN DECISION** Landing page has no waitlist capture — sends users directly to `/signup` | ⬜ | Austin | 30m | Phase 0 exit criteria requires `kinai.family live with waitlist` (#3 in Phase 0 checklist). Currently the landing page has "Get Started Free" → `/signup` with no email capture gate. Two paths: **(a) keep open signup** — remove waitlist requirement from checklist, accept that anyone can sign up from day 1 (risk: support burden before product is polished); **(b) add waitlist gate** — replace CTA with email input that submits to a Supabase waitlist table; show "You're on the list!" confirmation; existing auth pages still accessible by URL. Product & Design recommends **(a)** since the app already has auth, trial period protection, and Phase 1 is starting April 7 — a waitlist adds friction with minimal benefit at this stage. Filed by Product & Design 2026-04-02. |
 | 68 | **[PRODUCT] [BRAND]** `Confetti.tsx` includes `#A07EC8` (purple) in particle color palette | ✅ Done | Lead Eng | 10m | `#A07EC8` replaced with `#A8D5A6` (light sage green — cohesive with primary `#7CB87A`, adds particle variety without purple). Zero purple in `Confetti.tsx`. Lead Eng automated run 2026-04-02. |
+| 73 | **[TECH DEBT]** Gate bare `console.error` calls in Stripe webhook behind `NODE_ENV` check | ⬜ **[NEXT CYCLE]** | Lead Eng | 10m | `apps/web/src/app/api/webhooks/stripe/route.ts` lines 42 (`"Webhook signature verification failed:"`) and 172 (`"Webhook handler error:"`) are ungated — inconsistent with #15 audit standard. These are defensible security logs but should use `if (process.env.NODE_ENV !== "production")` guard or Sentry TODO for consistency. Filed by QA 2026-04-03. **CoS 2026-04-03: confirmed as Lead Eng's next unblocked task — 10m, batch into next commit.** |
 
-### P1.5 — Family OS Foundations ⚠️ NEEDS AUSTIN SCOPE DECISION
+### P1.5 — Family OS Foundations ✅ SCOPE CONFIRMED (April 2, 2026)
 
-> **CoS note (2026-04-02):** The Lead Engineer has built a substantial layer of Family OS infrastructure that is not yet committed and was not in the original Phase 1 sprint scope. This work is consistent with the FVM pivot (meal plan → daily family schedule) and the 11-domain product vision, but Austin must confirm whether this is Phase 1 or Phase 2. These are already-built features being tracked, not proposals. Until Austin decides, they are not assigned to the Lead Engineer's queue.
+> **CoS note (2026-04-03, updated second pass):** Austin confirmed iOS-first FVM pivot on April 2, 2026. The full Family OS scope (all 11 domains, 2-week parallel build) is approved. The previous "awaiting scope decision" flag on #69–#72 is resolved — these are in-scope. All Family OS files (#69–#72 + migrations 013–020 + commute.ts + date-night.ts + morning briefing API + push-tokens API) are now in the working tree as untracked files. They are functionally complete but NOT committed to git. Austin must commit all of this before Lead Eng proceeds to Track E (billing). The previous agent alignment flag (fitness.tsx committed without explicit approval) is no longer a concern — fitness as a standalone tab IS the correct architecture per the v2 product spec.
 
 | # | Task | Status | Owner | Est. | Notes |
 |---|------|--------|-------|------|-------|
-| 69 | **[FAMILY OS] Mobile family tab** | 🟡 In working tree | Lead Eng | — | `apps/mobile/app/(tabs)/family.tsx` — 1,009 lines. Full family member management (adults + children + pets). Children details: name, age, allergies, school schedule, activities. Pet management: name, breed, vet info, medications. Fitness profile per member. Wired to Supabase (migrations 014–016). Needs QA audit + Product brand review before commit. |
-| 70 | **[FAMILY OS] Morning briefing API + kin-ai context assembly** | 🟡 In working tree | Lead Eng | — | `apps/web/src/app/api/morning-briefing/route.ts` (319 lines) generates daily briefing via Anthropic. `apps/mobile/lib/kin-ai.ts` assembles full family context (profile, family members, schedule, children, allergies, pets, budget, meal plan, fitness). This IS the new FVM if Austin confirms the schedule pivot. Requires migrations 013–018. |
-| 71 | **[FAMILY OS] Push notification infrastructure** | 🟡 In working tree | Lead Eng | — | `apps/mobile/lib/push-notifications.ts` + `apps/web/src/app/api/push-tokens/route.ts` (token registration endpoint). Migration 013 (`push_tokens` table). Required for morning briefing delivery to mobile. |
-| 72 | **[FAMILY OS] Supabase migrations 013–018** | 🟡 In working tree | Lead Eng + Austin | — | Six new tables: `push_tokens` (013), `children_details` (014), `pet_details` (015), `fitness_profiles` (016), `budget_categories` (017), `parent_schedules` + `morning_briefings` (018). All have correct RLS. Must be applied with `supabase db push` before #69–#71 can be tested. **Austin: confirm scope before applying in production — these expand the data model significantly.** |
+| 69 | **[FAMILY OS] Mobile family tab** | ✅ Built — untracked | Lead Eng | — | `apps/mobile/app/(tabs)/family.tsx` — 31k bytes. Full CRUD for kids + pets + allergies + activities + vet/meds. Scope confirmed by Austin April 2. **Austin: commit with `git add apps/mobile/app/(tabs)/family.tsx`** |
+| 70 | **[FAMILY OS] Morning briefing API + kin-ai context assembly** | ✅ Built — untracked | Lead Eng | — | `apps/web/src/app/api/morning-briefing/route.ts` (12k) + `apps/mobile/lib/kin-ai.ts` (8k) + `supabase/functions/morning-briefing/`. Context assembles all 11 domains. Scope confirmed. **Austin: include in commit.** |
+| 71 | **[FAMILY OS] Push notification infrastructure** | ✅ Built — untracked | Lead Eng | — | `apps/mobile/lib/push-notifications.ts` + `apps/web/src/app/api/push-tokens/route.ts`. Migration 013 (`push_tokens`). Scope confirmed. **Austin: include in commit.** |
+| 72 | **[FAMILY OS] Supabase migrations 013–020** | ✅ Built — untracked | Lead Eng + Austin | — | 8 migration files in `supabase/migrations/`. Covers: push_tokens, children_details, pet_details, fitness_profiles, budget_categories, parent_schedules/morning_briefings, date_nights, grocery_list_items. **Austin: run `supabase db push` after committing.** |
 
 ### P3 — Deferred (Not This Sprint)
 
@@ -148,9 +153,15 @@ _First sprint — no historical velocity data. Will calibrate after Week 1._
 **Commit `1325937`** (Batch B: #36 #37 #38 #39 #40 #41 #43 #46) ✅ committed
 **Commit `ca78903`** (build: Suspense boundary for useSearchParams #53) ✅ committed
 
-**✅ All commits through ca78903 are on origin/main.**
+**✅ Commits through `ca78903` were on origin/main (as of previous push).**
 
-**⚠️ Remaining uncommitted work:** Multiple commits needed (Steps 1–6 below + new Step 7). Clear the lock file first, then run the commit commands in order.
+**⚠️ Two new local commits NOT YET PUSHED to origin/main:**
+- `d72bcea` — fix(#15/#64/#68): error handling audit + trial date + confetti brand
+- `3b0df24` — fix(qa): P1 stripe webhook anon-key fallback + P2 purple remnants (FloatingOrbs, OnboardingSurvey, fitness)
+
+**Austin: run `git push origin main` from your terminal to push these two commits.**
+
+**⚠️ Remaining uncommitted working tree work:** Steps 2–8 still uncommitted (see sections below). Clear the lock file first, then run the commit commands in order.
 
 ---
 
@@ -469,52 +480,89 @@ tsc --noEmit → 0 errors. eslint --max-warnings=0 → 0 errors."
 
 ---
 
-### Step 9 — Commit Family OS Foundations (tasks #69–#72) — PENDING AUSTIN SCOPE DECISION
+### Step 9 — Commit Family OS Foundations + D-Track + C2/C3 additions (tasks #69–#72 + D3/D8/D9/B6/C2.7/C3.5) — ✅ SCOPE CONFIRMED APRIL 2
 
-> **Hold until Austin confirms Phase 1.5 scope.** If approved, commit the following new untracked files:
+> **Austin confirmed iOS-first FVM scope on April 2. No longer on hold.** Commit all Family OS foundations + the additional D-track and C-track work that's also untracked. This is a large commit — the full Family OS layer built on Day 1-2 of the sprint.
 
 ```bash
 cd ~/Projects/kin
+rm -f .git/index.lock .git/HEAD.lock
+
 git add \
   "apps/mobile/app/(tabs)/family.tsx" \
+  "apps/mobile/app/(tabs)/budget.tsx" \
+  "apps/mobile/app/(tabs)/chat.tsx" \
+  "apps/mobile/app/(tabs)/fitness.tsx" \
+  "apps/mobile/app/(tabs)/index.tsx" \
+  "apps/mobile/app/(tabs)/meals.tsx" \
   apps/mobile/lib/kin-ai.ts \
   apps/mobile/lib/push-notifications.ts \
   apps/mobile/lib/api.ts \
+  "apps/mobile/components/onboarding/CalendarConnectModal.tsx" \
+  apps/mobile/components/onboarding/save-onboarding.ts \
   apps/web/src/app/api/morning-briefing/route.ts \
   apps/web/src/app/api/push-tokens/route.ts \
+  "apps/web/src/app/api/budget/check-overspend/route.ts" \
+  apps/web/src/app/api/calendar/google/webhook/route.ts \
+  apps/web/src/app/api/chat/route.ts \
+  apps/web/src/app/api/cron/cleanup/route.ts \
+  apps/web/src/app/api/meals/route.ts \
+  apps/web/src/app/auth/callback/route.ts \
+  "apps/web/src/app/(auth)/signup/page.tsx" \
+  "apps/web/src/app/(dashboard)/budget/page.tsx" \
+  "apps/web/src/app/(dashboard)/chat/page.tsx" \
+  "apps/web/src/app/(dashboard)/dashboard/page.tsx" \
+  "apps/web/src/app/(dashboard)/meals/page.tsx" \
+  apps/web/src/app/page.tsx \
+  apps/web/src/app/pricing/page.tsx \
+  apps/web/src/components/layout/BottomNav.tsx \
+  apps/web/src/components/meals/RecipeModal.tsx \
+  apps/web/src/lib/calendar/google.ts \
+  apps/web/src/lib/commute.ts \
+  apps/web/src/lib/date-night.ts \
+  packages/shared/src/system-prompt.ts \
   supabase/migrations/013_push_tokens.sql \
   supabase/migrations/014_children_details.sql \
   supabase/migrations/015_pet_details.sql \
   supabase/migrations/016_fitness.sql \
   supabase/migrations/017_budget_categories.sql \
-  supabase/migrations/018_schedule_and_briefings.sql
+  supabase/migrations/018_schedule_and_briefings.sql \
+  supabase/migrations/019_date_nights.sql \
+  supabase/migrations/020_grocery_list_items.sql \
+  docs/ops/SPRINT.md \
+  docs/ops/KILL-LIST.md
 
-git commit -m "feat(family-os): family tab, morning briefing, push notifications, 6 migrations
+git commit -m "feat(family-os): Tracks A-D complete — family tab, morning briefing, push, intelligence layer
 
-#69 — feat(mobile): full family tab — children details, pet management, fitness
-       profiles per family member. Wired to Supabase (migrations 014–016).
-       1,009 lines. Read from family_members, children_details, pet_details,
-       fitness_profiles tables.
+#69 — feat(mobile): full family tab (family.tsx) — children details, allergies,
+       activities, pet management, vet/medications. Full CRUD. Supabase-wired.
 
-#70 — feat(api): morning briefing route (/api/morning-briefing) generates
-       daily briefing via Anthropic using full family context.
-       feat(mobile): kin-ai.ts assembles comprehensive family context
-       (13 Supabase queries: profile, members, schedule, children, allergies,
-       pets, petMeds, budgetCategories, budgetSummary, mealPlan, fitnessProfile).
-       This is the core intelligence layer for the Family OS FVM.
+#70 — feat(api): morning briefing route (/api/morning-briefing) + kin-ai.ts
+       context assembly across all 11 domains. Core intelligence layer.
 
-#71 — feat(mobile): push-notifications.ts — Expo push token registration.
-       feat(api): /api/push-tokens — token persistence endpoint.
-       Migration 013 (push_tokens table with RLS, UNIQUE profile+token).
+#71 — feat(mobile): push-notifications.ts + /api/push-tokens endpoint.
+       Migration 013 (push_tokens table).
 
-#72 — feat(db): migrations 013–018
-       013: push_tokens (profile_id, token, platform, device_name, active)
-       014: children_details (name, age, school, grade, allergies, activities)
-       015: pet_details (name, breed, vet, medications)
-       016: fitness_profiles (goals, activity_level, equipment, schedule)
-       017: budget_categories (custom category overrides)
-       018: parent_schedules + morning_briefings (schedule, commute, briefing history)
-       All tables: RLS enabled, profile-scoped policies."
+#72 — feat(db): migrations 013–020 (8 tables: push_tokens, children_details,
+       pet_details, fitness_profiles, budget_categories, parent_schedules,
+       morning_briefings, date_nights, grocery_list_items).
+
+D3  — feat(api): commute.ts — Google Maps Distance Matrix → leave-by time.
+D8/D9 — feat(api): date-night.ts — 14-day check + 2-option suggestions.
+       Migration 019 (date_nights table).
+B6  — feat(mobile): CalendarConnectModal.tsx + save-onboarding.ts
+       Post-onboarding calendar connect prompt.
+C2.7 — feat(db): migration 020 (grocery_list_items) + Realtime subscription
+       in meals.tsx. Items checked off sync across both parents in real-time.
+C3.5 — feat(api): /api/budget/check-overspend — fires push on 80% threshold,
+       max 1 notification per category per month.
+fix  — mobile tabs: index, fitness, budget, chat, meals — error handling, UX,
+       home screen real data (budgetSpent, todaysMeals, morningBriefing).
+fix  — web: brand fixes (remaining purple → amber/blue), a11y improvements,
+       pricing/signup/auth minor fixes. API route cleanups.
+
+After committing: run 'supabase db push' to apply migrations 013-020.
+Then run 'git push origin main' to push all local commits."
 ```
 
 ---
@@ -1042,6 +1090,31 @@ _— QA & Standards Lead, automated run 2026-04-01_
 
 ## CoS Coordination Log
 
+### 2026-04-03 09:00 — CoS Coordination
+
+- **Reviewed:** Lead Eng commits `d72bcea` (#15 error handling audit, #64 real trial date from Stripe, #68 confetti brand) + `3b0df24` (Stripe webhook anon-key fallback P1 fix, purple remnants in FloatingOrbs/OnboardingSurvey/fitness.tsx P2 sweep); QA 2026-04-03 run filing #73 (Stripe webhook bare console.error — P2, 10m); Product 2026-04-03 run on record (filed #50 #51 #52, all since resolved). Working tree audit: 2 local commits NOT pushed to origin/main (`d72bcea` + `3b0df24`); Steps 2–6 still uncommitted (20+ modified files). No new Product run this cycle. No new QA audit beyond #73.
+- **Reprioritized:**
+  - **#73 (Stripe webhook console.error)** confirmed P2. Assigned to Lead Eng. 10m task — gate `stripe/route.ts` lines 42 and 172 behind `NODE_ENV !== "production"` guard per the established pattern (#37/#46/#52/#66). Batch with the next commit.
+  - **#10 (mobile API wiring)** marked effectively complete for Phase 1 scope — `budgetSpent` real ✅, `todaysMeals` real ✅, `calendarEvents` still `[]` (gated on P3 calendar OAuth, acceptable). Status updated to reflect this.
+  - **#67 (waitlist vs open signup)** remains ⬜ pending Austin decision. Product recommendation stands (option a — open signup). Not blocking any engineering work this cycle.
+  - **P1 core flows (#6 #7 #8 #9 #11)** all continue to gate on Vercel deploy (#1) + `supabase db push`. No change in status.
+  - **#5 (Stripe checkout e2e)** code-ready but gated on #1 (Vercel) + #4 (Stripe Connect). No Lead Eng action possible.
+  - **⚠️ Agent alignment issue — fitness.tsx committed without scope approval:** `3b0df24` included `apps/mobile/app/(tabs)/fitness.tsx` (1,202 lines) as part of a QA "purple remnant" sweep. The purple fix was 2 lines in the file; committing the full 1,202-line tab was an overshoot. This file contains Family OS work (#69 scope) that Austin has not yet approved for commit. Lead Eng should not build further on top of it until Austin confirms the scope. Flagged as escalation.
+  - **P1.5 Family OS (#69–#72)** still in working tree, still pending Austin scope decision. `family.tsx`, `kin-ai.ts`, `CalendarConnectModal.tsx`, `save-onboarding.ts` remain untracked. Step 9 commit continues to be on hold.
+  - No Kill List additions — all open work serves Phase 1 or Phase 1.5 goals pending Austin decision.
+- **Next cycle focus:** Lead Eng picks up **#73** (10m — Stripe webhook console.error gate, final logging consistency gap). After that, Lead Eng enters **standby + prep mode**: review e2e test plans for #6/#7/#8/#9 so they're ready to execute the moment Austin deploys Vercel. No new feature work until core flows are verified on staging.
+- **Escalations:**
+  - 🔴 **AUSTIN (PUSH NEEDED):** `d72bcea` + `3b0df24` are local-only — NOT on origin/main. Run `git push origin main` from your terminal. Until pushed, these commits are invisible to Vercel and GitHub.
+  - 🔴 **AUSTIN (COMMITS NEEDED — Steps 2–6):** Working tree has 20+ modified files staged but uncommitted. Run Steps 2 → 3 → 4 → 5 → 6 from the Austin Action Required section in order before pushing. These cover tasks #42 #50 #51 #52 #54–#60 #61 #62 #63 #24 #65 #66 #10 #16 + morning-briefing ESLint fix.
+  - 🔴 **AUSTIN (BLOCKER):** Vercel deploy (#1) — Phase 0 deadline is **April 7, 4 days away.** Code has been on GitHub for 3+ days without a connected Vercel project. All e2e testing (#5–#9) is gated here. This is the single highest-leverage action Austin can take.
+  - 🔴 **AUSTIN (BLOCKER):** `supabase db push` — migrations 011 (meal_plans) + 012 (household_invites) still unapplied in production. Meal persistence and partner invite silently fail without them.
+  - ⚠️ **AUSTIN (DECISION — fitness.tsx scope):** `fitness.tsx` (1,202 lines) was committed in `3b0df24` as a side effect of a QA purple sweep. This is full Family OS content that was not explicitly scoped. Austin should confirm: (a) keep as a standalone Fitness tab, or (b) move this content into the Family tab (#69)? Also confirm whether this tab should appear in TestFlight for beta users when the flows aren't complete.
+  - ⚠️ **AUSTIN (DECISION — #67):** Landing page — open signup vs waitlist gate. Product recommends option (a): keep open signup, remove waitlist requirement from Phase 0 checklist. Needs a yes/no before Phase 0 can be marked done.
+  - ⚠️ **AUSTIN (DECISION — P1.5 scope):** Family OS foundations (#69 family tab, #70 morning briefing, #71 push notifications, #72 migrations 013–018) remain in working tree, awaiting scope confirmation. Until confirmed, these are NOT assigned to Lead Eng queue.
+  - 📊 **FYI:** All committed code passes tsc + eslint at 0 errors. 40+ tasks completed across the sprint with zero P0 QA regressions. Only one open QA bug (#73, P2, 10m). The codebase is in excellent shape — the gap is entirely infrastructure (Vercel deploy) and Austin commit/push actions.
+
+---
+
 ### 2026-04-02 (evening) — CoS Coordination
 
 - **Reviewed:** Lead Eng `98e88f7` + `b700ea5` (partner invite backend + P2 batch: #29 #30 #31 #32 #33 #34 all ✅); Lead Eng evening session code changes for #36 #37 #38 #39 #40 #41 #43 #46 (written to working tree, staged/unstaged, blocked from commit by lock files); QA noon run (P0 security fix #45 staged + blocked; task #46 filed and immediately batched); Product & Design two evening runs (#42 #43 #47 #48 filed, specs written for #42 and #48).
@@ -1537,3 +1610,36 @@ From your terminal: `rm -f ~/Projects/kin/.git/index.lock && git add [the 4 file
 ---
 
 **QA verdict: HOLD — do not deploy until Austin commits the P1 stripe webhook fix and verifies `SUPABASE_SERVICE_ROLE_KEY` is set in Vercel.** All other code is production-ready.
+
+> **CoS note (2026-04-03):** The QA P1 stripe fix was committed by Austin in `3b0df24` (local, not yet pushed to origin). The HOLD on Vercel deploy is lifted from the code quality side — but `SUPABASE_SERVICE_ROLE_KEY` in Vercel env vars still needs Austin to confirm. Austin: verify this key is set before the first real subscription event fires.
+
+---
+
+## CoS Coordination Log
+
+### [2026-04-03 CoS automated run] — CoS Coordination
+
+- **Reviewed:** Lead Eng commits `d72bcea` (#15 error handling audit ✅, #64 real Stripe trial date ✅, #68 Confetti brand ✅) and `3b0df24` (QA P1 Stripe webhook anon-key fallback ✅, P2 purple fixes in FloatingOrbs/OnboardingSurvey/fitness.tsx ✅, Step 1 bundle: #44 ESLint fix ✅, #47 meals purple ✅, #48 mobile meals full plan view ✅); QA automated run 2026-04-03 (P1 Stripe webhook fix directed + committed, #73 filed for 2 bare `console.error` in webhook, 9 previously-closed tasks formally confirmed closed). Both new commits are **local only — not yet on origin/main.**
+
+- **Reprioritized:**
+  - **#73** added to P2 sprint table — 10m fix, Lead Eng, webhook console.error gating. QA filed it in the audit log; now promoted to sprint board entry so it doesn't float.
+  - **fitness.tsx committed in `3b0df24` without P1.5 scope approval.** The QA batch included it (purple fix), but the commit also added it to navigation (TabBar + _layout). Austin must acknowledge and decide: (a) standalone fitness tab or fold into family tab (#69)? (b) is this P1.5 scope confirmed by fact of commit? CoS note added to P1.5 section. Not flagging as an error — the QA fix was valid — but the navigation addition needs acknowledgment.
+  - **4 untracked Family OS files remain** in working tree: `family.tsx`, `kin-ai.ts`, `CalendarConnectModal.tsx`, `save-onboarding.ts`. These are still pending Austin's explicit P1.5 scope decision before committing.
+  - **Steps 2–8** (brand sweep, budget UX, accessibility, mobile API wiring) remain uncommitted in working tree. All tasks they cover are already marked ✅ Done in the sprint board — these commits are paperwork, not new code. Austin: run the Step commit commands in order once the push clears.
+  - **#67 (waitlist decision)** is now **4 days from Phase 0 deadline (April 7).** This is urgent. Product recommends open signup. If Austin doesn't decide by April 5, CoS recommends defaulting to open signup and checking the box — adding a waitlist gate 4 days before deadline is higher-risk than not having one.
+  - QA verdict on `3b0df24` is partially outdated — the P1 Stripe fix was committed, so the HOLD is lifted on the code side. Added CoS clarification note in the QA section above.
+  - No agent conflicts. QA, Product, and Lead Eng all aligned. No duplicated work.
+  - No new Kill List candidates — all work serves current phase goals.
+
+- **Next cycle focus:**
+  - **Lead Eng:** Pick up **#73** (10m, gate Stripe webhook console.errors behind `NODE_ENV`). Batch with any Step 2–8 commit Austin has unlocked. If Austin confirms P1.5 scope for Family OS, queue family.tsx + kin-ai.ts audit + commit (Step 9). Otherwise, hold. After #73: primary focus shifts to **#11** (mobile physical device test via Expo Go) if #10 is confirmed done, or back to **#10** if index.tsx wiring is still incomplete.
+  - **QA:** Audit `3b0df24` for the Step 1 work that was bundled in — specifically #48 (mobile meals full rewrite, high risk), #44 (ESLint), and fitness tab UX/navigation. Also verify `apps/mobile/app/(tabs)/_layout.tsx` and `TabBar.tsx` changes (navigation now includes fitness tab — confirm tab order, icons, and accessibility attributes are correct).
+  - **Product & Design:** Review `fitness.tsx` (1,202 lines) for brand compliance + UX coherence. The fitness tab was built without a Product spec — audit against brand guide and flag any violations. Confirm whether the fitness tab should be a standalone entry or nested under a future family tab.
+  - **Austin:** (1) `git push origin main` — 2 local commits. (2) Verify `SUPABASE_SERVICE_ROLE_KEY` is in Vercel env. (3) Vercel deploy (#1) + domain DNS (#2) — **Phase 0 deadline is April 7 — 4 days.** (4) Decide #67 (waitlist vs. open signup). (5) Scope decision for P1.5 Family OS work.
+
+- **Escalations:**
+  - 🔴 **AUSTIN (PUSH NEEDED):** `d72bcea` + `3b0df24` are local only. Run `git push origin main` now. Both contain production-critical fixes (Stripe webhook P1, ESLint, mobile meals). Vercel cannot deploy until these are on origin.
+  - 🔴 **AUSTIN (BLOCKER — Phase 0 deadline in 4 days):** Vercel deploy (#1) + domain DNS (#2) still pending. April 7 is the Phase 0 exit target. Steps: push → Vercel import → env vars → `supabase db push` → e2e tests (#6–#9). This is the entire remaining critical path.
+  - ⚠️ **AUSTIN (SCOPE — fitness tab committed):** `fitness.tsx` was committed in `3b0df24` without P1.5 scope approval (it was included in a QA fix batch). The tab is now in the app navigation. Acknowledge + decide its relationship to the family tab (#69) before QA or Product spend time on it.
+  - ⚠️ **AUSTIN (DEADLINE — #67, 4 days):** Waitlist vs. open signup must be decided before April 7. Phase 0 exit checklist item #3 blocks on this. Product recommends open signup (option a). Silence = defaulting to open signup.
+  - 📊 **FYI:** 6 consecutive QA cycles with zero P0 regressions. Both local commits are clean — tsc + eslint 0 errors. The codebase is in excellent health. The Stripe webhook P1 was caught and fixed before any real user signed up. Infrastructure (Vercel + push) is the only remaining gate between current state and live users.

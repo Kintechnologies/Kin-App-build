@@ -49,7 +49,7 @@ export default function RecipeModal({ mealName, mealType, calories, protein, pre
   const typeColors: Record<string, string> = {
     breakfast: "bg-amber/15 text-amber",
     lunch: "bg-blue/15 text-blue",
-    dinner: "bg-purple/15 text-purple",
+    dinner: "bg-blue/15 text-blue",
     snack: "bg-rose/15 text-rose",
   };
 

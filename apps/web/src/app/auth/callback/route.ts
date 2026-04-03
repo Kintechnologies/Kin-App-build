@@ -18,6 +18,8 @@ export async function GET(request: Request) {
       // was previously called without auth and silently returned 401.
       if (inviteCode) {
         await tryAcceptInvite(inviteCode);
+        // Partner skips full onboarding — route to 2-step abbreviated flow (#42)
+        return NextResponse.redirect(`${origin}/onboarding/partner`);
       }
 
       // Check if onboarding is completed

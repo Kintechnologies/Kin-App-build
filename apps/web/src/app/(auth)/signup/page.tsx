@@ -54,8 +54,8 @@ function SignUpForm() {
           method: "POST",
         });
         if (res.ok) {
-          // Household linked — proceed to partner mini-onboarding
-          router.push("/onboarding");
+          // Household linked — proceed to partner mini-onboarding (#42)
+          router.push("/onboarding/partner");
           return;
         }
         // Accept failed (expired, email mismatch, etc.) — proceed to normal onboarding

@@ -50,11 +50,13 @@ export default function PricingPage() {
   const router = useRouter();
   const [loading, setLoading] = useState<string | null>(null);
   const [billing, setBilling] = useState<"monthly" | "annual">("monthly");
+  const [checkoutError, setCheckoutError] = useState<string | null>(null);
 
   const savingsPercent = 17; // ~2 months free on annual
 
   async function handleSubscribe(planId: string) {
     setLoading(planId);
+    setCheckoutError(null); // clear any previous error on new attempt
 
     const supabase = createClient();
     const { data: { user } } = await supabase.auth.getUser();
@@ -78,8 +80,15 @@ export default function PricingPage() {
           return;
         }
       }
-    } catch (err) {
-      console.error("Checkout error:", err);
+
+      // Non-ok response or missing redirect URL
+      setCheckoutError("Something went wrong starting your trial. Please try again.");
+    } catch {
+      if (process.env.NODE_ENV !== "production") {
+        // eslint-disable-next-line no-console
+        console.error("Checkout error — see network tab for details");
+      }
+      setCheckoutError("Something went wrong starting your trial. Please try again.");
     }
 
     setLoading(null);
@@ -221,6 +230,13 @@ export default function PricingPage() {
             );
           })}
         </div>
+
+        {/* Checkout error banner */}
+        {checkoutError && (
+          <p className="text-center text-rose/80 text-sm mt-5" role="alert">
+            ⚠️ {checkoutError}
+          </p>
+        )}
 
         <p className="text-center text-warm-white/25 text-xs mt-8 max-w-sm mx-auto">
           7-day free trial, cancel anytime. No credit card required to start your trial.

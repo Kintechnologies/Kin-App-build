@@ -86,13 +86,13 @@ const categoryConfig = {
   },
   dinner: {
     emoji: "🍽️",
-    gradient: "from-purple/20 to-purple/5",
-    accent: "text-purple",
-    accentBg: "bg-purple/15",
-    border: "border-purple/20",
-    selectedBg: "bg-purple/10",
-    selectedBorder: "border-purple/40",
-    pillBg: "bg-purple/20 text-purple",
+    gradient: "from-blue/20 to-blue/5",
+    accent: "text-blue",
+    accentBg: "bg-blue/15",
+    border: "border-blue/20",
+    selectedBg: "bg-blue/10",
+    selectedBorder: "border-blue/40",
+    pillBg: "bg-blue/20 text-blue",
   },
   snack: {
     emoji: "🥜",
@@ -146,10 +146,10 @@ function MealOptionCard({
             e.stopPropagation();
             onRecipe();
           }}
+          aria-label="View recipe"
           className="opacity-0 group-hover:opacity-100 w-7 h-7 rounded-full bg-warm-white/5 hover:bg-primary/20 flex items-center justify-center transition-all"
-          title="View recipe"
         >
-          <BookOpen size={13} className="text-warm-white/30 hover:text-primary" />
+          <BookOpen size={13} className="text-warm-white/30 hover:text-primary" aria-hidden="true" />
         </button>
         {/* Dismiss button */}
         <button
@@ -157,21 +157,23 @@ function MealOptionCard({
             e.stopPropagation();
             setShowDismiss(true);
           }}
+          aria-label="Not for us — remove from options"
           className="opacity-0 group-hover:opacity-100 w-7 h-7 rounded-full bg-warm-white/5 hover:bg-rose/20 flex items-center justify-center transition-all"
-          title="Not for us"
         >
-          <X size={13} className="text-warm-white/30 hover:text-rose" />
+          <X size={13} className="text-warm-white/30 hover:text-rose" aria-hidden="true" />
         </button>
         {/* Select button */}
         <button
           onClick={onToggle}
+          aria-label={isSelected ? "Deselect meal" : "Select meal"}
+          aria-pressed={isSelected}
           className={`w-7 h-7 rounded-full flex items-center justify-center transition-all ${
             isSelected
               ? `${config.accentBg} ${config.accent}`
               : "bg-warm-white/5 text-warm-white/20 group-hover:text-warm-white/40"
           }`}
         >
-          <Check size={14} strokeWidth={isSelected ? 3 : 2} />
+          <Check size={14} strokeWidth={isSelected ? 3 : 2} aria-hidden="true" />
         </button>
       </div>
 
@@ -290,9 +292,11 @@ function MealCategorySection({
         <div className="flex items-center justify-between">
           <button
             onClick={() => setExpanded(!expanded)}
+            aria-expanded={expanded}
+            aria-controls={`meal-section-${mealType}`}
             className="flex items-center gap-3 flex-1"
           >
-            <span className="text-2xl">{config.emoji}</span>
+            <span className="text-2xl" aria-hidden="true">{config.emoji}</span>
             <div className="text-left">
               <h2 className="text-warm-white font-semibold text-base">{title}</h2>
               <p className="text-warm-white/40 text-xs">{subtitle}</p>
@@ -307,16 +311,20 @@ function MealCategorySection({
             <button
               onClick={onRefresh}
               disabled={refreshing}
+              aria-label="Shuffle meal options"
               className={`w-8 h-8 rounded-full flex items-center justify-center transition-all hover:scale-110 active:scale-90 ${config.accentBg}`}
-              title="Shuffle options"
             >
-              <RefreshCw size={14} className={`${config.accent} ${refreshing ? "animate-spin" : ""}`} />
+              <RefreshCw size={14} className={`${config.accent} ${refreshing ? "animate-spin" : ""}`} aria-hidden="true" />
             </button>
-            <button onClick={() => setExpanded(!expanded)}>
+            <button
+              onClick={() => setExpanded(!expanded)}
+              aria-label={expanded ? `Collapse ${title}` : `Expand ${title}`}
+              aria-expanded={expanded}
+            >
               {expanded ? (
-                <ChevronUp size={16} className="text-warm-white/30" />
+                <ChevronUp size={16} className="text-warm-white/30" aria-hidden="true" />
               ) : (
-                <ChevronDown size={16} className="text-warm-white/30" />
+                <ChevronDown size={16} className="text-warm-white/30" aria-hidden="true" />
               )}
             </button>
           </div>
@@ -324,7 +332,7 @@ function MealCategorySection({
       </div>
 
       {expanded && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <div id={`meal-section-${mealType}`} className="grid grid-cols-1 md:grid-cols-2 gap-3">
           {options.map((meal) => (
             <MealOptionCard
               key={meal.id}

@@ -312,7 +312,7 @@ function DashboardContent() {
                       <div
                         className={`w-11 h-11 rounded-2xl ${iconBg} flex items-center justify-center group-hover:scale-110 transition-transform duration-300`}
                       >
-                        <Icon size={20} className={iconColor} />
+                        <Icon size={20} className={iconColor} aria-hidden="true" />
                       </div>
                       <h3 className="text-warm-white font-semibold text-[15px] tracking-tight">
                         {label}
@@ -320,6 +320,7 @@ function DashboardContent() {
                     </div>
                     <ArrowRight
                       size={16}
+                      aria-hidden="true"
                       className="text-warm-white/0 group-hover:text-warm-white/25 transition-all duration-300 group-hover:translate-x-1"
                     />
                   </div>

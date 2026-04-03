@@ -10,6 +10,7 @@ interface MealPlanRequest {
   dietaryPrefs: string[];
   foodLoves: string[];
   foodDislikes: string[];
+  childrenAllergies?: string[]; // CRITICAL: allergen names to exclude from all meals
   nutritionGoals?: string[];
   calorieTarget?: number;
   proteinPriority?: boolean;
@@ -100,10 +101,24 @@ function generateMealOptions(data: MealPlanRequest) {
     { name: "Cheese & Crackers with Grapes", meal_type: "snack", prep_time_minutes: 3, calories: 200, protein: 8, carbs: 24, fat: 10, kid_friendly: true, description: "Classic snack plate. Quick and no-cook" },
   ];
 
-  // Filter out dislikes
-  const filtered = allMeals.filter(
-    (meal) => !data.foodDislikes.some((d) => meal.name.toLowerCase().includes(d.toLowerCase()))
-  );
+  // Filter out dislikes AND allergens (CRITICAL safety requirement)
+  const allergenList = (data.childrenAllergies || []).map((a) => a.toLowerCase());
+  const filtered = allMeals.filter((meal) => {
+    const nameLower = meal.name.toLowerCase();
+    const descLower = meal.description.toLowerCase();
+
+    // Exclude if matches any dislike
+    if (data.foodDislikes.some((d) => nameLower.includes(d.toLowerCase()))) {
+      return false;
+    }
+
+    // Exclude if contains any known allergen (non-negotiable safety)
+    if (allergenList.some((allergen) => nameLower.includes(allergen) || descLower.includes(allergen))) {
+      return false;
+    }
+
+    return true;
+  });
 
   const byType = (type: string) =>
     filtered
