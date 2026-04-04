@@ -10,5 +10,11 @@
     "./system-prompt": "./src/system-prompt.ts",
     "./theme": "./src/theme/index.ts",
     "./constants": "./src/constants/index.ts"
+  },
+  "scripts": {
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "vitest": "^4.1.2"
   }
 }
