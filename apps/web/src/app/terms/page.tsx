@@ -43,7 +43,7 @@ export default function TermsPage() {
               You must create an account to use Kin. You agree to provide accurate, current, and complete information and to keep your account information updated. You are responsible for maintaining the confidentiality of your account password.
             </p>
             <p>
-              On the Family plan, you may invite a partner to join your household. By inviting a partner, you represent that you have their consent to share household-level information as described in our Privacy Policy.
+              With Kin Premium, you may invite a partner to join your household. By inviting a partner, you represent that you have their consent to share household-level information as described in our Privacy Policy.
             </p>
           </section>
 
@@ -51,12 +51,12 @@ export default function TermsPage() {
             <h2 className="text-warm-white font-semibold text-base mb-3">4. Subscriptions & Billing</h2>
             <div className="bg-surface-raised rounded-2xl p-4 mb-4 space-y-3">
               <div className="flex justify-between items-center">
-                <span className="text-primary font-semibold">Starter</span>
-                <span className="text-warm-white/60 font-mono">$29/month</span>
+                <span className="text-primary font-semibold">Kin Premium — Monthly</span>
+                <span className="text-warm-white/60 font-mono">$39/month</span>
               </div>
               <div className="flex justify-between items-center">
-                <span className="text-amber font-semibold">Family</span>
-                <span className="text-warm-white/60 font-mono">$49/month</span>
+                <span className="text-primary font-semibold">Kin Premium — Annual</span>
+                <span className="text-warm-white/60 font-mono">$299/year</span>
               </div>
             </div>
             <ul className="list-disc pl-5 space-y-2 text-warm-white/60">

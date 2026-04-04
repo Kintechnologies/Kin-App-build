@@ -14,20 +14,14 @@ export function getStripe() {
   return stripeInstance;
 }
 
-// Replace placeholder IDs with real Stripe Price IDs after creating products
+// Single "Kin Premium" plan — $39/mo or $299/yr.
+// Replace placeholder IDs with real Stripe Price IDs after creating the product.
 export const PLANS = {
-  starter: {
-    name: "Starter",
-    monthlyPrice: 29,
-    annualPrice: 290,
-    monthlyPriceId: process.env.STRIPE_STARTER_MONTHLY_PRICE_ID || "price_starter_monthly_placeholder",
-    annualPriceId: process.env.STRIPE_STARTER_ANNUAL_PRICE_ID || "price_starter_annual_placeholder",
-  },
-  family: {
-    name: "Family",
-    monthlyPrice: 49,
-    annualPrice: 490,
-    monthlyPriceId: process.env.STRIPE_FAMILY_MONTHLY_PRICE_ID || "price_family_monthly_placeholder",
-    annualPriceId: process.env.STRIPE_FAMILY_ANNUAL_PRICE_ID || "price_family_annual_placeholder",
+  premium: {
+    name: "Kin Premium",
+    monthlyPrice: 39,
+    annualPrice: 299,
+    monthlyPriceId: process.env.STRIPE_MONTHLY_PRICE_ID || "price_monthly_placeholder",
+    annualPriceId: process.env.STRIPE_ANNUAL_PRICE_ID || "price_annual_placeholder",
   },
 } as const;
