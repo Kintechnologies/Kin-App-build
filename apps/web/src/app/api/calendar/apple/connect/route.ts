@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getAuthenticatedUser } from "@/lib/supabase/api-auth";
 import { listAppleCalendars } from "@/lib/calendar/apple";
 import { syncCalendarForConnection } from "@/lib/calendar/sync";
+import * as Sentry from "@sentry/nextjs";
 
 // POST /api/calendar/apple/connect — connect Apple Calendar via app-specific password
 export async function POST(request: Request) {
@@ -67,8 +68,8 @@ export async function POST(request: Request) {
         name: c.displayName,
       })),
     });
-  } catch {
-    // TODO: log to Sentry before GA
+  } catch (err) {
+    Sentry.captureException(err);
     return NextResponse.json(
       { error: "Failed to connect Apple Calendar. Check your credentials." },
       { status: 400 }

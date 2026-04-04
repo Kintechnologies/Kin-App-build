@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import * as Sentry from "@sentry/nextjs";
 
 /**
  * GET /api/invite/[code]
@@ -102,9 +103,9 @@ export async function GET(
     inviteeEmail: invite.invitee_email,
     expiresAt: invite.expires_at,
   });
-  } catch {
+  } catch (err) {
     // Unexpected DB / import error — return safe not_found rather than a 500
-    // TODO: log to Sentry before GA
+    Sentry.captureException(err);
     return NextResponse.json({ valid: false, reason: "not_found" as const });
   }
 }

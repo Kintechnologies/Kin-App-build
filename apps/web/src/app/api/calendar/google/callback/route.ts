@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import * as Sentry from "@sentry/nextjs";
 import {
   exchangeGoogleCode,
   registerGoogleWebhook,
@@ -74,9 +75,9 @@ export async function GET(request: Request) {
           updated_at: new Date().toISOString(),
         })
         .eq("id", connection.id);
-    } catch {
+    } catch (err) {
       // Non-fatal — sync will fall back to polling
-      // TODO: log to Sentry before GA
+      Sentry.captureException(err);
     }
 
     // Trigger initial sync
@@ -85,8 +86,8 @@ export async function GET(request: Request) {
     return NextResponse.redirect(
       `${process.env.NEXT_PUBLIC_APP_URL}/settings?calendar_connected=google`
     );
-  } catch {
-    // TODO: log to Sentry before GA
+  } catch (err) {
+    Sentry.captureException(err);
     return NextResponse.redirect(
       `${process.env.NEXT_PUBLIC_APP_URL}/settings?calendar_error=auth_failed`
     );

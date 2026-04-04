@@ -101,7 +101,8 @@ export async function pullGoogleEvents(
 export async function pushEventToGoogle(
   accessToken: string,
   event: CalendarEvent,
-  calendarId: string = "primary"
+  calendarId: string = "primary",
+  timezone: string = "UTC"
 ): Promise<string> {
   const calendar = getCalendarClient(accessToken);
 
@@ -111,10 +112,10 @@ export async function pushEventToGoogle(
     location: event.location || undefined,
     start: event.all_day
       ? { date: event.start_time.split("T")[0] }
-      : { dateTime: event.start_time, timeZone: "America/Chicago" },
+      : { dateTime: event.start_time, timeZone: timezone },
     end: event.all_day
       ? { date: event.end_time.split("T")[0] }
-      : { dateTime: event.end_time, timeZone: "America/Chicago" },
+      : { dateTime: event.end_time, timeZone: timezone },
   };
 
   if (event.external_id) {

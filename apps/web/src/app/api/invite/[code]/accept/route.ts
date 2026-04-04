@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getAuthenticatedUser } from "@/lib/supabase/api-auth";
+import * as Sentry from "@sentry/nextjs";
 
 /**
  * POST /api/invite/[code]/accept
@@ -108,11 +109,8 @@ export async function POST(
       .eq("id", invite.id);
 
     if (acceptErr) {
-      // Non-fatal: household is already linked. Log in dev only.
-      if (process.env.NODE_ENV !== "production") {
-        console.log(`[invite] Failed to mark invite ${invite.id} as accepted:`, acceptErr.message);
-      }
-      // TODO: route to Sentry before GA
+      // Non-fatal: household is already linked.
+      Sentry.captureException(new Error(acceptErr.message));
     }
 
     return NextResponse.json({ success: true });
