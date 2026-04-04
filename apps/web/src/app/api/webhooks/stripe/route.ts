@@ -81,7 +81,7 @@ export async function POST(request: Request) {
           await supabase
             .from("profiles")
             .update({
-              subscription_tier: plan === "family" ? "family" : "starter",
+              subscription_tier: "starter",
               stripe_customer_id: session.customer as string,
               // Store real trial end from Stripe (null = no trial / already ended)
               ...(trialEndsAt !== null ? { trial_ends_at: trialEndsAt } : {}),

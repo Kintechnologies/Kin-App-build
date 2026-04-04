@@ -7,6 +7,7 @@
   "exports": {
     ".": "./src/index.ts",
     "./types": "./src/types/index.ts",
+    "./database-types": "./src/database.types.ts",
     "./system-prompt": "./src/system-prompt.ts",
     "./theme": "./src/theme/index.ts",
     "./constants": "./src/constants/index.ts"

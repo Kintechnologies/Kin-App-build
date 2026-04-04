@@ -1,6 +1,7 @@
 import * as Notifications from "expo-notifications";
 import * as Device from "expo-device";
 import Constants from "expo-constants";
+import { router } from "expo-router";
 import { api } from "./api";
 
 // Set default notification handler behavior
@@ -68,10 +69,33 @@ export async function registerForPushNotifications(): Promise<string | null> {
 }
 
 /**
+ * Maps a notification type to the correct Expo Router route.
+ *
+ * Route mapping (3-tab architecture):
+ *   Today        /(tabs)/           — briefings, alerts, coordination issues
+ *   Conversations /(tabs)/chat      — incoming chat notifications
+ *   Settings     /(tabs)/settings   — (no push notifications)
+ */
+function routeForNotificationType(type: string): string {
+  switch (type) {
+    case "chat":
+      return "/(tabs)/chat";
+    case "morning_briefing":
+    case "commute_departure":
+    case "calendar_conflict":
+    case "budget_alert":
+    case "medication_reminder":
+    case "vaccination_reminder":
+    default:
+      return "/(tabs)/";
+  }
+}
+
+/**
  * Sets up foreground and background notification handlers
  * Routes notifications to appropriate screens based on type
  */
-export function setupNotificationHandlers(): void {
+export function setupNotificationHandlers(): () => void {
   // Handle notifications received while app is in foreground
   const foregroundSubscription = Notifications.addNotificationReceivedListener(
     (_notification) => {
@@ -83,44 +107,14 @@ export function setupNotificationHandlers(): void {
   const responseSubscription =
     Notifications.addNotificationResponseReceivedListener((response) => {
       const { notification } = response;
-      const data = notification.request.content.data;
+      const data = notification.request.content.data as Record<string, string>;
+      const type = data?.type ?? "";
 
-      // Route based on notification type
-      if (data.type === "coordination_issue") {
-        // Deep-link to Today screen — Realtime subscription surfaces the alert
-        navigateToScreen("today");
-      } else if (data.type === "morning_briefing") {
-        // Navigate to home tab
-        navigateToScreen("home");
-      } else if (data.type === "medication_reminder") {
-        // Navigate to pet care
-        navigateToScreen("pets");
-      } else if (data.type === "vaccination_reminder") {
-        // Navigate to pet care
-        navigateToScreen("pets");
-      } else if (data.type === "calendar_conflict") {
-        // Navigate to calendar
-        navigateToScreen("calendar");
-      } else if (data.type === "budget_alert") {
-        // Navigate to budget
-        navigateToScreen("budget");
-      } else if (data.type === "commute_departure") {
-        // Navigate to home — leave-by time is shown in the briefing card
-        navigateToScreen("home");
-      }
+      router.navigate(routeForNotificationType(type));
     });
 
-  // Cleanup subscriptions on unmount would happen in component
   return () => {
     foregroundSubscription.remove();
     responseSubscription.remove();
   };
-}
-
-/**
- * Helper to navigate to specific screens
- * In a real app, this would use React Navigation
- */
-function navigateToScreen(_screen: string): void {
-  // TODO: implement with Expo Router once notification routing is wired up
 }

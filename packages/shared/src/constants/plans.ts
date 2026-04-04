@@ -1,27 +1,18 @@
+// Single Kin Premium plan — $39/mo or $299/yr.
+// Maps to subscription_tier = "starter" in the database.
 export const PLANS = {
-  starter: {
-    name: "Starter",
-    monthlyPrice: 29,
-    yearlyPrice: 290,
+  premium: {
+    name: "Kin Premium",
+    monthlyPrice: 39,
+    annualPrice: 299,
     features: [
-      "1 parent profile",
-      "AI chat with Kin",
-      "Meal planning + grocery lists",
-      "Budget tracking",
-      "Calendar sync",
-    ],
-  },
-  family: {
-    name: "Family",
-    monthlyPrice: 49,
-    yearlyPrice: 490,
-    features: [
-      "2 private parent profiles",
-      "Shared household layer",
-      "Dual calendar + conflict detection",
-      "Date night suggestions",
-      "Sunday family briefing",
-      "Everything in Starter",
+      "Morning briefing & coordination alerts",
+      "Unlimited Kin AI chat",
+      "Smart family calendar sync",
+      "Household budget tracking",
+      "Weekly meal plans & grocery lists",
+      "Partner household sharing",
+      "Private & encrypted",
     ],
   },
 } as const;

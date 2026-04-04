@@ -17,13 +17,17 @@ export async function POST(request: Request) {
   // Verify the channel token matches our shared secret (Google's recommended approach).
   // See: https://developers.google.com/calendar/api/guides/push#receiving_notifications
   // GOOGLE_WEBHOOK_SECRET must be set in env vars and passed when registering channels.
-  // If the env var is absent (not yet configured), we allow the request through with a
-  // warning log so the app doesn't hard-break before the env var is wired up.
   const webhookSecret = process.env.GOOGLE_WEBHOOK_SECRET;
-  if (webhookSecret) {
-    if (channelToken !== webhookSecret) {
-      return NextResponse.json({ error: "Invalid channel token" }, { status: 401 });
+  if (!webhookSecret) {
+    if (process.env.NODE_ENV === "production") {
+      // Fail hard in production — unauthenticated webhook requests must never be accepted.
+      console.error("GOOGLE_WEBHOOK_SECRET is not set. All Google Calendar webhook requests are being rejected.");
+      return NextResponse.json({ error: "Webhook not configured" }, { status: 500 });
     }
+    // In development, allow through with a warning so local testing isn't blocked.
+    console.warn("GOOGLE_WEBHOOK_SECRET not set — skipping token verification (dev only)");
+  } else if (channelToken !== webhookSecret) {
+    return NextResponse.json({ error: "Invalid channel token" }, { status: 401 });
   }
 
   // Ignore the initial sync confirmation

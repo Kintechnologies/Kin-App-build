@@ -87,7 +87,7 @@ export default async function ReferralLandingPage({
         </Link>
 
         <p className="text-warm-white/20 text-xs">
-          Credit card required. $49/month after free month. Cancel anytime.
+          Credit card required. $39/month after free month. Cancel anytime.
         </p>
 
         {/* Footer */}
