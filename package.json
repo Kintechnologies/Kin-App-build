@@ -9,7 +9,14 @@
     "dev:web": "npm run dev -w @kin/web",
     "build:web": "npm run build -w @kin/web",
     "dev:mobile": "npm run start -w @kin/mobile",
-    "gen:types": "supabase gen types typescript --project-id $SUPABASE_PROJECT_ID --schema public > packages/shared/src/database.types.ts"
+    "gen:types": "supabase gen types typescript --project-id $SUPABASE_PROJECT_ID --schema public > packages/shared/src/database.types.ts",
+    "test": "vitest run --workspace vitest.workspace.ts",
+    "test:watch": "vitest --workspace vitest.workspace.ts",
+    "test:shared": "npm run test -w @kin/shared",
+    "test:web": "npm run test -w @kin/web"
+  },
+  "devDependencies": {
+    "vitest": "latest"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.82.0"
