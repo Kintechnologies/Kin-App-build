@@ -228,6 +228,14 @@ async function syncAppleCalendar(connection: CalendarConnection) {
 async function processOutboundQueue(connection: CalendarConnection) {
   const supabase = createClient();
 
+  // Fetch the owner's timezone so pushed events render in the correct local time
+  const { data: profileData } = await supabase
+    .from("profiles")
+    .select("timezone")
+    .eq("id", connection.profile_id)
+    .single();
+  const profileTimezone: string = (profileData as { timezone?: string } | null)?.timezone ?? "UTC";
+
   const { data: queue } = await supabase
     .from("calendar_sync_queue")
     .select("*, calendar_events(*)")
@@ -256,7 +264,8 @@ async function processOutboundQueue(connection: CalendarConnection) {
           const externalId = await pushEventToGoogle(
             accessToken,
             event,
-            connection.google_calendar_id || "primary"
+            connection.google_calendar_id || "primary",
+            profileTimezone
           );
           await supabase
             .from("calendar_events")

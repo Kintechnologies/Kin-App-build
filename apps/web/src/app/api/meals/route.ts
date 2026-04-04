@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { randomUUID } from "crypto";
 import { getAuthenticatedUser } from "@/lib/supabase/api-auth";
 import { createClient } from "@/lib/supabase/server";
+import * as Sentry from "@sentry/nextjs";
 
 interface MealPlanRequest {
   familyName: string;
@@ -213,9 +214,9 @@ export async function POST(request: Request) {
         meal_options: mealOptions,
         week_start: weekStartStr,
       });
-    } catch {
+    } catch (err) {
       // Non-fatal — silently continue. User still gets their meal plan in-session.
-      // TODO: route to structured error logging (Sentry) before GA.
+      Sentry.captureException(err);
     }
 
     return NextResponse.json({ mealOptions });

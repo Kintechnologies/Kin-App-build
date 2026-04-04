@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getAuthenticatedUser } from "@/lib/supabase/api-auth";
 import { getAnthropicClient, ANTHROPIC_MODEL } from "@/lib/anthropic";
 import { buildSystemPrompt } from "@/lib/system-prompt";
+import * as Sentry from "@sentry/nextjs";
 import Anthropic from "@anthropic-ai/sdk";
 
 // Web search tool definition for Anthropic tool use
@@ -55,9 +56,9 @@ async function performWebSearch(query: string): Promise<string> {
 
         return resultText || "No results found.";
       }
-    } catch {
+    } catch (err) {
       // Non-fatal — falls through to the fallback message below
-      // TODO: log to Sentry before GA
+      Sentry.captureException(err);
     }
   }
 
@@ -242,8 +243,8 @@ export async function POST(request: Request) {
     });
 
     return NextResponse.json({ response: finalText });
-  } catch {
-    // TODO: log to Sentry before GA
+  } catch (err) {
+    Sentry.captureException(err);
     return NextResponse.json(
       { error: "Failed to process chat message" },
       { status: 500 }

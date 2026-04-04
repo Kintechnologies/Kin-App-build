@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { syncCalendarForConnection } from "@/lib/calendar/sync";
+import * as Sentry from "@sentry/nextjs";
 
 // POST /api/calendar/google/webhook — Google push notification
 export async function POST(request: Request) {
@@ -45,11 +46,8 @@ export async function POST(request: Request) {
   }
 
   // Trigger sync (non-blocking)
-  syncCalendarForConnection(connection.id).catch(() => {
-    // TODO: log to Sentry before GA
-    if (process.env.NODE_ENV !== "production") {
-      console.error("Webhook-triggered sync error for connection:", connection.id);
-    }
+  syncCalendarForConnection(connection.id).catch((err) => {
+    Sentry.captureException(err);
   });
 
   return NextResponse.json({ ok: true });

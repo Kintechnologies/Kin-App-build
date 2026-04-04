@@ -1,15 +1,9 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
+import { createAdminClient } from "@/lib/supabase/admin";
+import * as Sentry from "@sentry/nextjs";
 
 // This route should be called daily by a Vercel cron job
 // Add to vercel.json: { "crons": [{ "path": "/api/cron/cleanup", "schedule": "0 6 * * *" }] }
-
-function getAdminSupabase() {
-  return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  );
-}
 
 export async function GET(request: Request) {
   // Verify cron secret to prevent unauthorized calls
@@ -18,7 +12,7 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const supabase = getAdminSupabase();
+  const supabase = createAdminClient();
   const now = new Date();
 
   // 1. Send day-75 reminder to users approaching deletion
@@ -34,10 +28,7 @@ export async function GET(request: Request) {
     for (const user of reminderUsers) {
       // TODO: Send reminder email via Beehiiv
       // "Your Kin data will be deleted on [date]. Reactivate to keep your family profile."
-      // TODO: Replace with structured logging (Sentry) before GA
-      if (process.env.NODE_ENV !== "production") {
-        console.log(`Day-75 reminder: ${user.email} — deletion on ${user.data_deletion_at}`);
-      }
+      Sentry.captureMessage(`Day-75 reminder sent: deletion on ${user.data_deletion_at}`, "info");
 
       await supabase
         .from("profiles")
@@ -74,10 +65,7 @@ export async function GET(request: Request) {
       // Delete the auth user
       await supabase.auth.admin.deleteUser(user.id);
 
-      // TODO: Replace with structured logging (Sentry) before GA
-      if (process.env.NODE_ENV !== "production") {
-        console.log(`Deleted user data: ${user.email}`);
-      }
+      Sentry.captureMessage(`User data deleted per 90-day retention policy`, "info");
       deletedCount++;
     }
   }

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { headers } from "next/headers";
 import Stripe from "stripe";
 import { createClient } from "@supabase/supabase-js";
+import * as Sentry from "@sentry/nextjs";
 
 // Use service role for webhook handlers (no user session).
 // Throws if SUPABASE_SERVICE_ROLE_KEY is absent — caller's try/catch returns 500
@@ -111,10 +112,7 @@ export async function POST(request: Request) {
 
           // TODO: Send cancellation email via Beehiiv
           // Include: 90-day grace period notice, reactivation link
-          // TODO: Replace with structured logging (Sentry) before GA
-          if (process.env.NODE_ENV !== "production") {
-            console.log(`Subscription cancelled for user ${userId}. Data deletion scheduled for ${deletionDate.toISOString()}`);
-          };
+          Sentry.captureMessage(`Subscription cancelled; data deletion scheduled for ${deletionDate.toISOString()}`, "info");
         }
         break;
       }
@@ -148,10 +146,7 @@ export async function POST(request: Request) {
               // Referral unlock at charge count === 2
               if (newCount === 2) {
                 // TODO: Trigger referral reward (e.g., send email, add credit)
-                // TODO: Replace with structured logging (Sentry) before GA
-                if (process.env.NODE_ENV !== "production") {
-                  console.log(`Referral unlocked for user ${userId}`);
-                }
+                Sentry.captureMessage(`Referral unlocked for user ${userId}`, "info");
               }
             }
           }
@@ -164,10 +159,7 @@ export async function POST(request: Request) {
         const customerId = invoice.customer as string;
 
         // TODO: Send payment failed email notification
-        // TODO: Replace with structured logging (Sentry) before GA
-        if (process.env.NODE_ENV !== "production") {
-          console.log(`Payment failed for customer ${customerId}`);
-        }
+        Sentry.captureMessage(`Payment failed for customer ${customerId}`, "warning");
         break;
       }
     }

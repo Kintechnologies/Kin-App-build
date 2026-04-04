@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { randomBytes } from "crypto";
 import { getAuthenticatedUser } from "@/lib/supabase/api-auth";
 import { createClient } from "@/lib/supabase/server";
+import * as Sentry from "@sentry/nextjs";
 
 /**
  * POST /api/invite
@@ -100,13 +101,9 @@ export async function POST(request: Request) {
             family_label: familyLabel,
           },
         });
-      } catch {
+      } catch (err) {
         // Non-fatal: invite record is created; email will need to be re-sent.
-        // Log the invite URL so it can be shared manually during dev/testing.
-        if (process.env.NODE_ENV !== "production") {
-          console.log(`[invite] Email send failed. Invite URL: ${inviteUrl}`);
-        }
-        // TODO: route to Sentry before GA
+        Sentry.captureException(err);
       }
     } else {
       // Dev mode — log the invite URL for manual testing

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getStripe, PLANS } from "@/lib/stripe";
+import * as Sentry from "@sentry/nextjs";
 
 export async function POST(request: Request) {
   try {
@@ -71,8 +72,8 @@ export async function POST(request: Request) {
     });
 
     return NextResponse.json({ url: session.url });
-  } catch {
-    // TODO: log to Sentry before GA
+  } catch (err) {
+    Sentry.captureException(err);
     return NextResponse.json(
       { error: "Failed to create checkout session" },
       { status: 500 }
