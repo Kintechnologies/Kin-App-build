@@ -33,6 +33,7 @@ interface Pet {
 }
 
 interface OnboardingData {
+  firstName: string;
   familyName: string;
   homeLocation: string;
   householdType: "two-parent" | "single-parent";
@@ -71,6 +72,7 @@ export default function OnboardingSurvey({
   const fadeAnim = useRef(new Animated.Value(1)).current;
 
   // Form data
+  const [firstName, setFirstName] = useState("");
   const [familyName, setFamilyName] = useState("");
   const [homeLocation, setHomeLocation] = useState("");
   const [householdType, setHouseholdType] = useState<"two-parent" | "single-parent">("two-parent");
@@ -197,6 +199,7 @@ Tap to connect your calendar for the full picture.`;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
     const data: OnboardingData = {
+      firstName,
       familyName,
       homeLocation,
       householdType,
@@ -266,6 +269,19 @@ Tap to connect your calendar for the full picture.`;
               </Text>
 
               <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>Your first name</Text>
+                <TextInput
+                  style={styles.textInput}
+                  placeholder="e.g., Alex"
+                  placeholderTextColor="rgba(240, 237, 230, 0.15)"
+                  value={firstName}
+                  onChangeText={setFirstName}
+                  autoCapitalize="words"
+                  autoFocus
+                />
+              </View>
+
+              <View style={styles.inputGroup}>
                 <Text style={styles.inputLabel}>Family name</Text>
                 <TextInput
                   style={styles.textInput}
@@ -273,7 +289,6 @@ Tap to connect your calendar for the full picture.`;
                   placeholderTextColor="rgba(240, 237, 230, 0.15)"
                   value={familyName}
                   onChangeText={setFamilyName}
-                  autoFocus
                 />
               </View>
 

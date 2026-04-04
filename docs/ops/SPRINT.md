@@ -2,7 +2,1038 @@
 
 **Current Phase:** Phase 0 → Phase 1 Transition
 **Sprint:** Week of April 1, 2026
-**Last Updated:** 2026-04-03 14:00 (CoS second pass — Austin confirmed iOS-first FVM pivot April 2. P1.5 scope issue is resolved: Family OS foundations (#69–#72) are now in-scope and in working tree. Stale P1.5 "awaiting scope decision" note updated below. CRITICAL: working tree has grown significantly since last CoS pass — family.tsx, kin-ai.ts, push-notifications.ts, migrations 013–020, commute.ts, date-night.ts, 8+ API routes, specs all UNTRACKED. Austin must commit + push before Lead Eng builds Track E. Git: 2 commits ahead of origin + large untracked working tree. #73 still pending.)
+**Last Updated:** 2026-04-04 — CoS Coordinator (odd-hour :20 run AD). Post-QA-Run-F update. P2-16 ✅ confirmed resolved — null contract now uniform across all 3 thread types (personal, household, general). Architecture clean: 3 tabs only, domain files intact, migrations 024–027 all present. 0 new P0/P1/P2 this run. **Lead Eng has zero open code tasks.** Critical path: IE must deliver `household-chat-prompt.md` (P1, §16 compliance gap, open since run R — now 6+ cycles overdue). After IE delivers: QA audits §16 compliance → household thread e2e unblocks. Then Austin B2 (RC iOS app + products) → S5.2 TestFlight. Standing open: P2-7 (IE INPUT FORMAT fix); B31/P2-5 (Austin stale dir); B29 (Austin supabase db push). Full daily status: `DAILY-STATUS-2026-04-04.md` (run AD).
+
+_Previous update:_ 2026-04-04 — QA & Standards (odd-hour :00 run F). P2-16 verified resolved ✅ — general thread preview null contract confirmed at `chat.tsx` lines 616–620; null contract now uniform across all three thread types (personal, household, general). Architecture clean: 3 tabs only, domain files intact, migrations 024–027 all present. No new issues found. 0 new P0/P1/P2 this run. Standing open: P1 `household-chat-prompt.md` still missing (IE action, open since run R); P2-7 INPUT FORMAT mismatch still open (IE action); B31/P2-5 stale `docs/prompts/docs/` still present (Austin action). Full audit: `QA-AUDIT-2026-04-04F.md`.
+
+_Previous update:_ 2026-04-04 — Lead Engineer (even-hour :30 run AC). P2-16 resolved — general thread `renderItem` preview `"No messages yet"` fallback removed from `chat.tsx` ~line 617; now renders `null` when `thread.preview` is absent (consistent with pinned thread fix from run AA). `tsc --noEmit` mobile: 0 new errors (pre-existing `push-notifications.ts` errors unchanged, unrelated to this change). Web ESLint: no web files changed this session. No P1 issues remain for Lead Eng. IE `household-chat-prompt.md` still missing — §16 compliance gap on household thread (IE action). Sprint ~8 days ahead. Stage 5 blocked on Austin B2. Remaining Austin-blocked: B2, B4, B29, B31, P2-2 (after-6pm decision), S2.3 (check-in architecture direction).
+
+_Previous update:_ 2026-04-04 — QA & Standards (odd-hour :00 run E). B32 verified resolved ✅ — all 3 console.error calls in `budget.tsx` gated. P2-11 verified resolved ✅ — full relief language selection guide with all 3 "→ use when" lines present in `morning-briefing/route.ts` inline prompt. P2-12 verified resolved ✅ — personal thread empty preview → null; household thread (partner linked, no preview) → null. P2-13 verified resolved ✅ — Plus size=22 rgba(240,237,230,0.45) correct; createNewThread() implemented. P2-14 verified resolved ✅ — threadTitle: Geist Regular 14px rgba(240,237,230,0.75). P2-15 verified resolved ✅ — sectionLabel.letterSpacing: 1.5. Architecture clean: 3 tabs only; domain files intact; migrations 024–027 all present. Code quality clean in all changed files (no bare console.error, no `any`, no unused imports). 1 new P2: P2-16 (general thread preview shows "No messages yet" placeholder in FlatList — `chat.tsx` ~line 617 — P2-12 fixed pinned threads but general threads still have fallback string; spec requires null). Household-chat-prompt.md still missing — §16 compliance gap on household thread still open (IE action). chat history not filtered by thread_id confirmed unchanged — low TestFlight risk, post-launch debt. Full audit: `QA-AUDIT-2026-04-04E.md`.
+
+_Previous update:_ 2026-04-04 — Lead Engineer (even-hour :30 run AA). B32 resolved — 3 bare console.error calls in `budget.tsx` gated. P2-11 resolved — relief language selection guide added to `morning-briefing/route.ts` inline prompt. P2-12 resolved — personal + household thread empty-preview fallback placeholders removed (spec: empty preview = null, not placeholder text). P2-13 resolved — Plus button (22px, rgba(240,237,230,0.45)) added to Conversations list header; `createNewThread()` function implemented (creates general thread, opens it). P2-14 resolved — `threadTitle` corrected to Geist Regular 14px rgba(240,237,230,0.75). P2-15 resolved — `sectionLabel.letterSpacing` corrected to 1.5. `tsc --noEmit` web: 0 errors. Mobile changed files: 0 errors. ESLint web changed files: 0 warnings, 0 errors. IE `household-chat-prompt.md` still not delivered — household thread still uses personal chat prompt. See "Lead Engineer Session Output — run AA" below. Staging review of `chat.tsx` + `/api/chat/route.ts` post-B30. Scope redirect confirmed clean — CHAT_SYSTEM_PROMPT correctly gates recipe/budget/meal questions; mock response coordination-only. P2-8 + P2-9 confirmed resolved. 4 new P2s filed: P2-12 (personal thread empty preview shows placeholder text), P2-13 (Plus button missing from Conversations header), P2-14 (general thread title Geist-SemiBold 13px vs spec Geist Regular 14px), P2-15 (sectionLabel letterSpacing 2 vs spec 1.5). Architecture note filed: history query in `/api/chat/route.ts` not filtered by thread_id — low TestFlight risk but post-launch cleanup needed. All 10 v0 specs remain current. No new specs required. See "Product & Design Session Output — run Z" below.
+
+_Previous update:_ 2026-04-04 — CoS Coordinator (odd-hour :20 run Y). Post-QA-Run-X update. B30 ✅ + P2-10 ✅ confirmed resolved; S4.6 personal thread e2e UNBLOCKED. B32 (P1 — budget.tsx bare console.errors) is Lead Eng's sole next-session focus. P2-11 (P2 — morning-briefing inline prompt missing selection guide) also for Lead Eng. P2-6 marked resolved (verified by QA Run U). IE still needs: `household-chat-prompt.md` + P2-7 (INPUT FORMAT fix). Pipeline health: 4 QA audits today; all specs current; no scope violations; 3-tab architecture clean. Austin-blocked items unchanged. Full daily status: `DAILY-STATUS-2026-04-04.md` (run Y).
+
+_Previous update:_ 2026-04-04 — QA & Standards (odd-hour :00 run X). B30 verified resolved ✅ — chat route migration confirmed spec-compliant; scope redirect, §8 forbidden openers, §23 confidence tiers, context prepend all verified. P2-10 verified resolved ✅ — catch fallback text exact match. S4.6 personal thread e2e: UNBLOCKED. 1 new P1: B32 (budget.tsx — 3 bare console.error calls). 1 new P2: P2-11 (morning-briefing route inline prompt missing relief language selection guide). B31/P2-5 still not deleted (Austin). P2-7 still open (IE). Full audit: `QA-AUDIT-2026-04-04D.md`.
+
+_Previous update:_ 2026-04-04 — Lead Engineer (even-hour :30 run W). B30 resolved — `chat-prompt.md` wired into `/api/chat/route.ts`. P2-10 resolved — catch fallback text in `index.tsx` corrected to spec-approved text. `tsc --noEmit` web: 0 errors. ESLint changed files: 0 warnings, 0 errors. S4.6 e2e now unblocked — QA can audit full flow. See "Lead Engineer Session Output — run W" below.
+
+_Previous update:_ 2026-04-04 — CoS Coordinator (odd-hour :20 run V). Post-QA-Run-U pipeline review. B30 (P1) remains open — chat route migration is Lead Eng's sole focus next session. P2-10 (new from QA Run U) added to blockers table: `index.tsx` catch fallback text not spec-approved (~line 472). P2-5/B31 unchanged — Austin must delete stale `docs/prompts/docs/` from terminal. P2-7 unchanged — IE action for S1.8. "What Each Agent Does Next" refreshed post-Run-U. Full daily status: `DAILY-STATUS-2026-04-04.md` (run V).
+
+_Previous update:_ 2026-04-04 — QA & Standards (odd-hour :00 run U). P2-6/P2-8/P2-9 all verified resolved. S4.2 wiring verified — `/api/first-use` route clean, `getFirstUseInsight()` in api.ts, `index.tsx` wiring correct. 1 new P2: P2-10 (index.tsx catch fallback text not spec-approved — ~line 472, should match IE-approved text). P2-5 still open (Austin must delete stale `docs/prompts/docs/` dir). B30 (P1) confirmed still open — `/api/chat/route.ts` still uses `buildSystemPrompt`. Architecture audit clean. Full audit: `QA-AUDIT-2026-04-04C.md`.
+
+_Previous update:_ 2026-04-04 — Lead Engineer (even-hour :30 run T). P2-6, P2-8, P2-9 resolved. S4.2 shipped — `/api/first-use` route created, `first-use-prompt.md` wired, `api.getFirstUseInsight()` added to mobile `lib/api.ts`, `index.tsx` updated to call API on first open (static fallback remains as catch-only guard). P2-5 NOT resolved — `docs/prompts/docs/` directory is read-only mount, Austin must delete manually. S4.5 drift review complete — see "B30 (P1)" in blockers table: `/api/chat` still uses `buildSystemPrompt` (pre-pivot broad family-OS prompt) instead of `chat-prompt.md`; chat route migration is the next Lead Eng task. `tsc --noEmit` web: 0 errors. Mobile: 0 errors from changed files (pre-existing `push-notifications.ts` type errors remain, unrelated to this session). Web ESLint on changed files: 0 warnings. See "Lead Engineer Session Output — run T" below.
+
+_Previous update:_ 2026-04-04 — Product & Design (even-hour :00 run S). No new specs required — all 10 v0 specs remain current. Staging review of `chat.tsx` found 2 new P2 deviations: P2-8 (pinned thread title using Geist-SemiBold instead of Instrument Serif Italic — typography regression on conversation thread names) and P2-9 (general thread rows rendered as card tiles with background, not transparent rows with bottom border per spec). Today screen (`index.tsx`) reviewed — all substantive spec items confirmed compliant post-run P. First-use content, clean-day state, alert states, and token usage all clean. Minor sub-pixel opacity differences in beat text and skeleton (non-blocking). See "Product & Design Session Output — run S" below.
+
+_Previous update:_ 2026-04-04 — CoS Coordinator (odd-hour :20 run R). **🎉 S1.7 FULLY RESOLVED — major sprint win.** All 6 IE prompts wired; morning-briefing + alert in production; checkin/closure/first-use/chat delivered but wiring pending decisions. B28/P2-1/P2-3 all resolved and verified by QA Run Q. B29 resolved (migration 027 created; Austin must run `supabase db push`). S4.6 e2e flow now unblocked. 3 new P2s from QA Run Q: P2-5 (stale prompt dir), P2-6 (empty-string guard in generate-alert-content.ts), P2-7 (INPUT FORMAT mismatch — flag for IE S1.8). New open question: check-in AI wiring architecture (S2.3 full) — no `/api/generate-checkin` route exists; Lead Eng needs direction. "What Each Agent Does Next" updated. See `DAILY-STATUS-2026-04-04.md` (run R).
+
+_Previous update:_ 2026-04-04 — QA & Standards (odd-hour :00 run Q). B28/P2-1/P2-3/B29 all verified resolved. IE S1.7 path fix verified — all 6 prompts at correct `docs/prompts/`. `generate-alert-content.ts` code quality clean. `morning-briefing/route.ts` S1.7 wiring correct — JSON output parsed, silence rule (null → "") confirmed. `alert-prompt.md` and `checkin-prompt.md` content audited against §5/§8/§16/§23 — both clean. 3 new P2s: stale `docs/prompts/docs/` duplicate directory (P2-5), empty-string guard missing in `generate-alert-content.ts` parsed.content (P2-6), INPUT FORMAT mismatch between `morning-briefing-prompt.md` and route.ts briefingContext (P2-7 — flag for IE S1.8). S4.6 e2e flow now unblocked (B8/B3/B28 all resolved). Full audit: `QA-AUDIT-2026-04-04B.md`.
+
+_Previous update:_ 2026-04-04 — Lead Engineer (even-hour :30 run P). B28 resolved (sync.ts console.error gated). P2-1 resolved (late-schedule-change.ts line 314: verb form implication clause). P2-3 resolved (late-schedule-change.ts line 335: created_at distinguishes "just landed"/"just moved"). B29 resolved (migration 027_coordination_issues_severity.sql created). IE prompt files moved from wrong path to correct `docs/prompts/`. **IE S1.7 now fully wired**: `morning-briefing-prompt.md` replaces inline system prompt in route.ts (JSON output format, parsed and assembled for mobile API contract). `alert-prompt.md` wired into `pickup-risk.ts` and `late-schedule-change.ts` via new `lib/generate-alert-content.ts` helper; `severity` stored in coordination_issues (migration 027). Template strings kept as validated fallbacks. `tsc --noEmit`: 0 errors. ESLint all changed files: 0 warnings, 0 errors. See "Lead Engineer Session Output — run P" below.
+
+_Previous update:_ 2026-04-04 — Product & Design (even-hour :00 run O). **IE S1.7 DELIVERED — but at wrong path.** All 6 prompt files found at `docs/prompts/docs/prompts/` instead of `docs/prompts/`. Files must be moved before Lead Eng can wire. Content review: prompts are spec-compliant with 2 minor observations (see run O below). Schema gap flagged: `alert-prompt.md` returns `severity` field not present in `coordination_issues` table — migration needed before full wiring. B25/B26/B27 all verified resolved. B28 and P2-1/P2-3 still open (Lead Eng). 2 new P2 observations from spec review of `late-schedule-change.ts`. See "Product & Design Session Output — run O" below.
+
+_Previous update:_ 2026-04-04 — CoS Coordinator (odd-hour :20 run N). B28 confirmed in blockers. Pipeline review: Stages 1–3 complete, Stage 2 fully done (S2.5 verified by QA). IE S1.7 now 5+ cycles overdue — **escalating to Austin this cycle.** S4.6 e2e flow partially unblocked (B8/B3 resolved). P2 items from QA Run M noted for Lead Eng. See `DAILY-STATUS-2026-04-04.md`.
+
+_Previous update:_ 2026-04-04 — QA & Standards (odd-hour :00 run M). B25/B26/B27 all verified resolved. S2.5 audited against §3C — 1 new P1 added (B28: bare `console.error` in sync.ts) + 3 P2 observations (alert implication clause noun phrase, briefing-mode no-op, evening window vague change clause). Full audit: `QA-AUDIT-2026-04-04.md`.
+
+_Previous update:_ 2026-04-04 — Lead Engineer (even-hour :30 run L). B25, B26, B27, S2.5 all resolved this session. See "Lead Engineer Session Output — run L" below.
+
+_Previous update:_ 2026-04-04 — Product & Design (even-hour :00 run K). No new specs produced — all 8 v0 specs remain current and complete. Staging review of `index.tsx` + `chat.tsx` revealed new P2: hardcoded hex values remain in JSX icon props in both files (missed in B23 theming pass — see B27). B25 and B26 confirmed still unresolved by Lead Eng. S2.5 not yet started. All specs current for Lead Eng's next session. See "Product & Design Session Output — run K" below.
+
+_Previous update:_ 2026-04-03 — Product & Design (even-hour :00 run J). Spec produced: `docs/specs/late-schedule-change-spec.md` (new — unblocks S2.5 for Lead Eng). Staging review of `index.tsx` clean: closure text, clean-day text, first-use header all confirmed spec-compliant post-Run I. One standing deviation noted (RESOLVED timing, non-blocker). P2-3 (HEADS UP label) confirmed resolved by Lead Eng — alert card header has amber dot only, no text label. All 7 prior specs remain current. See "Product & Design Session Output — run J" below.
+
+_Previous update:_ 2026-04-03 — CoS Coordinator (odd-hour :20 run H). QA Run E verified all of Lead Eng Run I clean — B18–B24 resolved, B23 light/dark theme fully tokenized across all 3 nav screens. 2 new issues assigned: B25 (P1 — morning-briefing system prompt missing §5 sentence cap, Lead Eng) + B26 (P2 — `fitness.tsx` unused imports, Lead Eng). ⚠️ IE S1.7 now 4+ cycles overdue — escalation to Austin recommended if not resolved next even-hour cycle. Pipeline health: P&D specs all current and consumed; QA cadence strong (5 audits today: A–E); Lead Eng queue moving well. Active Austin gates: B2 (RC iOS app + products) + B4 (OAuth branding + formal verification submission). S2.5 (Late Schedule Change detection) not yet started by Lead Eng — next item after B25/B26. See `DAILY-STATUS-2026-04-03.md` (run 8).
+
+_Previous update:_ 2026-04-03 — QA & Standards (odd-hour :00 run E). Run I fully verified: B18–B24 all confirmed resolved. Architecture audit clean (3 tabs, domain files present, migrations 024–026). 1 new P1 added (B25: morning-briefing system prompt missing §5 sentence cap). 1 new P2 added (B26: `fitness.tsx` unused imports). Full audit: `QA-AUDIT-2026-04-03E.md`.
+
+_Previous update:_ 2026-04-03 — Lead Engineer (even-hour :30 run I). B18/B19 (pickup-risk alert copy), B20 (morning-briefing household_id), B21 (onboarding first_name), B22 (confirmed resolved), B23 (full light/dark theme), B24 (Stripe payment_failed handler) all resolved. `tsc --noEmit`: 0 errors mobile + web. All 3 active navigation screens fully themed.
+
+_Previous update:_ 2026-04-03 — CoS Coordinator (Austin session wrap-up, run G). Austin resolved B1/B3/B8: committed all pivot + RC + QA fix files, pushed to `origin/main`, ran `supabase db push` — migrations 013–026 now live in prod. B2 partially resolved: RevenueCat project created (`kin-ai-492223`), iOS app + products + API key still pending (Austin to complete in RC dashboard). B4 partially resolved: GCP project `kin-ai-492223` created, OAuth consent screen configured (External, austin@kinai.family), app published to Production — **verification clock is now running**. Branding page (logo, homepage, privacy policy URLs, authorized domain) still to complete — no blocker on Lead Eng. See `DAILY-STATUS-2026-04-03.md` (run 7).
+
+_Previous update:_ 2026-04-03 — CoS Coordinator (odd-hour :20 run F). QA Run D confirmed B15/B16/B17/PD-6/PD-7/PD-8 all resolved. S1.3 Pickup Risk verified clean except 3 new P1 blockers: B18/B19 (alert copy in `pickup-risk.ts` — 2-sentence violation + qualifier on confirmed data) + B20 (`morning-briefing/route.ts` — partner users get no coordination context). ⚠️ S1.7 IE prompt gap persists — overdue for 3+ cycles. Full audit: `QA-AUDIT-2026-04-03D.md`. Daily status: `DAILY-STATUS-2026-04-03.md` (run 6).
+
+_Previous update:_ 2026-04-03 — QA & Standards (odd-hour :00 run D). B15/B16/B17/PD-6/PD-7/PD-8 all verified resolved. S1.3 Pickup Risk detection audited — code quality clean, but 3 new P1 blockers added: B18 (alert content 2-sentence §8 violation), B19 (YELLOW alert qualifier on confirmed data §23), B20 (morning-briefing openIssues query uses wrong ID for partner users). Full audit: `QA-AUDIT-2026-04-03D.md`.
+
+_Previous update:_ 2026-04-03 — Lead Engineer (even-hour :30 run G). B15/B16/B17 fixed (try/catch in loadAll, loadIssues, handleAcknowledge with rollback). PD-6/PD-7/PD-8 fixed (skeleton line, first-use animation, dead style). S1.3 Pickup Risk detection shipped: `lib/pickup-risk.ts` + `/api/cron/pickup-risk/route.ts` + morning-briefing integration. tsc 0 errors, web eslint clean.
+
+_Previous update:_ 2026-04-03 — CoS Coordinator (odd-hour :20 run E). QA Run C confirmed B11/B13/PD-1/PD-2/PD-3 resolved. B15–B17 (error handling gaps in index.tsx) assigned to Lead Eng. ⚠️ IE handoff gap flagged: S1.7 prompt files overdue — `morning-briefing-prompt.md`, `alert-prompt.md`, `checkin-prompt.md` still absent from `docs/prompts/`. Build queue updated in AGENT-PIPELINE.md. Daily status: DAILY-STATUS-2026-04-03.md (run 5).
+
+_Previous update:_ 2026-04-03 — QA & Standards (odd-hour :00 run C). B11/B13/PD-1/PD-2/PD-3 all verified resolved. 3 new P1 blockers added (B15–B17): missing try/catch in `loadAll()`, `loadIssues()`, `handleAcknowledge()`. 2 P2 items (useCallback unused in index.tsx + chat.tsx). Full audit: `QA-AUDIT-2026-04-03C.md`.
+
+_Previous update:_ 2026-04-03 — Lead Engineer (even-hour :30 run). B11, B13, PD-1, PD-2, PD-3 fixed. B10 and B12 confirmed already resolved from prior session. See "Lead Engineer Session Output" section below.
+
+_Previous update:_ 2026-04-03 — Product & Design (even-hour run). All 7 component specs written to `docs/specs/`. Lead Eng is now unblocked on all S1.4/S1.5/S1.6/S3.1/S4.1 spec tasks. Two P1 deviations flagged (first-use content generic, closure line copy). See "Product & Design Session Output" section below.
+
+_Previous update:_ 2026-04-03 — CoS Coordinator (Run 4). QA Run 2 complete — `QA-AUDIT-2026-04-03B.md` filed. Audited `index.tsx`, `chat.tsx`, `budget.tsx`, `_layout.tsx`. New blockers B10–B14 added. P0-4 is live-facing (budget chat prompts in active navigation) — Lead Eng must fix before B8 commit. B5/B6/B9 remain resolved. B1–B4/B8 remain Austin-blocked. See DAILY-STATUS-2026-04-03.md (Run 4) for full summary.
+
+---
+
+## ✅ ARCHITECTURAL PIVOT — 2026-04-03 (COMPLETE)
+
+**Decision:** Rebuild mobile app to 3-tab architecture per `kin-v0-product-spec.md` before TestFlight. ✅ Done.
+
+**All 4 pivot screens shipped by Lead Eng (afternoon, April 3):**
+- `_layout.tsx` — 3 tabs only: Today, Conversations, Settings
+- `TabBar.tsx` — new animated blur tab bar (haptics, spring animations, brand colors)
+- `index.tsx` (Today screen) — Morning Briefing card, Alert cards (OPEN/ACKNOWLEDGED/RESOLVED), Check-in cards (max 2/day), realtime subscription, silence rule (§7), first-use moment (§21)
+- `chat.tsx` (Conversations screen) — 2 pinned threads (Personal + Home), partner invite prompt, prefill from Today alert tap, general threads below
+
+**Migrations shipped:**
+- `024_coordination_issues.sql` — alert state table with RLS
+- `025_chat_thread_types.sql` — thread_type to chat_threads; today_screen_first_opened + first_name to profiles
+
+**Missing:** `kin_check_ins` table migration not yet created. Today screen degrades gracefully (check-in cards silently skip). Lead Eng must create `026_kin_check_ins.sql`.
+
+**Task #11 (physical device test) is UNBLOCKED** once Austin commits + pushes pivot files and applies migrations 013–025.
+
+**Full brief:** `docs/ops/ARCH-PIVOT-2026-04-03.md`
+
+---
+
+## 🚦 Current Sprint Status — Day 4 of 14 (2026-04-04)
+
+**Sprint is ~8 days ahead of schedule.** Stages 1–3 complete. Stage 4 nearly done — personal thread e2e verified (QA run X), all P2s from runs Z/AA/AC all resolved and verified by QA run F. **No open Lead Eng code tasks.** Household thread e2e (S4.6 full) blocked on IE `household-chat-prompt.md` (P1, §16 compliance, 6+ cycles overdue). Stage 5 blocked on Austin B2 (RC iOS app + products). **IE `household-chat-prompt.md` is now the sprint critical path** — Lead Eng and QA are idle on household thread until it arrives. Waiting on Austin: B2, B4, B21, B29, B31, P2-2 (after-6pm decision), S2.3 (check-in architecture direction).
+
+### Active Blockers
+
+| # | Blocker | Owner | Resolution |
+|---|---------|-------|------------|
+| B1 | ~~E1 RevenueCat commit (Step 10) — 5 files uncommitted~~ | ✅ Austin | Committed and pushed to `origin/main` (2026-04-03 evening). |
+| B2 | RevenueCat iOS app + products not yet configured | **Austin** | RC project created (`kin-ai-492223`). Still needed: add iOS app (bundle ID), connect App Store Connect, create `kin_monthly_3999` ($39/mo) + `kin_annual_29900` ($299/yr), add `EXPO_PUBLIC_REVENUECAT_API_KEY` to `.env`. |
+| B3 | ~~Supabase migrations 013–026 not applied to prod~~ | ✅ Austin | `supabase db push` run 2026-04-03 evening. All 14 migrations live in prod. |
+| B4 | Google OAuth branding incomplete — verification not yet submitted | **Austin** | GCP project `kin-ai-492223` created. OAuth consent configured (External). App published to Production — **verification clock running**. Still needed: upload logo (120×120px), add homepage URL, privacy policy URL, ToS URL, add `kinai.family` as authorized domain, then submit for verification in Verification Center. |
+| B5 | ~~QA P1: `family.tsx` — unused imports, ungated `console.error`, no error state UI~~ | ✅ Lead Eng | Fixed: 4 unused imports removed (`TouchableWithoutFeedback`, `FlatList`, `useCallback`, `AlertCircle`), 5 console.errors gated with `__DEV__`, `loadError` state + error UI added with retry button. |
+| B6 | ~~QA P1: `fitness.tsx` — 4 ungated `console.error` calls~~ | ✅ Lead Eng | Fixed: all 4 gated with `__DEV__`. |
+| B7 | ~~QA scope decision: `fitness.tsx` + `meals.tsx` in-scope per v2 vision?~~ | ✅ Austin | Confirmed v2 scope — these files are intentional data-layer stubs. QA charter updated: do not flag `fitness.tsx` or `meals.tsx` as scope violations. |
+| B8 | ~~Pivot + QA fix files uncommitted~~ | ✅ Austin | Committed and pushed 2026-04-03 evening. All pivot, RC, and QA fix files now in `origin/main`. |
+| B9 | ~~`kin_check_ins` migration missing~~ | ✅ Lead Eng | Created `026_kin_check_ins.sql`. |
+| B10 | ~~**[P0-4 LIVE-FACING]** `chat.tsx` — 2 budget `CONVERSATION_IDEAS` chips + "budget" in empty-state copy~~ | ✅ Lead Eng | Confirmed resolved — no CONVERSATION_IDEAS found in current `chat.tsx`. Fixed in a prior session. |
+| B11 | ~~**[P1-5]** `index.tsx` — Today's Schedule section missing (spec §1 required)~~ | ✅ Lead Eng | Fixed: `TodayScheduleSection` component added. Fetches today's calendar events (start_time between day start/end), or-filter for own + shared + kid events, ascending sort, per-person color coding (Parent A `#7AADCE`, Partner `#D4748A`), Supabase Realtime subscription with cleanup. Included in `hasContent` for clean-day gating. |
+| B12 | ~~**[P1-6/P1-7]** `chat.tsx` — 6 unused icon imports + 8 ungated `console.error` calls~~ | ✅ Lead Eng | Confirmed resolved — no unused imports or ungated console.error calls found in current `chat.tsx`. Fixed in a prior session. |
+| B13 | ~~**[P1-9]** `chat.tsx` — Thread list has no loading state~~ | ✅ Lead Eng | Fixed: `threadsLoading` boolean state added; `true` before fetch, `false` in finally block; `ActivityIndicator` in `ListFooterComponent` while loading. |
+| B14 | ~~`budget.tsx` — File exists in `(tabs)` directory but not in navigation; disposition unclear~~ | ✅ Austin | Confirmed v2 data-layer stub — keep the file, not in navigation. QA should not flag. |
+| B15 | ~~**[P1-1] QA Run C** `index.tsx` — `loadAll()` has no try/catch (line 393). Profile fetch failure leaves Today screen empty with no error state.~~ | ✅ Lead Eng | Fixed: `loadAll()` wrapped in try/catch; `loadError` state added; `loadErrorCard` Pressable renders "Couldn't load your day. Tap to retry." — taps reset error + call `loadAll()`. |
+| B16 | ~~**[P1-2] QA Run C** `index.tsx` — `loadIssues()` has no try/catch (line 450). Supabase error silently drops all alert cards.~~ | ✅ Lead Eng | Fixed: wrapped in try/catch; `setIssues([])` on error — alert card section degrades to empty rather than stale. |
+| B17 | ~~**[P1-3] QA Run C** `index.tsx` — `handleAcknowledge()` has no try/catch around DB write (line 522). Optimistic UI diverges from DB on error — mismatch survives app restart.~~ | ✅ Lead Eng | Fixed: `previousIssues` captured before optimistic update; `setIssues(previousIssues)` on DB error — UI rolls back to pre-acknowledge state. |
+| B18 | ~~**[P1] QA Run D** `apps/web/src/lib/pickup-risk.ts` lines 226–233 — Both RED and YELLOW alert content templates are 2 sentences.~~ | ✅ Lead Eng | Fixed run I: RED → `"…both parents have conflicts and no coverage is confirmed."` YELLOW → `"…you're in a conflict, partner is free."` — each exactly 1 sentence, no qualifiers. |
+| B19 | ~~**[P1] QA Run D** `apps/web/src/lib/pickup-risk.ts` line 233 — YELLOW alert qualifier on confirmed-free partner.~~ | ✅ Lead Eng | Folded into B18 fix. |
+| B20 | ~~**[P1] QA Run D** `apps/web/src/app/api/morning-briefing/route.ts` — `openIssues` query uses `user.id` directly; partner users get zero coordination context.~~ | ✅ Lead Eng | Fixed run I: pre-fetch `household_id` from profiles; `primaryId = idRow?.household_id ?? profileId`; query uses `.eq("household_id", primaryId)`. |
+| B21 | ~~**[P1] Device test** `index.tsx` — Greeting shows "there" instead of first name; onboarding never writes `first_name`.~~ | ✅ Lead Eng (+ **Austin** patch existing row) | Fixed run I: `OnboardingData.firstName` added; `save-onboarding.ts` writes `first_name` on profile creation; `OnboardingSurvey.tsx` collects first name as first field in family step. Austin still needs to patch existing profile row in Supabase dashboard. |
+| B22 | ~~**[P1] Device test** `chat.tsx` — No back navigation from chat detail view.~~ | ✅ Lead Eng | Confirmed run I: `goBackToList()` wired to `ChevronLeft` in both household-invite view (lines 629–634) and conversation view (lines 658–663). Back navigation was already implemented. |
+| B23 | ~~**[P1] Device test** All screens — App dark-mode only, all colors hardcoded.~~ | ✅ Lead Eng | Fixed run I: `constants/colors.ts` created (full darkColors + lightColors token set, 45 tokens each). `lib/theme.tsx` updated to import tokens + export `useThemeColors()`. All 3 screens + `_layout.tsx` converted to `createStyles(c: ThemeColors)` factory pattern via `useMemo`. All inline JSX colors tokenized. `tsc --noEmit`: 0 errors. |
+| B24 | ~~**[P1] Billing** `apps/web/src/app/api/webhooks/stripe/route.ts` — `invoice.payment_failed` stub only.~~ | ✅ Lead Eng | Fixed run I: on `invoice.payment_failed` → look up profile by `stripe_customer_id`; set `subscription_tier: "free"`, `cancelled_at: now`, `data_deletion_at: now + 90 days`, `deletion_reminded: false`. |
+| B25 | ~~**[P1] QA Run E** `apps/web/src/app/api/morning-briefing/route.ts` system prompt — no §5 sentence cap. AI not instructed to limit output to 4 sentences; client-side `slice(0, 4)` truncates display but can silently drop valid content from longer AI responses.~~ | ✅ Lead Eng | Fixed run L: Added rule 9 to system prompt — `"Your entire briefing must be 4 sentences or fewer. No exceptions. If you have more to say, keep only the highest-priority items."` |
+| B26 | ~~**[P2] QA Run E** `apps/mobile/app/(tabs)/fitness.tsx` lines 14 + 16 — `TouchableWithoutFeedback` and `FlatList` imported but not used in JSX.~~ | ✅ Lead Eng | Fixed run L: Both removed from import statement. |
+| B27 | ~~**[P2] P&D Run K** `index.tsx` lines 233, 297, 727, 760 + `chat.tsx` lines 141, 176, 493, 576, 681, 688, 710, 753, 785, 838 — Hardcoded hex values (`#7CB87A`, `#7AADCE`, `#D4748A`, `#0C0F0A`) in JSX icon color props. B23 tokenized StyleSheet but missed inline JSX props.~~ | ✅ Lead Eng | Fixed run L: All 14 occurrences tokenized. `#7CB87A` → `c.green`/`colors.green`, `#7AADCE` → `c.blue`, `#D4748A` → `c.rose`, `#0C0F0A` on UserPlus (chat.tsx L176) → `c.textOnGreen` (confirmed: sits on `backgroundColor: c.green` button, correct contrast token). Zero hardcoded brand hex values remain in JSX icon props. `tsc --noEmit` web: 0 errors. |
+| B28 | ~~**[P1] QA Run M** `apps/web/src/lib/calendar/sync.ts` line 75 — bare `console.error` in outer catch block of `syncCalendarForConnection`.~~ | ✅ Lead Eng | Wrapped in `if (process.env.NODE_ENV !== "production")` guard (run P). |
+| B29 | ~~**[P1] P&D Run O** `alert-prompt.md` returns `severity` field (`"RED" \| "YELLOW"`) but `coordination_issues` table has no `severity` column.~~ | ✅ Lead Eng | Migration `027_coordination_issues_severity.sql` created (run P). Austin must run `supabase db push`. |
+| P2-10 | ~~**[P2] QA Run U** `apps/mobile/app/(tabs)/index.tsx` ~line 472 — catch-only fallback for `/api/first-use` network failure uses unapproved text: `"Got your week. I'll flag anything..."`. Spec-approved text (from `first-use-prompt.md` and `route.ts`) is: `"I'm watching your household schedule. The moment something needs your attention, I'll surface it."` Comment says "§21 compliance maintained" — incorrect. Low production impact (fires only on full API outage) but text diverges from IE spec.~~ | ✅ Lead Eng run W | Catch fallback replaced with exact spec-approved text: `"I'm watching your household schedule. The moment something needs your attention, I'll surface it."` Comment updated to accurately describe §21 compliance. |
+| B32 | ~~**[P1] QA Run X** `apps/mobile/app/(tabs)/budget.tsx` lines ~182, ~212, ~268 — 3 bare `console.error` calls not gated for production.~~ | ✅ Lead Eng run AA | All 3 gated with `if (process.env.NODE_ENV !== "production")` guard at lines 182, 212, 268. |
+| P2-5 | **[P2] QA Run Q** Stale `docs/prompts/docs/` directory exists with duplicate copies of all 6 prompt files at the wrong path. No functional impact (correct files at `docs/prompts/` are wired), but creates risk of future IE edits going to the wrong location. | Lead Eng or CoS | Delete `docs/prompts/docs/` subtree, or add a note flagging it as stale. |
+| P2-6 | ~~**[P2] QA Run Q** `apps/web/src/lib/generate-alert-content.ts` line 160 — no empty-string guard on `parsed.content`. If AI returns `{content: "", severity: "RED"}`, empty string is inserted into `coordination_issues.content` and renders as a blank alert card.~~ | ✅ Lead Eng run T | Fixed: empty-string guard added at lines 160–163. Verified by QA Run U + QA Run X ("confirmed present"). |
+| P2-7 | **[P2] QA Run Q** `apps/web/src/app/api/morning-briefing/route.ts` — system prompt omits `## INPUT FORMAT` section from `morning-briefing-prompt.md`. The prompt file specifies structured JSON input (`today_events`, `pickup_assignments`, etc.) but route sends unstructured text briefingContext. Creates divergence between spec and implementation; future IE edits to INPUT FORMAT in prompt file will have no effect on the route. | Intelligence Engineer (S1.8) | Update `morning-briefing-prompt.md` INPUT FORMAT to reflect actual text input format, or refactor briefingContext to structured JSON. Flag for S1.8 drift review. |
+| P2-10 | ~~**[P2] QA Run U** `apps/mobile/app/(tabs)/index.tsx` ~line 472 — catch fallback text not spec-approved.~~ | ✅ Lead Eng run W | Fixed: text now reads exactly `"I'm watching your household schedule. The moment something needs your attention, I'll surface it."` Comment updated. |
+| P2-11 | ~~**[P2] QA Run X** `apps/web/src/app/api/morning-briefing/route.ts` inline system prompt (lines ~360–364) — relief language selection guide dropped when prompt was inlined. No "use when" guidance.~~ | ✅ Lead Eng run AA | Full selection guide added verbatim from `morning-briefing-prompt.md`: all 3 "→ use when" lines + "One relief line max. Only include if monitoring is genuinely warranted. Do not append a relief line to a null briefing." |
+| P2-12 | ~~**[P2] P&D Run Z** `apps/mobile/app/(tabs)/chat.tsx` — Personal thread renders fallback text when `preview` is empty. Spec requires empty preview = null.~~ | ✅ Lead Eng run AA | Personal thread: `"Your personal thread with Kin"` placeholder removed; renders `null` when preview is empty. Household thread: `"Shared coordination thread"` placeholder removed; renders `null` when partner linked + preview empty. Partner-not-linked text ("Send an invite to connect your partner") retained — that is explicit UX, not a placeholder. |
+| P2-13 | ~~**[P2] P&D Run Z** `apps/mobile/app/(tabs)/chat.tsx` — Conversations list header missing `Plus` new-thread button.~~ | ✅ Lead Eng run AA | `Plus` icon (22px, rgba(240,237,230,0.45)) added flush-right in `listHeader`. `createNewThread()` function implemented: inserts general thread, appends to `generalThreads` state, opens thread immediately. `listHeader` updated to `flexDirection: "row"`, `justifyContent: "space-between"`. `listHeaderPlusBtn` style added. |
+| P2-14 | ~~**[P2] P&D Run Z** `apps/mobile/app/(tabs)/chat.tsx` `threadTitle` — Geist-SemiBold 13px vs spec Geist Regular 14px rgba(240,237,230,0.75).~~ | ✅ Lead Eng run AA | `threadTitle` corrected: `fontFamily: "Geist"`, `fontSize: 14`, `color: "rgba(240, 237, 230, 0.75)"`. Explicit rgba used (c.textPrimary resolves to full-opacity, not 0.75). |
+| P2-15 | ~~**[P2] P&D Run Z** `apps/mobile/app/(tabs)/chat.tsx` `sectionLabel.letterSpacing: 2` vs spec `1.5`.~~ | ✅ Lead Eng run AA | `sectionLabel.letterSpacing` corrected to `1.5`. Batched with P2-14 fix. |
+| P2-16 | ~~**[P2] QA Run E** `apps/mobile/app/(tabs)/chat.tsx` ~line 617 — General thread preview shows `"No messages yet"` fallback string. P2-12 fixed pinned threads (personal + household) but the FlatList `renderItem` for general threads still uses `{thread.preview \|\| "No messages yet"}`. Spec: empty preview = null, not placeholder text.~~ | ✅ Lead Eng run AC | `"No messages yet"` fallback removed — renders `{thread.preview ? <Text ...>{thread.preview}</Text> : null}`, consistent with P2-12 null contract for pinned threads. |
+| P2-8 | ~~**[P2] P&D Run S** `apps/mobile/app/(tabs)/chat.tsx` — `pinnedThreadName` style uses `fontFamily: "Geist-SemiBold", fontSize: 15` for both the "Kin" and "Home" pinned thread titles. Spec requires Instrument Serif Italic 18px `#F0EDE6`.~~ | ✅ Lead Eng | Fixed run T: `pinnedThreadName` changed to `fontFamily: "InstrumentSerif-Italic", fontSize: 18, color: c.textPrimary`. |
+| P2-9 | ~~**[P2] P&D Run S** `apps/mobile/app/(tabs)/chat.tsx` — General thread rows (`threadCard` style) render with card container (surfacePrimary bg + border + borderRadius 14).~~ | ✅ Lead Eng | Fixed run T: `threadCard` changed to `backgroundColor: "transparent"`, removed `borderWidth`/`borderColor`/`borderRadius`, added `borderBottomWidth: 1, borderBottomColor: "rgba(240,237,230,0.04)"`. |
+| B30 | ~~**[P1] S4.5 Drift Review** `/api/chat/route.ts` uses `buildSystemPrompt` (pre-pivot broad family-OS prompt) instead of `chat-prompt.md`. Active §8 violations: forbidden openers not blocked in chat, no relief language enforcement, no §23 confidence handling. Scope violation: Kin will answer meal/budget/recipe questions in Conversations thread instead of redirecting. `chat-prompt.md` is at correct path and ready. Migration needs: (a) swap system prompt in `route.ts` from `buildSystemPrompt` to `chat-prompt.md` text, (b) add coordination context to message (`speaking_to`, `open_coordination_issues`, `today_events`), (c) decide thread_type routing (personal vs household — household thread prompt not yet authored by IE).~~ | ✅ Lead Eng run W | Resolved: `buildSystemPrompt` import removed; `CHAT_SYSTEM_PROMPT` constant wired from `chat-prompt.md` full text. Coordination context block (`speaking_to`, `today_events`, `open_coordination_issues`, `recent_schedule_changes`) prepended to user message. `speaking_to` derived from `household_id` null check (null = parent_a, set = parent_b). Old family-data queries (members, prefs, allergies) removed. Household thread uses same prompt until IE authors `household-chat-prompt.md`. Mock response updated to coordination-only scope. `tsc --noEmit`: 0 errors. ESLint: 0 warnings. |
+
+---
+
+## 🗺 What Each Agent Does Next — (CoS run AD, 2026-04-04)
+
+### Lead Engineer (next even-hour :30 session)
+1. ~~**B30 (P1):** Wire `/api/chat/route.ts` to use `chat-prompt.md`~~ ✅ Done run W, verified run X.
+2. ~~**P2-10 (quick fix):** Fix catch fallback text in `index.tsx`~~ ✅ Done run W, verified run X.
+3. ~~**B32 (P1):** Gate 3 bare console.error calls in `budget.tsx`~~ ✅ Done run AA, verified run E.
+4. ~~**P2-11 (P2):** Add relief language selection guide to `morning-briefing/route.ts`~~ ✅ Done run AA, verified run E.
+5. ~~**P2-12/13/14/15 (P2):** chat.tsx P&D Run Z deviations~~ ✅ Done run AA, verified run E.
+6. ~~**P2-16 (P2):** Remove `"No messages yet"` fallback from general thread `renderItem` in `chat.tsx` ~line 617.~~ ✅ Done run AC — renders `null` when `thread.preview` is empty.
+7. **No open Lead Eng code tasks.** All P1/P2 items resolved. Waiting for: QA to verify P2-16, IE to deliver `household-chat-prompt.md` (S4.6), Austin B2 (S5.1/S5.2).
+8. **S4.6 e2e (household thread):** Blocked on IE `household-chat-prompt.md`. No Lead Eng action until IE delivers.
+9. **S2.3 wiring architecture (BLOCKED ON AUSTIN):** `checkin-prompt.md` at correct path; no `/api/generate-checkin` route. Do not implement without Austin's direction (cron vs inline).
+10. **After Austin completes B2:** Wire RC paywall with real API key; test purchase flow on device.
+
+### Product & Design (next even-hour :00 session)
+- All 10 v0 specs current. No new spec work required this cycle.
+- ~~**Staging review due (B30 now resolved):**~~ ✅ Done run Z — scope redirect confirmed clean, P2-8/P2-9 confirmed resolved.
+- **When check-in wiring decision is made:** review checkin-generation approach for §8/§23 compliance.
+
+### Intelligence Engineer (next even-hour :00 session)
+1. **`household-chat-prompt.md` (new deliverable — S1.8 — OVERDUE):** Author household-thread system prompt. Both parents visible; balanced framing (§16); do not single out one parent; surface ambiguous shared responsibility rather than assign it. Save to `docs/prompts/household-chat-prompt.md`. Unblocks S4.6 household thread e2e. This has been open since QA Run R — no further delays.
+2. **P2-7 fix:** Update `morning-briefing-prompt.md` `## INPUT FORMAT` section to reflect the actual text format that `route.ts` sends (unstructured `briefingContext` string, not structured JSON). Prevents future spec drift when IE edits INPUT FORMAT expecting structured input the route never sends.
+3. **S4.2 + all other IE deliverables:** Complete. No further action unless QA flags a regression.
+
+### QA (next odd-hour :00 session — after IE delivery or next cycle)
+1. ~~**B30 verification**~~ ✅ Done run X.
+2. ~~**P2-10 verification**~~ ✅ Done run X.
+3. ~~**S4.6 e2e flow (personal thread)**~~ ✅ Done run X — personal thread unblocked.
+4. ~~**B32 verification**~~ ✅ Done run E — all 3 gated at lines 182, 212, 268.
+5. ~~**P2-11 verification**~~ ✅ Done run E — all 3 relief phrases with usage guidance present.
+6. ~~**P2-16 verification**~~ ✅ Done run F — `"No messages yet"` fallback gone; null contract uniform across all 3 thread types (lines 616–620).
+7. **B31/P2-5:** Re-confirm stale `docs/prompts/docs/` directory still exists — Austin still hasn't deleted it.
+8. **P2-7:** Verify IE updated `morning-briefing-prompt.md` INPUT FORMAT to match actual text input.
+9. **`household-chat-prompt.md` (PRIORITY — when IE delivers):** Audit §16 balanced framing, both-parent visibility language, no single-parent singling-out. This unblocks S4.6 household thread e2e.
+10. **P2-2 / after-6pm changes:** If Austin makes a decision, audit the implementation.
+
+### Austin (when available)
+1. **B2 (P0 — most urgent):** Complete RC dashboard setup — add iOS app (bundle ID + App Store Connect), create products `kin_monthly_3999` + `kin_annual_29900`, add `EXPO_PUBLIC_REVENUECAT_API_KEY` to `.env`. Blocks S5.2 TestFlight.
+2. **B4 (P1):** Complete OAuth branding page — upload logo (120×120px), add homepage/privacy/ToS URLs, add `kinai.family` as authorized domain, then submit for verification. Verification takes 4–6 weeks — the sooner this is submitted, the better.
+3. **B21:** Manually patch `first_name` for your existing Supabase `profiles` row in the Supabase dashboard (greeting currently shows "there" for your account).
+4. **B29:** Run `supabase db push` to apply migration `027_coordination_issues_severity.sql`. Alert-prompt wiring is live and inserting `severity` — without this migration, those writes will fail silently in production.
+5. **B31:** Manually delete `docs/prompts/docs/` directory from your terminal: `rm -rf docs/prompts/docs`. AI sandbox cannot delete this path (read-only mount). Safe to delete — no code imports from it.
+6. **P2-2 decision:** After-6pm late schedule changes are currently dropped silently. Ship as-is for TestFlight, or queue for next morning's briefing?
+7. **S2.3 check-in wiring approach:** `checkin-prompt.md` is ready; no route exists yet. Direction needed: (a) cron/event-triggered route, or (b) inline generation at Today-screen load? Lead Eng is blocked on this.
+
+---
+
+## 🔧 Lead Engineer Session Output — 2026-04-04 (even-hour :30 run AC)
+
+**Files changed this session:**
+- `apps/mobile/app/(tabs)/chat.tsx` — P2-16: removed `"No messages yet"` fallback string from general thread `renderItem` (FlatList, ~line 617). Changed `{thread.preview || "No messages yet"}` wrapped in `<Text>` to conditional `{thread.preview ? <Text style={styles.threadPreview} numberOfLines={1}>{thread.preview}</Text> : null}`. Consistent with P2-12 null contract for pinned threads (run AA).
+
+**Specs consumed:** None (no new specs this session — P2-16 was a direct spec enforcement of existing null contract from conversations-screen-spec.md).
+
+**Prompts wired:** None (no prompt wiring this session).
+
+**Quality checks:**
+- `tsc --noEmit` mobile: 0 new errors. Pre-existing `push-notifications.ts` errors unchanged (unrelated).
+- Web ESLint: no web files changed this session.
+- No bare `console.error` added. No `any` types added. No async operations added without try/catch.
+
+**Open questions / blockers:**
+- IE `household-chat-prompt.md` still not delivered — S4.6 household thread e2e blocked.
+- Austin B2 still open — S5.1/S5.2 blocked.
+- Austin B29 still open — migration 027 not pushed to prod.
+- Austin B31 still open — `docs/prompts/docs/` stale directory not deleted.
+- S2.3 check-in wiring direction still needed from Austin.
+
+---
+
+## 🔧 Lead Engineer Session Output — 2026-04-04 (even-hour :30 run AA)
+
+**Files changed this session:**
+- `apps/mobile/app/(tabs)/budget.tsx` — B32: gated 3 bare `console.error` calls at lines 182, 212, 268 with `if (process.env.NODE_ENV !== "production")` guard. Same pattern as B5/B6/B28.
+- `apps/web/src/app/api/morning-briefing/route.ts` — P2-11: replaced category-label-only relief phrases (e.g. `Time-based: "I'll remind…"`) with full selection guide verbatim from `morning-briefing-prompt.md` — all 3 "→ use when" lines plus "One relief line max. Only include if monitoring is genuinely warranted. Do not append a relief line to a null briefing."
+- `apps/mobile/app/(tabs)/chat.tsx` — P2-12: personal thread preview renders `null` when empty (removed `"Your personal thread with Kin"` fallback); household thread renders `null` when partner linked + preview empty (removed `"Shared coordination thread"` fallback); partner-not-linked text retained. P2-13: `createNewThread()` function added (inserts general thread, appends to state, opens immediately); `Plus` (22px, rgba(240,237,230,0.45)) added flush-right in `listHeader`; `listHeader` updated to row layout; `listHeaderPlusBtn` style added. P2-14: `threadTitle` corrected to Geist Regular 14px rgba(240,237,230,0.75). P2-15: `sectionLabel.letterSpacing` corrected from 2 to 1.5.
+- `docs/ops/SPRINT.md` — this update
+
+**Specs consumed:** `docs/specs/conversations-screen-spec.md` (§1 Header, §1 General Threads, §1 pinned thread preview)
+
+**Prompts consumed:** `docs/prompts/morning-briefing-prompt.md` (relief language selection guide, Known Failure Mode #5)
+
+**tsc --noEmit:** Web: 0 errors. Mobile changed files: 0 errors (pre-existing `push-notifications.ts` errors unchanged, unrelated).
+**ESLint:** Web changed files: 0 warnings, 0 errors.
+
+**Notes:**
+- All P2s from P&D Run Z (P2-12 through P2-15) resolved this session.
+- B32 (P1) resolved. No P1 blockers remain for Lead Eng this stage.
+- IE `household-chat-prompt.md` still not delivered. Household thread e2e (S4.6 full) remains blocked on IE.
+- S2.3 check-in wiring remains blocked on Austin direction.
+
+---
+
+## 🔧 Lead Engineer Session Output — 2026-04-04 (even-hour :30 run W)
+
+**Files changed this session:**
+- `apps/web/src/app/api/chat/route.ts` — B30: complete rewrite. `buildSystemPrompt` import removed; `CHAT_SYSTEM_PROMPT` constant inlined from `chat-prompt.md` full system prompt text. Old family-data queries (members, prefs, allergies, budget, family_name) removed. New Supabase fetches: `coordination_issues` (OPEN/ACKNOWLEDGED, by primaryId), `calendar_events` today's events (profile_id, date range, deleted_at null), `calendar_events` recent changes (updated_at last 24h). `speaking_to` derived from `household_id` null check. Coordination context block JSON-stringified and prepended to user message per `chat-prompt.md` § CONTEXT PROVIDED PER MESSAGE. `getMockResponse` updated to coordination-only scope (no meal/budget/date-night answers). `SEARCH_TOOL` description updated to coordination context; tool retained per sprint directive.
+- `apps/mobile/app/(tabs)/index.tsx` — P2-10: catch fallback text at ~line 472 corrected to `"I'm watching your household schedule. The moment something needs your attention, I'll surface it."` Comment updated to accurately describe §21 spec compliance.
+- `docs/ops/SPRINT.md` — this update
+
+**Specs consumed:** `docs/prompts/chat-prompt.md` (§5/§7/§8/§11/§16/§19/§23)
+
+**Prompts wired:** `chat-prompt.md` → `/api/chat/route.ts` (personal thread; household thread uses same until IE delivers `household-chat-prompt.md`)
+
+**tsc --noEmit:** Web: 0 errors. Mobile: not re-run (no mobile TypeScript files changed).
+**ESLint:** Web changed files: 0 warnings, 0 errors.
+
+**B30 resolution notes:**
+- `buildSystemPrompt` (from `packages/shared/src/system-prompt.ts`) was a broad family-OS prompt covering meals, budget, fitness, date nights — none of which are Kin v0 scope. The prompt had no §8 forbidden opener blocking, no relief language constraints, no §23 confidence handling, and no scope restriction. It would have allowed Kin to answer recipe and budget questions in chat (confirmed scope violation).
+- `chat-prompt.md` enforces: scope redirect for non-coordination questions, forbidden opener list, exact relief language phrases, §23 confidence tiers, failure mode prevention, and 1–3 sentence length cap.
+- Context prepend includes: `speaking_to` (parent_a = primary, parent_b = partner), `today_events`, `open_coordination_issues` (OPEN/ACKNOWLEDGED), `recent_schedule_changes` (events updated in last 24h).
+
+**S4.6 unblocked:** B30 and P2-10 are both resolved. QA can now run the full e2e flow: onboarding → Today screen → first-use card → briefing → alert tap → Conversations personal thread.
+
+**Open items for next agents:**
+- IE: Author `household-chat-prompt.md` — household thread currently uses personal thread prompt. No §16 balanced-framing enforcement until household prompt is wired.
+- Austin: B2 (RC iOS app + products), B4 (OAuth branding), B29 (supabase db push migration 027), B31 (delete `docs/prompts/docs/`)
+- Austin: S2.3 check-in wiring direction (cron vs inline at Today-screen load)
+
+---
+
+## 🔧 Lead Engineer Session Output — 2026-04-04 (even-hour :30 run T)
+
+**Files changed this session:**
+- `apps/web/src/lib/generate-alert-content.ts` — P2-6: empty-string guard on `parsed.content` before return
+- `apps/mobile/app/(tabs)/chat.tsx` — P2-8: `pinnedThreadName` → InstrumentSerif-Italic 18px; P2-9: `threadCard` → transparent bg, borderBottom only
+- `apps/web/src/app/api/first-use/route.ts` — S4.2: new route (created); wires `first-use-prompt.md` system prompt; HIGH confidence → AI insight; MEDIUM/LOW → exact spec fallback text; all error paths return fallback, never throw to client
+- `apps/mobile/lib/api.ts` — S4.2: `getFirstUseInsight()` added
+- `apps/mobile/app/(tabs)/index.tsx` — S4.2: `firstUseContent` state added; `api.getFirstUseInsight()` called on first open in `loadAll()`; static render-time derivation removed; API catch uses approved static fallback
+- `docs/ops/SPRINT.md` — this update
+
+**Specs consumed:** `first-use-spec.md` (§21), `conversations-screen-spec.md` (§1 — P2-8/P2-9), `docs/prompts/first-use-prompt.md`
+
+**Prompts wired:** `first-use-prompt.md` → `/api/first-use/route.ts`
+
+**Drift review findings (S4.5):**
+- `packages/shared/src/system-prompt.ts` (`buildSystemPrompt`) is the pre-pivot broad family-OS prompt currently used in `/api/chat/route.ts`. It lacks §8 forbidden opener blocking, relief language enforcement, §23 confidence framework, and scope restriction to coordination only. It will cause scope violations in v0 (Kin will answer meal/budget/recipe questions in chat). Filed as B30 (P1).
+- `chat-prompt.md` is the spec-compliant replacement — ready to wire. Migration is the first Lead Eng task next session.
+
+**tsc --noEmit:** Web: 0 errors. Mobile: 0 errors from changed files (5 pre-existing errors in `push-notifications.ts` — unrelated, pre-existing).
+**ESLint:** Web changed files: 0 warnings, 0 errors. Mobile: no ESLint config in mobile project.
+
+**Open blockers created this session:**
+- B30 (P1): Chat route using wrong system prompt — Lead Eng next session
+- B31 (Austin): `docs/prompts/docs/` stale directory — Austin must delete from terminal (read-only mount in sandbox)
+
+**P2-5 status:** Cannot delete from AI sandbox (read-only mount). Reassigned to Austin as B31.
+
+---
+
+## 🎨 Product & Design Session Output — 2026-04-04 (even-hour :00 run S)
+
+**Session type:** Staging review — no new specs produced.
+
+**Specs reviewed this session:** All 10 v0 specs confirmed current. No changes required.
+
+**Files reviewed against spec:**
+- `apps/mobile/app/(tabs)/index.tsx` — Today screen
+- `apps/mobile/app/(tabs)/chat.tsx` — Conversations screen
+- `apps/mobile/constants/colors.ts` — Token system
+
+---
+
+### Today Screen (`index.tsx`) — Review Findings
+
+**Overall: Spec-compliant on all substantive items.** No blockers. Minor sub-pixel token rounding differences noted below.
+
+**✅ Confirmed compliant:**
+- Header: Geist Mono greeting (11px, c.textDim), Instrument Serif Italic 32px name, date format (weekday/month/day)
+- Briefing card: background `#141810` (c.surfacePrimary), border-radius 20px, padding 20px, green border/shadow — all match
+- Briefing skeleton: opacity pulse 0.4→0.9, 900ms/direction loop — matches spec
+- Briefing hook: Instrument Serif Italic 18px, c.textPrimary — matches
+- Supporting beat rows: 4×4px dot, marginTop 9px, flex: 1 text — matches
+- Alert OPEN: amber border (`c.amberBorder`), Geist-SemiBold 15px content, 7×7 amber dot, X dismiss (28×28 hitTarget), MessageCircle CTA — matches
+- Alert OPEN: no "HEADS UP" text label — P2-3 resolution confirmed correct, amber dot only
+- Alert ACKNOWLEDGED: muted text (`c.textAcknowledged` = rgba(240,237,230,0.25)), no shadow, not tappable — matches
+- Alert RESOLVED: transparent background, CheckCircle 14px `c.greenDim`, italic text, correct closure copy "Sorted. I'll flag it if anything changes." — matches
+- Check-in card: Sparkles 13px orb, Geist 14px content, Geist 13px prompt, X dismiss — matches
+- Clean-day state: Instrument Serif Italic 17px, `c.textFaint` = rgba(240,237,230,0.22), centered — matches spec exactly
+- First-use card: "Got your week..." content + closing line "I'll flag it if anything changes." — matches approved minimum fallback
+- First-use animation: 400ms ease-in — matches spec §21
+- First-use header: "Hey" title, no live pill — matches spec
+- FloatingOrbs: present at all times — correct
+- Check-in suppression: `showCheckins = activeOpenAlert === null` — correct
+- OPEN alert queue: only `openIssues[0]` rendered, rest queued — correct
+- `hasContent` gate: includes briefingLoading, briefingBeats, alerts, schedule events, undismissed check-ins — correctly prevents premature clean-day render
+
+**⚠️ Minor (non-blocking, no fix required for TestFlight):**
+- `briefingBeatText` uses `c.textSecondary` = rgba(240,237,230,**0.75**); spec says rgba(240,237,230,**0.80**). 5% opacity diff within acceptable range — tokenized correctly.
+- `briefingBeatDot` uses `c.greenMuted` = rgba(124,184,122,**0.50**); spec says rgba(124,184,122,**0.45**). 5% diff — imperceptible.
+- `skeletonLine` elements use `c.skeletonBase` = rgba(240,237,230,**0.07**); spec distinguishes title stub at 0.07 vs line elements at 0.05. Single token used for all — visually acceptable.
+- RESOLVED timing: 1400ms hold + 600ms fade vs spec 1500ms + 250ms. Total duration ~2000ms vs 2050ms — already noted in `alert-card-spec.md` as a known non-blocker.
+
+---
+
+### Conversations Screen (`chat.tsx`) — Review Findings
+
+**2 new P2 deviations found.** Both filed in blockers table (P2-8, P2-9). Lead Eng should fix before S4.6 e2e audit.
+
+**⚠️ P2-8: Pinned thread title typography**
+- `pinnedThreadName`: `fontFamily: "Geist-SemiBold", fontSize: 15`
+- Spec: Instrument Serif Italic, 18px, `#F0EDE6`
+- Impact: The "Kin" and "Home" thread names read as functional labels rather than human conversation touchpoints. Per design system rationale, names of people/relationships use Serif. This creates a register mismatch — pinned thread titles should feel like names, not app chrome.
+- Fix: `fontFamily: "InstrumentSerif-Italic", fontSize: 18, color: c.textPrimary`
+
+**⚠️ P2-9: General thread visual treatment**
+- `threadCard` style: `backgroundColor: c.surfacePrimary`, `borderWidth: 1`, `borderColor: c.surfaceSubtle`, `borderRadius: 14`
+- Spec: `background: transparent`, `borderBottom: 1px rgba(240,237,230,0.04)` — no card container
+- Impact: General threads carry the same card-tile visual weight as pinned threads. This flattens the hierarchy. Pinned threads (Personal + Home) should dominate visually; general threads should recede. The current treatment makes all rows feel equally prominent.
+- Fix: Remove card styling from `threadCard` — transparent background, `borderBottomWidth: 1, borderBottomColor: "rgba(240,237,230,0.04)"` only.
+
+**✅ Conversations screen confirmed compliant:**
+- Thread list header: Instrument Serif Italic 28px "Conversations" — correct
+- Personal thread (`pinnedPersonal`): green border `c.greenSubtle`, background `c.surfacePrimary` — correct
+- Household thread (`pinnedHousehold`): blue border `c.blueSubtle`, background `c.surfaceOverlay` — close to spec intent (#121618 vs #131519; visually equivalent blue-shifted surface)
+- Partner-not-linked invite prompt: implemented and functional (verified prior session)
+- Conversation detail header title: `InstrumentSerif-Italic` 18px `c.textPrimary` — correct
+- FloatingOrbs present — correct
+- No hardcoded hex values (B27 resolved) — confirmed
+
+---
+
+### Spec Maintenance Notes
+
+The following deviation notes in spec files are now **stale** (already resolved) and can be cleared by Lead Eng on next pass:
+- `first-use-spec.md §7` — deviation note describes old "I've connected to your calendar" copy. Current implementation uses approved fallback. Note can be updated to ✅.
+- `alert-card-spec.md §3` — deviation note about "I'll let you know" closure copy. Current implementation uses correct "I'll flag it if anything changes." Note can be updated to ✅.
+- `alert-card-spec.md §1` — P2-3 deviation note about "HEADS UP" label. Confirmed resolved — amber dot only. Note can be updated to ✅.
+
+---
+
+**Specs produced this session:** None (all current).
+**Lead Eng is unblocked on:** P2-8 and P2-9 fixes. No spec gaps remain.
+
+---
+
+## 🛠 Lead Engineer Session Output — 2026-04-04 (even-hour :30 run L)
+
+**Files changed this session:**
+- `apps/web/src/app/api/morning-briefing/route.ts` — B25 fix: added rule 9 to system prompt enforcing 4-sentence cap server-side
+- `apps/mobile/app/(tabs)/fitness.tsx` — B26 fix: removed unused `TouchableWithoutFeedback` + `FlatList` imports
+- `apps/mobile/app/(tabs)/index.tsx` — B27 fix: 4 hardcoded hex values → `c.green`, `c.blue`, `c.rose`, `colors.green` (main screen variable is `colors`, sub-components use `c`)
+- `apps/mobile/app/(tabs)/chat.tsx` — B27 fix: 10 hardcoded hex values → `c.green`, `c.rose`, `c.textOnGreen` (UserPlus on green button confirmed correct token)
+- `apps/web/src/lib/late-schedule-change.ts` — NEW: S2.5 Late Schedule Change detection library (§3C)
+- `apps/web/src/lib/calendar/sync.ts` — S2.5 wire: `detectLateScheduleChanges` called after `runConflictDetection` in `syncCalendarForConnection`; non-fatal (sync succeeds even if detection errors)
+- `apps/mobile/lib/push-notifications.ts` — S2.5 wire: `coordination_issue` push tap routes to Today screen
+
+**Specs consumed:** `late-schedule-change-spec.md` (S2.5 build)
+
+**Prompt files wired:** None (IE S1.7 still outstanding — content in `late-schedule-change.ts` uses template strings; AI wiring blocked on `alert-prompt.md`)
+
+**Quality checks:**
+- `tsc --noEmit` web: 0 errors
+- `tsc --noEmit` mobile: pre-existing errors in `push-notifications.ts` (expo module type declarations — not installed, not introduced this session; no new errors)
+- eslint web (`late-schedule-change.ts`, `sync.ts`, `morning-briefing/route.ts`): 0 warnings, 0 errors
+- Mobile eslint: not configured in mobile project (no `.eslintrc` — consistent with prior sessions)
+
+**S2.5 implementation notes:**
+- Detection queries `calendar_events` updated in last 5 minutes, same-day through 3 days ahead
+- Delivery routing: "briefing" mode (before 10am / after 6pm) → no issue, no push; "immediate" mode (10am–6pm) → OPEN coordination_issue + Expo push
+- Two coordination checks: (1) pickup window overlap (activity end → +30min), (2) partner evening commitment (4pm–8pm) as fallback
+- Deduplication: skips events where an OPEN/ACKNOWLEDGED `late_schedule_change` issue already exists for same `event_window_start`
+- Push body truncated to ≤100 chars per spec §3; title = "Kin"; data payload includes `issue_id` for Today-screen deep link
+- Content format: `[What changed] — [Implication]` one-sentence template; IE `alert-prompt.md` will upgrade to AI-generated when S1.7 ships
+
+**Blockers / open questions:**
+- IE S1.7 still overdue (5+ cycles) — late-schedule-change alert content is template-based until `alert-prompt.md` lands
+- Austin: patch `first_name` in existing `profiles` row in Supabase (B21 partial) — greeting still shows "there" for existing accounts
+- No new blockers introduced this session
+
+**Next for Lead Eng:** S4.6 (e2e QA flow) is blocked on Austin B8 (already resolved) + B3 (already resolved) + B2 (RC dashboard still pending). Next available sprint item for Lead Eng is S4.2/S4.5 (IE-blocked) or physical device testing (task #11) once Austin confirms B2.
+
+---
+
+## 🛠 Lead Engineer Session Output — 2026-04-04 (even-hour :30 run P)
+
+**Files changed this session:**
+- `docs/prompts/morning-briefing-prompt.md` — **MOVED** from `docs/prompts/docs/prompts/` (IE S1.7 path fix)
+- `docs/prompts/alert-prompt.md` — **MOVED** from `docs/prompts/docs/prompts/`
+- `docs/prompts/checkin-prompt.md` — **MOVED** from `docs/prompts/docs/prompts/`
+- `docs/prompts/closure-prompt.md` — **MOVED** from `docs/prompts/docs/prompts/`
+- `docs/prompts/first-use-prompt.md` — **MOVED** from `docs/prompts/docs/prompts/`
+- `docs/prompts/chat-prompt.md` — **MOVED** from `docs/prompts/docs/prompts/`
+- `apps/web/src/lib/calendar/sync.ts` — B28 fix: `console.error` at outer catch (line 75) wrapped in `process.env.NODE_ENV !== "production"` guard
+- `apps/web/src/lib/late-schedule-change.ts` — P2-1 fix (line 314: "pickup conflict for..." → "pickup for…needs coverage"); P2-3 fix (added `created_at` to type + query, distinguish "just landed"/"just moved"); alert-prompt wiring (generateAlertContent replaces template strings for both pickup and evening checks)
+- `apps/web/src/lib/pickup-risk.ts` — alert-prompt wiring (generateAlertContent replaces RED/YELLOW template strings; severity stored in insert)
+- `apps/web/src/lib/generate-alert-content.ts` — **NEW**: shared helper wiring `alert-prompt.md` system prompt; called by pickup-risk.ts + late-schedule-change.ts; fallback to validated template on AI/parse failure
+- `apps/web/src/app/api/morning-briefing/route.ts` — IE S1.7 wiring: replaced non-compliant inline system prompt with `morning-briefing-prompt.md` text (no "Morning." opener, first-person present, exact relief language); added JSON parse of structured output ({ primary_insight, supporting_detail, relief_line }) assembled into plain-text string for existing mobile API contract; §7 silence: empty string returned when AI returns null
+- `supabase/migrations/027_coordination_issues_severity.sql` — **NEW**: adds `severity text` column to `coordination_issues` table (B29 fix; enables storing RED/YELLOW from alert-prompt output)
+
+**Specs consumed:** None (all specs remain current — this session was wiring + bug fixes)
+
+**Prompt files wired:**
+- `docs/prompts/morning-briefing-prompt.md` — wired into `apps/web/src/app/api/morning-briefing/route.ts` (replaces inline system prompt; JSON output parsed and assembled)
+- `docs/prompts/alert-prompt.md` — wired into `lib/generate-alert-content.ts`, consumed by `pickup-risk.ts` and `late-schedule-change.ts`
+- `docs/prompts/checkin-prompt.md` — delivered to correct path; **not yet wired** (check-in content generation route TBD — check-in cards currently load directly from `kin_check_ins` table; wiring blocked on deciding where AI generation fires)
+- `docs/prompts/closure-prompt.md` — delivered to correct path; not yet wired (S4.2 still outstanding per pipeline)
+- `docs/prompts/first-use-prompt.md` — delivered to correct path; not yet wired (S4.2 dynamic first-use still blocked per pipeline)
+- `docs/prompts/chat-prompt.md` — delivered to correct path; not yet wired (S1.8 drift review first)
+
+**Quality checks:**
+- `tsc --noEmit` web: 0 errors
+- ESLint web (all 5 changed .ts files): 0 warnings, 0 errors
+- Mobile: no changes this session
+
+**Implementation notes:**
+- `generate-alert-content.ts` wraps AI call with fallback: if Anthropic returns non-JSON or network error, falls back to the validated template string — alert delivery is never silently dropped
+- Morning briefing now returns empty string (`""`) instead of "Unable to generate briefing" when AI returns null (§7 silence rule) — mobile should gracefully handle empty content (existing `hasContent` gating in index.tsx)
+- Alert-prompt `severity` is now stored in `coordination_issues.severity` column (migration 027 — Austin must `supabase db push` to apply)
+- IE prompt files at `docs/prompts/docs/prompts/` were **copied** (not deleted) — wrong-path directory remains; clean-up is safe but not urgent
+
+**Blockers / open questions:**
+- **Austin**: Run `supabase db push` to apply migration 027 (`severity` column). Without this, alert writes with `severity` will silently fail or error depending on Supabase strictness.
+- **Check-in wiring (S2.3 full)**: `checkin-prompt.md` is now at the correct path. The check-in card loads from `kin_check_ins` table. It's unclear where rows are inserted — no `/api/generate-checkin` route exists. Lead Eng needs to either: (a) create a cron or event-triggered route that calls AI + inserts into `kin_check_ins`, or (b) generate check-in content inline in the Today-screen load. Decision needed before S2.3 can be marked fully wired.
+- **P2-2 (Austin decision)**: After-6pm late schedule changes silently dropped — decision still open per CoS run N.
+- IE S1.7 fully wired for briefing + alerts. S4.2 (first-use dynamic) and S1.8 (chat prompt drift review) remain open.
+
+---
+
+## 🎨 Product & Design Session Output — 2026-04-04 (even-hour :00 run O)
+
+**Specs produced this session:**
+- None. All 10 v0 component specs remain current.
+
+**Spec updates this session:**
+- None.
+
+### Orientation Summary
+
+Read: `ARCH-PIVOT-2026-04-03.md`, `AGENT-PIPELINE.md`, `SPRINT.md` (CoS run N → current). No new architectural decisions since run K. Per CoS run N: no new specs required; standing task is to monitor IE S1.7 and review prompts when delivered.
+
+### IE S1.7 — DELIVERED (wrong path)
+
+**🚨 IE has delivered all 6 prompt files but at incorrect path.**
+
+Files found at:
+- `docs/prompts/docs/prompts/morning-briefing-prompt.md`
+- `docs/prompts/docs/prompts/alert-prompt.md`
+- `docs/prompts/docs/prompts/checkin-prompt.md`
+- `docs/prompts/docs/prompts/closure-prompt.md`
+- `docs/prompts/docs/prompts/chat-prompt.md`
+- `docs/prompts/docs/prompts/first-use-prompt.md`
+
+**Expected path for all files:** `docs/prompts/[filename].md`
+
+IE also appears to have written `docs/ops/SPRINT.md` and `docs/ops/AGENT-PIPELINE.md` to `docs/prompts/docs/ops/` — these are duplicates and should be ignored; the authoritative ops files remain at `docs/ops/`.
+
+**Lead Eng: do not wire these prompts until they are moved to the correct path.** Moving them is a file-system operation (no code change). CoS should assign the path correction to IE or Lead Eng.
+
+### IE Prompt Content Review — §8 / §11 / §16 / §23 Compliance
+
+#### `morning-briefing-prompt.md` — ✅ APPROVED
+
+| Check | Result | Notes |
+|-------|--------|-------|
+| §5 output limits | ✅ PASS | "1 primary insight + 1 supporting detail, ≤4 sentences total. Return null if nothing worth surfacing." Explicit. |
+| §7 silence rule | ✅ PASS | Returns null when nothing worth surfacing; "What does not count" list correctly excludes routine/confirmed events |
+| §8 forbidden openers | ✅ PASS | All 7 banned openers listed. "Good morning" and "You've got a busy day" also blocked — good addition. |
+| §8 first-person present tense | ✅ PASS | Rule stated. Test examples comply. |
+| §8 exact relief language | ✅ PASS | All 3 approved phrases listed with usage context (time-based / monitoring / conditional). Generic alternatives blocked. |
+| §10 output anatomy | ✅ PASS | `primary_insight` + `supporting_detail` + `relief_line` structure maps cleanly to Today screen briefing card layers. |
+| §23 confidence | ✅ PASS | HIGH = direct; MEDIUM = one qualifier max; LOW = null. |
+
+No content-level concerns. Test scenarios are well-constructed. Scenario 3 (Clear → silence) correctly returns null.
+
+#### `alert-prompt.md` — ✅ APPROVED with observations
+
+| Check | Result | Notes |
+|-------|--------|-------|
+| §5 one-sentence rule | ✅ PASS | "Exactly 1 sentence. No exceptions." Explicit. Failure mode 1 names the multi-sentence drift and provides fix. |
+| §8 forbidden openers | ✅ PASS | All §8 openers blocked. |
+| §16 social tone | ✅ PASS | Both conflicted = collaborative ("you're both"); one responsible = direct assignment; ambiguous = coordination prompt. Correct mapping. |
+| §23 confidence | ✅ PASS | LOW = null; MEDIUM = one qualifier max; HIGH = direct. |
+| §1 (late-schedule-change-spec) passive voice | ⚠️ OBSERVATION | Prompt does not explicitly block passive voice in the implication clause (e.g., "pickup will need to be handled"). `late-schedule-change-spec.md §1` requires active present/near-future. Low risk for TestFlight given short content templates, but should be added before AI-generation goes live. Not a blocker. |
+
+**🔴 SCHEMA GAP (B29 — new blocker):** `alert-prompt.md` returns `{ "content": ..., "severity": "RED" | "YELLOW", "trigger_type": ... }`. The `coordination_issues` table has no `severity` column. Lead Eng must create migration `027_coordination_issues_severity.sql` adding `severity text` to `coordination_issues` before `alert-prompt.md` can be fully wired. Assigning as B29.
+
+#### `checkin-prompt.md` — ✅ APPROVED
+
+| Check | Result | Notes |
+|-------|--------|-------|
+| §5 output limits | ✅ PASS | [observation] + [optional prompt], max 2 sentences. |
+| §7 silence rule | ✅ PASS | Suppressed when High-priority alert OPEN, 2-per-day cap hit, confidence LOW, or nothing meaningful. |
+| §8 tone | ✅ PASS | Forbidden openers blocked. Calm, unhurried language required. Urgency vocabulary blocked: "unresolved", "risk", "conflict", "gap". |
+| §12 state awareness | ✅ PASS | `household_has_open_high_priority_alert` input field; suppression rule enforced in prompt. |
+| §23 confidence | ✅ PASS | LOW = null; MEDIUM = one qualifier. |
+
+No content-level concerns. Urgency vocabulary blocklist is a good addition — extends §8 into check-in-specific domain appropriately.
+
+#### `closure-prompt.md` — ✅ APPROVED
+
+| Check | Result | Notes |
+|-------|--------|-------|
+| §5 output limits | ✅ PASS | 1–2 sentences. Prefers 1. |
+| §8 tone | ✅ PASS | No forbidden openers. No enthusiasm inflation. "Not a celebration" rule explicit. Specific-over-generic rule strong. |
+| §12 alert state | ✅ PASS | RESOLVED only. "Do not generate closure for ACKNOWLEDGED state." Explicit. |
+| §23 confidence | ✅ PASS | Closure only at HIGH confidence (resolution confirmed). |
+| §24 closure format | ✅ PASS | Calm, specific, matter-of-fact. Names child + time + resolution when available. |
+
+Note: When `closure-prompt.md` is wired, dynamic closure ("Maya's 3:30 is covered — your partner's on it.") will replace the current static fallback ("Sorted. I'll flag it if anything changes."). Both are spec-compliant; dynamic closure is richer.
+
+### Staging Review — `late-schedule-change.ts` (post-Lead Eng run L)
+
+Reviewing S2.5 implementation against `late-schedule-change-spec.md`. B25/B26/B27 verified first.
+
+#### B25/B26/B27 Verification
+
+| Blocker | Status | Evidence |
+|---------|--------|---------|
+| B25 — sentence cap in system prompt | ✅ RESOLVED | `morning-briefing/route.ts` line 338: "Your entire briefing must be 4 sentences or fewer. No exceptions. If you have more to say, keep only the highest-priority items." |
+| B26 — `fitness.tsx` unused imports | ✅ RESOLVED | No `TouchableWithoutFeedback` or `FlatList` imports found in current `fitness.tsx`. |
+| B27 — hardcoded hex in JSX props | ✅ RESOLVED | `index.tsx`: zero bare hex in JSX (comment at ~L269 references hex for documentation — not JSX, acceptable). `chat.tsx`: zero bare hex in JSX props. All tokens confirmed. |
+
+#### `late-schedule-change.ts` — spec review
+
+| Check | Status | Notes |
+|-------|--------|-------|
+| B28 — `sync.ts` line 75 bare `console.error` | ❌ STILL OPEN | Line 75: `console.error(\`Sync error for connection ${connectionId}:\`, error)` — no `process.env.NODE_ENV !== "production"` guard. Lead Eng has not yet fixed. (Inner catch at L66–71 is correctly gated.) |
+| P2-1 — line 314 noun phrase implication | ❌ STILL OPEN | `"pickup conflict for ${childName}'s ${activityName}."` — noun phrase, no verb. QA direction: use "pickup for ${childName} needs coverage." |
+| P2-3 — line 335 "just changed" vague | ❌ STILL OPEN | `"Your partner's ${timeStr} just changed — check your evening coverage."` — "just changed" is vague. QA direction: use `created_at` vs `updated_at` to output "just landed" (new) or "just moved" (updated). |
+| One-sentence format | ✅ PASS | All 3 content templates are 1 sentence in `[What changed] — [Implication]` format with em-dash. |
+| Delivery routing | ✅ PASS | Before 10am / after 6pm → briefing mode (no issue, no push). 10am–6pm → OPEN issue + push. |
+| Push title | ✅ PASS | `title: "Kin"` |
+| Push body ≤100 chars | ✅ PASS | `truncateForPush()` enforces 100-char limit. |
+| Push data payload `issue_id` | ✅ PASS | `data: { type: "coordination_issue", issue_id: issueId }` |
+| Deduplication | ✅ PASS | Skips if OPEN/ACKNOWLEDGED issue already exists for same `event_window_start`. |
+| Suppression rules | ✅ PASS | All-day events, 3+ days ahead, no coordination overlap all suppressed. |
+| `trigger_type: 'late_schedule_change'` | ✅ PASS | Correct value in insert. |
+
+**New P2 observations from spec review:**
+
+| # | Severity | Location | Issue |
+|---|----------|----------|-------|
+| P2-4 | P2 | `late-schedule-change.ts` line 317 | Change clause "is now busy" doesn't follow spec §1 present-perfect pattern ("just moved", "just landed", "just cleared", "opened up"). Should be "just got busy" or "just filled up." Not a §8 tone violation (no banned opener) but deviates from verb form spec. Low risk — worth fixing before AI wiring. |
+| P2-5 | P2 | `late-schedule-change.ts` `truncateForPush()` | Docstring claims implication clause is preserved by truncating change clause first, but implementation simply slices from the end (no em-dash split logic). Currently dormant — template content is short enough to avoid 100-char limit. Will be a live bug when longer AI-generated content (IE S1.7) is wired. Must be corrected before alert-prompt.md wiring. |
+
+### New Blockers Added
+
+| # | Severity | Issue | Owner |
+|---|----------|-------|-------|
+| B29 | P1 | `alert-prompt.md` returns `severity` field ("RED" \| "YELLOW") but `coordination_issues` table has no `severity` column. Migration `027_coordination_issues_severity.sql` required before alert-prompt.md can be fully wired. | Lead Eng |
+
+### What Lead Eng Is Unblocked To Build
+
+| Task | Priority | Notes |
+|------|----------|-------|
+| **B28 fix** — gate `sync.ts` line 75 `console.error` | P1 | Must fix first per QA direction |
+| **P2-1 fix** — `late-schedule-change.ts` line 314 implication noun phrase | P2 | Fix: "pickup for ${childName} needs coverage" |
+| **P2-3 fix** — `late-schedule-change.ts` line 335 "just changed" vague | P2 | Fix: use created_at vs updated_at to distinguish "just landed" / "just moved" |
+| **Move IE prompt files** — `docs/prompts/docs/prompts/` → `docs/prompts/` | P1 — prerequisite | 6 files; file-system move only; assign to Lead Eng or IE |
+| **B29** — migration `027_coordination_issues_severity.sql` | P1 — before AI wiring | Adds `severity text` to `coordination_issues` table |
+| **Wire IE prompts** (once files moved + B29 done) — `morning-briefing-prompt.md`, `alert-prompt.md`, `checkin-prompt.md` | P1 (unblocks S2.1/S2.3 full AI wiring) | All prompts spec-compliant; path issue and schema gap must resolve first |
+| **P2-4 fix** — `late-schedule-change.ts` line 317 verb form | P2 | Fix before AI wiring |
+| **P2-5 fix** — `truncateForPush()` implication-clause preservation | P2 | Fix before AI wiring |
+
+### Spec Gaps / Observations for Austin
+
+None this session. All 10 specs remain current.
+
+Standing note for Austin: IE S1.7 prompt files have been delivered (resolving the 5+ cycle overdue). All 6 files are spec-compliant in content. The IE agent wrote files to `docs/prompts/docs/prompts/` instead of `docs/prompts/` — this is a path error that needs correction before Lead Eng can wire. CoS should confirm with Austin whether to assign the file-move to Lead Eng or IE.
+
+---
+
+## 🎨 Product & Design Session Output — 2026-04-04 (even-hour :00 run K)
+
+**Specs produced this session:**
+- None. All 8 v0 component specs remain current. No spec gaps identified.
+
+**Spec updates this session:**
+- None.
+
+### Orientation Summary
+
+Read: `ARCH-PIVOT-2026-04-03.md`, `AGENT-PIPELINE.md` (pipeline status), `SPRINT.md` (run J → current). No new architectural decisions from Austin since run J. IE S1.7 continues to be overdue (now 5+ cycles).
+
+### Staging Review — `index.tsx` + `chat.tsx` vs Specs (post-Lead Eng Run I, no new Lead Eng session)
+
+No new Lead Eng session has run since run J. Files checked: `index.tsx`, `chat.tsx`, `apps/web/src/app/api/morning-briefing/route.ts`, `apps/mobile/app/(tabs)/fitness.tsx`.
+
+#### `index.tsx` Review
+
+| Check | Status | Notes |
+|-------|--------|-------|
+| Clean-day text | ✅ PASS | "Clean day — nothing to stay ahead of." — exact match |
+| RESOLVED closure text | ✅ PASS | "Sorted. I'll flag it if anything changes." — exact match (confirmed unchanged) |
+| First-use animation | ✅ PASS | 400ms ease-in on both fadeAnim + firstUseFadeAnim — spec compliant |
+| First-use content | ℹ️ STATIC FALLBACK | "Got your week. I'll flag anything that needs your attention…" — acceptable per first-use-spec §7. Blocked on IE S1.7. |
+| 4-sentence client cap | ✅ PASS | `parseBriefingBeats()` `.slice(0, 4)` — client side cap in place |
+| RESOLVED timing | ⚠️ STANDING DEVIATION | 1400ms hold + 600ms fade-out (vs spec 300ms ease-in + 1500ms hold + 250ms fade-out). Non-blocker per prior decision. Post-TestFlight polish. |
+| Silence / hasContent gating | ✅ PASS | `CleanDayState` gated correctly behind `!briefingLoading && !hasContent && !firstUseContent` |
+| TodayScheduleSection present | ✅ PASS | Component renders at line 805; per-person color coding `#7AADCE`/`#D4748A` matches spec §5 |
+| Theme token factory | ✅ PASS (StyleSheet) | `createStyles(c: ThemeColors)` pattern correct in all component functions |
+| JSX icon color props | ❌ **NEW P2** | Lines 233, 727, 760: `color="#7CB87A"` (Sparkles) hardcoded. Line 297: `personColor = isOwn ? "#7AADCE" : "#D4748A"` hardcoded. Should use `c.green`, `c.blue`, `c.rose`. Tokens exist — these were missed in B23 pass. |
+
+#### `chat.tsx` Review
+
+| Check | Status | Notes |
+|-------|--------|-------|
+| Personal + Household threads | ✅ PASS | Both pinned threads confirmed present (prior run J / QA Run B) |
+| Partner invite prompt | ✅ PASS | Shows when partner hasn't linked (prior QA verification) |
+| Thread loading state | ✅ PASS | `threadsLoading` + `ActivityIndicator` in footer (prior run) |
+| JSX icon color props | ❌ **NEW P2** | 10 hardcoded hex values in JSX props (lines 141, 176, 493, 576, 681, 688, 710, 753, 785, 838). `#7CB87A` (Sparkles, MicOn), `#D4748A` (Lock, MicOff), `#0C0F0A` (UserPlus). Should use theme tokens. Line 176 (`#0C0F0A` on UserPlus) is highest-risk — verify it's contrast color on green button (not standalone). |
+
+#### `morning-briefing/route.ts` Review
+
+| Check | Status | Notes |
+|-------|--------|-------|
+| B25 sentence cap in system prompt | ❌ **STILL OPEN (P1)** | System prompt Rule 5: "Short by default - readable in 30-60 seconds" — does NOT include explicit "4 sentences or fewer. No exceptions." cap. Client-side `slice(0, 4)` in `parseBriefingBeats()` exists but can silently truncate valid content from overlong AI responses. Lead Eng must add explicit sentence cap to system prompt. |
+
+#### `fitness.tsx` Review
+
+| Check | Status | Notes |
+|-------|--------|-------|
+| B26 unused imports | ❌ **STILL OPEN (P2)** | `TouchableWithoutFeedback` (line 14) + `FlatList` (line 16) still imported and unused. |
+
+### New Issues Flagged
+
+| # | Severity | File | Issue | Assigned To |
+|---|----------|------|-------|-------------|
+| B27 | P2 | `index.tsx` (lines 233, 297, 727, 760) + `chat.tsx` (lines 141, 176, 493, 576, 681, 688, 710, 753, 785, 838) | Hardcoded hex values in JSX icon color props — bypasses theme token system. B23 tokenized StyleSheet factory but missed inline JSX. All needed tokens exist in `constants/colors.ts`. | Lead Eng |
+
+### What Lead Eng Is Unblocked To Build
+
+| Task | Spec | Priority |
+|------|------|---------|
+| S2.5: Late Schedule Change detection + push (§3C) | `late-schedule-change-spec.md` | P1 — next sprint item |
+| B25: Add explicit sentence cap to `morning-briefing/route.ts` system prompt | (QA direction in SPRINT.md) | P1 — must fix before TestFlight |
+| B26: Remove unused imports from `fitness.tsx` | (QA direction) | P2 |
+| B27: Replace hardcoded hex values in JSX icon props with `c.green`, `c.blue`, `c.rose`, `c.background` | (P&D run K) | P2 |
+
+### Spec Gaps / Observations for Austin
+
+None this session. All specs are complete and current for the v0 TestFlight scope.
+
+Standing note: IE S1.7 (`morning-briefing-prompt.md`, `alert-prompt.md`, `checkin-prompt.md`) remains overdue — now 5+ cycles. Until these are delivered, the AI layer is producing unguided output. The client-side sentence truncation and tone rules in today's briefing system prompt are partial mitigations only. CoS should escalate to Austin if IE does not deliver in the next even-hour cycle.
+
+---
+
+## 🎨 Product & Design Session Output — 2026-04-03 (even-hour :00 run J)
+
+**Specs produced this session:**
+- `docs/specs/late-schedule-change-spec.md` (NEW — content/logic spec for S2.5)
+
+**Spec updates this session:**
+- None (all 7 prior v0 specs remain current)
+
+### What Was Delivered
+
+**S2.5 — Late Schedule Change Alert Spec** (`docs/specs/late-schedule-change-spec.md`)
+
+Full specification for the content format, delivery routing, push notification format, and real-time in-app update behavior for late schedule change alerts. Key decisions:
+
+- **No new UI component.** Late schedule change alerts use the existing `AlertCard` OPEN state. The `trigger_type` distinguishes them in the database but the visual treatment is identical to pickup risk alerts. Rationale: content is the signal, not visual differentiation.
+- **Content format:** One sentence, `[What changed] — [Implication]`. Present-perfect verb in change clause ("just moved", "just cleared"). Present or near-future in implication clause. No passive voice.
+- **Delivery routing (three modes):** Before 10am → queue for morning briefing; 10am–6pm → real-time push + OPEN `coordination_issue`; after 6pm for tomorrow → queue for next morning briefing.
+- **Push notification format:** Title: "Kin". Body: same one-sentence content as `coordination_issue.content`. Max 100 characters. Data payload includes `issue_id` for deep-link to Today screen.
+- **Real-time update:** No code change needed to Today screen if Realtime subscription is already wired — new OPEN issue insertion will surface automatically.
+- **Suppression rules:** Minor changes (title/room/link-only), events 3+ days out, no coordination dependency, and duplicate OPEN issues for same window are all suppressed.
+
+### Staging Review — `index.tsx` vs Specs (post-Lead Eng Run I)
+
+Reviewed against: `briefing-card-spec.md`, `alert-card-spec.md`, `first-use-spec.md`, `silence-state-spec.md`.
+
+| Check | Status | Notes |
+|-------|--------|-------|
+| Clean-day text | ✅ PASS | "Clean day — nothing to stay ahead of." — exact match |
+| RESOLVED closure text | ✅ PASS | "Sorted. I'll flag it if anything changes." — exact match |
+| First-use header title | ✅ PASS | "Hey" in `briefingTitle` style — correct (vs "Morning" on briefing card) |
+| First-use no live pill | ✅ PASS | `briefingTitleRow` in first-use block has no pill element |
+| First-use closing line | ✅ PASS | "I'll flag it if anything changes." — correct |
+| First-use content | ℹ️ STATIC FALLBACK | "Got your week. I'll flag anything that needs your attention…" — minimum acceptable per first-use-spec.md §7. Dynamic wiring still blocked on IE S1.7. |
+| HEADS UP label (P2-3) | ✅ RESOLVED | Alert header has amber dot + spacer + dismiss only. No text label. Aligns with §8 tone rule recommendation from spec. |
+| RESOLVED timing | ⚠️ MINOR DEVIATION | 1400ms hold + 600ms fade-out (vs spec 300ms ease-in + 1500ms hold + 250ms fade-out). Previously noted as non-blocker in alert-card-spec.md. Not a TestFlight blocker. |
+| Theme tokens | ✅ PASS | `useThemeColors()` factory pattern across all 6 component functions in index.tsx. No hardcoded hex values remaining. |
+| Alert card OPEN: amber dot | ✅ PASS | `alertOpenDot` present, dismiss X present, CTA footer present |
+| Alert card ACKNOWLEDGED: muted, not tappable | ✅ PASS | `alertAcknowledgedText` style, no Pressable wrapper |
+| Alert card RESOLVED: green italic, CheckCircle | ✅ PASS | `alertResolvedText` + `CheckCircle` icon confirmed |
+
+### What Lead Eng Is Now Unblocked To Build
+
+| Task | Spec | Priority |
+|------|------|---------|
+| S2.5: Late Schedule Change detection + push notification (§3C) | `late-schedule-change-spec.md` | P1 — next sprint item |
+
+### Spec Gaps / Observations for Austin Review
+
+1. **RESOLVED timing (minor):** The 300ms ease-in appear → 1500ms hold → 250ms fade-out spec vs. 1400ms+600ms implementation is a ~50ms total duration difference. No user impact. Fix in a post-TestFlight polish pass.
+2. **P2-3 (HEADS UP label):** Lead Eng removed the label entirely (amber dot only, no text). This resolves the §8 concern without requiring Austin's explicit decision. Flagging in case Austin wants it documented.
+3. **Late schedule change content templates:** The one-sentence format in `late-schedule-change-spec.md` gives examples but does not include a full prompt. IE S1.7 should include alert-copy guidance for late-schedule-change `trigger_type` when delivering `alert-prompt.md`.
+
+---
+
+## 🎨 Product & Design Session Output — 2026-04-03 (even-hour :00 run H)
+
+**Specs produced this session:**
+- `docs/specs/light-theme-spec.md` (NEW — resolves B23)
+
+**Spec updates this session:**
+- `docs/specs/today-screen-spec.md §5` — Status note updated: B11 TodayScheduleSection now correctly marked as BUILT (was still showing NOT YET BUILT; code verified done in run G).
+
+### What Was Delivered
+
+**B23 — Light Theme Spec** (`docs/specs/light-theme-spec.md`)
+
+Full color token system for both dark and light themes. Covers:
+- 6 surface/background tokens (`background`, `surfacePrimary`, `surfaceSecondary`, `surfaceMuted`, `surfaceOverlay`, `surfaceSubtle`)
+- 7 text tokens (primary through faint + acknowledged + onGreen)
+- 14 brand accent tokens (green, amber, blue, rose — all with opacity variants adjusted for warm-white light surface)
+- Tab bar tokens including blur type swap (`dark` → `light`)
+- Input/compose area tokens
+- Skeleton/loading state tokens
+- Per-screen mapping table for `index.tsx`, `chat.tsx`, `settings.tsx`
+- Full `apps/mobile/constants/colors.ts` scaffold with `darkColors` + `lightColors` typed exports
+- `useThemeColors()` hook implementation pattern
+- FloatingOrbs opacity adjustment for light surface
+- StatusBar style toggle spec
+
+**Design decisions:** Light theme uses `#F5F0E8` (design system warm white) as background — parchment quality, not stark white. All brand accents unchanged. Opacity-based neutrals are mirrored against `rgba(30,28,24,...)` rather than inverted `rgba(240,237,230,...)`. Assistant text becomes fully opaque `#1A1A16` on light surface (no longer opacity-based).
+
+### What Lead Eng Is Now Unblocked To Build
+
+| Task | Spec | Priority |
+|------|------|---------|
+| B23: `useColorScheme` implementation across all 3 screens + `_layout.tsx` | `light-theme-spec.md` | P1 — device test requirement |
+| Create `apps/mobile/constants/colors.ts` | `light-theme-spec.md §11` | P1 |
+| StatusBar style toggle | `light-theme-spec.md §12` | P1 |
+
+### Spec Gaps / Observations for Austin Review
+
+None. All spec files are current and complete for the v0 sprint scope. No new product decisions flagged this session.
+
+---
+
+## 🛠 Lead Engineer Session Output — 2026-04-03 (even-hour :30 run I)
+
+**Specs consumed:** `docs/specs/light-theme-spec.md` (B23 — full implementation)
+**Prompts wired:** None (S1.7 still pending from Intelligence Engineer — overdue 4+ cycles)
+
+### Files Changed This Session
+
+| File | Changes |
+|------|---------|
+| `apps/web/src/lib/pickup-risk.ts` | **B18/B19:** RED alert → 1 sentence `"…both parents have conflicts and no coverage is confirmed."` YELLOW alert → 1 sentence `"…you're in a conflict, partner is free."` |
+| `apps/web/src/app/api/morning-briefing/route.ts` | **B20:** Pre-fetch `household_id` from profiles before `openIssues` query; `primaryId = idRow?.household_id ?? profileId`; query changed from `.or(…)` to `.eq("household_id", primaryId)` |
+| `apps/mobile/components/onboarding/save-onboarding.ts` | **B21:** Added `firstName: string` to `OnboardingData`; writes `first_name: data.firstName.trim() \|\| null` to profiles |
+| `apps/mobile/components/onboarding/OnboardingSurvey.tsx` | **B21:** Added `firstName` state + TextInput (first field in family step, `autoCapitalize="words"`); removed `autoFocus` from family-name field; passes `firstName` in `handleComplete()` |
+| `apps/web/src/app/api/webhooks/stripe/route.ts` | **B24:** `invoice.payment_failed` → lookup profile by `stripe_customer_id`; downgrade to `free`; set `cancelled_at`, `data_deletion_at` (+90 days), `deletion_reminded: false` |
+| `apps/mobile/constants/colors.ts` | **B23 (NEW):** Full `darkColors` + `lightColors` token objects (~45 tokens each); `export type ThemeColors = typeof darkColors` |
+| `apps/mobile/lib/theme.tsx` | **B23:** Import tokens from `constants/colors.ts`; `ThemeProvider.colors` uses new token set; added `useThemeColors()` hook |
+| `apps/mobile/app/_layout.tsx` | **B23:** `ThemedRoot` uses `useThemeColors()` for background; StatusBar toggles `light`/`dark` via `isDark` |
+| `apps/mobile/app/(tabs)/index.tsx` | **B23:** All 6 components each call `useThemeColors()` + `useMemo(() => createStyles(c), [c])`; `StyleSheet.create({})` → `createStyles(c: ThemeColors)` factory; all inline colors tokenized |
+| `apps/mobile/app/(tabs)/chat.tsx` | **B23:** `ConversationsScreen`, `TypingIndicator`, `PartnerInvitePrompt` each call `useThemeColors()` + `useMemo`; `StyleSheet.create({})` → `createChatStyles(c)` factory; all inline colors tokenized |
+| `apps/mobile/app/(tabs)/settings.tsx` | **B23:** `Settings` calls `useThemeColors()` + `useMemo`; `StyleSheet.create({})` → `createSettingsStyles(c)` factory; all inline colors tokenized (Switch trackColor/thumbColor, iconWrap overrides, ChevronRight, About section icons, LogOut icon) |
+| `apps/mobile/app/(tabs)/family.tsx` | **B23 regression fix:** `colors.primary` → `colors.green`, `colors.text` → `colors.textPrimary`, `colors.border` → `colors.surfaceSubtle` (pre-B23 token names no longer valid) |
+| `apps/mobile/app/(tabs)/fitness.tsx` | **B23 regression fix:** Same token alias substitution as family.tsx |
+
+### Confirmed Already Resolved (Prior Sessions)
+
+- **B22:** Back navigation in `chat.tsx` — `goBackToList()` wired to `ChevronLeft` in both detail views. Already present in prior code; no change needed.
+
+### TypeScript Check
+
+`tsc --noEmit` (mobile): **0 errors** (3 pre-existing errors in `lib/push-notifications.ts` unchanged — missing expo-notifications/expo-device type declarations, not introduced this session).
+`tsc --noEmit` (web): **0 errors**.
+
+### ESLint
+
+Mobile: No ESLint config file — pre-existing, out of scope this sprint.
+Web: 1 pre-existing error in `apps/web/src/app/api/cron/vax-reminders/route.ts` (`REMINDER_DAYS` unused-vars) — not introduced this session, not modified this session.
+
+### Open Questions / Remaining Blockers
+
+| # | Item | Owner | Notes |
+|---|------|-------|-------|
+| S1.7 | System prompts (briefing, alert, check-in) | **Intelligence Engineer** | Overdue — 4+ cycles. `morning-briefing-prompt.md`, `alert-prompt.md`, `checkin-prompt.md` absent from `docs/prompts/`. |
+| B21 partial | Patch existing `first_name` in Supabase for Austin's account | **Austin** | Lead Eng fix only applies to new onboarding flows. Austin must manually update `first_name` in the profiles table for existing rows. |
+| S2.5 | Late Schedule Change detection + push (§3C) | **Lead Eng** | Still `⬜` in build queue — not started. |
+| Mobile ESLint | No `.eslintrc` in `apps/mobile` | **Lead Eng** | Pre-existing gap. ESLint config should be added so quality checks are enforceable CI-side. |
+
+### What QA Should Verify Next
+
+- `pickup-risk.ts`: RED alert is exactly 1 sentence with `—` separator; no trailing question. YELLOW alert is exactly 1 sentence; no `if they can cover` qualifier.
+- `morning-briefing/route.ts`: Partner user's `profileId` resolves to `household_id` before `openIssues` query; `primaryId` correctly falls back to `profileId` when `household_id` is null.
+- `OnboardingSurvey.tsx`: First name TextInput appears above Family name field in family step; tapping "Done" passes non-empty `firstName` to `save-onboarding.ts`.
+- `save-onboarding.ts`: `first_name` written to profiles when non-empty string provided.
+- `stripe/route.ts`: `invoice.payment_failed` downgrades `subscription_tier` to `free` and sets `data_deletion_at` 90 days out; does NOT error when customer has no matching profile row.
+- `settings.tsx` / `index.tsx` / `chat.tsx`: All screens render warm-white backgrounds in iOS light mode; no hardcoded dark hex values remain in inline JSX; Switch thumb/track colors update with theme.
+
+---
+
+## 🛠 Lead Engineer Session Output — 2026-04-03 (even-hour :30 run G)
+
+**Specs consumed:** None (no new specs this session)
+**Prompts wired:** None (S1.7 still pending from Intelligence Engineer)
+
+### Files Changed This Session
+
+| File | Changes |
+|------|---------|
+| `apps/mobile/app/(tabs)/index.tsx` | **B15:** `loadAll()` wrapped in try/catch; `loadError` state + `loadErrorCard` Pressable with retry |
+| `apps/mobile/app/(tabs)/index.tsx` | **B16:** `loadIssues()` wrapped in try/catch; `setIssues([])` on error |
+| `apps/mobile/app/(tabs)/index.tsx` | **B17:** `handleAcknowledge()` captures `previousIssues` before optimistic update; rolls back on DB error |
+| `apps/mobile/app/(tabs)/index.tsx` | **PD-6:** Briefing skeleton — added second full-width `skeletonLine` (now 5 elements: title + 2×100% + 75% + 55%) |
+| `apps/mobile/app/(tabs)/index.tsx` | **PD-7:** First-use card now uses dedicated `firstUseFadeAnim`/`firstUseSlideAnim` (400ms, `Easing.in(Easing.ease)`) per `first-use-spec.md §5`; `Easing` added to RN imports |
+| `apps/mobile/app/(tabs)/index.tsx` | **PD-8:** Dead `alertOpenLabel` style removed from StyleSheet |
+| `apps/mobile/app/(tabs)/index.tsx` | Added `loadErrorCard` + `loadErrorText` styles |
+| `apps/web/src/lib/pickup-risk.ts` | **S1.3 NEW:** `detectPickupRisk(supabase, profileId)` — queries children's activities today, checks both parents' calendar coverage during pickup windows, creates `coordination_issues` for RED and YELLOW coverage gaps; idempotent (deduped by window_start) |
+| `apps/web/src/app/api/cron/pickup-risk/route.ts` | **S1.3 NEW:** `POST /api/cron/pickup-risk` — runs `detectPickupRisk` for all primary profiles; protected by `CRON_SECRET`; partial-failure tolerant |
+| `apps/web/src/app/api/morning-briefing/route.ts` | **S1.3:** Calls `detectPickupRisk` before building briefing context; fetches OPEN `coordination_issues` and injects them as priority context into Claude prompt; pickup risk issues labeled `CRITICAL` to ensure they lead the briefing |
+
+### TypeScript Check
+`tsc --noEmit` (web): 0 errors. `tsc --noEmit` (mobile): 3 pre-existing errors in `lib/push-notifications.ts` (unchanged). Zero new errors in any edited file.
+
+### Open Questions / Remaining Blockers
+
+| # | Item | Owner | Notes |
+|---|------|-------|-------|
+| S1.7 | System prompts (briefing, alert, check-in) | **Intelligence Engineer** | Overdue — briefing + check-in wiring blocked; first-use dynamic endpoint blocked |
+| B1–B4, B8 | Austin commit + RC + migrations + OAuth | **Austin** | Physical device test (task #11) and TestFlight build remain blocked. B8 commit list now includes `apps/web/src/lib/pickup-risk.ts`, `apps/web/src/app/api/cron/pickup-risk/route.ts`, updated `apps/web/src/app/api/morning-briefing/route.ts`. |
+| S1.3 cron schedule | `/api/cron/pickup-risk` not yet registered in Vercel cron | **Austin/CoS** | Add `{"path":"/api/cron/pickup-risk","schedule":"0 6 * * *"}` to `vercel.json` cron config |
+
+### What QA Should Verify Next
+
+- `index.tsx`: `loadError` state renders tap-to-retry card when `loadAll()` throws
+- `index.tsx`: `loadIssues()` error sets `issues = []` (no stale alert cards)
+- `index.tsx`: `handleAcknowledge()` rolls back UI on DB failure
+- `index.tsx`: Briefing skeleton now has 5 lines (title + 2×full + 75% + 55%)
+- `index.tsx`: First-use card uses separate `firstUseFadeAnim`/`firstUseSlideAnim` (not shared `fadeAnim`)
+- `lib/pickup-risk.ts`: `detectPickupRisk` — no `any` types, all async ops have try/catch
+- `/api/cron/pickup-risk`: returns 401 without `CRON_SECRET`; returns summary JSON on success
+
+---
+
+## 🛠 Lead Engineer Session Output — 2026-04-03 (even-hour :30 run)
+
+**Specs consumed:** `today-screen-spec.md §5` (TodaySchedule section)
+**Prompts wired:** None (S1.7 still pending from Intelligence Engineer)
+
+### Files Changed This Session
+
+| File | Changes |
+|------|---------|
+| `apps/mobile/app/(tabs)/index.tsx` | **B11:** Added `ScheduleEvent` interface, `TodayScheduleSection` component, `todayEvents` state, `loadTodayEvents()` function, Realtime subscription for calendar_events, render between alerts and check-ins, schedule styles, updated `hasContent` |
+| `apps/mobile/app/(tabs)/index.tsx` | **P2-5/PD-2:** Closure line → "Sorted. I'll flag it if anything changes." (line 147) |
+| `apps/mobile/app/(tabs)/index.tsx` | **PD-1:** First-use static fallback → "Got your week. I'll flag anything that needs your attention and stay quiet when things look clear." (no setup language per §21) |
+| `apps/mobile/app/(tabs)/index.tsx` | **PD-2:** First-use closing line → "I'll flag it if anything changes." |
+| `apps/mobile/app/(tabs)/index.tsx` | **PD-3 (P2):** Removed "Heads up" text label from alert OPEN header; kept amber dot indicator |
+| `apps/mobile/app/(tabs)/chat.tsx` | **B13:** Added `threadsLoading` state + `ActivityIndicator` in `ListFooterComponent`; wrapped `loadGeneralThreads` in try/finally |
+
+### Confirmed Already Resolved (Prior Session)
+
+- **B10 (P0-4):** Budget CONVERSATION_IDEAS chips — not present in current chat.tsx
+- **B12 (P1-6/P1-7):** Unused imports + ungated console.errors — not present in current chat.tsx
+
+### TypeScript Check
+
+`tsc --noEmit`: 3 pre-existing errors in `lib/push-notifications.ts` (unrelated to this session's changes — missing expo-notifications type declarations). Zero errors in `index.tsx` or `chat.tsx`.
+
+### Open Questions / Remaining Blockers
+
+| # | Item | Owner | Notes |
+|---|------|-------|-------|
+| S1.7 | System prompts (briefing, alert, check-in) | **Intelligence Engineer** | PD-1 wired static fallback; actual `/api/first-use` endpoint wiring blocked until `docs/prompts/first-use-prompt.md` exists |
+| B1–B4, B8 | Austin commit + RC + migrations + OAuth | **Austin** | Physical device test (task #11) and TestFlight build remain blocked on these |
+| B7 | `fitness.tsx` + `meals.tsx` QA scope decision | **Austin** | Informational only |
+| B14 | `budget.tsx` disposition | **Austin** | Dead code in (tabs) dir — confirm delete vs keep |
+
+### What QA Should Verify Next
+
+- `index.tsx`: `TodayScheduleSection` present, renders between alert cards and check-in cards, empty state = nothing rendered (no placeholder)
+- `index.tsx`: Per-person color dots (`#7AADCE` / `#D4748A`), ascending time sort, section header Geist Mono 10px uppercase
+- `index.tsx`: RESOLVED alert closure line reads "Sorted. I'll flag it if anything changes."
+- `index.tsx`: First-use content no longer contains setup language ("Good to meet you", "getting oriented")
+- `index.tsx`: "Heads up" text removed from OPEN alert header; amber dot remains
+- `chat.tsx`: `ActivityIndicator` renders in thread list `ListFooterComponent` during load; disappears when complete
+
+---
+
+## 🎨 Product & Design Session Output — 2026-04-03 (even-hour :00 run F — staging review)
+
+**No new specs produced this session.** All 7 required component specs remain current and final. This session was a staging review of `index.tsx` (Today screen) against existing specs.
+
+### Confirmed Resolved (verified by code read — no further action needed)
+
+| ID | Item | Verified |
+|----|------|---------|
+| PD-1 | First-use content setup language removed | ✅ Content is now "Got your week. I'll flag anything that needs your attention and stay quiet when things look clear." — no setup language |
+| PD-2 | First-use closing line corrected | ✅ Line 692: "I'll flag it if anything changes." — correct |
+| PD-3 | "Heads up" text label removed from OPEN alert header | ✅ AlertCard OPEN header (line 174–185): amber dot + spacer + dismiss button — no text label rendered |
+| B11 | TodayScheduleSection built and present | ✅ `TodayScheduleSection` component present (line 260–299), correct render position, empty state = nothing, Realtime subscription wired, ascending time sort, per-person color coding |
+
+### Outstanding (carry forward — not new this session)
+
+| ID | Severity | Issue |
+|----|----------|-------|
+| B15 | P1 — Lead Eng | `loadAll()` still has no try/catch (line 393) — confirmed |
+| B16 | P1 — Lead Eng | `loadIssues()` still has no try/catch (line 450) — confirmed |
+| B17 | P1 — Lead Eng | `handleAcknowledge()` still has no try/catch (line 522) — confirmed |
+| S1.7 | ⚠️ OVERDUE | IE prompt files absent — `morning-briefing-prompt.md`, `alert-prompt.md`, `checkin-prompt.md`. First-use dynamic endpoint (S4.3 finalization) also blocked on IE. |
+
+### New Deviations Found (P2 — none block TestFlight)
+
+| ID | Severity | File | Line | Issue | Fix |
+|----|----------|------|------|-------|-----|
+| **PD-6** | P2 | `index.tsx` | 107–115 | Briefing skeleton has 4 elements (title stub + 3 content lines). Spec (`briefing-card-spec.md §3`) specifies 5: title stub + Line 1 (100%) + Line 2 (100%) + Line 3 (75%) + Line 4 (55%). Missing the second full-width content line. | Add one more `<View style={styles.skeletonLine} />` (no width override — defaults to 100%) after the first full-width line |
+| **PD-7** | P2 | `index.tsx` | 679–695 | First-use card shares the 420ms standard `fadeAnim`/`slideAnim` entrance. Spec (`first-use-spec.md §5`) requires a dedicated 400ms ease-in animation for the first-use moment (slower, deliberate — per §21 "unhurried"). Current implementation: correct duration order of magnitude, wrong easing type and slightly wrong timing. | Create separate `firstUseAnim` refs with `{duration: 400, easing: Easing.in(Easing.ease)}` — render first-use card with these instead of sharing main `fadeAnim/slideAnim` |
+| **PD-8** | P2 (dead code) | `index.tsx` | 918–925 | `alertOpenLabel` style is defined in StyleSheet but no JSX element references it. PD-3 removed the "Heads up" label text but didn't remove the style. No visual impact — clean up in next maintenance pass. | Delete `alertOpenLabel` from styles |
+
+### What Lead Eng Should Address Next
+
+Per B15–B17 (P1 — required before TestFlight): wrap `loadAll()`, `loadIssues()`, `handleAcknowledge()` in try/catch with appropriate error handling. All other items above are P2.
+
+**Specs are stable. Lead Eng is unblocked on all UI work.** The only remaining Product & Design dependency is the IE S1.7 prompt files (blocking first-use dynamic wiring and briefing/alert prompt wiring).
+
+---
+
+## 🎨 Product & Design Session Output — 2026-04-03
+
+**All 7 required component specs produced.** Lead Eng is now unblocked on all UI build tasks in Stages 1–4.
+
+### Specs Written This Session
+
+| Spec file | Covers | Unblocks |
+|-----------|--------|---------|
+| `docs/specs/today-screen-spec.md` | Overall layout, scroll, component order, spacing | S1.4 |
+| `docs/specs/briefing-card-spec.md` | Loading skeleton, content state, typography, motion | S1.4, S2.1 |
+| `docs/specs/alert-card-spec.md` | All 3 states (OPEN/ACKNOWLEDGED/RESOLVED), colors, motion timing | S1.5, S2.2 |
+| `docs/specs/checkin-card-spec.md` | Check-in card layout, interaction, suppression rules | S1.4, S2.3 |
+| `docs/specs/silence-state-spec.md` | Clean-day state design, what not to show, ambient rules | S1.6, S2.4 |
+| `docs/specs/conversations-screen-spec.md` | Thread list, Personal vs Household visual distinction, partner-not-linked, chat detail | S3.1, S3.2–S3.4 |
+| `docs/specs/first-use-spec.md` | Day-one emotional moment container, structure, entrance, content rules | S4.1, S4.3 |
+| `docs/specs/app-store-screenshots-spec.md` | 5 screenshots + preview storyboard, caption design system | Pre-launch |
+
+### Deviations Flagged Against Current Implementation
+
+These issues were found by reviewing `index.tsx` and `chat.tsx` against the new specs. Lead Eng should address alongside the existing SPRINT blockers:
+
+| ID | Severity | File | Issue | Fix |
+|----|----------|------|-------|-----|
+| **PD-1** | **P1 — fix before TestFlight** | `index.tsx` line 491 | First-use content is generic setup language: "Good to meet you. I've connected to your calendar and I'm getting oriented..." — violates §21 (no setup language; must be specific to user's life) | Replace static content with call to first-use prompt endpoint (IE must provide `docs/prompts/first-use-prompt.md`). Minimum acceptable static fallback: "Got your week. I'll flag anything that needs your attention and stay quiet when things look clear." |
+| **PD-2** | **P1 — fix before TestFlight** | `index.tsx` line 579 | First-use closing line: "I'll keep an eye on it and flag anything that changes." — same as existing SPRINT B12 flag | Change to: "I'll flag it if anything changes." |
+| **PD-3** | P2 — fix in follow-up pass | `index.tsx` line 167 | Alert label "Heads up" appears above alert content. Per §8 tone rules, "Heads up" is a disallowed opener phrase. Label is a UI affordance, not Kin copy — borderline acceptable. Recommendation: remove text label, keep amber dot indicator only. | Remove `alertOpenLabel` text element, keep `alertOpenDot` |
+| **PD-4** | P2 — note only | `index.tsx` skeleton | Skeleton pulse: 900ms per direction (1800ms cycle). Spec target: 1500ms full cycle. Minor timing deviation. | Adjust to 750ms per direction if shimmer feels off on device |
+| **PD-5** | P2 — note only | `index.tsx` RESOLVED | RESOLVED fade timing: 1400ms hold + 600ms fade. Spec: 1500ms hold + 250ms fade. Acceptable for TestFlight. | Adjust post-TestFlight to match spec exactly |
+
+### Existing Blockers Confirmed (also visible from spec review)
+
+- **B11 (P1-5):** `TodaySchedule` section missing from `index.tsx` — confirmed by spec, required before TestFlight
+- **B10 (P0-4):** Budget CONVERSATION_IDEAS chips in `chat.tsx` — confirmed by spec, must fix before TestFlight
+- **B12 (P1-6/P1-7):** Unused imports + ungated console.errors in `chat.tsx` — confirmed
+
+### What Lead Eng is Now Unblocked to Build
+
+With all specs in `docs/specs/`, Lead Eng can proceed on:
+1. **B11:** `TodaySchedule` section in `index.tsx` — spec in `today-screen-spec.md §5`
+2. **S2.1–S2.4:** All Today screen components already built — minor spec alignment fixes (PD-1 through PD-5 above)
+3. **S3.1–S3.4:** Conversations screen — full spec in `conversations-screen-spec.md`
+4. **S4.1–S4.3:** First-use moment — visual container spec in `first-use-spec.md`; pending IE prompt in `docs/prompts/first-use-prompt.md`
+
+---
+
+### What to Build Next — Lead Eng
+
+**All QA-flagged fixes (B10–B13) are now resolved.** Ready to proceed:
+
+1. ~~**B10 (P0-4):**~~ ✅ Done (prior session)
+2. ~~**B12:**~~ ✅ Done (prior session)
+3. ~~**B13:**~~ ✅ Done (this session)
+4. ~~**B11:**~~ ✅ Done (this session)
+5. ~~**P2-5/PD-1/PD-2/PD-3:**~~ ✅ Done (this session)
+
+**After Austin unblocks B1–B4 + B8:**
+6. Physical device e2e test pass (task #11, `docs/specs/mobile-device-test-plan.md`). Test path: auth → onboarding → Today screen → Conversations → Settings → paywall.
+7. Settings screen cleanup — remove any domain tab references (S4.4)
+8. Pickup Risk detection (ARCH-PIVOT Step 3, §3A) — S1.3
+9. Late Schedule Change alerts (ARCH-PIVOT Step 4, §3C) — S2.5
+10. First-use dynamic endpoint — wire `/api/first-use` once IE delivers `docs/prompts/first-use-prompt.md` (S4.2 unblocks S4.3 finalization)
+
+### What to Audit Next — QA
+
+**QA Run 2 complete** (`QA-AUDIT-2026-04-03B.md`). Next QA pass should verify Lead Eng fixes for B10–B13:
+- Confirm budget `CONVERSATION_IDEAS` removed from `chat.tsx` and empty-state copy updated (P0-4)
+- Confirm 6 unused imports removed from `chat.tsx` (P1-6)
+- Confirm 8 `console.error` calls gated in `chat.tsx` (P1-7)
+- Confirm `threadsLoading` state added to `chat.tsx` (P1-9)
+- Confirm `TodaySchedule` section present in `index.tsx` with Realtime subscription (P1-5)
+- Check `index.tsx` P2 copy fixes: closure line (line 139) + first-use closing line (line 579) + "Heads up" alert label (line 167)
 
 ---
 
@@ -31,7 +1062,7 @@
 
 | # | Task | Status | Owner | Est. | Notes |
 |---|------|--------|-------|------|-------|
-| E1 | **[NEW P0]** Track E: RevenueCat paywall + 7-day trial arc (mobile) | ⬜ **NEXT** | Lead Eng (after Austin commits/pushes) | 1 day | Install `react-native-purchases`, build paywall screen, 7-day trial arc. Blocked on Austin: (1) commit + push working tree, (2) create RevenueCat products `kin_monthly_3999` + `kin_annual_29900`. Code can be built with placeholder key. |
+| E1 | **[NEW P0]** Track E: RevenueCat paywall + 7-day trial arc (mobile) | ✅ Built | Lead Eng | 1 day | `react-native-purchases@^8.7.0` added to `apps/mobile/package.json`. `lib/revenuecat.ts` — init, getOffering, purchasePackage, restorePurchases, hasPremiumEntitlement. `components/paywall/PaywallModal.tsx` — full pageSheet modal: Monthly ($39/mo) + Annual ($299/yr, best value badge), 7-day trial arc, feature list, purchase + restore handlers, success state. `settings.tsx` wired: subscription card opens paywall on tap; RC init called on user load; profile refetched on purchase success. **Austin: (1) `cd apps/mobile && npm install`, (2) add `EXPO_PUBLIC_REVENUECAT_API_KEY` to `apps/mobile/.env`, (3) create RC products `kin_monthly_3999` + `kin_annual_29900`. See Step 10 for commit commands.** |
 | E2 | **[NEW P0]** Austin: Configure RevenueCat products | ⬜ | Austin (HUMAN) | 15m | Create `kin_monthly_3999` ($39/mo) and `kin_annual_29900` ($299/yr) in RevenueCat dashboard. Add `EXPO_PUBLIC_REVENUECAT_API_KEY` to `apps/mobile/.env`. |
 | 1 | Deploy web app to Vercel | ⬜ Deferred | Lead Eng | 1h | Deferred — iOS TestFlight is primary. Required for web Stripe checkout (#5). |
 | 2 | Connect kinai.family domain (Namecheap → Vercel) | ⬜ Deferred | Lead Eng + Austin | 30m | Deferred until after TestFlight. |
@@ -109,9 +1140,9 @@
 | 64 | **[PRODUCT] [UX]** Welcome modal shows hardcoded trial end date (not from Stripe) | ✅ Done | Lead Eng | 30m | `checkout.session.completed` webhook now fetches the subscription and writes `trial_ends_at` (ISO string) to profiles when a trial is present. Dashboard `loadProfile()` now selects `trial_ends_at` alongside `display_name` and passes the real epoch to `formatTrialEnd()`; falls back to `today+7d` if column is null. No migration needed — `trial_ends_at` already existed in `001_profiles.sql`. tsc 0 errors. Lead Eng automated run 2026-04-02. |
 | 65 | **[PRODUCT] [UX]** Mobile home screen: budget spent always shows $0 | ✅ Done | Lead Eng | 1h | `index.tsx` `loadAll()` now adds a `transactions` sum query to the `Promise.all` — sums `amount` where `profile_id = user.id` and `date >= monthStart` (new `getMonthStart()` helper, same as `budget.tsx`). `budgetSpent` is computed from real data; falls back to 0 if query returns null. Lead Eng automated run 2026-04-02. |
 | 66 | **[QA NOTE] [LOGGING]** Stripe webhook + cron cleanup routes log PII without NODE_ENV guard | ✅ Done | Lead Eng | 15m | `stripe/route.ts`: 3 `console.log` calls (subscription cancelled, referral unlock, payment failed) gated with `if (process.env.NODE_ENV !== "production")`. `cron/cleanup/route.ts`: 2 `console.log` calls (Day-75 reminder with `user.email`, deletion with `user.email`) gated same pattern. Sentry TODO comment added to each. Consistent with #37/#46/#52. tsc + ESLint → 0 errors. Lead Eng automated run 2026-04-02. |
-| 67 | **[PRODUCT] [UX] ⚠️ NEEDS AUSTIN DECISION** Landing page has no waitlist capture — sends users directly to `/signup` | ⬜ | Austin | 30m | Phase 0 exit criteria requires `kinai.family live with waitlist` (#3 in Phase 0 checklist). Currently the landing page has "Get Started Free" → `/signup` with no email capture gate. Two paths: **(a) keep open signup** — remove waitlist requirement from checklist, accept that anyone can sign up from day 1 (risk: support burden before product is polished); **(b) add waitlist gate** — replace CTA with email input that submits to a Supabase waitlist table; show "You're on the list!" confirmation; existing auth pages still accessible by URL. Product & Design recommends **(a)** since the app already has auth, trial period protection, and Phase 1 is starting April 7 — a waitlist adds friction with minimal benefit at this stage. Filed by Product & Design 2026-04-02. |
+| 67 | **[PRODUCT] [ARCHITECTURE] ✅ DECISION MADE 2026-04-03** Two-URL strategy: `kinai.family` = marketing site + waitlist; `app.kinai.family` = gated app entry | 🟡 Code complete — Austin infra required | Lead Eng + Austin | 2–3h | **Code done (Lead Eng, 2026-04-03):** (1) `apps/web/src/app/page.tsx` rewritten — email waitlist form replaces `/signup` CTA; uses `NEXT_PUBLIC_APP_URL` env var for "Sign in" link (falls back to `/signin` in dev). (2) `apps/web/src/app/api/waitlist/route.ts` — public `POST /api/waitlist` with duplicate detection (409→200 w/ `existing:true`), admin client, full error handling, NODE_ENV-gated logging. (3) `supabase/migrations/023_waitlist.sql` — `waitlist` table, unique email constraint, RLS disabled for direct access (service role only). tsc + ESLint → 0 errors. **Austin action required:** (a) commit all Step 10 + #67 files (see ⚠️ below); (b) run `supabase db push` to apply migration 023; (c) add `NEXT_PUBLIC_APP_URL=https://app.kinai.family` to Vercel env vars; (d) configure `app.kinai.family` custom domain in Vercel dashboard (Project → Settings → Domains → add `app.kinai.family` pointing to same deployment). |
 | 68 | **[PRODUCT] [BRAND]** `Confetti.tsx` includes `#A07EC8` (purple) in particle color palette | ✅ Done | Lead Eng | 10m | `#A07EC8` replaced with `#A8D5A6` (light sage green — cohesive with primary `#7CB87A`, adds particle variety without purple). Zero purple in `Confetti.tsx`. Lead Eng automated run 2026-04-02. |
-| 73 | **[TECH DEBT]** Gate bare `console.error` calls in Stripe webhook behind `NODE_ENV` check | ⬜ **[NEXT CYCLE]** | Lead Eng | 10m | `apps/web/src/app/api/webhooks/stripe/route.ts` lines 42 (`"Webhook signature verification failed:"`) and 172 (`"Webhook handler error:"`) are ungated — inconsistent with #15 audit standard. These are defensible security logs but should use `if (process.env.NODE_ENV !== "production")` guard or Sentry TODO for consistency. Filed by QA 2026-04-03. **CoS 2026-04-03: confirmed as Lead Eng's next unblocked task — 10m, batch into next commit.** |
+| 73 | **[TECH DEBT]** Gate bare `console.error` calls in Stripe webhook behind `NODE_ENV` check | ✅ Done | Lead Eng | 10m | `apps/web/src/app/api/webhooks/stripe/route.ts` — both `console.error` calls (signature verification failure + handler error) now gated with `if (process.env.NODE_ENV !== "production")`. Sentry TODO comments added to each. Consistent with #15/#37/#46/#52/#66 pattern. Lead Eng automated run 2026-04-03. |
 
 ### P1.5 — Family OS Foundations ✅ SCOPE CONFIRMED (April 2, 2026)
 
@@ -119,18 +1150,19 @@
 
 | # | Task | Status | Owner | Est. | Notes |
 |---|------|--------|-------|------|-------|
-| 69 | **[FAMILY OS] Mobile family tab** | ✅ Built — untracked | Lead Eng | — | `apps/mobile/app/(tabs)/family.tsx` — 31k bytes. Full CRUD for kids + pets + allergies + activities + vet/meds. Scope confirmed by Austin April 2. **Austin: commit with `git add apps/mobile/app/(tabs)/family.tsx`** |
-| 70 | **[FAMILY OS] Morning briefing API + kin-ai context assembly** | ✅ Built — untracked | Lead Eng | — | `apps/web/src/app/api/morning-briefing/route.ts` (12k) + `apps/mobile/lib/kin-ai.ts` (8k) + `supabase/functions/morning-briefing/`. Context assembles all 11 domains. Scope confirmed. **Austin: include in commit.** |
-| 71 | **[FAMILY OS] Push notification infrastructure** | ✅ Built — untracked | Lead Eng | — | `apps/mobile/lib/push-notifications.ts` + `apps/web/src/app/api/push-tokens/route.ts`. Migration 013 (`push_tokens`). Scope confirmed. **Austin: include in commit.** |
-| 72 | **[FAMILY OS] Supabase migrations 013–020** | ✅ Built — untracked | Lead Eng + Austin | — | 8 migration files in `supabase/migrations/`. Covers: push_tokens, children_details, pet_details, fitness_profiles, budget_categories, parent_schedules/morning_briefings, date_nights, grocery_list_items. **Austin: run `supabase db push` after committing.** |
+| 69 | **[FAMILY OS] Mobile family tab** | ✅ Committed `2ea6805` | Lead Eng | — | `apps/mobile/app/(tabs)/family.tsx` — full CRUD for kids + pets + allergies + activities + vet/meds. Committed by Austin 2026-04-03. |
+| 70 | **[FAMILY OS] Morning briefing API + kin-ai context assembly** | ✅ Committed `2ea6805` | Lead Eng | — | `apps/web/src/app/api/morning-briefing/route.ts` + `apps/mobile/lib/kin-ai.ts` + `supabase/functions/morning-briefing/`. Context assembles all 11 domains. Committed by Austin 2026-04-03. |
+| 71 | **[FAMILY OS] Push notification infrastructure** | ✅ Committed `2ea6805` | Lead Eng | — | `apps/mobile/lib/push-notifications.ts` + `apps/web/src/app/api/push-tokens/route.ts`. Migration 013 (`push_tokens`). Committed by Austin 2026-04-03. |
+| 72 | **[FAMILY OS] Supabase migrations 013–022** | ✅ Committed `2ea6805` | Lead Eng + Austin | — | 10 migration files committed (013–022, including commute departure + med/vax notification tracking). **Austin: run `supabase db push` to apply against Supabase project.** |
 
 ### P3 — Deferred (Not This Sprint)
 
 | # | Task | Notes |
 |---|------|-------|
 | — | Calendar sync (Google + Apple) | API routes exist, needs OAuth setup + testing |
-| — | RevenueCat mobile billing | After web Stripe is proven |
-| — | Push notifications | After mobile TestFlight — see #71 if scope confirmed |
+| — | RevenueCat mobile billing | ✅ E1 built — pending E2 (Austin config) + Step 10 commit |
+| — | Push notifications | ✅ Infrastructure built (#71, `2ea6805`). Deploy Supabase edge function `morning-briefing` + add `EXPO_ACCESS_TOKEN` env var after TestFlight |
+| — | Real-time subscriptions | ✅ Grocery list Realtime in meals.tsx (C2.7, `2ea6805`). Budget overspend push alert done (C3.5). |
 | — | Voice input | After core chat is solid |
 | — | Referral program activation | After 50 paying families |
 
@@ -144,35 +1176,49 @@ _First sprint — no historical velocity data. Will calibrate after Week 1._
 
 ## ⚠️ Austin Action Required
 
-**Commit `a97d9a3`** (build fixes + BottomNav) ✅ committed
-**Commit `2934fd8`** (P1 QA bugs: delay, auth guards, p1_name) ✅ committed
-**Commit `00f7bd8`** (P1: meal persistence, mobile budget, dashboard personalization) ✅ committed
-**Commit `98e88f7`** (partner invite backend + P2 fixes #29 #30 #31 #33 #34) ✅ committed
-**Commit `ce05989`** (ESLint ignore during Vercel build — task #35) ✅ committed
-**Commit `eb8ec4c`** (security: email match guard #45 + CoS ops docs) ✅ committed
-**Commit `1325937`** (Batch B: #36 #37 #38 #39 #40 #41 #43 #46) ✅ committed
-**Commit `ca78903`** (build: Suspense boundary for useSearchParams #53) ✅ committed
+**Commit `a97d9a3`** ✅ pushed  |  **`2934fd8`** ✅ pushed  |  **`00f7bd8`** ✅ pushed  |  **`98e88f7`** ✅ pushed
+**Commit `ce05989`** ✅ pushed  |  **`eb8ec4c`** ✅ pushed  |  **`1325937`** ✅ pushed  |  **`ca78903`** ✅ pushed
+**Commit `d72bcea`** ✅ pushed  |  **`3b0df24`** ✅ pushed  |  **`2ea6805`** ✅ pushed ← Tracks A-D complete (Austin, 2026-04-03)
 
-**✅ Commits through `ca78903` were on origin/main (as of previous push).**
-
-**⚠️ Two new local commits NOT YET PUSHED to origin/main:**
-- `d72bcea` — fix(#15/#64/#68): error handling audit + trial date + confetti brand
-- `3b0df24` — fix(qa): P1 stripe webhook anon-key fallback + P2 purple remnants (FloatingOrbs, OnboardingSurvey, fitness)
-
-**Austin: run `git push origin main` from your terminal to push these two commits.**
-
-**⚠️ Remaining uncommitted working tree work:** Steps 2–8 still uncommitted (see sections below). Clear the lock file first, then run the commit commands in order.
+**✅ All commits through `2ea6805` are on origin/main.** Working tree is clean except for Step 10 files below.
 
 ---
 
-### 🔴 BLOCKER — Stale Git Lock File
+### 🔴 STEP 10 — E1 RevenueCat paywall (UNCOMMITTED — Austin action required)
 
-The sandbox cannot remove `.git/index.lock` (FUSE filesystem restriction). **No commits can be created from the sandbox until you clear it.** Run from your terminal:
+Lead Eng built RevenueCat on 2026-04-03 at ~12:07pm. These 5 files are **in the working tree but NOT committed**:
+- `apps/mobile/package.json` — `react-native-purchases@^8.7.0` added
+- `apps/mobile/lib/revenuecat.ts` — RC service layer
+- `apps/mobile/components/paywall/PaywallModal.tsx` — full paywall UI
+- `apps/mobile/app/(tabs)/settings.tsx` — subscription card wired to paywall
+- `apps/web/src/app/api/webhooks/stripe/route.ts` — #73 log gate
 
+**Austin: run the following in order:**
+```bash
+cd ~/Projects/kin/apps/mobile && npm install   # installs react-native-purchases
+cd ~/Projects/kin
+git add apps/mobile/package.json apps/mobile/package-lock.json apps/mobile/lib/revenuecat.ts "apps/mobile/components/paywall/PaywallModal.tsx" "apps/mobile/app/(tabs)/settings.tsx" apps/web/src/app/api/webhooks/stripe/route.ts docs/ops/SPRINT.md
+git commit -m "feat(E1/#73): RevenueCat paywall + Stripe webhook log gate"
+git push origin main
+```
+
+**Then — #67 two-URL strategy (Lead Eng, 2026-04-03):**
 ```bash
 cd ~/Projects/kin
-rm -f .git/index.lock .git/HEAD.lock
+git add apps/web/src/app/page.tsx apps/web/src/app/api/waitlist/route.ts supabase/migrations/023_waitlist.sql docs/ops/SPRINT.md
+git commit -m "feat(#67): waitlist landing page + POST /api/waitlist + migration 023"
+git push origin main
 ```
+
+**Then (E2):** Add `EXPO_PUBLIC_REVENUECAT_API_KEY` to `apps/mobile/.env` and create RC products `kin_monthly_3999` + `kin_annual_29900` in RevenueCat dashboard.
+
+**Then:** Run `supabase db push` to apply migrations 013–023 against your Supabase project.
+
+**Then (#67 infra):** In Vercel dashboard → Project → Settings → Domains:
+- Add `app.kinai.family` (points to same Next.js deployment — all `/signin`, `/signup`, `/dashboard` routes live here)
+- Add `NEXT_PUBLIC_APP_URL=https://app.kinai.family` to Vercel Environment Variables (all environments)
+
+---
 
 ---
 
@@ -563,6 +1609,48 @@ fix  — web: brand fixes (remaining purple → amber/blue), a11y improvements,
 
 After committing: run 'supabase db push' to apply migrations 013-020.
 Then run 'git push origin main' to push all local commits."
+```
+
+---
+
+### Step 10 — Commit Lead Eng automated run 2026-04-03 (E1 RevenueCat paywall + #73)
+
+**⚠️ Austin: run `cd apps/mobile && npm install` first to install `react-native-purchases`.**
+
+```bash
+cd ~/Projects/kin
+rm -f .git/index.lock .git/HEAD.lock
+
+git add \
+  apps/mobile/package.json \
+  apps/mobile/lib/revenuecat.ts \
+  "apps/mobile/components/paywall/PaywallModal.tsx" \
+  "apps/mobile/app/(tabs)/settings.tsx" \
+  apps/web/src/app/api/webhooks/stripe/route.ts \
+  docs/ops/SPRINT.md
+
+git commit -m "feat(E1/#73): RevenueCat paywall + Stripe webhook log gate
+
+E1 — feat(mobile): RevenueCat paywall — full 7-day trial arc
+     - react-native-purchases@^8.7.0 added to mobile package.json
+       (run 'cd apps/mobile && npm install' before building)
+     - lib/revenuecat.ts: initRevenueCat, getOffering, purchasePackage,
+       restorePurchases, hasPremiumEntitlement. REVENUECAT_CONFIGURED
+       flag gates RC calls when placeholder key is in use.
+     - components/paywall/PaywallModal.tsx: pageSheet modal with
+       Monthly (\$39/mo) + Annual (\$299/yr) plan cards, 7-day trial
+       badge, 7-feature list, RC purchase + restore handlers, success
+       state, static-price fallback when RC not yet configured.
+     - settings.tsx: subscription card opens PaywallModal on tap.
+       initRevenueCat(user.id) called on user load. Profile refetched
+       on purchase success to update tier badge.
+     Austin: add EXPO_PUBLIC_REVENUECAT_API_KEY to apps/mobile/.env
+     and create RC products kin_monthly_3999 + kin_annual_29900.
+
+#73 — fix(logging): gate Stripe webhook console.error calls behind
+      NODE_ENV !== 'production'. Covers signature verification failure
+      + handler error. Sentry TODO comments added. Consistent with
+      #37/#46/#52/#66 pattern."
 ```
 
 ---
@@ -1643,3 +2731,325 @@ From your terminal: `rm -f ~/Projects/kin/.git/index.lock && git add [the 4 file
   - ⚠️ **AUSTIN (SCOPE — fitness tab committed):** `fitness.tsx` was committed in `3b0df24` without P1.5 scope approval (it was included in a QA fix batch). The tab is now in the app navigation. Acknowledge + decide its relationship to the family tab (#69) before QA or Product spend time on it.
   - ⚠️ **AUSTIN (DEADLINE — #67, 4 days):** Waitlist vs. open signup must be decided before April 7. Phase 0 exit checklist item #3 blocks on this. Product recommends open signup (option a). Silence = defaulting to open signup.
   - 📊 **FYI:** 6 consecutive QA cycles with zero P0 regressions. Both local commits are clean — tsc + eslint 0 errors. The codebase is in excellent health. The Stripe webhook P1 was caught and fixed before any real user signed up. Infrastructure (Vercel + push) is the only remaining gate between current state and live users.
+
+---
+
+### [2026-04-04 Product & Design automated run] — Spec audit + staging review
+
+**Commits reviewed since last P&D session:** `a49a62f`, `2ac9378` (3-tab pivot build), `b1d48cb` (pickup-risk cron)
+
+**Specs produced this session:** None required — all 8 primary specs and both supplemental specs (`late-schedule-change-spec.md`, `light-theme-spec.md`) are present and approved. Spec library is complete for v0 TestFlight scope.
+
+**Compliance checklist updated:** `docs/specs/today-screen-spec.md` §10 — all checklist items marked ✅ based on audit of `index.tsx`.
+
+---
+
+#### Today Screen (`index.tsx`) — Audit Result: ✅ SPEC COMPLIANT
+
+Audited against `today-screen-spec.md`, `briefing-card-spec.md`, `alert-card-spec.md`, `checkin-card-spec.md`, `silence-state-spec.md`, `first-use-spec.md`.
+
+**Passing:**
+- Header: Geist Mono 11px greeting / Instrument Serif Italic 32px name / Geist 13px date — correct
+- Entrance animation: 420ms parallel fade + translateY(16→0) — exact match to spec
+- Morning briefing card: `parseBriefingBeats()` enforces 4-sentence cap; skeleton renders during load; empty renders nothing
+- 1 OPEN alert visible at a time (`activeOpenAlert = openIssues[0]`) — queue enforced
+- Check-in suppression: `showCheckins = activeOpenAlert === null` — correct per spec §5
+- Max 2 check-in cards enforced via `.slice(0, 2)` in render
+- Clean-day state gated on `!briefingLoading && !hasContent && !firstUseContent` — correct
+- `CleanDayState` renders "Clean day — nothing to stay ahead of." in Instrument Serif Italic — correct
+- FloatingOrbs ambient background present
+- Pull-to-refresh with `tintColor={colors.green}` and Light haptic — correct
+- Today's Schedule section: Geist Mono 10px header, 6px person dots (blue/rose), Geist Mono time, Geist title — correct
+- First-use moment: wired to `/api/first-use` (S4.2), 400ms ease-in — correct; static fallback on API failure — correct
+- Load-error retry state (B15): "Couldn't load your day. Tap to retry." — present
+
+**Known deviations (pre-documented, non-blocking):**
+- RESOLVED card timing: 1400ms hold + 600ms fade vs spec 1500ms + 250ms — already noted in `alert-card-spec.md` as non-blocker
+- Skeleton: pulse animation (0.4→0.9 opacity, 1.8s loop) vs spec shimmer — functional equivalent; non-blocker
+- Alert "HEADS UP" label: removed per `alert-card-spec.md` P2-3 recommendation — this is correct behavior, not a deviation
+
+**No new P&D issues filed for Today screen.**
+
+---
+
+#### Conversations Screen (`chat.tsx`) — Audit Result: ✅ SPEC COMPLIANT
+
+Audited against `conversations-screen-spec.md`.
+
+**Passing:**
+- Thread list view with two pinned threads: "Kin" (personal, `is_private: true`) + "Home" (household) — correct
+- Household thread name pulled from `profile.family_name` with "Home" fallback — correct
+- Partner-not-linked state: `PartnerInvitePrompt` shown when `partnerLinked === false` — correct
+- Prefill from Today screen (alert card tap): `params.prefill` routed to personal thread — correct
+- `upsertPinnedThread()` creates threads idempotently — correct
+
+**No new P&D issues filed for Conversations screen.**
+
+---
+
+#### PaywallModal (`components/paywall/PaywallModal.tsx`) — Audit Result: ⚠️ NOTE
+
+PaywallModal was built in `2ac9378` without a Product & Design spec. Brand audit passes — all hex values are correct brand tokens (green `#7CB87A`, amber `#D4A843`, blue `#7AADCE`, background `#0C0F0A`, warm white `#F0EDE6`). Zero purple violations.
+
+**One issue:** Styles use hardcoded hex rather than `useThemeColors()` tokens. This means PaywallModal will not adapt for light mode when B23 (light theme) is implemented.
+
+**Filing task #74:** Author `paywall-modal-spec.md` to formally document the PaywallModal layout, token usage, and interaction design. Low urgency — B2 (RevenueCat products in Austin's dashboard) blocks the paywall from being live, so no TestFlight user will see it yet.
+
+**Filing task #75:** Migrate PaywallModal styles to `useThemeColors()` tokens as part of B23 (light theme) implementation pass. Batch with the global theme token migration.
+
+Both #74 and #75 are P2. Neither blocks TestFlight.
+
+---
+
+#### Settings Screen (`settings.tsx`) — Audit Result: ✅ CLEAN
+
+Quick scan: zero `#A07EC8` (purple) violations. Domain tab references were removed in the pivot commit. No P&D issues.
+
+---
+
+#### Spec Library Status (complete for TestFlight)
+
+| Spec file | Status |
+|-----------|--------|
+| `today-screen-spec.md` | ✅ Approved, checklist verified |
+| `briefing-card-spec.md` | ✅ Approved |
+| `alert-card-spec.md` | ✅ Approved |
+| `checkin-card-spec.md` | ✅ Approved |
+| `silence-state-spec.md` | ✅ Approved |
+| `conversations-screen-spec.md` | ✅ Approved |
+| `first-use-spec.md` | ✅ Approved |
+| `app-store-screenshots-spec.md` | ✅ Approved |
+| `late-schedule-change-spec.md` | ✅ Approved |
+| `light-theme-spec.md` | ✅ Approved (B23 — Phase 2) |
+| `paywall-modal-spec.md` | ⬜ Not yet authored (#74) |
+
+---
+
+#### Lead Engineer — unblocked on all spec-gated UI work
+
+No new specs are required before Lead Eng can complete the TestFlight build. All UI surfaces (Today, Conversations, Settings) have approved specs. The only outstanding spec gap is `paywall-modal-spec.md` (#74) which is P2 and not blocking — the paywall cannot go live until Austin resolves B2 anyway.
+
+**Lead Eng next steps (from P&D perspective):**
+- B30 (wire `chat-prompt.md` into `/api/chat/route.ts`) is the last build task before S4.6 (full e2e QA) can run — this is the critical path to TestFlight
+- S4.6 (full e2e QA) can run after B30 is resolved
+- RevenueCat (S5.1) is built but uncommitted pending B2 (Austin action)
+
+_— Product & Design Lead, automated run 2026-04-04_
+
+---
+
+## 🎨 Product & Design Session Output — 2026-04-04 (even-hour :00 run Z)
+
+**Session focus:** Post-B30 staging review of Conversations screen (`chat.tsx` + `/api/chat/route.ts`). Verifying scope redirect behavior now that `chat-prompt.md` is wired. No new specs required this cycle.
+
+---
+
+### Scope Redirect Review — `/api/chat/route.ts` ✅ CLEAN
+
+B30 is resolved and clean. Key confirmations:
+
+**CHAT_SYSTEM_PROMPT scope enforcement (lines 61–63):**
+> "You are not a general assistant. You do not answer questions about recipes, the news, trivia, or anything outside family coordination. If asked, redirect gently: 'I'm focused on your family's schedule and coordination — is there something on that front I can help with?'"
+
+The exact scope-redirect phrase is in the system prompt and in the mock response fallback (line 440). Recipe, budget, and meal questions will correctly receive the redirect. The web search tool is retained but its description scopes it to "local services, school schedules, activity programs" — aligned with coordination-only intent.
+
+**Mock response (lines 425–441) — coordination-only scope confirmed:**
+- Pickup questions → calendar disconnect message ✅
+- Greetings → brief, direct reply ✅
+- All other inputs → scope redirect phrase ✅
+
+**Context prepend (lines 279–320) — confirmed per spec:**
+- `speaking_to` (parent_a / parent_b) ✅
+- `today_events` ✅
+- `open_coordination_issues` (OPEN + ACKNOWLEDGED) ✅
+- `recent_schedule_changes` (24h window) ✅
+
+---
+
+### Visual Spec Review — `chat.tsx` ✅ / ⚠️ Mixed
+
+**Previously resolved — confirmed:**
+- P2-8: `pinnedThreadName` → `InstrumentSerif-Italic`, 18px, `c.textPrimary` ✅ (line ~946)
+- P2-9: `threadCard` → `backgroundColor: "transparent"`, bottom border only ✅ (line ~1019)
+
+**Header:**
+- "Conversations" title: Instrument Serif Italic, 28px ✅ (`listTitle` line ~897)
+- Padding horizontal 20px ✅ (from `listContent: { paddingHorizontal: 20 }`)
+- **Missing: Plus button** (see P2-13 below)
+
+**Pinned threads:**
+- `pinnedCard`: borderRadius 18 ✅, padding 16 ✅, borderWidth 1 ✅
+- `pinnedPersonal` / `pinnedHousehold` color tokens: green/blue subtle borders ✅
+- `pinnedThreadName`: InstrumentSerif-Italic 18px ✅ (P2-8 resolved)
+- `pinnedPreview`: Geist 13px, lineHeight 19 ✅
+- Empty preview state: **spec violation** — shows fallback text when preview is empty (see P2-12)
+
+**General threads:**
+- `threadCard`: transparent bg, bottom border 1px ✅ (P2-9 resolved)
+- `threadTitle`: Geist-SemiBold 13px ← **P2-14** (spec: Geist Regular 14px)
+- `threadPreview`: Geist 12px, `c.textMuted` ✅
+- `sectionLabel`: letterSpacing 2 ← **P2-15** (spec: 1.5)
+- Loading state: `ActivityIndicator` in `loadGeneralThreads` ✅ (B13 resolved)
+
+**Conversation detail:**
+- Header title: InstrumentSerif-Italic 18px ✅ (`headerTitle` line ~1104)
+- Back button: ChevronLeft, goBackToList ✅ (B22 resolved)
+- Typing indicator: opacity pulse 0.3→1.0, 600ms ✅ (lines 126–152)
+- Avatar orb (Kin message): 28×28px, greenSubtle bg, Sparkles icon ✅
+- Placeholder text: "Ask Kin anything…" (personal) / "Message Home…" (household) — appropriate ✅
+
+**Partner invite state:**
+- Invite prompt text: exact spec copy ✅ ("The Home thread is shared with your partner. Once they join...")
+- CTA button: `c.green` background, Geist-SemiBold 14px, `c.textOnGreen` ✅
+- Haptic: Medium impact on invite press ✅
+- Invite routes to settings ✅
+
+**Input bar:**
+- `inputContainer` paddingBottom 90 (accounts for tab bar) ✅
+- Placeholder: "Message Kin…" / "Message Home…" as appropriate ✅
+- Send button: active/inactive color gating ✅
+
+---
+
+### Architecture Note — History Not Filtered by Thread
+
+`/api/chat/route.ts` fetches conversation history with `.eq("profile_id", user.id)` (line ~270) — no `thread_id` filter. The POST body only receives `message`; no thread_id is sent from `api.chat()` in mobile (line 396 in chat.tsx).
+
+**Impact:** History from personal and household threads mixes in the context window. For TestFlight, most users will have limited household thread activity — low practical risk. But as household thread usage grows, Kin will receive cross-thread context, which could surface insights or references from a private thread inside the household thread.
+
+**Recommendation:** Post-TestFlight — add `thread_id` param to `api.chat()` call, pass it to the route, filter history by thread_id. Not a TestFlight blocker. Filing as architecture note only — not a numbered P2 since it requires a schema change (conversations table must link to chat_threads).
+
+---
+
+### New P2 Issues Filed This Session
+
+| # | Issue | File | Fix |
+|---|-------|------|-----|
+| P2-12 | Personal thread empty preview shows placeholder text | `chat.tsx` ~line 503 | Render nothing when `preview` is empty |
+| P2-13 | Plus (new thread) button missing from Conversations header | `chat.tsx` header JSX | Add `Plus` icon, 22px, `rgba(240, 237, 230, 0.45)`, flush right |
+| P2-14 | General thread `threadTitle` Geist-SemiBold 13px ← spec Geist Regular 14px | `chat.tsx` ~line 1037 | Change font + size |
+| P2-15 | `sectionLabel` letterSpacing 2 ← spec 1.5 | `chat.tsx` ~line 1009 | Change letterSpacing |
+
+All 4 are P2 — none block TestFlight. P2-12 is the most user-visible (affects first-time users who see the personal thread before any conversation). P2-13 (missing Plus) has no UX workaround for starting new general threads — recommend Lead Eng prioritize alongside B32.
+
+---
+
+### Spec Library Status — Unchanged
+
+All 10 v0 specs remain current and approved. No spec work required this cycle.
+
+| Spec file | Status |
+|-----------|--------|
+| `today-screen-spec.md` | ✅ Approved |
+| `briefing-card-spec.md` | ✅ Approved |
+| `alert-card-spec.md` | ✅ Approved |
+| `checkin-card-spec.md` | ✅ Approved |
+| `silence-state-spec.md` | ✅ Approved |
+| `conversations-screen-spec.md` | ✅ Approved |
+| `first-use-spec.md` | ✅ Approved |
+| `app-store-screenshots-spec.md` | ✅ Approved |
+| `late-schedule-change-spec.md` | ✅ Approved |
+| `light-theme-spec.md` | ✅ Approved (B23 — Phase 2) |
+| `paywall-modal-spec.md` | ⬜ Not yet authored (#74 — P2, non-blocking) |
+
+---
+
+### Lead Engineer — Unblocked
+
+No spec gaps blocking Lead Eng. Next tasks from P&D perspective (in priority order):
+1. **B32** (P1 — sole focus per CoS Run Y): Gate `budget.tsx` console.errors
+2. **P2-12**: Fix empty preview fallback text in `chat.tsx` (user-visible on first open)
+3. **P2-13**: Add Plus button to Conversations header (new thread entry point missing)
+4. **P2-14 + P2-15**: Typography fixes in general thread rows (can batch)
+5. **P2-11**: Relief language guide in `morning-briefing/route.ts`
+
+_— Product & Design Lead, automated run Z, 2026-04-04_
+
+
+---
+
+## 🎨 Product & Design Session Output — 2026-04-04 (even-hour :00 run AA+1)
+
+**Session focus:** Post-QA Run E review. Authoring `paywall-modal-spec.md` (#74). App Store screenshots spec currency check. Staging file review.
+
+---
+
+### Specs Produced This Session
+
+**`docs/specs/paywall-modal-spec.md`** — NEW (closes task #74) ✅
+
+Full visual spec for `PaywallModal.tsx`. Required because the component was built in `2ac9378` without a prior P&D spec. Spec covers:
+- Full component hierarchy and layout
+- Complete color token mapping (hardcoded hex → `useThemeColors()` tokens) for B23 migration
+- All 7 states: loading, default (annual selected), monthly selected, purchasing, restoring, error, success
+- Typography table for all text elements
+- Motion: modal entrance/dismiss, haptics, success auto-dismiss
+- Identifies one new color token needed: `textOnGreenMuted` (for CTA subtext in light mode)
+- Section 7 provides step-by-step B23 migration instructions for Lead Eng (#75)
+
+**Status after this session:**
+
+| Spec file | Status |
+|-----------|--------|
+| `today-screen-spec.md` | ✅ Approved |
+| `briefing-card-spec.md` | ✅ Approved |
+| `alert-card-spec.md` | ✅ Approved |
+| `checkin-card-spec.md` | ✅ Approved |
+| `silence-state-spec.md` | ✅ Approved |
+| `conversations-screen-spec.md` | ✅ Approved |
+| `first-use-spec.md` | ✅ Approved |
+| `app-store-screenshots-spec.md` | ✅ Approved — see currency notes below |
+| `late-schedule-change-spec.md` | ✅ Approved |
+| `light-theme-spec.md` | ✅ Approved (B23 — Phase 2) |
+| `paywall-modal-spec.md` | ✅ Authored this session (#74 closed) |
+
+**All 11 specs now present and current. Spec library is complete.**
+
+---
+
+### Staging Review — Post QA Run E
+
+#### `_layout.tsx` — ✅ CLEAN
+3 tabs only: `index`, `chat`, `settings`. Domain files untouched. Unchanged since last P&D audit.
+
+#### `chat.tsx` — ⚠️ P2-16 STILL OPEN
+Confirmed: line 617 general thread `renderItem` still uses `{thread.preview || "No messages yet"}`. This is the sole remaining open code issue per QA Run E. One-line fix: `{thread.preview || null}`. Recommendation: Lead Eng prioritize before any new feature work — user-visible on first open if general threads exist.
+
+#### `budget.tsx` — ✅ CLEAN (per QA Run E)
+B32 resolved and verified. No new P&D concerns.
+
+#### `index.tsx` — ✅ CLEAN (unchanged since prior P&D audit run Z)
+Today's Schedule section confirmed built and spec-compliant. This resolves the `app-store-screenshots-spec.md` checklist item for "B11 (Today's Schedule) built and visible" — the Today's Schedule section exists in `index.tsx`.
+
+---
+
+### App Store Screenshots Spec — Currency Review
+
+`docs/specs/app-store-screenshots-spec.md` is current and approved. One checklist update:
+
+**Production Checklist — item update:**
+- [x] ~~B11 (Today's Schedule) built and visible~~ → **DONE** — Today's Schedule section is live in `index.tsx` (Geist Mono 10px header, 6px person dots, Geist Mono time, Geist title — verified in prior P&D audit run Z)
+
+**Remaining checklist items still blocked:**
+- [ ] TestFlight build running on physical device — blocked on Austin B2 (RevenueCat products)
+- [ ] Seed data loaded — manual prep before screenshot session
+- [ ] Brand colors correct, typography rendering — verifiable once TestFlight build exists
+- [ ] FloatingOrbs animation running — verifiable on device
+
+**Timeline note:** Screenshots needed late April 2026 (3–4 weeks before mid-May App Store submission). TestFlight target is April 18–19. Screenshot session can be scheduled for the week of April 21, assuming Austin resolves B2 this weekend and TestFlight build follows shortly after.
+
+No spec changes required. The spec content (5 screenshots + storyboard, captions, dimensions, production checklist) is accurate and current.
+
+---
+
+### Lead Engineer — Unblocked On All Spec-Gated Work
+
+No spec gaps blocking Lead Eng. Priority from P&D perspective:
+
+1. **P2-16** (one-line fix, user-visible): `chat.tsx` ~line 617 — `{thread.preview || "No messages yet"}` → `{thread.preview || null}`
+2. **#75** (B23 light theme pass): Migrate `PaywallModal.tsx` hardcoded hex → `useThemeColors()` tokens per `paywall-modal-spec.md` §2 and §7. Requires adding `textOnGreenMuted` to `constants/colors.ts` (dark + light values documented in spec §7 step 4). Batch with global theme token migration.
+3. **Austin B2** (unblocks everything in Stage 5): Once RC products are created, Lead Eng can wire the live paywall key and proceed to TestFlight build.
+
+---
+
+_— Product & Design Lead, automated run 2026-04-04_

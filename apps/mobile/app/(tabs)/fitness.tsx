@@ -11,9 +11,7 @@ import {
   Modal,
   KeyboardAvoidingView,
   Platform,
-  TouchableWithoutFeedback,
   Keyboard,
-  FlatList,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import * as Haptics from "expo-haptics";
@@ -404,7 +402,7 @@ export default function Fitness() {
     return (
       <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]}>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator color={colors.primary} size="large" />
+          <ActivityIndicator color={colors.green} size="large" />
         </View>
       </SafeAreaView>
     );
@@ -463,7 +461,7 @@ export default function Fitness() {
 
                 <Text style={styles.fieldLabel}>Current weight (lbs)</Text>
                 <TextInput
-                  style={[styles.input, { color: colors.text, borderColor: colors.border }]}
+                  style={[styles.input, { color: colors.textPrimary, borderColor: colors.surfaceSubtle }]}
                   value={setupCurrentWeight}
                   onChangeText={setSetupCurrentWeight}
                   placeholder="e.g. 180"
@@ -473,7 +471,7 @@ export default function Fitness() {
 
                 <Text style={styles.fieldLabel}>Target weight (lbs)</Text>
                 <TextInput
-                  style={[styles.input, { color: colors.text, borderColor: colors.border }]}
+                  style={[styles.input, { color: colors.textPrimary, borderColor: colors.surfaceSubtle }]}
                   value={setupTargetWeight}
                   onChangeText={setSetupTargetWeight}
                   placeholder="e.g. 170"
@@ -730,7 +728,7 @@ export default function Fitness() {
 
                   <Text style={styles.fieldLabel}>Current weight (lbs)</Text>
                   <TextInput
-                    style={[styles.input, { color: colors.text, borderColor: colors.border }]}
+                    style={[styles.input, { color: colors.textPrimary, borderColor: colors.surfaceSubtle }]}
                     value={setupCurrentWeight}
                     onChangeText={setSetupCurrentWeight}
                     placeholder="e.g. 180"
@@ -740,7 +738,7 @@ export default function Fitness() {
 
                   <Text style={styles.fieldLabel}>Target weight (lbs)</Text>
                   <TextInput
-                    style={[styles.input, { color: colors.text, borderColor: colors.border }]}
+                    style={[styles.input, { color: colors.textPrimary, borderColor: colors.surfaceSubtle }]}
                     value={setupTargetWeight}
                     onChangeText={setSetupTargetWeight}
                     placeholder="e.g. 170"
@@ -886,7 +884,7 @@ export default function Fitness() {
               {showCustomInput ? (
                 <View style={styles.customInputRow}>
                   <TextInput
-                    style={[styles.customInput, { color: colors.text }]}
+                    style={[styles.customInput, { color: colors.textPrimary }]}
                     value={logExercise}
                     onChangeText={setLogExercise}
                     placeholder="Exercise name..."
@@ -946,7 +944,7 @@ export default function Fitness() {
                 <Text style={styles.fieldOptional}>(minutes, optional)</Text>
               </Text>
               <TextInput
-                style={[styles.input, { color: colors.text, borderColor: colors.border }]}
+                style={[styles.input, { color: colors.textPrimary, borderColor: colors.surfaceSubtle }]}
                 value={logDuration}
                 onChangeText={setLogDuration}
                 placeholder="45"

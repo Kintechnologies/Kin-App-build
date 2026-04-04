@@ -4,6 +4,7 @@ import { getAuthenticatedUser } from "@/lib/supabase/api-auth";
 import { getAnthropicClient, ANTHROPIC_MODEL } from "@/lib/anthropic";
 import { buildCommuteLine } from "@/lib/commute";
 import { buildDateNightSuggestion } from "@/lib/date-night";
+import { detectPickupRisk } from "@/lib/pickup-risk";
 import Anthropic from "@anthropic-ai/sdk";
 
 // Local shape types for Supabase query results in this route
@@ -49,6 +50,24 @@ async function generateBriefingContent(
   profileId: string
 ): Promise<string> {
   try {
+    // ── §3A: Run pickup risk detection before building context ────────────────
+    // Creates any new OPEN coordination_issues for today's pickup windows.
+    // Runs idempotently — deduped by window start time.
+    await detectPickupRisk(supabase, profileId).catch(() => {
+      // Non-fatal: if detection fails, briefing continues without pickup context
+    });
+
+    // ── §B20: Resolve primary household ID ───────────────────────────────────
+    // coordination_issues.household_id always stores the primary parent's ID.
+    // Partner users have household_id set to the primary parent's ID in their
+    // profiles row; primary users have household_id = null (they ARE primary).
+    const { data: idRow } = await supabase
+      .from("profiles")
+      .select("household_id")
+      .eq("id", profileId)
+      .single<{ household_id: string | null }>();
+    const primaryId = idRow?.household_id ?? profileId;
+
     // Get all necessary data for briefing
     const today = new Date().toISOString().split("T")[0];
 
@@ -62,6 +81,7 @@ async function generateBriefingContent(
       { data: petMeds },
       { data: budgetSummary },
       { data: petVaccinations },
+      { data: openIssues },
     ] = await Promise.all([
       supabase.from("profiles").select("*").eq("id", profileId).single(),
       supabase
@@ -103,6 +123,16 @@ async function generateBriefingContent(
         .eq("profile_id", profileId)
         .lte("next_due_date", today)
         .order("next_due_date", { ascending: true }),
+      // §3A: fetch open coordination issues (pickup risk + others) for priority briefing context
+      // §B20: use primaryId — coordination_issues.household_id stores the primary parent's ID;
+      // querying by profileId would return 0 rows for partner users.
+      supabase
+        .from("coordination_issues")
+        .select("trigger_type, content")
+        .eq("household_id", primaryId)
+        .eq("state", "OPEN")
+        .order("surfaced_at", { ascending: false })
+        .limit(5),
     ]);
 
     // Build briefing context
@@ -112,7 +142,45 @@ Today: ${new Date().toLocaleDateString("en-US", {
       weekday: "long",
       month: "long",
       day: "numeric",
-    })}
+    })}`;
+
+    // §3A: If there are open coordination issues, lead with them.
+    // Pickup risk is the highest-priority insight — surface it first.
+    const issueList = openIssues ?? [];
+    const pickupIssues = issueList.filter(
+      (i: { trigger_type: string; content: string }) =>
+        i.trigger_type === "pickup_risk"
+    );
+    const otherIssues = issueList.filter(
+      (i: { trigger_type: string; content: string }) =>
+        i.trigger_type !== "pickup_risk"
+    );
+
+    if (issueList.length > 0) {
+      briefingContext += `
+
+═══════════════════════════════════════════════════════════════
+ COORDINATION ISSUES — LEAD WITH THESE (highest priority)
+═══════════════════════════════════════════════════════════════
+INSTRUCTION: Open the briefing with the most critical coordination issue below.
+Do not bury these. They are the primary reason for the briefing.`;
+
+      if (pickupIssues.length > 0) {
+        briefingContext += `\n\nPickup risk (CRITICAL):`;
+        pickupIssues.forEach((i: { content: string }) => {
+          briefingContext += `\n  - ${i.content}`;
+        });
+      }
+
+      if (otherIssues.length > 0) {
+        briefingContext += `\n\nOther open issues:`;
+        otherIssues.forEach((i: { trigger_type: string; content: string }) => {
+          briefingContext += `\n  - [${i.trigger_type}] ${i.content}`;
+        });
+      }
+    }
+
+    briefingContext += `
 
 ═══════════════════════════════════════════════════════════════
  TODAY'S SCHEDULE & LOGISTICS
@@ -256,24 +324,72 @@ Due vaccination(s):`;
     // Allergies are not needed here. (Meal planning queries allergies separately via /api/meals)
     const anthropic = getAnthropicClient();
 
-    const systemPrompt = `You are Kin, a warm and direct family AI. Your job is to synthesize the family data below into a single, concise morning briefing message.
+    // ── System prompt from docs/prompts/morning-briefing-prompt.md (IE S1.7) ──
+    // Source of truth: docs/prompts/morning-briefing-prompt.md
+    // §5: 1 primary insight + 1 supporting detail, ≤4 sentences total
+    // §7: return null when nothing worth surfacing
+    // §8: no forbidden openers; first-person present tense; exact relief language only
+    // §23: HIGH = direct; MEDIUM = one qualifier max; LOW = null
+    const systemPrompt = `You are Kin, a family coordination AI. You surface the one thing a busy parent most needs to know right now — not a summary of their day, but the single implication that will save them a scramble.
 
-RULES FOR YOUR BRIEFING:
-1. Warm, direct, and human - no corporate language
-2. Always use specific numbers ($143 of $180, not "most of your budget")
-3. One question maximum, at the very end (maybe a meal suggestion or weekend plan)
-4. Never hedge ("I think", "perhaps") - be confident
-5. Short by default - readable in 30-60 seconds
-6. Open with "Morning." - then give the most important thing first
-7. Cover: schedule/commute, calendar conflicts, kids' pickups/activities, budget status, pet care
-8. End warmly with something specific to their week
+## YOUR ROLE
+Generate the morning briefing for the Today screen. This runs once per day, early morning, based on the household's calendar, pickup assignments, known conflicts, and recent coordination changes.
 
-Do NOT:
-- Use bullet points
-- Say "Here's your briefing..."
-- Include the family name more than once
-- Over-explain - just state facts
-- Give advice unless asked`;
+## OUTPUT RULES — NON-NEGOTIABLE
+
+**Length:** 1 primary insight + 1 supporting detail. Never more than 4 sentences total. If you have nothing meaningful to surface, return null — do not fill space.
+
+**Lead with implication, not data.** The user already has a calendar. Your job is to tell them what it means for today — specifically for coordination, coverage, and family logistics.
+
+**Never open with:**
+- "Based on your calendar…"
+- "It looks like…"
+- "You may want to consider…"
+- "Just a heads up…"
+- "I noticed that…"
+- "Good morning" or any greeting
+- "You've got a busy day"
+
+**Always use first-person present tense.** ("I'm watching the 3pm pickup window." — not "It appears the 3pm pickup may be affected.")
+
+**Confidence:**
+- High confidence → state directly, no framing
+- Medium confidence → one qualifier max ("looks like", "worth confirming", "probably")
+- Low confidence → return null (silence is correct here)
+
+**Relief language — use exact phrases only:**
+- "I'll remind you when it's time to leave." → use when there is a specific departure or action time the parent needs to hit (a pickup window, a school dropoff, a hard deadline)
+- "I'll keep an eye on it." → use when an unresolved issue exists but is not yet escalated; Kin is actively watching for changes
+- "I'll flag it if anything changes." → use when the current state is adequate but dynamic; Kin is in standby, not active watch
+
+One relief line max. Only include if monitoring is genuinely warranted. Do not append a relief line to a null briefing.
+
+**Never use:**
+- "I've got this" or "Don't worry"
+- Stacked hedges ("It looks like it might be worth…")
+- Generic reassurance
+
+## OUTPUT FORMAT
+Return a JSON object:
+{
+  "primary_insight": "string — the single most important thing, ≤2 sentences",
+  "supporting_detail": "string or null — one additional sentence if it adds material value",
+  "relief_line": "string or null — one of the three exact relief phrases if monitoring is warranted"
+}
+
+Return null for the entire object if there is nothing worth surfacing (§7 silence rule).
+
+## WHAT COUNTS AS WORTH SURFACING
+- A pickup with no confirmed handler
+- A schedule change in the last 12 hours that affects coverage
+- Both parents with conflicting commitments during a required window
+- A hard deadline the household needs to move around
+
+## WHAT DOES NOT COUNT
+- A normally scheduled busy day
+- Routine events with confirmed coverage
+- Anything the family already resolved
+- Events outside the current day`;
 
     const response = await anthropic.messages.create({
       model: ANTHROPIC_MODEL,
@@ -291,7 +407,32 @@ Do NOT:
       (block): block is Anthropic.TextBlock => block.type === "text"
     );
 
-    return textBlock?.text || "Unable to generate briefing";
+    if (!textBlock?.text) return "Unable to generate briefing";
+
+    // ── Parse structured JSON output from IE-approved prompt ─────────────────
+    // The prompt returns { primary_insight, supporting_detail, relief_line } or null.
+    // Assemble into plain-text string for the mobile briefing card (§5 ≤4 sentences).
+    try {
+      const parsed: {
+        primary_insight: string;
+        supporting_detail: string | null;
+        relief_line: string | null;
+      } | null = JSON.parse(textBlock.text);
+
+      if (!parsed) {
+        // §7 silence rule: AI returned null — nothing worth surfacing today
+        return "";
+      }
+
+      const parts = [parsed.primary_insight];
+      if (parsed.supporting_detail) parts.push(parsed.supporting_detail);
+      if (parsed.relief_line) parts.push(parsed.relief_line);
+      return parts.join(" ");
+    } catch {
+      // If the model doesn't return clean JSON (e.g. wraps in markdown code fence),
+      // fall back to returning raw text — better than surfacing a parse error.
+      return textBlock.text;
+    }
   } catch (error) {
     if (process.env.NODE_ENV !== "production") {
       console.error("Error generating briefing content:", error);

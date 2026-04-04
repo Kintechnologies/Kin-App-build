@@ -42,7 +42,10 @@ export async function POST(request: Request) {
       process.env.STRIPE_WEBHOOK_SECRET!
     );
   } catch (err) {
-    console.error("Webhook signature verification failed:", err);
+    // TODO: Replace with structured logging (Sentry) before GA
+    if (process.env.NODE_ENV !== "production") {
+      console.error("Webhook signature verification failed:", err);
+    }
     return NextResponse.json({ error: "Invalid signature" }, { status: 400 });
   }
 
@@ -160,19 +163,51 @@ export async function POST(request: Request) {
       }
 
       case "invoice.payment_failed": {
+        // §B24: downgrade user to free tier on payment failure.
+        // Stripe's dunning process retries; if retries also fail,
+        // `customer.subscription.deleted` will fire and the handler above
+        // confirms final cancellation. This handler ensures the user is
+        // immediately downgraded so they cannot access paid features during
+        // the dunning window on a failed charge.
         const invoice = event.data.object as Stripe.Invoice;
         const customerId = invoice.customer as string;
 
-        // TODO: Send payment failed email notification
-        // TODO: Replace with structured logging (Sentry) before GA
+        if (customerId) {
+          const { data: profile } = await supabase
+            .from("profiles")
+            .select("id")
+            .eq("stripe_customer_id", customerId)
+            .maybeSingle<{ id: string }>();
+
+          if (profile?.id) {
+            const now = new Date();
+            const deletionDate = new Date(now.getTime() + 90 * 24 * 60 * 60 * 1000);
+
+            await supabase
+              .from("profiles")
+              .update({
+                subscription_tier: "free",
+                cancelled_at: now.toISOString(),
+                data_deletion_at: deletionDate.toISOString(),
+                deletion_reminded: false,
+              })
+              .eq("id", profile.id);
+
+            // TODO: Send payment-failed recovery email (link to update payment method)
+          }
+        }
+
         if (process.env.NODE_ENV !== "production") {
-          console.log(`Payment failed for customer ${customerId}`);
+          console.log(`Payment failed for customer ${customerId} — subscription downgraded to free`);
         }
         break;
       }
     }
   } catch (error) {
-    console.error("Webhook handler error:", error);
+    // TODO: Replace with structured logging (Sentry) before GA
+    if (process.env.NODE_ENV !== "production") {
+      console.error("Webhook handler error:", error);
+    }
     return NextResponse.json({ error: "Webhook handler failed" }, { status: 500 });
   }
 

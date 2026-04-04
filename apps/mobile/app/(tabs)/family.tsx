@@ -417,7 +417,7 @@ export default function Family() {
     return (
       <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]}>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator color={colors.primary} size="large" />
+          <ActivityIndicator color={colors.green} size="large" />
         </View>
       </SafeAreaView>
     );
@@ -438,7 +438,7 @@ export default function Family() {
             }}
             style={styles.retryButton}
           >
-            <Text style={[styles.retryButtonText, { color: colors.primary }]}>Retry</Text>
+            <Text style={[styles.retryButtonText, { color: colors.green }]}>Retry</Text>
           </Pressable>
         </View>
       </SafeAreaView>
@@ -646,7 +646,7 @@ export default function Family() {
               {/* Name */}
               <Text style={styles.fieldLabel}>Name</Text>
               <TextInput
-                style={[styles.input, { color: colors.text, borderColor: colors.border }]}
+                style={[styles.input, { color: colors.textPrimary, borderColor: colors.surfaceSubtle }]}
                 value={childName}
                 onChangeText={setChildName}
                 placeholder="e.g. Emma"
@@ -657,7 +657,7 @@ export default function Family() {
               {/* Age */}
               <Text style={styles.fieldLabel}>Age</Text>
               <TextInput
-                style={[styles.input, { color: colors.text, borderColor: colors.border }]}
+                style={[styles.input, { color: colors.textPrimary, borderColor: colors.surfaceSubtle }]}
                 value={childAge}
                 onChangeText={setChildAge}
                 placeholder="e.g. 7"
@@ -668,7 +668,7 @@ export default function Family() {
               {/* School */}
               <Text style={styles.fieldLabel}>School <Text style={styles.fieldOptional}>(optional)</Text></Text>
               <TextInput
-                style={[styles.input, { color: colors.text, borderColor: colors.border }]}
+                style={[styles.input, { color: colors.textPrimary, borderColor: colors.surfaceSubtle }]}
                 value={childSchool}
                 onChangeText={setChildSchool}
                 placeholder="e.g. Lincoln Elementary"
@@ -747,7 +747,7 @@ export default function Family() {
               {/* Name */}
               <Text style={styles.fieldLabel}>Name</Text>
               <TextInput
-                style={[styles.input, { color: colors.text, borderColor: colors.border }]}
+                style={[styles.input, { color: colors.textPrimary, borderColor: colors.surfaceSubtle }]}
                 value={petName}
                 onChangeText={setPetName}
                 placeholder="e.g. Buddy"
@@ -789,7 +789,7 @@ export default function Family() {
               {/* Breed */}
               <Text style={styles.fieldLabel}>Breed <Text style={styles.fieldOptional}>(optional)</Text></Text>
               <TextInput
-                style={[styles.input, { color: colors.text, borderColor: colors.border }]}
+                style={[styles.input, { color: colors.textPrimary, borderColor: colors.surfaceSubtle }]}
                 value={petBreed}
                 onChangeText={setPetBreed}
                 placeholder="e.g. Golden Retriever"

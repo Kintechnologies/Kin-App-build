@@ -88,6 +88,12 @@ export const api = {
       method: "GET",
     }),
 
+  // First-use insight (§21) — called once on first Today screen open
+  getFirstUseInsight: () =>
+    apiRequest<{ first_insight: string; is_fallback: boolean }>("/api/first-use", {
+      method: "GET",
+    }),
+
   // Push tokens
   registerPushToken: (token: string, platform: string, deviceName?: string) =>
     apiRequest<{ success: boolean; token_id: string }>("/api/push-tokens", {

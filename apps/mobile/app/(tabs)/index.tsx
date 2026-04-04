@@ -10,7 +10,7 @@
  * First-use moment (§21): engineered first insight on first Today screen render.
  */
 
-import { useEffect, useState, useRef, useCallback } from "react";
+import { useEffect, useState, useRef, useCallback, useMemo } from "react";
 import {
   View,
   Text,
@@ -26,8 +26,11 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import * as Haptics from "expo-haptics";
 import { Sparkles, X, MessageCircle, CheckCircle } from "lucide-react-native";
 import { supabase } from "../../lib/supabase";
+import { api } from "../../lib/api";
 import { getGreeting } from "../../lib/utils";
 import FloatingOrbs from "../../components/ui/FloatingOrbs";
+import { useThemeColors } from "../../lib/theme";
+import { type ThemeColors } from "../../constants/colors";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -92,6 +95,8 @@ function parseBriefingBeats(content: string): string[] | null {
 
 /** Skeleton placeholder while briefing is loading */
 function BriefingSkeletonCard() {
+  const c = useThemeColors();
+  const styles = useMemo(() => createStyles(c), [c]);
   const pulse = useRef(new Animated.Value(0.4)).current;
 
   useEffect(() => {
@@ -126,6 +131,8 @@ function AlertCard({
   onAcknowledge: (id: string) => void;
   onTapToChat: (id: string, content: string) => void;
 }) {
+  const c = useThemeColors();
+  const styles = useMemo(() => createStyles(c), [c]);
   const fadeAnim = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
@@ -145,7 +152,7 @@ function AlertCard({
   if (issue.state === "RESOLVED") {
     return (
       <Animated.View style={[styles.alertCardResolved, { opacity: fadeAnim }]}>
-        <CheckCircle size={14} color="rgba(124, 184, 122, 0.5)" />
+        <CheckCircle size={14} color={c.greenMuted} />
         <Text style={styles.alertResolvedText}>Sorted. I'll flag it if anything changes.</Text>
       </Animated.View>
     );
@@ -185,12 +192,12 @@ function AlertCard({
           style={({ pressed }) => [styles.alertDismissBtn, pressed && { opacity: 0.6 }]}
           hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
         >
-          <X size={14} color="rgba(240, 237, 230, 0.4)" />
+          <X size={14} color={c.textMuted} />
         </Pressable>
       </View>
       <Text style={styles.alertOpenContent}>{issue.content}</Text>
       <View style={styles.alertOpenFooter}>
-        <MessageCircle size={12} color="rgba(124, 184, 122, 0.6)" />
+        <MessageCircle size={12} color={c.greenMuted} />
         <Text style={styles.alertOpenCta}>Tap to talk to Kin about this</Text>
       </View>
     </Pressable>
@@ -207,6 +214,8 @@ function CheckInCard({
   onDismiss: (id: string) => void;
   onTapToChat: (content: string) => void;
 }) {
+  const c = useThemeColors();
+  const styles = useMemo(() => createStyles(c), [c]);
   if (card.dismissed) return null;
 
   return (
@@ -222,7 +231,7 @@ function CheckInCard({
     >
       <View style={styles.checkinRow}>
         <View style={styles.checkinKinOrb}>
-          <Sparkles size={13} color="#7CB87A" />
+          <Sparkles size={13} color={c.green} />
         </View>
         <View style={{ flex: 1 }}>
           <Text style={styles.checkinContent}>{card.content}</Text>
@@ -237,7 +246,7 @@ function CheckInCard({
           style={({ pressed }) => [styles.checkinDismissBtn, pressed && { opacity: 0.5 }]}
           hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
         >
-          <X size={13} color="rgba(240, 237, 230, 0.25)" />
+          <X size={13} color={c.textAcknowledged} />
         </Pressable>
       </View>
     </Pressable>
@@ -246,6 +255,8 @@ function CheckInCard({
 
 /** Clean-day state: Today screen when nothing is worth surfacing */
 function CleanDayState() {
+  const c = useThemeColors();
+  const styles = useMemo(() => createStyles(c), [c]);
   return (
     <View style={styles.cleanDayContainer}>
       <Text style={styles.cleanDayText}>Clean day — nothing to stay ahead of.</Text>
@@ -266,6 +277,8 @@ function TodayScheduleSection({
   events: ScheduleEvent[];
   profileId: string;
 }) {
+  const c = useThemeColors();
+  const styles = useMemo(() => createStyles(c), [c]);
   if (events.length === 0) return null;
 
   function formatEventTime(event: ScheduleEvent): string {
@@ -282,7 +295,7 @@ function TodayScheduleSection({
       <Text style={styles.scheduleSectionHeader}>TODAY</Text>
       {events.map((event, index) => {
         const isOwn = event.owner_parent_id === profileId;
-        const personColor = isOwn ? "#7AADCE" : "#D4748A";
+        const personColor = isOwn ? c.blue : c.rose;
         const isLast = index === events.length - 1;
         return (
           <View
@@ -305,6 +318,8 @@ function TodayScheduleSection({
 
 export default function TodayScreen() {
   const router = useRouter();
+  const colors = useThemeColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
 
   // Profile
   const [firstName, setFirstName] = useState<string>("");
@@ -324,8 +339,9 @@ export default function TodayScreen() {
   // Today's schedule (spec §5)
   const [todayEvents, setTodayEvents] = useState<ScheduleEvent[]>([]);
 
-  // First-use flag
+  // First-use flag + dynamic content (S4.2 — wired to /api/first-use)
   const [isFirstOpen, setIsFirstOpen] = useState(false);
+  const [firstUseContent, setFirstUseContent] = useState<string | null>(null);
 
   // Refresh
   const [refreshing, setRefreshing] = useState(false);
@@ -443,6 +459,19 @@ export default function TodayScreen() {
             .from("profiles")
             .update({ today_screen_first_opened: new Date().toISOString() })
             .eq("id", user.id);
+          // S4.2: fetch dynamic first insight from /api/first-use (first-use-prompt.md)
+          // Falls back to spec-approved default if AI unavailable or confidence < HIGH
+          try {
+            const result = await api.getFirstUseInsight();
+            if (result.first_insight) {
+              setFirstUseContent(result.first_insight);
+            }
+          } catch {
+            // API failure — use spec-approved static fallback (§21, first-use-prompt.md)
+            setFirstUseContent(
+              "I'm watching your household schedule. The moment something needs your attention, I'll surface it."
+            );
+          }
         }
 
         if (profile.household_id) {
@@ -643,10 +672,7 @@ export default function TodayScreen() {
 
   // First-use: engineered day-one message shown once, in place of clean-day state.
   // Spec §21: no setup language, must be specific to user's life.
-  // Static fallback per PD-1 until first-use-prompt.md is wired.
-  const firstUseContent = isFirstOpen
-    ? "Got your week. I'll flag anything that needs your attention and stay quiet when things look clear."
-    : null;
+  // S4.2: content sourced from /api/first-use (first-use-prompt.md); set via setFirstUseContent in loadAll.
 
   // ── Render ─────────────────────────────────────────────────────────────────
 
@@ -661,7 +687,7 @@ export default function TodayScreen() {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            tintColor="#7CB87A"
+            tintColor={colors.green}
           />
         }
       >
@@ -710,7 +736,7 @@ export default function TodayScreen() {
           >
             <View style={styles.briefingTitleRow}>
               <View style={styles.briefingTitleLeft}>
-                <Sparkles size={14} color="#7CB87A" />
+                <Sparkles size={14} color={colors.green} />
                 <Text style={styles.briefingTitle}>Morning</Text>
               </View>
               <View style={styles.briefingLivePill}>
@@ -743,7 +769,7 @@ export default function TodayScreen() {
           >
             <View style={styles.briefingTitleRow}>
               <View style={styles.briefingTitleLeft}>
-                <Sparkles size={14} color="#7CB87A" />
+                <Sparkles size={14} color={colors.green} />
                 <Text style={styles.briefingTitle}>Hey</Text>
               </View>
             </View>
@@ -816,10 +842,12 @@ export default function TodayScreen() {
   );
 }
 
-// ─── Styles ───────────────────────────────────────────────────────────────────
+// ─── Styles factory ───────────────────────────────────────────────────────────
+// Spec: docs/specs/light-theme-spec.md §8 (B23 — per-screen token mapping)
 
-const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: "#0C0F0A" },
+function createStyles(c: ThemeColors) {
+  return StyleSheet.create({
+  safeArea: { flex: 1, backgroundColor: c.background },
   container: { flex: 1 },
   content: { paddingHorizontal: 20, paddingBottom: 120 },
 
@@ -828,7 +856,7 @@ const styles = StyleSheet.create({
   greeting: {
     fontFamily: "GeistMono-Regular",
     fontSize: 11,
-    color: "rgba(240, 237, 230, 0.28)",
+    color: c.textDim,
     textTransform: "uppercase",
     letterSpacing: 2,
     marginBottom: 6,
@@ -836,25 +864,25 @@ const styles = StyleSheet.create({
   displayName: {
     fontFamily: "InstrumentSerif-Italic",
     fontSize: 32,
-    color: "#F0EDE6",
+    color: c.textPrimary,
     textAlign: "center",
   },
   dateLine: {
     fontFamily: "Geist",
     fontSize: 13,
-    color: "rgba(240, 237, 230, 0.3)",
+    color: c.textMuted,
     marginTop: 4,
   },
 
   // Briefing card
   briefingCard: {
-    backgroundColor: "#141810",
+    backgroundColor: c.surfacePrimary,
     borderRadius: 20,
     padding: 20,
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: "rgba(124, 184, 122, 0.18)",
-    shadowColor: "#7CB87A",
+    borderColor: c.greenSubtle,
+    shadowColor: c.greenShadow,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.06,
     shadowRadius: 12,
@@ -873,13 +901,13 @@ const styles = StyleSheet.create({
   briefingTitle: {
     fontFamily: "InstrumentSerif-Italic",
     fontSize: 18,
-    color: "#7CB87A",
+    color: c.green,
   },
   briefingLivePill: {
     flexDirection: "row",
     alignItems: "center",
     gap: 5,
-    backgroundColor: "rgba(124, 184, 122, 0.1)",
+    backgroundColor: c.greenSubtle,
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 20,
@@ -888,19 +916,19 @@ const styles = StyleSheet.create({
     width: 5,
     height: 5,
     borderRadius: 2.5,
-    backgroundColor: "#7CB87A",
+    backgroundColor: c.green,
   },
   briefingLiveLabel: {
     fontFamily: "GeistMono-Regular",
     fontSize: 10,
-    color: "rgba(124, 184, 122, 0.8)",
+    color: c.greenMuted,
     letterSpacing: 0.5,
     textTransform: "uppercase",
   },
   briefingHook: {
     fontFamily: "InstrumentSerif-Italic",
     fontSize: 18,
-    color: "#F0EDE6",
+    color: c.textPrimary,
     lineHeight: 26,
     marginBottom: 10,
   },
@@ -914,21 +942,21 @@ const styles = StyleSheet.create({
     width: 4,
     height: 4,
     borderRadius: 2,
-    backgroundColor: "rgba(124, 184, 122, 0.45)",
+    backgroundColor: c.greenMuted,
     marginTop: 9,
     flexShrink: 0,
   },
   briefingBeatText: {
     fontFamily: "Geist",
     fontSize: 14,
-    color: "rgba(240, 237, 230, 0.8)",
+    color: c.textSecondary,
     lineHeight: 22,
     flex: 1,
   },
   firstUseClosingLine: {
     fontFamily: "Geist",
     fontSize: 13,
-    color: "rgba(240, 237, 230, 0.4)",
+    color: c.textMuted,
     marginTop: 10,
     lineHeight: 20,
     fontStyle: "italic",
@@ -939,26 +967,26 @@ const styles = StyleSheet.create({
     height: 16,
     width: 80,
     borderRadius: 8,
-    backgroundColor: "rgba(240, 237, 230, 0.07)",
+    backgroundColor: c.skeletonBase,
     marginBottom: 14,
   },
   skeletonLine: {
     height: 12,
     width: "100%",
     borderRadius: 6,
-    backgroundColor: "rgba(240, 237, 230, 0.05)",
+    backgroundColor: c.skeletonBase,
     marginBottom: 8,
   },
 
   // Alert card — OPEN
   alertCardOpen: {
-    backgroundColor: "#161C14",
+    backgroundColor: c.surfaceSecondary,
     borderRadius: 18,
     padding: 16,
     marginBottom: 10,
     borderWidth: 1,
-    borderColor: "rgba(212, 168, 67, 0.25)",
-    shadowColor: "#D4A843",
+    borderColor: c.amberBorder,
+    shadowColor: c.amber,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.08,
     shadowRadius: 10,
@@ -973,7 +1001,7 @@ const styles = StyleSheet.create({
     width: 7,
     height: 7,
     borderRadius: 3.5,
-    backgroundColor: "#D4A843",
+    backgroundColor: c.amber,
   },
   alertDismissBtn: {
     width: 28,
@@ -984,7 +1012,7 @@ const styles = StyleSheet.create({
   alertOpenContent: {
     fontFamily: "Geist-SemiBold",
     fontSize: 15,
-    color: "#F0EDE6",
+    color: c.textPrimary,
     lineHeight: 22,
     marginBottom: 12,
   },
@@ -996,22 +1024,22 @@ const styles = StyleSheet.create({
   alertOpenCta: {
     fontFamily: "Geist",
     fontSize: 12,
-    color: "rgba(124, 184, 122, 0.5)",
+    color: c.greenMuted,
   },
 
   // Alert card — ACKNOWLEDGED
   alertCardAcknowledged: {
-    backgroundColor: "#111410",
+    backgroundColor: c.surfaceMuted,
     borderRadius: 16,
     padding: 14,
     marginBottom: 8,
     borderWidth: 1,
-    borderColor: "rgba(240, 237, 230, 0.04)",
+    borderColor: c.surfaceSubtle,
   },
   alertAcknowledgedText: {
     fontFamily: "Geist",
     fontSize: 13,
-    color: "rgba(240, 237, 230, 0.25)",
+    color: c.textAcknowledged,
     lineHeight: 20,
   },
 
@@ -1027,18 +1055,18 @@ const styles = StyleSheet.create({
   alertResolvedText: {
     fontFamily: "Geist",
     fontSize: 13,
-    color: "rgba(124, 184, 122, 0.4)",
+    color: c.greenDim,
     fontStyle: "italic",
   },
 
   // Check-in card
   checkinCard: {
-    backgroundColor: "#141810",
+    backgroundColor: c.surfacePrimary,
     borderRadius: 16,
     padding: 14,
     marginBottom: 8,
     borderWidth: 1,
-    borderColor: "rgba(124, 184, 122, 0.08)",
+    borderColor: c.greenSubtle,
   },
   checkinRow: {
     flexDirection: "row",
@@ -1049,7 +1077,7 @@ const styles = StyleSheet.create({
     width: 28,
     height: 28,
     borderRadius: 10,
-    backgroundColor: "rgba(124, 184, 122, 0.1)",
+    backgroundColor: c.greenSubtle,
     alignItems: "center",
     justifyContent: "center",
     marginTop: 1,
@@ -1057,14 +1085,14 @@ const styles = StyleSheet.create({
   checkinContent: {
     fontFamily: "Geist",
     fontSize: 14,
-    color: "rgba(240, 237, 230, 0.72)",
+    color: c.textSecondary,
     lineHeight: 21,
     marginBottom: 3,
   },
   checkinPrompt: {
     fontFamily: "Geist",
     fontSize: 13,
-    color: "rgba(124, 184, 122, 0.55)",
+    color: c.greenMuted,
     lineHeight: 18,
   },
   checkinDismissBtn: {
@@ -1084,7 +1112,7 @@ const styles = StyleSheet.create({
   cleanDayText: {
     fontFamily: "InstrumentSerif-Italic",
     fontSize: 17,
-    color: "rgba(240, 237, 230, 0.22)",
+    color: c.textFaint,
     textAlign: "center",
     lineHeight: 24,
   },
@@ -1096,7 +1124,7 @@ const styles = StyleSheet.create({
   scheduleSectionHeader: {
     fontFamily: "GeistMono-Regular",
     fontSize: 10,
-    color: "rgba(240, 237, 230, 0.25)",
+    color: c.textAcknowledged,
     textTransform: "uppercase",
     letterSpacing: 1.5,
     marginBottom: 8,
@@ -1109,7 +1137,7 @@ const styles = StyleSheet.create({
   },
   scheduleEventRowBorder: {
     borderBottomWidth: 1,
-    borderBottomColor: "rgba(240, 237, 230, 0.04)",
+    borderBottomColor: c.surfaceSubtle,
   },
   schedulePersonDot: {
     width: 6,
@@ -1120,31 +1148,32 @@ const styles = StyleSheet.create({
   scheduleEventTime: {
     fontFamily: "GeistMono-Regular",
     fontSize: 12,
-    color: "rgba(240, 237, 230, 0.45)",
+    color: c.textMuted,
     width: 72,
     flexShrink: 0,
   },
   scheduleEventTitle: {
     fontFamily: "Geist",
     fontSize: 14,
-    color: "rgba(240, 237, 230, 0.75)",
+    color: c.textSecondary,
     flex: 1,
   },
 
   // Load error state (B15)
   loadErrorCard: {
-    backgroundColor: "rgba(212, 116, 108, 0.08)",
+    backgroundColor: c.roseSubtle,
     borderRadius: 14,
     padding: 16,
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: "rgba(212, 116, 108, 0.18)",
+    borderColor: c.rose,
     alignItems: "center",
   },
   loadErrorText: {
     fontFamily: "Geist",
     fontSize: 14,
-    color: "rgba(240, 237, 230, 0.55)",
+    color: c.textSecondary,
     textAlign: "center",
   },
-});
+  });
+}

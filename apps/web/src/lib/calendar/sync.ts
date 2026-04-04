@@ -13,6 +13,7 @@ import {
   deleteAppleEvent,
 } from "./apple";
 import { detectConflicts, findNewConflicts } from "./conflicts";
+import { detectLateScheduleChanges } from "@/lib/late-schedule-change";
 import type { CalendarConnection, CalendarEvent, CalendarConflict } from "@/types";
 
 // ── Main Sync Entry Point ──
@@ -57,8 +58,23 @@ export async function syncCalendarForConnection(connectionId: string) {
 
     // Run conflict detection for the household
     await runConflictDetection(connection.profile_id);
+
+    // §3C: Late Schedule Change detection — creates real-time coordination_issues
+    // for events modified during this sync. Non-fatal: sync succeeds even if this fails.
+    await detectLateScheduleChanges(supabase, connection.profile_id).catch(
+      (err) => {
+        if (process.env.NODE_ENV !== "production") {
+          console.error(
+            `late-schedule-change detection error for profile ${connection.profile_id}:`,
+            err
+          );
+        }
+      }
+    );
   } catch (error) {
-    console.error(`Sync error for connection ${connectionId}:`, error);
+    if (process.env.NODE_ENV !== "production") {
+      console.error(`Sync error for connection ${connectionId}:`, error);
+    }
     await supabase
       .from("calendar_connections")
       .update({

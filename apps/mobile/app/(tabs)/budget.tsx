@@ -179,7 +179,7 @@ export default function Budget() {
         setRecentTransactions(formatted);
       }
     } catch (e) {
-      console.error("Error fetching transactions:", e);
+      if (process.env.NODE_ENV !== "production") console.error("Error fetching transactions:", e);
     } finally {
       setTransactionsLoading(false);
     }
@@ -209,7 +209,7 @@ export default function Budget() {
 
       await checkCategories();
     } catch (e) {
-      console.error("Error initializing categories:", e);
+      if (process.env.NODE_ENV !== "production") console.error("Error initializing categories:", e);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
     }
   }
@@ -265,7 +265,7 @@ export default function Budget() {
         api.checkBudgetOverspend(txCategoryId);
       }
     } catch (e) {
-      console.error("Error saving transaction:", e);
+      if (process.env.NODE_ENV !== "production") console.error("Error saving transaction:", e);
       setTxError("Couldn't save — try again");
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
     } finally {

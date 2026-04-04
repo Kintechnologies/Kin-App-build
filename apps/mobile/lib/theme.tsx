@@ -1,66 +1,11 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from "react";
 import { useColorScheme, Appearance } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { darkColors, lightColors, type ThemeColors } from "../constants/colors";
+export type { ThemeColors } from "../constants/colors";
 
 export type ThemeMode = "system" | "light" | "dark";
 export type ResolvedTheme = "light" | "dark";
-
-export interface ThemeColors {
-  background: string;
-  surface: string;
-  surfaceRaised: string;
-  primary: string;
-  text: string;
-  textSecondary: string;
-  textMuted: string;
-  textFaint: string;
-  border: string;
-  borderLight: string;
-  amber: string;
-  purple: string;
-  blue: string;
-  rose: string;
-  inputBg: string;
-  cardBg: string;
-}
-
-const darkColors: ThemeColors = {
-  background: "#0C0F0A",
-  surface: "#141810",
-  surfaceRaised: "#1A1F15",
-  primary: "#7CB87A",
-  text: "#F0EDE6",
-  textSecondary: "rgba(240, 237, 230, 0.5)",
-  textMuted: "rgba(240, 237, 230, 0.3)",
-  textFaint: "rgba(240, 237, 230, 0.15)",
-  border: "rgba(240, 237, 230, 0.04)",
-  borderLight: "rgba(240, 237, 230, 0.06)",
-  amber: "#D4A843",
-  purple: "#A07EC8",
-  blue: "#7AADCE",
-  rose: "#D4748A",
-  inputBg: "#141810",
-  cardBg: "#141810",
-};
-
-const lightColors: ThemeColors = {
-  background: "#FAFAF7",
-  surface: "#FFFFFF",
-  surfaceRaised: "#F5F4F0",
-  primary: "#5A9A58",
-  text: "#1A1D17",
-  textSecondary: "rgba(26, 29, 23, 0.55)",
-  textMuted: "rgba(26, 29, 23, 0.35)",
-  textFaint: "rgba(26, 29, 23, 0.15)",
-  border: "rgba(26, 29, 23, 0.08)",
-  borderLight: "rgba(26, 29, 23, 0.05)",
-  amber: "#B8922E",
-  purple: "#8A64B0",
-  blue: "#5A8FAE",
-  rose: "#C05A72",
-  inputBg: "#F5F4F0",
-  cardBg: "#FFFFFF",
-};
 
 interface ThemeContextType {
   mode: ThemeMode;
@@ -109,4 +54,20 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
 export function useTheme() {
   return useContext(ThemeContext);
+}
+
+/**
+ * Returns the full Kin color token set for the active theme.
+ * Uses the user-selected theme mode (from ThemeContext) when available,
+ * otherwise falls back to the system color scheme.
+ *
+ * This is the primary hook for all screens.
+ * Spec: docs/specs/light-theme-spec.md §1
+ */
+export function useThemeColors() {
+  const ctx = useContext(ThemeContext);
+  // If ThemeProvider is mounted, use its resolved mode; otherwise read system scheme directly
+  const systemScheme = useColorScheme();
+  const resolved = ctx.resolved ?? (systemScheme === "light" ? "light" : "dark");
+  return resolved === "light" ? lightColors : darkColors;
 }

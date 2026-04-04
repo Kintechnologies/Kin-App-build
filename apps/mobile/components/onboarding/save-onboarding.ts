@@ -12,6 +12,7 @@ interface Pet {
 }
 
 export interface OnboardingData {
+  firstName: string;
   familyName: string;
   homeLocation: string;
   householdType: "two-parent" | "single-parent";
@@ -31,10 +32,13 @@ export async function saveOnboardingData(
   data: OnboardingData
 ): Promise<SaveOnboardingResult> {
   try {
-    // 1. Update profiles: family_name, household_type
+    // 1. Update profiles: first_name, family_name, household_type
+    // §B21: first_name added in migration 025; write it here so the Today
+    // screen greeting can address the user by name instead of "there".
     const { error: profileError } = await supabase
       .from("profiles")
       .update({
+        first_name: data.firstName.trim() || null,
         family_name: data.familyName,
         household_type: data.householdType,
         onboarding_completed: true,

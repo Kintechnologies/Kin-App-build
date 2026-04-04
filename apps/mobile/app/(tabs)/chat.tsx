@@ -12,7 +12,7 @@
  * the `conversations` table via `chat_threads`.
  */
 
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import {
   View,
   Text,
@@ -49,6 +49,8 @@ import {
 import { api } from "../../lib/api";
 import { supabase } from "../../lib/supabase";
 import FloatingOrbs from "../../components/ui/FloatingOrbs";
+import { useThemeColors } from "../../lib/theme";
+import { type ThemeColors } from "../../constants/colors";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -118,6 +120,8 @@ async function upsertPinnedThread(
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
 function TypingIndicator() {
+  const c = useThemeColors();
+  const styles = useMemo(() => createChatStyles(c), [c]);
   const opacity = useRef(new Animated.Value(0.3)).current;
 
   useEffect(() => {
@@ -134,7 +138,7 @@ function TypingIndicator() {
   return (
     <View style={styles.typingRow}>
       <View style={styles.avatar}>
-        <Sparkles size={14} color="#7CB87A" />
+        <Sparkles size={14} color={c.green} />
       </View>
       <View style={styles.typingBubble}>
         <Animated.View style={[styles.typingDots, { opacity }]}>
@@ -150,10 +154,12 @@ function TypingIndicator() {
 
 /** Household thread invite prompt — shown when partner hasn't linked yet */
 function PartnerInvitePrompt({ onInvite }: { onInvite: () => void }) {
+  const c = useThemeColors();
+  const styles = useMemo(() => createChatStyles(c), [c]);
   return (
     <View style={styles.inviteContainer}>
       <View style={styles.inviteOrb}>
-        <Users size={20} color="rgba(240, 237, 230, 0.3)" />
+        <Users size={20} color={c.textMuted} />
       </View>
       <Text style={styles.inviteTitle}>Invite your partner</Text>
       <Text style={styles.inviteBody}>
@@ -167,7 +173,7 @@ function PartnerInvitePrompt({ onInvite }: { onInvite: () => void }) {
           onInvite();
         }}
       >
-        <UserPlus size={16} color="#0C0F0A" />
+        <UserPlus size={16} color={c.textOnGreen} />
         <Text style={styles.inviteBtnText}>Send partner invite</Text>
       </Pressable>
     </View>
@@ -177,6 +183,9 @@ function PartnerInvitePrompt({ onInvite }: { onInvite: () => void }) {
 // ─── Main Screen ──────────────────────────────────────────────────────────────
 
 export default function ConversationsScreen() {
+  const c = useThemeColors();
+  const styles = useMemo(() => createChatStyles(c), [c]);
+
   const params = useLocalSearchParams<{ prefill?: string; issue_id?: string }>();
   const router = useRouter();
 
@@ -328,6 +337,30 @@ export default function ConversationsScreen() {
     }
   }
 
+  async function createNewThread() {
+    if (!profileId) return;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    try {
+      const { data: created, error } = await supabase
+        .from("chat_threads")
+        .insert({
+          profile_id: profileId,
+          title: "New conversation",
+          thread_type: "general",
+          is_private: false,
+          updated_at: new Date().toISOString(),
+        })
+        .select()
+        .single();
+      if (error || !created) return;
+      const newThread = created as ChatThread;
+      setGeneralThreads((prev) => [newThread, ...prev]);
+      await openThread(newThread);
+    } catch {
+      if (process.env.NODE_ENV !== "production") console.error("Error creating new thread");
+    }
+  }
+
   function goBackToList() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setView("list");
@@ -467,6 +500,13 @@ export default function ConversationsScreen() {
               {/* Header */}
               <View style={styles.listHeader}>
                 <Text style={styles.listTitle}>Conversations</Text>
+                <Pressable
+                  onPress={createNewThread}
+                  style={({ pressed }) => [styles.listHeaderPlusBtn, pressed && { opacity: 0.6 }]}
+                  accessibilityLabel="New conversation"
+                >
+                  <Plus size={22} color="rgba(240, 237, 230, 0.45)" />
+                </Pressable>
               </View>
 
               {/* ── PINNED: Kin (personal) ── */}
@@ -481,7 +521,7 @@ export default function ConversationsScreen() {
                 >
                   <View style={styles.pinnedCardLeft}>
                     <View style={styles.pinnedAvatarKin}>
-                      <Sparkles size={18} color="#7CB87A" />
+                      <Sparkles size={18} color={c.green} />
                     </View>
                     <View style={{ flex: 1 }}>
                       <View style={styles.pinnedTitleRow}>
@@ -491,9 +531,9 @@ export default function ConversationsScreen() {
                           <Text style={styles.privatePillText}>Private</Text>
                         </View>
                       </View>
-                      <Text style={styles.pinnedPreview} numberOfLines={1}>
-                        {personalThread.preview || "Your personal thread with Kin"}
-                      </Text>
+                      {personalThread.preview ? (
+                        <Text style={styles.pinnedPreview} numberOfLines={1}>{personalThread.preview}</Text>
+                      ) : null}
                     </View>
                   </View>
                 </Pressable>
@@ -538,11 +578,11 @@ export default function ConversationsScreen() {
                           </View>
                         )}
                       </View>
-                      <Text style={styles.pinnedPreview} numberOfLines={1}>
-                        {partnerLinked
-                          ? householdThread.preview || "Shared coordination thread"
-                          : "Send an invite to connect your partner"}
-                      </Text>
+                      {!partnerLinked ? (
+                        <Text style={styles.pinnedPreview} numberOfLines={1}>Send an invite to connect your partner</Text>
+                      ) : householdThread.preview ? (
+                        <Text style={styles.pinnedPreview} numberOfLines={1}>{householdThread.preview}</Text>
+                      ) : null}
                     </View>
                   </View>
                 </Pressable>
@@ -564,7 +604,7 @@ export default function ConversationsScreen() {
             >
               <View style={styles.threadIconWrap}>
                 {thread.is_private ? (
-                  <Lock size={13} color="#D4748A" />
+                  <Lock size={13} color={c.rose} />
                 ) : (
                   <Sparkles size={13} color="rgba(240, 237, 230, 0.25)" />
                 )}
@@ -573,9 +613,11 @@ export default function ConversationsScreen() {
                 <Text style={styles.threadTitle} numberOfLines={1}>
                   {thread.title || "Conversation"}
                 </Text>
-                <Text style={styles.threadPreview} numberOfLines={1}>
-                  {thread.preview || "No messages yet"}
-                </Text>
+                {thread.preview ? (
+                  <Text style={styles.threadPreview} numberOfLines={1}>
+                    {thread.preview}
+                  </Text>
+                ) : null}
               </View>
               <Text style={styles.threadTime}>
                 {new Date(thread.updated_at).toLocaleDateString(undefined, {
@@ -630,7 +672,7 @@ export default function ConversationsScreen() {
             onPress={goBackToList}
             style={({ pressed }) => [styles.backButton, pressed && { opacity: 0.6 }]}
           >
-            <ChevronLeft size={22} color="#F0EDE6" />
+            <ChevronLeft size={22} color={c.textPrimary} />
           </Pressable>
           <View style={styles.headerCenter}>
             <View style={styles.headerAvatarHome}>
@@ -659,7 +701,7 @@ export default function ConversationsScreen() {
             onPress={goBackToList}
             style={({ pressed }) => [styles.backButton, pressed && { opacity: 0.6 }]}
           >
-            <ChevronLeft size={22} color="#F0EDE6" />
+            <ChevronLeft size={22} color={c.textPrimary} />
           </Pressable>
 
           <View style={styles.headerCenter}>
@@ -669,14 +711,14 @@ export default function ConversationsScreen() {
               </View>
             ) : (
               <View style={styles.headerAvatarKin}>
-                <Sparkles size={14} color="#7CB87A" />
+                <Sparkles size={14} color={c.green} />
               </View>
             )}
             <View>
               <Text style={styles.headerTitle}>{threadDisplayName}</Text>
               {isPersonalView && (
                 <View style={styles.privateBadge}>
-                  <Lock size={8} color="#D4748A" />
+                  <Lock size={8} color={c.rose} />
                   <Text style={styles.privateBadgeText}>Private</Text>
                 </View>
               )}
@@ -698,7 +740,7 @@ export default function ConversationsScreen() {
             {isPersonalView ? (
               <>
                 <View style={styles.emptyKinOrb}>
-                  <Sparkles size={24} color="#7CB87A" />
+                  <Sparkles size={24} color={c.green} />
                 </View>
                 <Text style={styles.emptyTitle}>Hey, I'm Kin</Text>
                 <Text style={styles.emptySubtitle}>
@@ -741,7 +783,7 @@ export default function ConversationsScreen() {
                       {isHouseholdView ? (
                         <Users size={13} color="rgba(122, 173, 206, 0.8)" />
                       ) : (
-                        <Sparkles size={13} color="#7CB87A" />
+                        <Sparkles size={13} color={c.green} />
                       )}
                     </View>
                   )}
@@ -773,7 +815,7 @@ export default function ConversationsScreen() {
                       >
                         <Volume2
                           size={14}
-                          color={speaking ? "#7CB87A" : "rgba(240, 237, 230, 0.2)"}
+                          color={speaking ? c.green : "rgba(240, 237, 230, 0.2)"}
                         />
                       </Pressable>
                     )}
@@ -800,7 +842,7 @@ export default function ConversationsScreen() {
               onPress={() => setSelectedImage(null)}
               style={styles.removeImage}
             >
-              <X size={12} color="#F0EDE6" />
+              <X size={12} color={c.textPrimary} />
             </Pressable>
           </View>
         )}
@@ -811,7 +853,7 @@ export default function ConversationsScreen() {
             onPress={pickImage}
             style={({ pressed }) => [styles.iconButton, pressed && { opacity: 0.7 }]}
           >
-            <ImagePlus size={18} color="rgba(240, 237, 230, 0.35)" />
+            <ImagePlus size={18} color={c.textMuted} />
           </Pressable>
 
           <Pressable
@@ -826,9 +868,9 @@ export default function ConversationsScreen() {
             ]}
           >
             {isListening ? (
-              <MicOff size={18} color="#D4748A" />
+              <MicOff size={18} color={c.rose} />
             ) : (
-              <Mic size={18} color="rgba(240, 237, 230, 0.35)" />
+              <Mic size={18} color={c.textMuted} />
             )}
           </Pressable>
 
@@ -839,7 +881,7 @@ export default function ConversationsScreen() {
             placeholder={
               isHouseholdView ? "Message Home..." : "Ask Kin anything..."
             }
-            placeholderTextColor="rgba(240, 237, 230, 0.2)"
+            placeholderTextColor={c.inputPlaceholder}
             multiline
             maxLength={2000}
             onSubmitEditing={() => sendMessage()}
@@ -860,8 +902,8 @@ export default function ConversationsScreen() {
               size={16}
               color={
                 (input.trim() || selectedImage) && !loading
-                  ? "#0C0F0A"
-                  : "rgba(240, 237, 230, 0.2)"
+                  ? c.textOnGreen
+                  : c.inputPlaceholder
               }
             />
           </Pressable>
@@ -871,10 +913,12 @@ export default function ConversationsScreen() {
   );
 }
 
-// ─── Styles ───────────────────────────────────────────────────────────────────
+// ─── Styles factory ───────────────────────────────────────────────────────────
+// Spec: docs/specs/light-theme-spec.md §8 — Conversations Screen (B23)
 
-const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: "#0C0F0A" },
+function createChatStyles(c: ThemeColors) {
+  return StyleSheet.create({
+  safeArea: { flex: 1, backgroundColor: c.background },
   container: { flex: 1 },
 
   // ── LIST VIEW ──
@@ -882,11 +926,17 @@ const styles = StyleSheet.create({
   listHeader: {
     marginTop: 12,
     marginBottom: 22,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  listHeaderPlusBtn: {
+    padding: 4,
   },
   listTitle: {
     fontFamily: "InstrumentSerif-Italic",
     fontSize: 28,
-    color: "#F0EDE6",
+    color: c.textPrimary,
   },
 
   // Pinned cards
@@ -897,12 +947,12 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   pinnedPersonal: {
-    backgroundColor: "#141810",
-    borderColor: "rgba(124, 184, 122, 0.15)",
+    backgroundColor: c.surfacePrimary,
+    borderColor: c.greenSubtle,
   },
   pinnedHousehold: {
-    backgroundColor: "#121618",
-    borderColor: "rgba(122, 173, 206, 0.12)",
+    backgroundColor: c.surfaceOverlay,
+    borderColor: c.blueSubtle,
   },
   pinnedCardLeft: {
     flexDirection: "row",
@@ -913,7 +963,7 @@ const styles = StyleSheet.create({
     width: 42,
     height: 42,
     borderRadius: 16,
-    backgroundColor: "rgba(124, 184, 122, 0.12)",
+    backgroundColor: c.greenSubtle,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -921,7 +971,7 @@ const styles = StyleSheet.create({
     width: 42,
     height: 42,
     borderRadius: 16,
-    backgroundColor: "rgba(122, 173, 206, 0.08)",
+    backgroundColor: c.blueSubtle,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -932,14 +982,14 @@ const styles = StyleSheet.create({
     marginBottom: 3,
   },
   pinnedThreadName: {
-    fontFamily: "Geist-SemiBold",
-    fontSize: 15,
-    color: "#F0EDE6",
+    fontFamily: "InstrumentSerif-Italic",
+    fontSize: 18,
+    color: c.textPrimary,
   },
   pinnedPreview: {
     fontFamily: "Geist",
     fontSize: 13,
-    color: "rgba(240, 237, 230, 0.32)",
+    color: c.textMuted,
     lineHeight: 19,
   },
 
@@ -948,7 +998,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 3,
-    backgroundColor: "rgba(212, 116, 138, 0.08)",
+    backgroundColor: c.roseSubtle,
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 10,
@@ -956,7 +1006,7 @@ const styles = StyleSheet.create({
   privatePillText: {
     fontFamily: "GeistMono-Regular",
     fontSize: 9,
-    color: "rgba(212, 116, 138, 0.6)",
+    color: c.rose,
     letterSpacing: 0.4,
     textTransform: "uppercase",
   },
@@ -964,7 +1014,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 3,
-    backgroundColor: "rgba(122, 173, 206, 0.08)",
+    backgroundColor: c.blueSubtle,
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 10,
@@ -972,7 +1022,7 @@ const styles = StyleSheet.create({
   sharedPillText: {
     fontFamily: "GeistMono-Regular",
     fontSize: 9,
-    color: "rgba(122, 173, 206, 0.5)",
+    color: c.blue,
     letterSpacing: 0.4,
     textTransform: "uppercase",
   },
@@ -980,7 +1030,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 3,
-    backgroundColor: "rgba(212, 168, 67, 0.08)",
+    backgroundColor: c.amberSubtle,
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 10,
@@ -988,7 +1038,7 @@ const styles = StyleSheet.create({
   invitePillText: {
     fontFamily: "GeistMono-Regular",
     fontSize: 9,
-    color: "rgba(212, 168, 67, 0.55)",
+    color: c.amber,
     letterSpacing: 0.4,
     textTransform: "uppercase",
   },
@@ -997,48 +1047,46 @@ const styles = StyleSheet.create({
   sectionLabel: {
     fontFamily: "GeistMono-Regular",
     fontSize: 10,
-    color: "rgba(240, 237, 230, 0.18)",
+    color: c.textFaint,
     textTransform: "uppercase",
-    letterSpacing: 2,
+    letterSpacing: 1.5,
     marginTop: 20,
     marginBottom: 10,
   },
 
-  // General thread cards
+  // General thread cards (P2-9: transparent rows with bottom border only — no card container)
   threadCard: {
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
-    backgroundColor: "#141810",
-    borderRadius: 14,
+    backgroundColor: "transparent",
     padding: 13,
-    marginBottom: 5,
-    borderWidth: 1,
-    borderColor: "rgba(240, 237, 230, 0.03)",
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(240,237,230,0.04)",
   },
   threadIconWrap: {
     width: 30,
     height: 30,
     borderRadius: 10,
-    backgroundColor: "rgba(240, 237, 230, 0.04)",
+    backgroundColor: c.surfaceSubtle,
     alignItems: "center",
     justifyContent: "center",
   },
   threadTitle: {
-    fontFamily: "Geist-SemiBold",
-    fontSize: 13,
-    color: "#F0EDE6",
+    fontFamily: "Geist",
+    fontSize: 14,
+    color: "rgba(240, 237, 230, 0.75)",
     marginBottom: 2,
   },
   threadPreview: {
     fontFamily: "Geist",
     fontSize: 12,
-    color: "rgba(240, 237, 230, 0.22)",
+    color: c.textMuted,
   },
   threadTime: {
     fontFamily: "GeistMono-Regular",
     fontSize: 10,
-    color: "rgba(240, 237, 230, 0.14)",
+    color: c.textFaint,
   },
 
   emptyListState: {
@@ -1048,7 +1096,7 @@ const styles = StyleSheet.create({
   emptyListText: {
     fontFamily: "Geist",
     fontSize: 13,
-    color: "rgba(240, 237, 230, 0.2)",
+    color: c.textDim,
     textAlign: "center",
     fontStyle: "italic",
   },
@@ -1060,7 +1108,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 10,
     borderBottomWidth: 1,
-    borderBottomColor: "rgba(240, 237, 230, 0.04)",
+    borderBottomColor: c.surfaceSubtle,
   },
   backButton: {
     width: 36,
@@ -1080,7 +1128,7 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 12,
-    backgroundColor: "rgba(124, 184, 122, 0.15)",
+    backgroundColor: c.greenSubtle,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -1088,14 +1136,14 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 12,
-    backgroundColor: "rgba(122, 173, 206, 0.1)",
+    backgroundColor: c.blueSubtle,
     alignItems: "center",
     justifyContent: "center",
   },
   headerTitle: {
     fontFamily: "InstrumentSerif-Italic",
     fontSize: 18,
-    color: "#F0EDE6",
+    color: c.textPrimary,
   },
   privateBadge: {
     flexDirection: "row",
@@ -1106,7 +1154,7 @@ const styles = StyleSheet.create({
   privateBadgeText: {
     fontFamily: "GeistMono-Regular",
     fontSize: 9,
-    color: "#D4748A",
+    color: c.rose,
     textTransform: "uppercase",
     letterSpacing: 0.5,
   },
@@ -1119,7 +1167,7 @@ const styles = StyleSheet.create({
   sharedBadgeText: {
     fontFamily: "GeistMono-Regular",
     fontSize: 9,
-    color: "rgba(122, 173, 206, 0.6)",
+    color: c.blue,
     textTransform: "uppercase",
     letterSpacing: 0.5,
   },
@@ -1135,7 +1183,7 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 20,
-    backgroundColor: "rgba(124, 184, 122, 0.1)",
+    backgroundColor: c.greenSubtle,
     alignItems: "center",
     justifyContent: "center",
     marginBottom: 16,
@@ -1144,7 +1192,7 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 20,
-    backgroundColor: "rgba(122, 173, 206, 0.08)",
+    backgroundColor: c.blueSubtle,
     alignItems: "center",
     justifyContent: "center",
     marginBottom: 16,
@@ -1152,14 +1200,14 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontFamily: "InstrumentSerif-Italic",
     fontSize: 28,
-    color: "#F0EDE6",
+    color: c.textPrimary,
     textAlign: "center",
     marginBottom: 10,
   },
   emptySubtitle: {
     fontFamily: "Geist",
     fontSize: 14,
-    color: "rgba(240, 237, 230, 0.38)",
+    color: c.textMuted,
     textAlign: "center",
     lineHeight: 22,
   },
@@ -1175,7 +1223,7 @@ const styles = StyleSheet.create({
     width: 60,
     height: 60,
     borderRadius: 22,
-    backgroundColor: "rgba(240, 237, 230, 0.04)",
+    backgroundColor: c.surfaceSubtle,
     alignItems: "center",
     justifyContent: "center",
     marginBottom: 20,
@@ -1183,14 +1231,14 @@ const styles = StyleSheet.create({
   inviteTitle: {
     fontFamily: "InstrumentSerif-Italic",
     fontSize: 24,
-    color: "#F0EDE6",
+    color: c.textPrimary,
     marginBottom: 12,
     textAlign: "center",
   },
   inviteBody: {
     fontFamily: "Geist",
     fontSize: 14,
-    color: "rgba(240, 237, 230, 0.4)",
+    color: c.textMuted,
     textAlign: "center",
     lineHeight: 22,
     marginBottom: 28,
@@ -1199,7 +1247,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
-    backgroundColor: "#7CB87A",
+    backgroundColor: c.green,
     paddingVertical: 13,
     paddingHorizontal: 22,
     borderRadius: 14,
@@ -1207,7 +1255,7 @@ const styles = StyleSheet.create({
   inviteBtnText: {
     fontFamily: "Geist-SemiBold",
     fontSize: 14,
-    color: "#0C0F0A",
+    color: c.textOnGreen,
   },
 
   // Messages
@@ -1223,7 +1271,7 @@ const styles = StyleSheet.create({
     width: 28,
     height: 28,
     borderRadius: 12,
-    backgroundColor: "rgba(124, 184, 122, 0.15)",
+    backgroundColor: c.greenSubtle,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -1231,7 +1279,7 @@ const styles = StyleSheet.create({
     width: 28,
     height: 28,
     borderRadius: 12,
-    backgroundColor: "rgba(122, 173, 206, 0.1)",
+    backgroundColor: c.blueSubtle,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -1242,18 +1290,18 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
   },
   userBubble: {
-    backgroundColor: "#7CB87A",
+    backgroundColor: c.userBubble,
     borderBottomRightRadius: 6,
   },
   assistantBubble: {
-    backgroundColor: "#141810",
+    backgroundColor: c.assistantBubble,
     borderBottomLeftRadius: 6,
     borderWidth: 1,
-    borderColor: "rgba(240, 237, 230, 0.04)",
+    borderColor: c.inputBorder,
   },
   messageText: { fontFamily: "Geist", fontSize: 15, lineHeight: 22 },
-  userText: { color: "#0C0F0A" },
-  assistantText: { color: "rgba(240, 237, 230, 0.85)" },
+  userText: { color: c.textOnGreen },
+  assistantText: { color: c.assistantText },
   messageImage: { width: 200, height: 150, borderRadius: 12, marginBottom: 8 },
   speakButton: { alignSelf: "flex-end", marginTop: 4, padding: 4 },
   imagePreview: {
@@ -1267,7 +1315,7 @@ const styles = StyleSheet.create({
     width: 20,
     height: 20,
     borderRadius: 10,
-    backgroundColor: "rgba(212, 116, 138, 0.8)",
+    backgroundColor: c.rose,
     alignItems: "center",
     justifyContent: "center",
     marginLeft: -8,
@@ -1283,50 +1331,50 @@ const styles = StyleSheet.create({
     paddingTop: 8,
     paddingBottom: 90,
     borderTopWidth: 1,
-    borderTopColor: "rgba(240, 237, 230, 0.04)",
-    backgroundColor: "rgba(12, 15, 10, 0.9)",
+    borderTopColor: c.inputBorder,
+    backgroundColor: c.inputBackground,
   },
   iconButton: {
     width: 38,
     height: 38,
     borderRadius: 12,
-    backgroundColor: "#141810",
+    backgroundColor: c.surfacePrimary,
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 1,
-    borderColor: "rgba(240, 237, 230, 0.06)",
+    borderColor: c.inputBorder,
   },
   micActive: {
-    backgroundColor: "rgba(212, 116, 138, 0.15)",
-    borderColor: "rgba(212, 116, 138, 0.3)",
+    backgroundColor: c.roseSubtle,
+    borderColor: c.rose,
   },
   input: {
     flex: 1,
     fontFamily: "Geist",
     fontSize: 15,
-    color: "#F0EDE6",
-    backgroundColor: "#141810",
+    color: c.textPrimary,
+    backgroundColor: c.inputBackground,
     borderRadius: 18,
     paddingHorizontal: 14,
     paddingVertical: 10,
     maxHeight: 100,
     borderWidth: 1,
-    borderColor: "rgba(240, 237, 230, 0.06)",
+    borderColor: c.inputBorder,
   },
   sendButton: {
     width: 38,
     height: 38,
     borderRadius: 12,
-    backgroundColor: "#141810",
+    backgroundColor: c.surfacePrimary,
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 1,
-    borderColor: "rgba(240, 237, 230, 0.06)",
+    borderColor: c.inputBorder,
   },
   sendButtonActive: {
-    backgroundColor: "#7CB87A",
-    borderColor: "#7CB87A",
-    shadowColor: "#7CB87A",
+    backgroundColor: c.green,
+    borderColor: c.green,
+    shadowColor: c.greenShadow,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.4,
     shadowRadius: 8,
@@ -1343,27 +1391,28 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
-    backgroundColor: "#141810",
+    backgroundColor: c.surfacePrimary,
     borderRadius: 20,
     borderBottomLeftRadius: 6,
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderWidth: 1,
-    borderColor: "rgba(240, 237, 230, 0.04)",
+    borderColor: c.inputBorder,
   },
   typingDots: { flexDirection: "row", gap: 4 },
   dot: {
     width: 6,
     height: 6,
     borderRadius: 3,
-    backgroundColor: "rgba(124, 184, 122, 0.5)",
+    backgroundColor: c.greenMuted,
   },
   typingText: {
     fontFamily: "Geist",
     fontSize: 11,
-    color: "rgba(240, 237, 230, 0.2)",
+    color: c.textDim,
   },
   threadsLoadingIndicator: {
     paddingVertical: 20,
   },
-});
+  });
+}

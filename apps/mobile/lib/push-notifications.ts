@@ -86,7 +86,10 @@ export function setupNotificationHandlers(): void {
       const data = notification.request.content.data;
 
       // Route based on notification type
-      if (data.type === "morning_briefing") {
+      if (data.type === "coordination_issue") {
+        // Deep-link to Today screen — Realtime subscription surfaces the alert
+        navigateToScreen("today");
+      } else if (data.type === "morning_briefing") {
         // Navigate to home tab
         navigateToScreen("home");
       } else if (data.type === "medication_reminder") {

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import {
   View,
   Text,
@@ -39,7 +39,8 @@ import {
 import { useAuth } from "../../lib/auth";
 import { supabase } from "../../lib/supabase";
 import { formatFamilyName } from "../../lib/utils";
-import { useTheme, ThemeMode } from "../../lib/theme";
+import { useTheme, useThemeColors, ThemeMode } from "../../lib/theme";
+import { type ThemeColors } from "../../constants/colors";
 import { useSettings } from "../../lib/settings";
 import { initRevenueCat } from "../../lib/revenuecat";
 import PaywallModal from "../../components/paywall/PaywallModal";
@@ -47,6 +48,8 @@ import PaywallModal from "../../components/paywall/PaywallModal";
 export default function Settings() {
   const { user, signOut } = useAuth();
   const { mode: themeMode, setMode: setThemeMode } = useTheme();
+  const c = useThemeColors();
+  const styles = useMemo(() => createSettingsStyles(c), [c]);
   const { settings, updateSetting } = useSettings();
   const [profile, setProfile] = useState<{
     family_name: string;
@@ -94,7 +97,9 @@ export default function Settings() {
   const tierLabel =
     tier === "family" ? "Family Plan" : tier === "starter" ? "Starter Plan" : "Free Trial";
   const tierColor =
-    tier === "family" ? "#D4A843" : tier === "starter" ? "#7CB87A" : "rgba(240, 237, 230, 0.6)";
+    tier === "family" ? c.amber : tier === "starter" ? c.green : c.textSecondary;
+  const tierBg =
+    tier === "family" ? c.amberSubtle : tier === "starter" ? c.greenSubtle : c.surfaceSubtle;
   const tierIcon = tier === "family" ? Crown : Sparkles;
   const TierIcon = tierIcon;
 
@@ -117,7 +122,7 @@ export default function Settings() {
         <Pressable style={styles.card}>
           <View style={styles.cardRow}>
             <View style={styles.iconWrap}>
-              <User size={20} color="#7CB87A" />
+              <User size={20} color={c.green} />
             </View>
             <View style={{ flex: 1 }}>
               <Text style={styles.cardTitle}>
@@ -125,7 +130,7 @@ export default function Settings() {
               </Text>
               <Text style={styles.cardSubtitle}>{user?.email}</Text>
             </View>
-            <ChevronRight size={16} color="rgba(240, 237, 230, 0.15)" />
+            <ChevronRight size={16} color={c.textFaint} />
           </View>
         </Pressable>
 
@@ -138,7 +143,7 @@ export default function Settings() {
           }}
         >
           <View style={styles.cardRow}>
-            <View style={[styles.iconWrap, { backgroundColor: `${tierColor}15` }]}>
+            <View style={[styles.iconWrap, { backgroundColor: tierBg }]}>
               <TierIcon size={20} color={tierColor} />
             </View>
             <View style={{ flex: 1 }}>
@@ -161,7 +166,7 @@ export default function Settings() {
                 <Text style={styles.cardSubtitle}>Manage subscription</Text>
               )}
             </View>
-            <ChevronRight size={16} color={tierColor === "rgba(240, 237, 230, 0.6)" ? "rgba(240, 237, 230, 0.15)" : tierColor} />
+            <ChevronRight size={16} color={tier === "free" ? c.textFaint : tierColor} />
           </View>
         </Pressable>
 
@@ -187,14 +192,14 @@ export default function Settings() {
         {/* Family Members */}
         <Pressable style={styles.card}>
           <View style={styles.cardRow}>
-            <View style={[styles.iconWrap, { backgroundColor: "rgba(212, 116, 138, 0.15)" }]}>
-              <Users size={20} color="#D4748A" />
+            <View style={[styles.iconWrap, { backgroundColor: c.roseSubtle }]}>
+              <Users size={20} color={c.rose} />
             </View>
             <View style={{ flex: 1 }}>
               <Text style={styles.cardTitle}>Family Members</Text>
               <Text style={styles.cardSubtitle}>Manage profiles and invite partner</Text>
             </View>
-            <ChevronRight size={16} color="rgba(240, 237, 230, 0.15)" />
+            <ChevronRight size={16} color={c.textFaint} />
           </View>
         </Pressable>
 
@@ -204,8 +209,8 @@ export default function Settings() {
         {/* Calendar */}
         <Pressable style={styles.card}>
           <View style={styles.cardRow}>
-            <View style={[styles.iconWrap, { backgroundColor: "rgba(122, 173, 206, 0.15)" }]}>
-              <Calendar size={20} color="#7AADCE" />
+            <View style={[styles.iconWrap, { backgroundColor: c.blueSubtle }]}>
+              <Calendar size={20} color={c.blue} />
             </View>
             <View style={{ flex: 1 }}>
               <Text style={styles.cardTitle}>Calendar Sync</Text>
@@ -223,13 +228,13 @@ export default function Settings() {
         {/* Theme */}
         <Pressable style={styles.card} onPress={() => setThemeTo(themeMode === "dark" ? "light" : themeMode === "light" ? "system" : "dark")}>
           <View style={styles.cardRow}>
-            <View style={[styles.iconWrap, { backgroundColor: "rgba(122, 173, 206, 0.15)" }]}>
+            <View style={[styles.iconWrap, { backgroundColor: c.blueSubtle }]}>
               {themeMode === "dark" ? (
-                <Moon size={20} color="#7AADCE" />
+                <Moon size={20} color={c.blue} />
               ) : themeMode === "light" ? (
-                <Sun size={20} color="#7AADCE" />
+                <Sun size={20} color={c.blue} />
               ) : (
-                <Monitor size={20} color="#7AADCE" />
+                <Monitor size={20} color={c.blue} />
               )}
             </View>
             <View style={{ flex: 1 }}>
@@ -263,11 +268,11 @@ export default function Settings() {
         {/* Notifications */}
         <View style={styles.card}>
           <View style={styles.cardRow}>
-            <View style={[styles.iconWrap, { backgroundColor: "rgba(212, 168, 67, 0.15)" }]}>
+            <View style={[styles.iconWrap, { backgroundColor: c.amberSubtle }]}>
               {settings.notifications ? (
-                <Bell size={20} color="#D4A843" />
+                <Bell size={20} color={c.amber} />
               ) : (
-                <BellOff size={20} color="#D4A843" />
+                <BellOff size={20} color={c.amber} />
               )}
             </View>
             <View style={{ flex: 1 }}>
@@ -280,8 +285,8 @@ export default function Settings() {
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                 updateSetting("notifications", v);
               }}
-              trackColor={{ false: "rgba(240, 237, 230, 0.08)", true: "rgba(124, 184, 122, 0.3)" }}
-              thumbColor={settings.notifications ? "#7CB87A" : "rgba(240, 237, 230, 0.4)"}
+              trackColor={{ false: c.skeletonBase, true: c.greenDim }}
+              thumbColor={settings.notifications ? c.green : c.textMuted}
             />
           </View>
         </View>
@@ -289,8 +294,8 @@ export default function Settings() {
         {/* Meal Reminders */}
         <View style={styles.card}>
           <View style={styles.cardRow}>
-            <View style={[styles.iconWrap, { backgroundColor: "rgba(212, 168, 67, 0.12)" }]}>
-              <Sparkles size={20} color="#D4A843" />
+            <View style={[styles.iconWrap, { backgroundColor: c.amberSubtle }]}>
+              <Sparkles size={20} color={c.amber} />
             </View>
             <View style={{ flex: 1 }}>
               <Text style={styles.cardTitle}>Meal Reminders</Text>
@@ -302,8 +307,8 @@ export default function Settings() {
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                 updateSetting("mealReminders", v);
               }}
-              trackColor={{ false: "rgba(240, 237, 230, 0.08)", true: "rgba(124, 184, 122, 0.3)" }}
-              thumbColor={settings.mealReminders ? "#7CB87A" : "rgba(240, 237, 230, 0.4)"}
+              trackColor={{ false: c.skeletonBase, true: c.greenDim }}
+              thumbColor={settings.mealReminders ? c.green : c.textMuted}
             />
           </View>
         </View>
@@ -311,8 +316,8 @@ export default function Settings() {
         {/* Budget Alerts */}
         <View style={styles.card}>
           <View style={styles.cardRow}>
-            <View style={[styles.iconWrap, { backgroundColor: "rgba(212, 168, 67, 0.12)" }]}>
-              <CreditCard size={20} color="#D4A843" />
+            <View style={[styles.iconWrap, { backgroundColor: c.amberSubtle }]}>
+              <CreditCard size={20} color={c.amber} />
             </View>
             <View style={{ flex: 1 }}>
               <Text style={styles.cardTitle}>Budget Alerts</Text>
@@ -324,8 +329,8 @@ export default function Settings() {
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                 updateSetting("budgetAlerts", v);
               }}
-              trackColor={{ false: "rgba(240, 237, 230, 0.08)", true: "rgba(124, 184, 122, 0.3)" }}
-              thumbColor={settings.budgetAlerts ? "#7CB87A" : "rgba(240, 237, 230, 0.4)"}
+              trackColor={{ false: c.skeletonBase, true: c.greenDim }}
+              thumbColor={settings.budgetAlerts ? c.green : c.textMuted}
             />
           </View>
         </View>
@@ -333,8 +338,8 @@ export default function Settings() {
         {/* Voice */}
         <View style={styles.card}>
           <View style={styles.cardRow}>
-            <View style={[styles.iconWrap, { backgroundColor: "rgba(124, 184, 122, 0.12)" }]}>
-              <Volume2 size={20} color="#7CB87A" />
+            <View style={[styles.iconWrap, { backgroundColor: c.greenSubtle }]}>
+              <Volume2 size={20} color={c.green} />
             </View>
             <View style={{ flex: 1 }}>
               <Text style={styles.cardTitle}>Voice Responses</Text>
@@ -346,8 +351,8 @@ export default function Settings() {
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                 updateSetting("voiceEnabled", v);
               }}
-              trackColor={{ false: "rgba(240, 237, 230, 0.08)", true: "rgba(124, 184, 122, 0.3)" }}
-              thumbColor={settings.voiceEnabled ? "#7CB87A" : "rgba(240, 237, 230, 0.4)"}
+              trackColor={{ false: c.skeletonBase, true: c.greenDim }}
+              thumbColor={settings.voiceEnabled ? c.green : c.textMuted}
             />
           </View>
         </View>
@@ -355,8 +360,8 @@ export default function Settings() {
         {/* Haptics */}
         <View style={styles.card}>
           <View style={styles.cardRow}>
-            <View style={[styles.iconWrap, { backgroundColor: "rgba(122, 173, 206, 0.12)" }]}>
-              <Smartphone size={20} color="#7AADCE" />
+            <View style={[styles.iconWrap, { backgroundColor: c.blueSubtle }]}>
+              <Smartphone size={20} color={c.blue} />
             </View>
             <View style={{ flex: 1 }}>
               <Text style={styles.cardTitle}>Haptic Feedback</Text>
@@ -368,8 +373,8 @@ export default function Settings() {
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                 updateSetting("haptics", v);
               }}
-              trackColor={{ false: "rgba(240, 237, 230, 0.08)", true: "rgba(124, 184, 122, 0.3)" }}
-              thumbColor={settings.haptics ? "#7CB87A" : "rgba(240, 237, 230, 0.4)"}
+              trackColor={{ false: c.skeletonBase, true: c.greenDim }}
+              thumbColor={settings.haptics ? c.green : c.textMuted}
             />
           </View>
         </View>
@@ -379,14 +384,14 @@ export default function Settings() {
 
         <Pressable style={[styles.card, styles.referralCard]}>
           <View style={styles.cardRow}>
-            <View style={[styles.iconWrap, { backgroundColor: "rgba(212, 168, 67, 0.2)" }]}>
-              <Gift size={20} color="#D4A843" />
+            <View style={[styles.iconWrap, { backgroundColor: c.amberSubtle }]}>
+              <Gift size={20} color={c.amber} />
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={[styles.cardTitle, { color: "#D4A843" }]}>Refer a Family</Text>
+              <Text style={[styles.cardTitle, { color: c.amber }]}>Refer a Family</Text>
               <Text style={styles.cardSubtitle}>Share Kin, earn free months</Text>
             </View>
-            <ChevronRight size={16} color="#D4A843" />
+            <ChevronRight size={16} color={c.amber} />
           </View>
         </Pressable>
 
@@ -395,50 +400,50 @@ export default function Settings() {
 
         <Pressable style={styles.card}>
           <View style={styles.cardRow}>
-            <View style={[styles.iconWrap, { backgroundColor: "rgba(240, 237, 230, 0.05)" }]}>
-              <Shield size={20} color="rgba(240, 237, 230, 0.4)" />
+            <View style={[styles.iconWrap, { backgroundColor: c.surfaceSubtle }]}>
+              <Shield size={20} color={c.textMuted} />
             </View>
             <View style={{ flex: 1 }}>
               <Text style={styles.cardTitle}>Privacy Policy</Text>
             </View>
-            <ChevronRight size={16} color="rgba(240, 237, 230, 0.15)" />
+            <ChevronRight size={16} color={c.textFaint} />
           </View>
         </Pressable>
 
         <Pressable style={styles.card}>
           <View style={styles.cardRow}>
-            <View style={[styles.iconWrap, { backgroundColor: "rgba(240, 237, 230, 0.05)" }]}>
-              <FileText size={20} color="rgba(240, 237, 230, 0.4)" />
+            <View style={[styles.iconWrap, { backgroundColor: c.surfaceSubtle }]}>
+              <FileText size={20} color={c.textMuted} />
             </View>
             <View style={{ flex: 1 }}>
               <Text style={styles.cardTitle}>Terms of Service</Text>
             </View>
-            <ChevronRight size={16} color="rgba(240, 237, 230, 0.15)" />
+            <ChevronRight size={16} color={c.textFaint} />
           </View>
         </Pressable>
 
         <Pressable style={styles.card}>
           <View style={styles.cardRow}>
-            <View style={[styles.iconWrap, { backgroundColor: "rgba(240, 237, 230, 0.05)" }]}>
-              <HelpCircle size={20} color="rgba(240, 237, 230, 0.4)" />
+            <View style={[styles.iconWrap, { backgroundColor: c.surfaceSubtle }]}>
+              <HelpCircle size={20} color={c.textMuted} />
             </View>
             <View style={{ flex: 1 }}>
               <Text style={styles.cardTitle}>Help & Support</Text>
             </View>
-            <ChevronRight size={16} color="rgba(240, 237, 230, 0.15)" />
+            <ChevronRight size={16} color={c.textFaint} />
           </View>
         </Pressable>
 
         <Pressable style={styles.card}>
           <View style={styles.cardRow}>
-            <View style={[styles.iconWrap, { backgroundColor: "rgba(240, 237, 230, 0.05)" }]}>
-              <Mail size={20} color="rgba(240, 237, 230, 0.4)" />
+            <View style={[styles.iconWrap, { backgroundColor: c.surfaceSubtle }]}>
+              <Mail size={20} color={c.textMuted} />
             </View>
             <View style={{ flex: 1 }}>
               <Text style={styles.cardTitle}>Contact Us</Text>
               <Text style={styles.cardSubtitle}>hello@kinai.family</Text>
             </View>
-            <ChevronRight size={16} color="rgba(240, 237, 230, 0.15)" />
+            <ChevronRight size={16} color={c.textFaint} />
           </View>
         </Pressable>
 
@@ -450,7 +455,7 @@ export default function Settings() {
             pressed && { opacity: 0.7 },
           ]}
         >
-          <LogOut size={16} color="rgba(240, 237, 230, 0.4)" />
+          <LogOut size={16} color={c.textMuted} />
           <Text style={styles.signOutText}>Sign Out</Text>
         </Pressable>
 
@@ -461,15 +466,19 @@ export default function Settings() {
   );
 }
 
-const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: "#0C0F0A" },
+// ─── Styles factory ───────────────────────────────────────────────────────────
+// Spec: docs/specs/light-theme-spec.md §8 — Settings Screen (B23)
+
+function createSettingsStyles(c: ThemeColors) {
+  return StyleSheet.create({
+  safeArea: { flex: 1, backgroundColor: c.background },
   container: { flex: 1 },
   content: { paddingHorizontal: 20, paddingBottom: 120 },
 
   pageTitle: {
     fontFamily: "InstrumentSerif-Italic",
     fontSize: 28,
-    color: "#7CB87A",
+    color: c.green,
     marginTop: 8,
     marginBottom: 24,
   },
@@ -477,7 +486,7 @@ const styles = StyleSheet.create({
   sectionLabel: {
     fontFamily: "GeistMono-Regular",
     fontSize: 11,
-    color: "rgba(240, 237, 230, 0.2)",
+    color: c.textDim,
     textTransform: "uppercase",
     letterSpacing: 2,
     marginTop: 20,
@@ -486,16 +495,16 @@ const styles = StyleSheet.create({
   },
 
   card: {
-    backgroundColor: "#141810",
+    backgroundColor: c.surfacePrimary,
     borderRadius: 18,
     padding: 16,
     marginBottom: 8,
     borderWidth: 1,
-    borderColor: "rgba(240, 237, 230, 0.04)",
+    borderColor: c.surfaceSubtle,
   },
   referralCard: {
-    borderColor: "rgba(212, 168, 67, 0.12)",
-    backgroundColor: "rgba(212, 168, 67, 0.04)",
+    borderColor: c.amberBorder,
+    backgroundColor: c.amberSubtle,
   },
   cardRow: {
     flexDirection: "row",
@@ -506,25 +515,25 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 14,
-    backgroundColor: "rgba(124, 184, 122, 0.15)",
+    backgroundColor: c.greenSubtle,
     alignItems: "center",
     justifyContent: "center",
   },
   cardTitle: {
     fontFamily: "Geist-SemiBold",
     fontSize: 15,
-    color: "#F0EDE6",
+    color: c.textPrimary,
     marginBottom: 2,
   },
   cardSubtitle: {
     fontFamily: "Geist",
     fontSize: 13,
-    color: "rgba(240, 237, 230, 0.3)",
+    color: c.textMuted,
   },
 
   // Badge
   badge: {
-    backgroundColor: "rgba(212, 116, 138, 0.12)",
+    backgroundColor: c.roseSubtle,
     borderRadius: 8,
     paddingHorizontal: 10,
     paddingVertical: 4,
@@ -532,7 +541,7 @@ const styles = StyleSheet.create({
   badgeText: {
     fontFamily: "GeistMono-Regular",
     fontSize: 10,
-    color: "#D4748A",
+    color: c.rose,
     textTransform: "uppercase",
     letterSpacing: 0.5,
   },
@@ -541,7 +550,7 @@ const styles = StyleSheet.create({
   themeChips: {
     flexDirection: "row",
     gap: 4,
-    backgroundColor: "rgba(240, 237, 230, 0.03)",
+    backgroundColor: c.surfaceSubtle,
     borderRadius: 10,
     padding: 3,
   },
@@ -551,15 +560,15 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   themeChipActive: {
-    backgroundColor: "rgba(122, 173, 206, 0.18)",
+    backgroundColor: c.blueSubtle,
   },
   themeChipText: {
     fontFamily: "Geist",
     fontSize: 11,
-    color: "rgba(240, 237, 230, 0.25)",
+    color: c.textAcknowledged,
   },
   themeChipTextActive: {
-    color: "#7AADCE",
+    color: c.blue,
     fontFamily: "Geist-SemiBold",
   },
 
@@ -569,26 +578,27 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     gap: 8,
-    backgroundColor: "#141810",
+    backgroundColor: c.surfacePrimary,
     borderRadius: 16,
     paddingVertical: 16,
     marginTop: 20,
     borderWidth: 1,
-    borderColor: "rgba(240, 237, 230, 0.04)",
+    borderColor: c.surfaceSubtle,
   },
   signOutText: {
     fontFamily: "Geist",
     fontSize: 15,
-    color: "rgba(240, 237, 230, 0.4)",
+    color: c.textMuted,
   },
 
   // Version
   versionText: {
     fontFamily: "GeistMono-Regular",
     fontSize: 11,
-    color: "rgba(240, 237, 230, 0.1)",
+    color: c.textFaint,
     textAlign: "center",
     marginTop: 16,
     marginBottom: 8,
   },
-});
+  });
+}

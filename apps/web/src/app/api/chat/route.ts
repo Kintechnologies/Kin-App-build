@@ -1,29 +1,162 @@
+/**
+ * Chat Route — B30
+ *
+ * Wires docs/prompts/chat-prompt.md system prompt for the personal thread.
+ * Replaces pre-pivot buildSystemPrompt (broad family-OS prompt) with the
+ * IE-approved coordination-only prompt per §5/§7/§8/§11/§16/§19/§23.
+ *
+ * Coordination context (speaking_to, today_events, open_coordination_issues,
+ * recent_schedule_changes) is prepended to each user message per chat-prompt.md
+ * § CONTEXT PROVIDED PER MESSAGE.
+ *
+ * Web search tool is retained (Lead Eng directive: "Web search tool stays").
+ * Scope restriction is enforced by the system prompt, not by removing the tool.
+ *
+ * Household thread uses the same prompt until IE authors household-chat-prompt.md.
+ */
+
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getAuthenticatedUser } from "@/lib/supabase/api-auth";
 import { getAnthropicClient, ANTHROPIC_MODEL } from "@/lib/anthropic";
-import { buildSystemPrompt } from "@/lib/system-prompt";
 import Anthropic from "@anthropic-ai/sdk";
 
-// Web search tool definition for Anthropic tool use
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+interface CalendarEventRow {
+  title: string;
+  start_time: string;
+  end_time: string | null;
+  owner_parent_id: string | null;
+}
+
+interface RecentChangeRow {
+  title: string;
+  start_time: string;
+  end_time: string | null;
+}
+
+interface CoordinationIssueRow {
+  trigger_type: string;
+  content: string;
+  state: string;
+}
+
+interface ConversationRow {
+  role: string;
+  content: string;
+}
+
+// ─── System Prompt (source: docs/prompts/chat-prompt.md, IE S1.7) ─────────────
+
+const CHAT_SYSTEM_PROMPT = `You are Kin, a family coordination AI for a two-parent household. You help parents stay ahead of logistics, pickups, and schedule conflicts — not by tracking everything, but by surfacing the one thing that matters before it becomes a scramble.
+
+## YOUR ROLE IN CHAT
+The Conversations screen has two thread types:
+1. Personal thread (this prompt): Kin speaks privately with one parent. Candid, direct, efficient.
+2. Household thread: Both parents see the output. Balanced, neither parent singled out.
+
+This prompt governs the personal thread only.
+
+## WHO YOU ARE
+You are not a general assistant. You do not answer questions about recipes, the news, trivia, or anything outside family coordination. If asked, redirect gently: "I'm focused on your family's schedule and coordination — is there something on that front I can help with?"
+
+You know:
+- Today's household schedule (events, pickups, assignments)
+- Known coordination issues and their current state (OPEN / ACKNOWLEDGED / RESOLVED)
+- Which parent you are talking to (this context is always provided)
+- Recent schedule changes
+
+You do not know (and should not pretend to know):
+- Anything not in the household data provided
+- Medical details, financial details, personal relationship dynamics
+
+## CONVERSATION RULES
+
+**Tone:** Candid, efficient, kind. Not clinical. Not a chatbot. Imagine a trusted coordinator who knows the family well and has been doing this for years.
+
+**Length:** Prefer short. Most answers should be 1–3 sentences. Never more than a short paragraph unless explicitly asked for detail. Long responses signal something went wrong.
+
+**Lead with implication, not data.** If asked "what's happening today?", don't list events — surface the one thing that matters.
+
+**Never open a message with:**
+- "Based on your calendar…"
+- "It looks like…"
+- "You may want to consider…"
+- "Just a heads up…"
+- "I noticed that…"
+- "Great question!"
+- "Certainly!" or "Of course!" or "Absolutely!"
+
+**Always use first-person present tense.** ("I see Leo's pickup is unconfirmed." — not "It appears Leo's pickup may be unconfirmed.")
+
+**Confidence (§23):**
+- High → direct statement, no framing
+- Medium → one qualifier max ("looks like", "probably", "worth confirming")
+- Low → say so directly: "I don't have enough information on that right now."
+- Never guess. Never hallucinate schedule data.
+
+**No repetition:** If you already surfaced an insight in this conversation and the underlying situation has not changed, do not surface it again. Check \`conversation_history\` before responding. If the parent is asking about something you already covered, confirm the status briefly ("Still the same — Leo's pickup is unconfirmed.") rather than restating the full context.
+
+**Failure modes to avoid (§11):**
+- Vague outputs: "Looks like you have a busy evening." This tells them nothing.
+- Repeating yourself: If you surfaced an insight in this conversation and nothing changed, don't repeat it.
+- Wrong parent assignment: If pickup ownership is ambiguous, never confidently assign it. Ask or surface as a shared question.
+- Over-explaining silence: If there's nothing to flag, say nothing or say it briefly — not "I've reviewed your entire schedule and found no issues at this time."
+
+**Relief language — use exact phrases only:**
+- Time-based: "I'll remind you when it's time to leave."
+- Monitoring: "I'll keep an eye on it."
+- Conditional: "I'll flag it if anything changes."
+
+**Never use:** "I've got this" / "Don't worry" / "You're all set" / generic reassurance.
+
+## WHAT YOU HELP WITH
+- "What do I need to know today?" → Surface the one most important coordination implication
+- "Who's doing pickup?" → Check assignment; if confirmed, say so directly; if unconfirmed, say that
+- "Can you remind me to leave at 2:45?" → "I'll remind you when it's time to leave."
+- "What's my partner handling?" → Surface what you know; flag if unconfirmed
+- "Something changed on my calendar" → Acknowledge, check for coordination impact, surface if any
+- General coordination questions about the household schedule
+
+## WHAT YOU DO NOT DO
+- Answer questions outside family coordination
+- Make promises you can't keep ("I'll book the babysitter")
+- Give opinions on parenting decisions
+- Take sides in household disagreements
+- Discuss other people's schedules beyond what's in the household data
+
+## CONTEXT PROVIDED PER MESSAGE
+Each message will include:
+- speaking_to: "parent_a" | "parent_b"
+- today_events: array of household events
+- open_coordination_issues: array of OPEN/ACKNOWLEDGED items from coordination_issues table
+- recent_schedule_changes: events updated in the last 24 hours`;
+
+// ─── Web search tool ──────────────────────────────────────────────────────────
+
+// Retained per sprint directive: "Web search tool stays."
+// Scope restriction (coordination-only) is enforced by CHAT_SYSTEM_PROMPT.
 const SEARCH_TOOL: Anthropic.Tool = {
   name: "web_search",
   description:
-    "Search the internet for current information. Use this when the user asks about local services, activities, events, product recommendations, prices, reviews, or anything that requires up-to-date real-world data. Always search when the question involves finding specific places, programs, camps, classes, restaurants, or services near the family.",
+    "Search the internet for current information relevant to family coordination — local services, school schedules, activity programs, or anything requiring up-to-date real-world data to assist with a coordination question.",
   input_schema: {
     type: "object" as const,
     properties: {
       query: {
         type: "string",
-        description: "The search query. Be specific — include location, age ranges, budget if relevant from the family context.",
+        description:
+          "The search query. Be specific — include location, age ranges, or timing if relevant.",
       },
     },
     required: ["query"],
   },
 };
 
+// ─── Web search helper ────────────────────────────────────────────────────────
+
 async function performWebSearch(query: string): Promise<string> {
-  // Try Tavily first
   if (process.env.TAVILY_API_KEY) {
     try {
       const response = await fetch("https://api.tavily.com/search", {
@@ -61,9 +194,10 @@ async function performWebSearch(query: string): Promise<string> {
     }
   }
 
-  // Fallback: return a helpful message
-  return `[Web search is not configured yet. To enable real-time search, add TAVILY_API_KEY to .env.local. Get a free key at tavily.com]\n\nBased on my training data, I can still help with general recommendations, but I won't have the latest local listings or prices.`;
+  return `[Web search is not configured. Add TAVILY_API_KEY to .env.local to enable real-time search.]`;
 }
+
+// ─── POST ─────────────────────────────────────────────────────────────────────
 
 export async function POST(request: Request) {
   try {
@@ -79,85 +213,122 @@ export async function POST(request: Request) {
 
     const supabase = createClient();
 
-    // Fetch family context — CRITICAL: allergies are non-negotiable for meal safety
+    // ── §B20: Resolve primary household ID ────────────────────────────────────
+    // coordination_issues.household_id stores the primary parent's ID.
+    // Primary users: household_id is null (they ARE the primary → parent_a).
+    // Partner users: household_id = primary parent's ID (→ parent_b).
+    const { data: idRow } = await supabase
+      .from("profiles")
+      .select("household_id")
+      .eq("id", user.id)
+      .single<{ household_id: string | null }>();
+    const primaryId = idRow?.household_id ?? user.id;
+    const speakingTo: "parent_a" | "parent_b" =
+      idRow?.household_id == null ? "parent_a" : "parent_b";
+
+    const today = new Date().toISOString().split("T")[0];
+    const since24h = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+
+    // ── Fetch coordination context + conversation history ──────────────────────
     const [
-      { data: profile },
-      { data: members },
-      { data: prefs },
+      { data: todayEvents },
+      { data: openIssues },
+      { data: recentChanges },
       { data: history },
-      { data: allergies },
     ] = await Promise.all([
-      supabase.from("profiles").select("*").eq("id", user.id).single(),
-      supabase.from("family_members").select("*").eq("profile_id", user.id),
-      supabase.from("onboarding_preferences").select("*").eq("profile_id", user.id).single(),
+      // Today's calendar events for this parent
+      supabase
+        .from("calendar_events")
+        .select("title, start_time, end_time, owner_parent_id")
+        .eq("profile_id", user.id)
+        .gte("start_time", `${today}T00:00:00Z`)
+        .lte("start_time", `${today}T23:59:59Z`)
+        .is("deleted_at", null)
+        .order("start_time", { ascending: true })
+        .limit(10),
+
+      // Open + acknowledged coordination issues for this household
+      supabase
+        .from("coordination_issues")
+        .select("trigger_type, content, state")
+        .eq("household_id", primaryId)
+        .in("state", ["OPEN", "ACKNOWLEDGED"])
+        .order("surfaced_at", { ascending: false })
+        .limit(5),
+
+      // Events updated in the last 24 hours (recent schedule changes)
+      supabase
+        .from("calendar_events")
+        .select("title, start_time, end_time")
+        .eq("profile_id", user.id)
+        .gte("updated_at", since24h)
+        .is("deleted_at", null)
+        .order("updated_at", { ascending: false })
+        .limit(5),
+
+      // Conversation history (last 50 messages in this thread)
       supabase
         .from("conversations")
         .select("role, content")
         .eq("profile_id", user.id)
         .order("created_at", { ascending: true })
         .limit(50),
-      supabase
-        .from("children_allergies")
-        .select("*, family_member:family_members(name)")
-        .eq("profile_id", user.id),
     ]);
 
-    const adults = (members || []).filter((m) => m.member_type === "adult");
-    const kids = (members || []).filter((m) => m.member_type === "child");
-    const pets = (members || []).filter((m) => m.member_type === "pet");
+    // ── Build coordination context block ──────────────────────────────────────
+    const context = {
+      speaking_to: speakingTo,
+      today_events: (todayEvents ?? []).map((e: CalendarEventRow) => ({
+        time: new Date(e.start_time).toLocaleTimeString("en-US", {
+          hour: "numeric",
+          minute: "2-digit",
+        }),
+        end_time: e.end_time
+          ? new Date(e.end_time).toLocaleTimeString("en-US", {
+              hour: "numeric",
+              minute: "2-digit",
+            })
+          : null,
+        title: e.title,
+        owner_parent_id: e.owner_parent_id,
+      })),
+      open_coordination_issues: (openIssues ?? []).map(
+        (i: CoordinationIssueRow) => ({
+          trigger_type: i.trigger_type,
+          content: i.content,
+          state: i.state,
+        })
+      ),
+      recent_schedule_changes: (recentChanges ?? []).map(
+        (e: RecentChangeRow) => ({
+          title: e.title,
+          start_time: e.start_time,
+        })
+      ),
+    };
 
-    // Use first adult's name from family members; fall back to a friendly default
-    const p1Name = adults[0]?.name || "Parent";
+    // ── Build Anthropic message history ───────────────────────────────────────
+    const messages: Anthropic.MessageParam[] = (history ?? []).map(
+      (h: ConversationRow) => ({
+        role: h.role as "user" | "assistant",
+        content: h.content,
+      })
+    );
 
-    // Build allergen context for meal safety
-    interface AllergyRow {
-      allergen: string;
-      severity: string;
-      notes?: string | null;
-      family_member?: { name: string } | null;
-    }
-    const allergenList =
-      allergies && allergies.length > 0
-        ? (allergies as AllergyRow[])
-            .map(
-              (a) =>
-                `${a.family_member?.name || "Child"}: ${a.allergen} (${a.severity}${a.notes ? ` — ${a.notes}` : ""})`
-            )
-            .join(", ")
-        : "No known allergies";
+    // Prepend coordination context to user message per chat-prompt.md spec
+    const userMessageWithContext = `[CONTEXT]\n${JSON.stringify(context, null, 2)}\n\n[MESSAGE]\n${message}`;
+    messages.push({ role: "user", content: userMessageWithContext });
 
-    // Build system prompt with family context
-    const systemPrompt = buildSystemPrompt({
-      family_name: profile?.family_name || "your",
-      household_type: profile?.household_type || "unknown",
-      p1_name: p1Name,
-      kids: kids.map((k) => ({ name: k.name, age: k.age || 0 })),
-      pets: pets.map((p) => ({ name: p.name })),
-      grocery_budget: prefs?.weekly_grocery_budget || 200,
-      dietary_preferences: prefs?.dietary_preferences || [],
-      food_loves: prefs?.food_loves || [],
-      food_dislikes: prefs?.food_dislikes || [],
-      children_allergies: allergenList,
-    });
-
-    // Build message history
-    const messages: Anthropic.MessageParam[] = (history || []).map((h) => ({
-      role: h.role as "user" | "assistant",
-      content: h.content,
-    }));
-
-    messages.push({ role: "user", content: message });
-
-    // Save user message
+    // Save raw user message (without context block) to conversation history
     await supabase.from("conversations").insert({
       profile_id: user.id,
       role: "user",
       content: message,
     });
 
-    // Mock response if no API key
+    // ── Mock response (no API key) ────────────────────────────────────────────
     if (!process.env.ANTHROPIC_API_KEY) {
-      const mockResponse = getMockResponse(message, profile?.family_name || "your family");
+      const mockResponse = getMockResponse(message);
       await supabase.from("conversations").insert({
         profile_id: user.id,
         role: "assistant",
@@ -166,17 +337,17 @@ export async function POST(request: Request) {
       return NextResponse.json({ response: mockResponse });
     }
 
-    // Call Anthropic with tool use
+    // ── Call Anthropic with chat-prompt.md system prompt ─────────────────────
     const anthropic = getAnthropicClient();
     let response = await anthropic.messages.create({
       model: ANTHROPIC_MODEL,
       max_tokens: 1024,
-      system: systemPrompt,
+      system: CHAT_SYSTEM_PROMPT,
       tools: [SEARCH_TOOL],
       messages,
     });
 
-    // Handle tool use loop (Claude may call search, then respond)
+    // ── Tool use loop (Claude may invoke web_search, then respond) ────────────
     let finalText = "";
     let iterations = 0;
     const maxIterations = 3;
@@ -184,16 +355,15 @@ export async function POST(request: Request) {
     while (iterations < maxIterations) {
       iterations++;
 
-      // Check if Claude wants to use a tool
       const toolUseBlock = response.content.find(
         (block): block is Anthropic.ToolUseBlock => block.type === "tool_use"
       );
 
       if (toolUseBlock) {
-        // Perform the search
-        const searchResults = await performWebSearch((toolUseBlock.input as { query: string }).query);
+        const searchResults = await performWebSearch(
+          (toolUseBlock.input as { query: string }).query
+        );
 
-        // Send results back to Claude
         messages.push({
           role: "assistant",
           content: response.content as Anthropic.ContentBlockParam[],
@@ -209,16 +379,14 @@ export async function POST(request: Request) {
           ],
         });
 
-        // Get Claude's response with the search results
         response = await anthropic.messages.create({
           model: ANTHROPIC_MODEL,
           max_tokens: 1024,
-          system: systemPrompt,
+          system: CHAT_SYSTEM_PROMPT,
           tools: [SEARCH_TOOL],
           messages,
         });
       } else {
-        // No more tool calls — extract text
         const textBlock = response.content.find(
           (block): block is Anthropic.TextBlock => block.type === "text"
         );
@@ -234,7 +402,7 @@ export async function POST(request: Request) {
       finalText = textBlock?.text || "I couldn't generate a response right now.";
     }
 
-    // Save assistant response
+    // ── Save assistant response ───────────────────────────────────────────────
     await supabase.from("conversations").insert({
       profile_id: user.id,
       role: "assistant",
@@ -251,24 +419,23 @@ export async function POST(request: Request) {
   }
 }
 
-function getMockResponse(message: string, familyName: string): string {
+// ─── Mock response (no ANTHROPIC_API_KEY) ────────────────────────────────────
+// Coordination-focused only — reflects chat-prompt.md scope.
+
+function getMockResponse(message: string): string {
   const lower = message.toLowerCase();
 
-  if (lower.includes("camp") || lower.includes("class") || lower.includes("activity") || lower.includes("program")) {
-    return `Great question — I'd love to help find options for your family. Once my web search is connected (add TAVILY_API_KEY to .env.local), I'll be able to search for local programs, compare prices, check age eligibility, and filter by your budget. For now, I'd suggest checking your local parks & recreation department and asking other parents in the area — those tend to surface the best hidden gems.`;
-  }
-  if (lower.includes("meal") || lower.includes("dinner") || lower.includes("lunch") || lower.includes("eat")) {
-    return `Based on what the ${familyName} family typically enjoys, I'd suggest a stir-fry tonight — about 25 minutes prep, and you likely have most ingredients on hand. Want me to pull up the full recipe with a quick grocery check?`;
-  }
-  if (lower.includes("budget") || lower.includes("spend") || lower.includes("money")) {
-    return `Your grocery spending is the main category I'm tracking right now. Once you start logging transactions in the Budget tab, I'll give you real-time breakdowns with specific numbers. Head over there to add your first entry — it takes 10 seconds. 💰`;
-  }
-  if (lower.includes("date night") || lower.includes("date")) {
-    return `It's been a while since a date night — families like yours tend to aim for every two weeks. Here are two ideas: a familiar pick like your favorite Italian spot, or something different like a cooking class for two. Want me to block an evening this week? 💕`;
-  }
-  if (lower.includes("hello") || lower.includes("hi") || lower.includes("hey")) {
-    return `Hey! I'm Kin — your family's AI chief of staff. This is your first week, so the more you chat with me, rate meals, and log spending, the more dialed in I get. What can I help with right now? 🍽️`;
+  if (
+    lower.includes("pickup") ||
+    lower.includes("who's getting") ||
+    lower.includes("who is getting")
+  ) {
+    return "I don't have live pickup data in this environment — connect your calendar to get real-time coordination insights.";
   }
 
-  return `This is your first week with Kin, so I'm still getting to know the ${familyName} family. The more you use me — rate meals, log spending, ask questions — the more personalized I get. Right now I can help with meal ideas, budget tracking, date night planning, or search the web for local activities and services. What sounds good?`;
+  if (lower.includes("hello") || lower.includes("hi") || lower.includes("hey")) {
+    return "Hey — what's on your mind?";
+  }
+
+  return "I'm focused on your family's schedule and coordination — is there something on that front I can help with?";
 }

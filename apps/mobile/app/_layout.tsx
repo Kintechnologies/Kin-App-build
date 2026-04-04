@@ -5,7 +5,7 @@ import { Slot, useRouter, useSegments } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { AuthProvider, useAuth } from "../lib/auth";
-import { ThemeProvider, useTheme } from "../lib/theme";
+import { ThemeProvider, useTheme, useThemeColors } from "../lib/theme";
 import { SettingsProvider } from "../lib/settings";
 import { View, StyleSheet } from "react-native";
 
@@ -32,10 +32,13 @@ function AuthGate() {
 }
 
 function ThemedRoot() {
-  const { colors, isDark } = useTheme();
+  const { isDark } = useTheme();
+  // Use the spec-aligned token set (constants/colors.ts) for correct warm-white light theme
+  const colors = useThemeColors();
 
   return (
     <GestureHandlerRootView style={[styles.root, { backgroundColor: colors.background }]}>
+      {/* §light-theme-spec.md §12: StatusBar style toggles light-content ↔ dark-content */}
       <StatusBar style={isDark ? "light" : "dark"} />
       <AuthProvider>
         <SettingsProvider>
