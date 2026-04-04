@@ -146,12 +146,12 @@ describe("Stripe webhook — checkout.session.completed", () => {
     expect(await res.json()).toEqual({ received: true });
   });
 
-  it("updates profile with family tier and stripe_customer_id", async () => {
+  it("updates profile with starter tier and stripe_customer_id", async () => {
     mockConstructEvent.mockReturnValue(makeCheckoutEvent());
     await POST(makeRequest());
     expect(mockUpdate).toHaveBeenCalledWith(
       expect.objectContaining({
-        subscription_tier: "family",
+        subscription_tier: "starter",
         stripe_customer_id: "cus_test_123",
         cancelled_at: null,
         data_deletion_at: null,

@@ -21,10 +21,16 @@ const { mockCreate, mockGetAuthenticatedUser, mockSupabaseChain } = vi.hoisted((
   const mockGetAuthenticatedUser = vi.fn();
 
   // Chainable Supabase mock — all terminal ops resolve successfully with empty data
+  // Covers the full set of methods used by the B30 chat route:
+  // select, eq, gte, lte, is, in, order, limit (context queries) + single (profile) + insert (save)
   const chain: Record<string, unknown> = {};
   const noop = vi.fn().mockReturnValue(chain);
   chain["select"] = noop;
   chain["eq"] = noop;
+  chain["gte"] = noop;
+  chain["lte"] = noop;
+  chain["is"] = noop;
+  chain["in"] = noop;
   chain["order"] = noop;
   chain["limit"] = vi.fn().mockResolvedValue({ data: [], error: null });
   chain["single"] = vi.fn().mockResolvedValue({ data: null, error: null });
@@ -61,6 +67,11 @@ vi.mock("@/lib/anthropic", () => ({
 
 vi.mock("@/lib/system-prompt", () => ({
   buildSystemPrompt: vi.fn(() => "mocked system prompt"),
+}));
+
+vi.mock("@sentry/nextjs", () => ({
+  captureException: vi.fn(),
+  captureMessage: vi.fn(),
 }));
 
 vi.stubEnv("ANTHROPIC_API_KEY", "sk-ant-test-xxx");
@@ -142,7 +153,9 @@ describe("Chat API — normal flow (no tool use)", () => {
     await POST(makeRequest("Plan my week"));
     const callArgs = mockCreate.mock.calls[0][0] as { messages: Anthropic.MessageParam[] };
     const lastMsg = callArgs.messages.at(-1);
-    expect(lastMsg).toMatchObject({ role: "user", content: "Plan my week" });
+    // B30 route prepends [CONTEXT] block before the user message
+    expect(lastMsg?.role).toBe("user");
+    expect(lastMsg?.content).toEqual(expect.stringContaining("Plan my week"));
   });
 });
 

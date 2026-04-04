@@ -21,8 +21,7 @@ import { createClient } from "@supabase/supabase-js";
 const EXPO_PUSH_URL = "https://exp.host/--/api/v2/push/send";
 
 // How many days before due_date to send each reminder
-const REMINDER_DAYS = [7, 1] as const;
-type ReminderDay = (typeof REMINDER_DAYS)[number];
+type ReminderDay = 7 | 1;
 
 interface VaccinationRow {
   id: string;

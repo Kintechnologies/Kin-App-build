@@ -158,40 +158,12 @@ export async function POST(request: Request) {
       }
 
       case "invoice.payment_failed": {
-        // §B24: downgrade user to free tier on payment failure.
-        // Stripe's dunning process retries; if retries also fail,
-        // `customer.subscription.deleted` will fire and the handler above
-        // confirms final cancellation. This handler ensures the user is
-        // immediately downgraded so they cannot access paid features during
-        // the dunning window on a failed charge.
+        // Log payment failure; do not immediately downgrade.
+        // Stripe's dunning process retries automatically — final cancellation fires
+        // customer.subscription.deleted, which triggers the actual downgrade above.
         const invoice = event.data.object as Stripe.Invoice;
         const customerId = invoice.customer as string;
-
-        if (customerId) {
-          const { data: profile } = await supabase
-            .from("profiles")
-            .select("id")
-            .eq("stripe_customer_id", customerId)
-            .maybeSingle<{ id: string }>();
-
-          if (profile?.id) {
-            const now = new Date();
-            const deletionDate = new Date(now.getTime() + 90 * 24 * 60 * 60 * 1000);
-
-            await supabase
-              .from("profiles")
-              .update({
-                subscription_tier: "free",
-                cancelled_at: now.toISOString(),
-                data_deletion_at: deletionDate.toISOString(),
-                deletion_reminded: false,
-              })
-              .eq("id", profile.id);
-
-            // TODO: Send payment-failed recovery email (link to update payment method)
-          }
-        }
-
+        // TODO: Send payment-failed recovery email (link to update payment method)
         Sentry.captureMessage(`Payment failed for customer ${customerId}`, "warning");
         break;
       }
