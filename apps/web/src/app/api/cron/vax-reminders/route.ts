@@ -17,6 +17,7 @@
 
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import * as Sentry from "@sentry/nextjs";
 
 const EXPO_PUSH_URL = "https://exp.host/--/api/v2/push/send";
 
@@ -250,8 +251,9 @@ export async function GET(request: Request) {
 
         sent++;
       }
-    } catch {
-      // Non-fatal: continue to next profile
+    } catch (err) {
+      // Non-fatal: continue to next profile, but capture for observability
+      Sentry.captureException(err);
     }
   }
 

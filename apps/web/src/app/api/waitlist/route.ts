@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import * as Sentry from "@sentry/nextjs";
 
 /**
  * POST /api/waitlist
@@ -52,16 +53,13 @@ export async function POST(request: Request) {
       if (error.code === "23505") {
         return NextResponse.json({ success: true, existing: true }, { status: 200 });
       }
-      if (process.env.NODE_ENV !== "production") {
-        console.error("[waitlist] insert error:", error);
-      }
-      // TODO: log to Sentry before GA
+      Sentry.captureException(error);
       return NextResponse.json({ error: "Could not save your email" }, { status: 500 });
     }
 
     return NextResponse.json({ success: true }, { status: 201 });
-  } catch {
-    // TODO: log to Sentry before GA
+  } catch (err) {
+    Sentry.captureException(err);
     return NextResponse.json({ error: "Unexpected error" }, { status: 500 });
   }
 }

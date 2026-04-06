@@ -85,11 +85,21 @@ function textResponse(text: string): Anthropic.Message {
     id: "msg_text",
     type: "message",
     role: "assistant",
-    content: [{ type: "text", text }],
+    content: [{ type: "text", text, citations: null }],
     model: "claude-test-model",
     stop_reason: "end_turn",
     stop_sequence: null,
-    usage: { input_tokens: 10, output_tokens: 20 },
+    container: null,
+    usage: {
+      input_tokens: 10,
+      output_tokens: 20,
+      cache_creation: null,
+      cache_creation_input_tokens: null,
+      cache_read_input_tokens: null,
+      inference_geo: null,
+      server_tool_use: null,
+      service_tier: null,
+    },
   };
 }
 
@@ -109,7 +119,17 @@ function toolUseResponse(id = "tu_001", query = "test query"): Anthropic.Message
     model: "claude-test-model",
     stop_reason: "tool_use",
     stop_sequence: null,
-    usage: { input_tokens: 10, output_tokens: 20 },
+    container: null,
+    usage: {
+      input_tokens: 10,
+      output_tokens: 20,
+      cache_creation: null,
+      cache_creation_input_tokens: null,
+      cache_read_input_tokens: null,
+      inference_geo: null,
+      server_tool_use: null,
+      service_tier: null,
+    },
   };
 }
 

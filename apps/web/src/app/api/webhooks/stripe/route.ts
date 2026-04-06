@@ -43,10 +43,7 @@ export async function POST(request: Request) {
       process.env.STRIPE_WEBHOOK_SECRET!
     );
   } catch (err) {
-    // TODO: Replace with structured logging (Sentry) before GA
-    if (process.env.NODE_ENV !== "production") {
-      console.error("Webhook signature verification failed:", err);
-    }
+    Sentry.captureException(err);
     return NextResponse.json({ error: "Invalid signature" }, { status: 400 });
   }
 
@@ -169,10 +166,7 @@ export async function POST(request: Request) {
       }
     }
   } catch (error) {
-    // TODO: Replace with structured logging (Sentry) before GA
-    if (process.env.NODE_ENV !== "production") {
-      console.error("Webhook handler error:", error);
-    }
+    Sentry.captureException(error);
     return NextResponse.json({ error: "Webhook handler failed" }, { status: 500 });
   }
 

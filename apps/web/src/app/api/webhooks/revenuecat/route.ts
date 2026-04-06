@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import * as Sentry from "@sentry/nextjs";
 
 // Use service role for webhook handlers (no user session).
 function getAdminSupabase() {
@@ -144,7 +145,7 @@ export async function POST(request: Request) {
         break;
     }
   } catch (error) {
-    console.error("RevenueCat webhook handler error:", error);
+    Sentry.captureException(error);
     return NextResponse.json({ error: "Webhook handler failed" }, { status: 500 });
   }
 

@@ -328,7 +328,7 @@ describe("Stripe webhook — error handling", () => {
   });
 
   it("returns 400 when stripe-signature header is absent", async () => {
-    mockHeaders.mockImplementationOnce(() => ({ get: () => null }));
+    mockHeaders.mockImplementationOnce(() => ({ get: vi.fn(() => null as unknown as string) }));
     const res = await POST(makeRequest());
     expect(res.status).toBe(400);
   });

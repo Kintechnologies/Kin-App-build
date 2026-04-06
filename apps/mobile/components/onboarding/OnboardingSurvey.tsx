@@ -212,7 +212,8 @@ Tap to connect your calendar for the full picture.`;
     try {
       onComplete(data);
     } catch (error) {
-      console.error("Onboarding error:", error);
+      // TODO: replace with Sentry.captureException once @sentry/react-native is installed
+      if (__DEV__) console.error("Onboarding error:", error);
       setSaving(false);
     }
   }
@@ -784,7 +785,7 @@ const styles = StyleSheet.create({
   // Step content
   stepContent: { minHeight: 200 },
   stepTitle: {
-    fontFamily: "InstrumentSerif-Italic",
+    fontFamily: "Geist-SemiBold",
     fontSize: 28,
     color: "#F0EDE6",
     marginBottom: 8,
