@@ -24,7 +24,8 @@ import {
 import { useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import * as Haptics from "expo-haptics";
-import { Sparkles, X, MessageCircle, CheckCircle } from "lucide-react-native";
+import NetInfo from "@react-native-community/netinfo";
+import { Sparkles, X, MessageCircle, CheckCircle, WifiOff } from "lucide-react-native";
 import { supabase } from "../../lib/supabase";
 import { api } from "../../lib/api";
 import { getGreeting } from "../../lib/utils";
@@ -349,6 +350,9 @@ export default function TodayScreen() {
   // Load error (B15 — surface retry when loadAll fails)
   const [loadError, setLoadError] = useState(false);
 
+  // Offline detection
+  const [isOffline, setIsOffline] = useState(false);
+
   // Entrance animations
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(16)).current;
@@ -356,6 +360,14 @@ export default function TodayScreen() {
   // First-use entrance animation — spec first-use-spec.md §5: 400ms ease-in, deliberate
   const firstUseFadeAnim = useRef(new Animated.Value(0)).current;
   const firstUseSlideAnim = useRef(new Animated.Value(16)).current;
+
+  // Offline detection: subscribe to network state changes
+  useEffect(() => {
+    const unsubscribe = NetInfo.addEventListener((state) => {
+      setIsOffline(state.isConnected === false);
+    });
+    return () => unsubscribe();
+  }, []);
 
   useEffect(() => {
     loadAll();
@@ -708,6 +720,14 @@ export default function TodayScreen() {
             })}
           </Text>
         </Animated.View>
+
+        {/* ── OFFLINE BANNER — shown when device has no network connection ── */}
+        {isOffline && (
+          <View style={styles.offlineBanner}>
+            <WifiOff size={13} color={colors.textMuted} />
+            <Text style={styles.offlineBannerText}>You&apos;re offline — showing last known data.</Text>
+          </View>
+        )}
 
         {/* ── LOAD ERROR STATE (B15) — shown when loadAll() throws ── */}
         {loadError && (
@@ -1174,6 +1194,26 @@ function createStyles(c: ThemeColors) {
     fontSize: 14,
     color: c.textSecondary,
     textAlign: "center",
+  },
+
+  // Offline banner — low-prominence, muted strip above content
+  offlineBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    backgroundColor: c.surfaceSubtle,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: c.skeletonBase,
+  },
+  offlineBannerText: {
+    fontFamily: "Geist",
+    fontSize: 13,
+    color: c.textMuted,
+    flex: 1,
   },
   });
 }

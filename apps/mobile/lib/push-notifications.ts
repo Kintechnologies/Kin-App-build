@@ -8,6 +8,8 @@ import { api } from "./api";
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
     shouldShowAlert: true,
+    shouldShowBanner: true,
+    shouldShowList: true,
     shouldPlaySound: true,
     shouldSetBadge: true,
   }),
@@ -57,13 +59,13 @@ export async function registerForPushNotifications(): Promise<string | null> {
         Device.modelName || "unknown"
       );
     } catch (dbError) {
-      console.error("Failed to save push token to database:", dbError);
+      if (__DEV__) console.error("Failed to save push token to database:", dbError);
       // Continue even if database save fails - token is still valid locally
     }
 
     return token.data;
   } catch (error) {
-    console.error("Error registering for push notifications:", error);
+    if (__DEV__) console.error("Error registering for push notifications:", error);
     return null;
   }
 }
@@ -98,14 +100,14 @@ function routeForNotificationType(type: string): string {
 export function setupNotificationHandlers(): () => void {
   // Handle notifications received while app is in foreground
   const foregroundSubscription = Notifications.addNotificationReceivedListener(
-    (_notification) => {
+    (_notification: Notifications.Notification) => {
       // Notification is shown automatically via setNotificationHandler above
     }
   );
 
   // Handle user tapping on notification
   const responseSubscription =
-    Notifications.addNotificationResponseReceivedListener((response) => {
+    Notifications.addNotificationResponseReceivedListener((response: Notifications.NotificationResponse) => {
       const { notification } = response;
       const data = notification.request.content.data as Record<string, string>;
       const type = data?.type ?? "";

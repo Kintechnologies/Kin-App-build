@@ -37,10 +37,14 @@ async function apiRequest<T>(
 
 export const api = {
   // Chat
-  chat: (message: string, imageBase64?: string) =>
+  // thread_type: "personal" | "household" | "general"
+  // Route uses thread_type to select system prompt:
+  //   "household" → HOUSEHOLD_CHAT_SYSTEM_PROMPT (IE: docs/prompts/household-chat-prompt.md)
+  //   all others  → CHAT_SYSTEM_PROMPT (personal, docs/prompts/chat-prompt.md)
+  chat: (message: string, imageBase64?: string, threadType?: string) =>
     apiRequest<{ response: string }>("/api/chat", {
       method: "POST",
-      body: JSON.stringify({ message, image: imageBase64 }),
+      body: JSON.stringify({ message, image: imageBase64, thread_type: threadType }),
     }),
 
   // Meals
@@ -99,6 +103,12 @@ export const api = {
     apiRequest<{ success: boolean; token_id: string }>("/api/push-tokens", {
       method: "POST",
       body: JSON.stringify({ token, platform, device_name: deviceName }),
+    }),
+
+  // Account
+  deleteAccount: () =>
+    apiRequest<{ success: boolean }>("/api/account", {
+      method: "DELETE",
     }),
 
   // C3 — Overspend push notification

@@ -357,7 +357,7 @@ export default function ConversationsScreen() {
       setGeneralThreads((prev) => [newThread, ...prev]);
       await openThread(newThread);
     } catch {
-      if (process.env.NODE_ENV !== "production") console.error("Error creating new thread");
+      if (__DEV__) console.error("Error creating new thread");
     }
   }
 
@@ -417,7 +417,7 @@ export default function ConversationsScreen() {
     setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 100);
 
     try {
-      const { response } = await api.chat(messageText, selectedImage ?? undefined);
+      const { response } = await api.chat(messageText, selectedImage ?? undefined, thread.thread_type);
       const assistantMessage: Message = {
         id: (Date.now() + 1).toString(),
         role: "assistant",
@@ -590,7 +590,7 @@ export default function ConversationsScreen() {
 
               {/* General threads header */}
               {generalThreads.length > 0 && (
-                <Text style={styles.sectionLabel}>Previous conversations</Text>
+                <Text style={styles.sectionLabel}>RECENT</Text>
               )}
             </>
           }
@@ -1050,8 +1050,8 @@ function createChatStyles(c: ThemeColors) {
     color: c.textFaint,
     textTransform: "uppercase",
     letterSpacing: 1.5,
-    marginTop: 20,
-    marginBottom: 10,
+    marginTop: 4,
+    marginBottom: 8,
   },
 
   // General thread cards (P2-9: transparent rows with bottom border only — no card container)
@@ -1141,7 +1141,7 @@ function createChatStyles(c: ThemeColors) {
     justifyContent: "center",
   },
   headerTitle: {
-    fontFamily: "InstrumentSerif-Italic",
+    fontFamily: "Geist-SemiBold",
     fontSize: 18,
     color: c.textPrimary,
   },
@@ -1198,7 +1198,7 @@ function createChatStyles(c: ThemeColors) {
     marginBottom: 16,
   },
   emptyTitle: {
-    fontFamily: "InstrumentSerif-Italic",
+    fontFamily: "Geist-SemiBold",
     fontSize: 28,
     color: c.textPrimary,
     textAlign: "center",
@@ -1229,7 +1229,7 @@ function createChatStyles(c: ThemeColors) {
     marginBottom: 20,
   },
   inviteTitle: {
-    fontFamily: "InstrumentSerif-Italic",
+    fontFamily: "Geist-SemiBold",
     fontSize: 24,
     color: c.textPrimary,
     marginBottom: 12,

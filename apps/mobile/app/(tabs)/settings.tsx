@@ -28,16 +28,14 @@ import {
   ChevronRight,
   Mail,
   Users,
+  Trash2,
   CreditCard,
-  Palette,
-  Globe,
-  Lock,
-  Heart,
   Smartphone,
   Volume2,
 } from "lucide-react-native";
 import { useAuth } from "../../lib/auth";
 import { supabase } from "../../lib/supabase";
+import { api } from "../../lib/api";
 import { formatFamilyName } from "../../lib/utils";
 import { useTheme, useThemeColors, ThemeMode } from "../../lib/theme";
 import { type ThemeColors } from "../../constants/colors";
@@ -81,11 +79,36 @@ export default function Settings() {
         text: "Sign Out",
         style: "destructive",
         onPress: () => {
-          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+          // No haptic on destructive action — spec §12
           signOut();
         },
       },
     ]);
+  }
+
+  function handleDeleteAccount() {
+    Alert.alert(
+      "Delete Account",
+      "This will permanently delete your account and all your data. This cannot be undone.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await api.deleteAccount();
+              signOut();
+            } catch {
+              Alert.alert(
+                "Deletion Failed",
+                "We couldn't delete your account. Please try again or contact hello@kinai.family."
+              );
+            }
+          },
+        },
+      ]
+    );
   }
 
   function setThemeTo(mode: ThemeMode) {
@@ -459,6 +482,18 @@ export default function Settings() {
           <Text style={styles.signOutText}>Sign Out</Text>
         </Pressable>
 
+        {/* Delete Account */}
+        <Pressable
+          onPress={handleDeleteAccount}
+          style={({ pressed }) => [
+            styles.deleteAccountButton,
+            pressed && { opacity: 0.7 },
+          ]}
+        >
+          <Trash2 size={14} color={c.rose} />
+          <Text style={styles.deleteAccountText}>Delete Account</Text>
+        </Pressable>
+
         {/* Version */}
         <Text style={styles.versionText}>Kin v1.0.0</Text>
       </ScrollView>
@@ -476,7 +511,7 @@ function createSettingsStyles(c: ThemeColors) {
   content: { paddingHorizontal: 20, paddingBottom: 120 },
 
   pageTitle: {
-    fontFamily: "InstrumentSerif-Italic",
+    fontFamily: "Geist-SemiBold",
     fontSize: 28,
     color: c.green,
     marginTop: 8,
@@ -531,17 +566,17 @@ function createSettingsStyles(c: ThemeColors) {
     color: c.textMuted,
   },
 
-  // Badge
+  // Badge — neutral connection-status pill (spec settings-screen-spec.md §8)
   badge: {
-    backgroundColor: c.roseSubtle,
-    borderRadius: 8,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
+    backgroundColor: c.surfaceSubtle,
+    borderRadius: 20,
+    paddingHorizontal: 4,
+    paddingVertical: 6,
   },
   badgeText: {
     fontFamily: "GeistMono-Regular",
     fontSize: 10,
-    color: c.rose,
+    color: c.textFaint,
     textTransform: "uppercase",
     letterSpacing: 0.5,
   },
@@ -589,6 +624,21 @@ function createSettingsStyles(c: ThemeColors) {
     fontFamily: "Geist",
     fontSize: 15,
     color: c.textMuted,
+  },
+
+  // Delete account — destructive, low-prominence
+  deleteAccountButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    paddingVertical: 12,
+    marginTop: 8,
+  },
+  deleteAccountText: {
+    fontFamily: "Geist",
+    fontSize: 13,
+    color: c.rose,
   },
 
   // Version

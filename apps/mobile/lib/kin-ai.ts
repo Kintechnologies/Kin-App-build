@@ -217,7 +217,7 @@ DIETARY PREFERENCES
 ═══════════════════════════════════════════════════════════════
 `;
   } catch (error) {
-    console.error("Error assembling family context:", error);
+    if (__DEV__) console.error("Error assembling family context:", error);
     throw error;
   }
 }
@@ -238,7 +238,7 @@ export async function kinChat(
 
     return response.response;
   } catch (error) {
-    console.error("Error in kinChat:", error);
+    if (__DEV__) console.error("Error in kinChat:", error);
     throw error;
   }
 }
@@ -256,7 +256,7 @@ export async function generateMorningBriefing(
     const briefing = await api.getMorningBriefing();
     return briefing.content;
   } catch (error) {
-    console.error("Error generating morning briefing:", error);
+    if (__DEV__) console.error("Error generating morning briefing:", error);
     throw error;
   }
 }
