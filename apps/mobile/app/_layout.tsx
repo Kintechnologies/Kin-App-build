@@ -55,9 +55,10 @@ export default function RootLayout() {
     "Geist-Medium": require("../assets/fonts/Geist-Medium.ttf"),
     "Geist-SemiBold": require("../assets/fonts/Geist-SemiBold.ttf"),
     "Geist-Bold": require("../assets/fonts/Geist-Bold.ttf"),
+    // TODO: add Geist-Light.ttf from github.com/vercel/geist-font/releases
+    // "Geist-Light": require("../assets/fonts/Geist-Light.ttf"),
     GeistMono: require("../assets/fonts/GeistMono-Regular.ttf"),
     "GeistMono-Regular": require("../assets/fonts/GeistMono-Regular.ttf"),
-    "InstrumentSerif-Italic": require("../assets/fonts/InstrumentSerif-Italic.ttf"),
   });
 
   useEffect(() => {
