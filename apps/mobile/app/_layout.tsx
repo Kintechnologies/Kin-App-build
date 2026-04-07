@@ -7,7 +7,12 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { AuthProvider, useAuth } from "../lib/auth";
 import { ThemeProvider, useTheme, useThemeColors } from "../lib/theme";
 import { SettingsProvider } from "../lib/settings";
+import { initSentry } from "../lib/sentry";
 import { View, StyleSheet } from "react-native";
+
+// Initialise Sentry before anything else so all errors are captured from the
+// very first render, including auth and font-loading failures.
+initSentry();
 
 SplashScreen.preventAutoHideAsync();
 

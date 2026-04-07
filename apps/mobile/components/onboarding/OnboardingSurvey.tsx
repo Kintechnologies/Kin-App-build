@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import * as Sentry from "@sentry/react-native";
 import {
   View,
   Text,
@@ -212,8 +213,7 @@ Tap to connect your calendar for the full picture.`;
     try {
       onComplete(data);
     } catch (error) {
-      // TODO: replace with Sentry.captureException once @sentry/react-native is installed
-      if (__DEV__) console.error("Onboarding error:", error);
+      Sentry.captureException(error);
       setSaving(false);
     }
   }

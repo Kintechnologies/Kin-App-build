@@ -42,6 +42,7 @@ import { type ThemeColors } from "../../constants/colors";
 import { useSettings } from "../../lib/settings";
 import { initRevenueCat } from "../../lib/revenuecat";
 import PaywallModal from "../../components/paywall/PaywallModal";
+import * as Sentry from "@sentry/react-native";
 
 export default function Settings() {
   const { user, signOut } = useAuth();
@@ -99,7 +100,8 @@ export default function Settings() {
             try {
               await api.deleteAccount();
               signOut();
-            } catch {
+            } catch (err) {
+              Sentry.captureException(err);
               Alert.alert(
                 "Deletion Failed",
                 "We couldn't delete your account. Please try again or contact hello@kinai.family."
