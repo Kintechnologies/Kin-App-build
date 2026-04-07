@@ -1,360 +1,251 @@
+import { KinMark } from "@/components/KinMark";
 import Link from "next/link";
+
+export const metadata = {
+  title: "Terms of Service — Kin",
+  description: "Terms governing your use of Kin AI.",
+};
+
+const LAST_UPDATED = "April 1, 2026";
+const COMPANY = "Kin Technologies LLC";
+const APP = "Kin AI";
+const EMAIL = "hello@kinai.family";
+
+function Section({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <section style={{ marginBottom: "48px" }}>
+      <h2
+        style={{
+          fontSize: "18px",
+          fontWeight: 600,
+          color: "#F0EDE6",
+          letterSpacing: "-0.3px",
+          marginBottom: "16px",
+          paddingBottom: "12px",
+          borderBottom: "1px solid rgba(255,255,255,0.07)",
+        }}
+      >
+        {title}
+      </h2>
+      <div
+        style={{
+          fontSize: "15px",
+          color: "rgba(240,237,230,0.65)",
+          lineHeight: 1.75,
+          display: "flex",
+          flexDirection: "column",
+          gap: "12px",
+        }}
+      >
+        {children}
+      </div>
+    </section>
+  );
+}
+
+function Ul({ items }: { items: string[] }) {
+  return (
+    <ul style={{ paddingLeft: "20px", display: "flex", flexDirection: "column", gap: "6px" }}>
+      {items.map((item, i) => (
+        <li key={i} style={{ listStyleType: "disc" }}>{item}</li>
+      ))}
+    </ul>
+  );
+}
 
 export default function TermsPage() {
   return (
-    <main style={{ backgroundColor: "var(--background)", color: "var(--text)" }}>
-      {/* Navigation */}
+    <div style={{ backgroundColor: "#0C0F0A", color: "#F0EDE6", minHeight: "100vh" }}>
       <nav
         style={{
           display: "flex",
-          justifyContent: "space-between",
           alignItems: "center",
-          padding: "1.5rem 2rem",
-          backgroundColor: "var(--surface)",
-          borderBottom: "1px solid var(--border)",
+          justifyContent: "space-between",
+          padding: "0 24px",
+          height: "60px",
+          borderBottom: "1px solid rgba(255,255,255,0.06)",
         }}
       >
-        <Link href="/">
-          <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", cursor: "pointer" }}>
-            <svg width="40" height="40" viewBox="0 0 64 64" fill="none">
-              <circle cx="32" cy="20" r="8" fill="#7CB87A" />
-              <circle cx="21.75" cy="37.9" r="9" fill="#7CB87A" />
-              <circle cx="42.25" cy="37.9" r="9" fill="#7CB87A" />
-            </svg>
-            <span style={{ fontSize: "1.25rem", fontWeight: 600 }}>Kin</span>
-          </div>
+        <Link href="/" style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+          <KinMark size={24} />
+          <span style={{ fontSize: "16px", fontWeight: 500, letterSpacing: "-0.2px" }}>Kin</span>
         </Link>
-        <div style={{ display: "flex", gap: "1rem" }}>
-          <Link href="/privacy">
-            <span style={{ color: "var(--text2)", cursor: "pointer" }}>Privacy</span>
-          </Link>
-          <Link href="/terms">
-            <span style={{ color: "var(--green)", cursor: "pointer" }}>Terms</span>
-          </Link>
-        </div>
+        <Link href="/" style={{ fontSize: "13px", color: "rgba(240,237,230,0.4)" }}>← Back</Link>
       </nav>
 
-      {/* Content */}
-      <article
-        style={{
-          maxWidth: "800px",
-          margin: "0 auto",
-          padding: "3rem 2rem",
-        }}
-      >
-        <h1 style={{ fontSize: "2.5rem", fontWeight: 700, marginBottom: "2rem" }}>Terms of Service</h1>
-        <p style={{ color: "var(--text2)", marginBottom: "1rem" }}>
-          <strong>Effective Date: April 6, 2026</strong>
-        </p>
-        <p style={{ color: "var(--text2)", marginBottom: "2rem" }}>
-          Last Updated: April 6, 2026
-        </p>
+      <article style={{ maxWidth: "680px", margin: "0 auto", padding: "60px 24px 100px" }}>
+        <div style={{ marginBottom: "48px" }}>
+          <p
+            style={{
+              fontSize: "11px",
+              fontFamily: "var(--font-geist-mono), monospace",
+              letterSpacing: "1.5px",
+              textTransform: "uppercase",
+              color: "rgba(240,237,230,0.3)",
+              marginBottom: "16px",
+            }}
+          >
+            Legal · Last updated {LAST_UPDATED}
+          </p>
+          <h1
+            style={{
+              fontSize: "36px",
+              fontWeight: 600,
+              letterSpacing: "-0.8px",
+              lineHeight: 1.15,
+              marginBottom: "16px",
+            }}
+          >
+            Terms of Service
+          </h1>
+          <p style={{ fontSize: "15px", color: "rgba(240,237,230,0.55)", lineHeight: 1.65, fontStyle: "italic" }}>
+            Please read these Terms carefully before using {APP}. By using the Service, you agree to these Terms.
+          </p>
+        </div>
 
-        <section style={{ marginBottom: "2rem" }}>
-          <h2 style={{ fontSize: "1.5rem", fontWeight: 600, marginBottom: "1rem", marginTop: "2rem" }}>
-            1. Acceptance of Terms
-          </h2>
-          <p style={{ color: "var(--text2)", lineHeight: 1.6 }}>
-            By downloading, accessing, or using Kin (the "Service"), you agree to be bound by these Terms of Service.
-            If you do not accept these terms, you may not use Kin. Kin Technologies LLC ("Kin," "we," "our," or "us")
-            reserves the right to modify these terms at any time. Continued use of the Service constitutes acceptance of
-            modified terms.
-          </p>
-        </section>
+        <Section title="1. Agreement to Terms">
+          <p>These Terms of Service (&ldquo;Terms&rdquo;) are a binding legal agreement between you and {COMPANY} (&ldquo;Kin,&rdquo; &ldquo;we,&rdquo; &ldquo;us,&rdquo; or &ldquo;our&rdquo;) governing your access to and use of the {APP} mobile application, website (kinai.family), and related services (collectively, the &ldquo;Service&rdquo;).</p>
+          <p>By creating an account or using the Service, you confirm that you are at least 18 years old, have the legal capacity to enter into this agreement, and agree to be bound by these Terms and our <Link href="/privacy" style={{ color: "#7CB87A" }}>Privacy Policy</Link>.</p>
+          <p>If you do not agree to these Terms, do not use the Service.</p>
+        </Section>
 
-        <section style={{ marginBottom: "2rem" }}>
-          <h2 style={{ fontSize: "1.5rem", fontWeight: 600, marginBottom: "1rem", marginTop: "2rem" }}>
-            2. Service Description
-          </h2>
-          <p style={{ color: "var(--text2)", lineHeight: 1.6, marginBottom: "1rem" }}>
-            Kin is an AI-powered family scheduling application that helps families coordinate schedules, manage family
-            events, and receive AI-generated insights and suggestions. The Service includes:
-          </p>
-          <ul style={{ color: "var(--text2)", lineHeight: 1.8, marginLeft: "1.5rem", marginBottom: "1rem" }}>
-            <li>Family calendar management and synchronization</li>
-            <li>AI-generated briefings and scheduling suggestions</li>
-            <li>Household member coordination and notifications</li>
-            <li>Integration with Google Calendar</li>
-            <li>Optional subscription features via in-app purchases</li>
-          </ul>
-        </section>
+        <Section title="2. The Service">
+          <p>{APP} is a family scheduling assistant that connects to your calendar, analyzes your schedule, and proactively tells you what you need to know — including pickup responsibilities, schedule conflicts, and time-sensitive tasks. The Service uses AI to generate briefings and suggestions.</p>
+          <p>We reserve the right to modify, suspend, or discontinue any part of the Service at any time. We will provide reasonable notice of material changes where possible.</p>
+        </Section>
 
-        <section style={{ marginBottom: "2rem" }}>
-          <h2 style={{ fontSize: "1.5rem", fontWeight: 600, marginBottom: "1rem", marginTop: "2rem" }}>
-            3. User Accounts
-          </h2>
+        <Section title="3. Accounts">
+          <p>You must create an account to use the Service. You are responsible for maintaining the confidentiality of your account credentials and for all activity that occurs under your account.</p>
+          <p>You agree to provide accurate, current, and complete information during registration and to update it as needed. We may suspend or terminate accounts that contain inaccurate information or that we believe are being used fraudulently.</p>
+          <p>You may not share your account with others or create accounts on behalf of third parties without authorization.</p>
+        </Section>
 
-          <h3 style={{ fontSize: "1.125rem", fontWeight: 600, marginBottom: "0.75rem", marginTop: "1rem" }}>
-            3.1 Account Creation
-          </h3>
-          <p style={{ color: "var(--text2)", lineHeight: 1.6, marginBottom: "1rem" }}>
-            To use Kin, you must create an account with accurate information. You are responsible for maintaining the
-            confidentiality of your password and all account activity. You agree to notify us immediately of any
-            unauthorized access.
-          </p>
+        <Section title="4. Subscriptions and Billing">
+          <p>{APP} is offered on a subscription basis. Subscriptions are available on a monthly or annual basis. Pricing is displayed in the App Store and Google Play Store at the time of purchase.</p>
+          <p><strong style={{ color: "#F0EDE6" }}>Billing.</strong> Subscriptions are billed through Apple App Store or Google Play, managed by RevenueCat. By subscribing, you authorize the applicable app store to charge your payment method on a recurring basis at the start of each billing period.</p>
+          <p><strong style={{ color: "#F0EDE6" }}>Free trials.</strong> If a free trial is offered, your subscription will automatically begin at the end of the trial period unless you cancel before the trial ends.</p>
+          <p><strong style={{ color: "#F0EDE6" }}>Cancellations.</strong> You may cancel your subscription at any time through your App Store or Google Play account settings. Cancellation takes effect at the end of the current billing period. We do not provide refunds for partial billing periods except as required by applicable law.</p>
+          <p><strong style={{ color: "#F0EDE6" }}>Price changes.</strong> We may change subscription pricing with reasonable advance notice. Continued use of the Service after a price change constitutes acceptance of the new pricing.</p>
+          <p><strong style={{ color: "#F0EDE6" }}>Refunds.</strong> Refund requests are subject to the refund policies of Apple App Store and Google Play. Contact <a href={`mailto:${EMAIL}`} style={{ color: "#7CB87A" }}>{EMAIL}</a> if you have billing questions.</p>
+        </Section>
 
-          <h3 style={{ fontSize: "1.125rem", fontWeight: 600, marginBottom: "0.75rem", marginTop: "1rem" }}>
-            3.2 Eligibility
-          </h3>
-          <p style={{ color: "var(--text2)", lineHeight: 1.6 }}>
-            Kin is intended for adults (18+). By using the Service, you represent that you are at least 18 years old
-            and have the legal capacity to enter into this agreement.
-          </p>
-        </section>
+        <Section title="5. Acceptable Use">
+          <p>You agree to use the Service only for lawful purposes and in accordance with these Terms. You agree not to:</p>
+          <Ul items={[
+            "Use the Service for any illegal purpose or in violation of any applicable law",
+            "Attempt to gain unauthorized access to the Service, other accounts, or our systems",
+            "Interfere with or disrupt the integrity or performance of the Service",
+            "Transmit any malicious code, viruses, or harmful data",
+            "Scrape, harvest, or collect data from the Service without authorization",
+            "Use the Service to harass, abuse, or harm others",
+            "Impersonate any person or entity",
+            "Reverse engineer, decompile, or disassemble any part of the Service",
+            "Remove or alter any proprietary notices or labels",
+            "Use automated means to access the Service except as permitted by us",
+          ]} />
+        </Section>
 
-        <section style={{ marginBottom: "2rem" }}>
-          <h2 style={{ fontSize: "1.5rem", fontWeight: 600, marginBottom: "1rem", marginTop: "2rem" }}>
-            4. Your Responsibilities
-          </h2>
-          <p style={{ color: "var(--text2)", lineHeight: 1.6, marginBottom: "1rem" }}>
-            You agree to:
-          </p>
-          <ul style={{ color: "var(--text2)", lineHeight: 1.8, marginLeft: "1.5rem", marginBottom: "1rem" }}>
-            <li>Use Kin only for lawful purposes and in compliance with all applicable laws</li>
-            <li>Not use Kin to harass, abuse, or harm any person or group</li>
-            <li>Not reverse-engineer, decompile, or attempt to derive source code</li>
-            <li>Not upload malware, viruses, or malicious code</li>
-            <li>Not attempt unauthorized access to Kin's systems or other users' accounts</li>
-            <li>Not scrape, crawl, or automate access to Kin without permission</li>
-            <li>Obtain proper consent from household members before inviting them to Kin</li>
-            <li>Maintain accurate and current account information</li>
-          </ul>
-        </section>
+        <Section title="6. Calendar Integration and Third-Party Services">
+          <p>The Service integrates with Google Calendar and may integrate with other third-party calendar services. Your use of these integrations is subject to the terms and privacy policies of those third parties.</p>
+          <p>By connecting your calendar, you authorize Kin to read your calendar data and, where applicable, create and modify events on your behalf. You can revoke this access at any time.</p>
+          <p>We are not responsible for the availability, accuracy, or security of third-party services. If a third-party service changes its API or terms, we may need to modify or discontinue the relevant integration.</p>
+        </Section>
 
-        <section style={{ marginBottom: "2rem" }}>
-          <h2 style={{ fontSize: "1.5rem", fontWeight: 600, marginBottom: "1rem", marginTop: "2rem" }}>
-            5. Subscriptions & Billing
-          </h2>
+        <Section title="7. AI-Generated Content">
+          <p>The Service uses artificial intelligence to generate schedule briefings, insights, reminders, and suggestions (&ldquo;AI Content&rdquo;). You acknowledge that:</p>
+          <Ul items={[
+            "AI Content is generated automatically and may contain errors or inaccuracies",
+            "AI Content is provided for informational purposes only and is not a substitute for your own judgment",
+            "Kin is not responsible for any decisions you make based on AI Content",
+            "AI Content is not legal, medical, financial, or professional advice",
+            "The accuracy of AI Content depends on the accuracy of your calendar data and account information",
+          ]} />
+          <p>You are solely responsible for verifying time-sensitive information (such as pickup times, appointment details, and deadlines) against your original calendar and other sources.</p>
+        </Section>
 
-          <h3 style={{ fontSize: "1.125rem", fontWeight: 600, marginBottom: "0.75rem", marginTop: "1rem" }}>
-            5.1 Subscription Plans
-          </h3>
-          <p style={{ color: "var(--text2)", lineHeight: 1.6, marginBottom: "1rem" }}>
-            Kin offers optional subscription plans (monthly and annual). Free features are available without a
-            subscription.
-          </p>
+        <Section title="8. Household and Partner Features">
+          <p>Kin supports shared household accounts where multiple adult users (&ldquo;Household Members&rdquo;) can connect their calendars and coordinate schedules.</p>
+          <p>By connecting with a partner or joining a household:</p>
+          <Ul items={[
+            "You consent to sharing your calendar availability and schedule information with connected Household Members",
+            "You acknowledge that Kin may share schedule insights and coordination suggestions with Household Members",
+            "You are responsible for obtaining the consent of any person whose information you add to the household",
+          ]} />
+          <p>Household Members can be removed at any time from your account settings. Removing a Household Member will end their access to shared schedule information.</p>
+        </Section>
 
-          <h3 style={{ fontSize: "1.125rem", fontWeight: 600, marginBottom: "0.75rem", marginTop: "1rem" }}>
-            5.2 Billing
-          </h3>
-          <p style={{ color: "var(--text2)", lineHeight: 1.6, marginBottom: "1rem" }}>
-            Subscriptions are billed through RevenueCat and charged to your payment method on file. You authorize us to
-            charge your account for the selected plan. Billing occurs on the date your subscription renews. All prices
-            are subject to change with 30 days' notice.
-          </p>
+        <Section title="9. Your Data and Content">
+          <p>You own your data. {COMPANY} does not claim ownership of the calendar data, household information, or other content you provide to the Service (&ldquo;Your Content&rdquo;).</p>
+          <p>By using the Service, you grant {COMPANY} a limited, non-exclusive, worldwide license to access, process, and store Your Content solely to provide and improve the Service.</p>
+          <p>You represent that you have the right to share all content you provide to the Service, including calendar data and information about household members.</p>
+        </Section>
 
-          <h3 style={{ fontSize: "1.125rem", fontWeight: 600, marginBottom: "0.75rem", marginTop: "1rem" }}>
-            5.3 Renewal & Cancellation
-          </h3>
-          <p style={{ color: "var(--text2)", lineHeight: 1.6, marginBottom: "1rem" }}>
-            Subscriptions automatically renew unless canceled. You can cancel at any time through in-app settings or by
-            contacting hello@kinai.family. Cancellation takes effect at the end of the current billing period. No
-            refunds are provided for partial months.
-          </p>
+        <Section title="10. Intellectual Property">
+          <p>The Service and its original content, features, and functionality are owned by {COMPANY} and are protected by copyright, trademark, and other intellectual property laws.</p>
+          <p>The Kin name, logo, and brand marks are trademarks of {COMPANY}. You may not use our trademarks without our prior written consent.</p>
+          <p>We grant you a limited, non-exclusive, non-transferable license to use the Service for your personal, non-commercial use in accordance with these Terms.</p>
+        </Section>
 
-          <h3 style={{ fontSize: "1.125rem", fontWeight: 600, marginBottom: "0.75rem", marginTop: "1rem" }}>
-            5.4 Refunds
-          </h3>
-          <p style={{ color: "var(--text2)", lineHeight: 1.6 }}>
-            Unless required by law, no refunds are provided for unused subscription time. If a payment fails, you remain
-            responsible for any fees incurred.
-          </p>
-        </section>
+        <Section title="11. Disclaimer of Warranties">
+          <p>THE SERVICE IS PROVIDED &ldquo;AS IS&rdquo; AND &ldquo;AS AVAILABLE&rdquo; WITHOUT WARRANTIES OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, NON-INFRINGEMENT, OR ACCURACY.</p>
+          <p>WE DO NOT WARRANT THAT THE SERVICE WILL BE UNINTERRUPTED, ERROR-FREE, OR SECURE. WE DO NOT WARRANT THE ACCURACY OR COMPLETENESS OF AI-GENERATED CONTENT.</p>
+          <p>Some jurisdictions do not allow the exclusion of implied warranties, so the above exclusions may not apply to you.</p>
+        </Section>
 
-        <section style={{ marginBottom: "2rem" }}>
-          <h2 style={{ fontSize: "1.5rem", fontWeight: 600, marginBottom: "1rem", marginTop: "2rem" }}>
-            6. Intellectual Property Rights
-          </h2>
+        <Section title="12. Limitation of Liability">
+          <p>TO THE MAXIMUM EXTENT PERMITTED BY APPLICABLE LAW, {COMPANY.toUpperCase()} AND ITS OFFICERS, DIRECTORS, EMPLOYEES, AND AGENTS WILL NOT BE LIABLE FOR:</p>
+          <Ul items={[
+            "Any indirect, incidental, special, consequential, or punitive damages",
+            "Loss of profits, data, goodwill, or other intangible losses",
+            "Damages resulting from your reliance on AI-generated content",
+            "Unauthorized access to or alteration of your data",
+            "Damages resulting from third-party service failures (including Google Calendar)",
+          ]} />
+          <p>IN NO EVENT WILL OUR TOTAL LIABILITY TO YOU EXCEED THE GREATER OF (A) THE AMOUNT YOU PAID US IN THE 12 MONTHS PRECEDING THE CLAIM OR (B) ONE HUNDRED DOLLARS ($100).</p>
+          <p>Some jurisdictions do not allow limitations on liability for certain types of damages, so some of the above may not apply to you.</p>
+        </Section>
 
-          <h3 style={{ fontSize: "1.125rem", fontWeight: 600, marginBottom: "0.75rem", marginTop: "1rem" }}>
-            6.1 Kin's IP
-          </h3>
-          <p style={{ color: "var(--text2)", lineHeight: 1.6, marginBottom: "1rem" }}>
-            All content, features, and functionality of Kin (including software, design, graphics, text) are owned by
-            Kin Technologies LLC or its licensors and are protected by copyright, trademark, and other laws.
-          </p>
+        <Section title="13. Indemnification">
+          <p>You agree to indemnify, defend, and hold harmless {COMPANY} and its officers, directors, employees, and agents from and against any claims, liabilities, damages, losses, and expenses (including reasonable attorneys&apos; fees) arising from:</p>
+          <Ul items={[
+            "Your use of the Service",
+            "Your violation of these Terms",
+            "Your violation of any rights of a third party",
+            "Your Content",
+          ]} />
+        </Section>
 
-          <h3 style={{ fontSize: "1.125rem", fontWeight: 600, marginBottom: "0.75rem", marginTop: "1rem" }}>
-            6.2 Your License
-          </h3>
-          <p style={{ color: "var(--text2)", lineHeight: 1.6, marginBottom: "1rem" }}>
-            We grant you a limited, non-exclusive, non-transferable license to access and use Kin for personal,
-            non-commercial purposes only.
-          </p>
+        <Section title="14. Termination">
+          <p>You may terminate your account at any time by deleting your account from Settings → Account → Delete Account.</p>
+          <p>We may suspend or terminate your access to the Service at any time, with or without notice, if we believe you have violated these Terms, engaged in fraudulent activity, or for any other reason at our sole discretion.</p>
+          <p>Upon termination, your right to use the Service will immediately cease. Sections that by their nature should survive termination (including Sections 9–16) will survive.</p>
+        </Section>
 
-          <h3 style={{ fontSize: "1.125rem", fontWeight: 600, marginBottom: "0.75rem", marginTop: "1rem" }}>
-            6.3 User Content
-          </h3>
-          <p style={{ color: "var(--text2)", lineHeight: 1.6 }}>
-            You retain ownership of any content you create (calendar events, household information) but grant Kin a
-            license to use, process, and display this content to provide the Service. You warrant that you have the
-            right to grant such licenses.
-          </p>
-        </section>
+        <Section title="15. Governing Law and Dispute Resolution">
+          <p>These Terms are governed by the laws of the state where {COMPANY} is registered, without regard to its conflict of law provisions.</p>
+          <p>Any dispute arising from these Terms or your use of the Service that cannot be resolved informally will be submitted to binding arbitration under the rules of the American Arbitration Association, except that either party may seek injunctive or other equitable relief in a court of competent jurisdiction.</p>
+          <p><strong style={{ color: "#F0EDE6" }}>Class action waiver.</strong> You agree to bring claims against Kin only in your individual capacity and not as a plaintiff or class member in any class action.</p>
+          <p>If you are an EU consumer, you may have the right to bring disputes before the courts of your country of residence.</p>
+        </Section>
 
-        <section style={{ marginBottom: "2rem" }}>
-          <h2 style={{ fontSize: "1.5rem", fontWeight: 600, marginBottom: "1rem", marginTop: "2rem" }}>
-            7. AI-Generated Content
-          </h2>
-          <p style={{ color: "var(--text2)", lineHeight: 1.6, marginBottom: "1rem" }}>
-            Kin uses artificial intelligence (powered by Anthropic) to generate briefings, suggestions, and insights.
-            These are based on your calendar and household data but are not guaranteed to be accurate or applicable to
-            your situation. You are responsible for verifying AI-generated recommendations before acting on them.
-          </p>
-          <p style={{ color: "var(--text2)", lineHeight: 1.6 }}>
-            AI-generated content may contain errors or may not reflect your true preferences. Kin is not liable for
-            decisions made based on AI-generated content.
-          </p>
-        </section>
+        <Section title="16. General Provisions">
+          <p><strong style={{ color: "#F0EDE6" }}>Entire agreement.</strong> These Terms and our Privacy Policy constitute the entire agreement between you and {COMPANY} regarding the Service.</p>
+          <p><strong style={{ color: "#F0EDE6" }}>Severability.</strong> If any provision of these Terms is found to be unenforceable, the remaining provisions will remain in full force and effect.</p>
+          <p><strong style={{ color: "#F0EDE6" }}>No waiver.</strong> Our failure to enforce any right or provision of these Terms will not be considered a waiver of those rights.</p>
+          <p><strong style={{ color: "#F0EDE6" }}>Changes to Terms.</strong> We may update these Terms from time to time. We will notify you of material changes by posting an updated version and, where appropriate, by email. Continued use of the Service after changes constitutes acceptance.</p>
+        </Section>
 
-        <section style={{ marginBottom: "2rem" }}>
-          <h2 style={{ fontSize: "1.5rem", fontWeight: 600, marginBottom: "1rem", marginTop: "2rem" }}>
-            8. Third-Party Services
-          </h2>
-          <p style={{ color: "var(--text2)", lineHeight: 1.6, marginBottom: "1rem" }}>
-            Kin integrates with third-party services including Google Calendar, Supabase, RevenueCat, Sentry, and
-            Anthropic. Your use of these services is subject to their terms and privacy policies. Kin is not
-            responsible for third-party service availability, content, or practices.
-          </p>
-        </section>
-
-        <section style={{ marginBottom: "2rem" }}>
-          <h2 style={{ fontSize: "1.5rem", fontWeight: 600, marginBottom: "1rem", marginTop: "2rem" }}>
-            9. Limitation of Liability
-          </h2>
-          <p style={{ color: "var(--text2)", lineHeight: 1.6, marginBottom: "1rem" }}>
-            TO THE MAXIMUM EXTENT PERMITTED BY LAW, KIN TECHNOLOGIES LLC SHALL NOT BE LIABLE FOR:
-          </p>
-          <ul style={{ color: "var(--text2)", lineHeight: 1.8, marginLeft: "1.5rem", marginBottom: "1rem" }}>
-            <li>Indirect, incidental, special, or consequential damages</li>
-            <li>Lost profits, revenue, data, or business opportunities</li>
-            <li>Missed appointments, family events, or scheduling errors</li>
-            <li>Errors or omissions in AI-generated content</li>
-            <li>Third-party service failures or unavailability</li>
-            <li>Any other damages arising from use or inability to use Kin</li>
-          </ul>
-          <p style={{ color: "var(--text2)", lineHeight: 1.6 }}>
-            IN NO EVENT SHALL KIN'S TOTAL LIABILITY EXCEED THE TOTAL AMOUNT YOU PAID FOR SUBSCRIPTIONS IN THE PRIOR 12
-            MONTHS.
-          </p>
-        </section>
-
-        <section style={{ marginBottom: "2rem" }}>
-          <h2 style={{ fontSize: "1.5rem", fontWeight: 600, marginBottom: "1rem", marginTop: "2rem" }}>
-            10. Disclaimer of Warranties
-          </h2>
-          <p style={{ color: "var(--text2)", lineHeight: 1.6 }}>
-            KIN IS PROVIDED "AS IS" AND "AS AVAILABLE." KIN MAKES NO WARRANTIES, EXPRESS OR IMPLIED, INCLUDING
-            WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, OR NON-INFRINGEMENT. KIN DOES NOT WARRANT
-            THAT THE SERVICE WILL BE UNINTERRUPTED, ERROR-FREE, OR SECURE.
-          </p>
-        </section>
-
-        <section style={{ marginBottom: "2rem" }}>
-          <h2 style={{ fontSize: "1.5rem", fontWeight: 600, marginBottom: "1rem", marginTop: "2rem" }}>
-            11. Indemnification
-          </h2>
-          <p style={{ color: "var(--text2)", lineHeight: 1.6 }}>
-            You agree to indemnify, defend, and hold harmless Kin Technologies LLC, its officers, employees, and
-            agents from any claims, damages, losses, or expenses arising from (a) your violation of these Terms, (b)
-            your use of Kin, or (c) your content or data.
-          </p>
-        </section>
-
-        <section style={{ marginBottom: "2rem" }}>
-          <h2 style={{ fontSize: "1.5rem", fontWeight: 600, marginBottom: "1rem", marginTop: "2rem" }}>
-            12. Termination
-          </h2>
-          <p style={{ color: "var(--text2)", lineHeight: 1.6, marginBottom: "1rem" }}>
-            Kin may suspend or terminate your account immediately if you violate these Terms or engage in illegal
-            activity. Upon termination, your right to use Kin ceases. You can delete your account at any time through
-            app settings.
-          </p>
-        </section>
-
-        <section style={{ marginBottom: "2rem" }}>
-          <h2 style={{ fontSize: "1.5rem", fontWeight: 600, marginBottom: "1rem", marginTop: "2rem" }}>
-            13. Dispute Resolution
-          </h2>
-          <p style={{ color: "var(--text2)", lineHeight: 1.6, marginBottom: "1rem" }}>
-            Any disputes arising from these Terms or your use of Kin shall be governed by and construed in accordance
-            with the laws of the state where Kin Technologies LLC is registered, without regard to conflict of law
-            principles.
-          </p>
-          <p style={{ color: "var(--text2)", lineHeight: 1.6 }}>
-            You agree to submit to the exclusive jurisdiction of the state and federal courts located in that state for
-            resolution of disputes.
-          </p>
-        </section>
-
-        <section style={{ marginBottom: "2rem" }}>
-          <h2 style={{ fontSize: "1.5rem", fontWeight: 600, marginBottom: "1rem", marginTop: "2rem" }}>
-            14. Governing Law
-          </h2>
-          <p style={{ color: "var(--text2)", lineHeight: 1.6 }}>
-            These Terms of Service are governed by and construed in accordance with the laws of the state where Kin
-            Technologies LLC is registered, excluding its conflict of law provisions.
-          </p>
-        </section>
-
-        <section style={{ marginBottom: "2rem" }}>
-          <h2 style={{ fontSize: "1.5rem", fontWeight: 600, marginBottom: "1rem", marginTop: "2rem" }}>
-            15. Modifications to Service
-          </h2>
-          <p style={{ color: "var(--text2)", lineHeight: 1.6 }}>
-            Kin may modify, suspend, or discontinue the Service or any feature at any time, with or without notice.
-            Material modifications will be communicated via email. Continued use constitutes acceptance of changes.
-          </p>
-        </section>
-
-        <section style={{ marginBottom: "2rem" }}>
-          <h2 style={{ fontSize: "1.5rem", fontWeight: 600, marginBottom: "1rem", marginTop: "2rem" }}>
-            16. Entire Agreement
-          </h2>
-          <p style={{ color: "var(--text2)", lineHeight: 1.6 }}>
-            These Terms, along with our Privacy Policy, constitute the entire agreement between you and Kin regarding
-            use of the Service and supersede all prior or contemporaneous agreements.
-          </p>
-        </section>
-
-        <section style={{ marginBottom: "3rem" }}>
-          <h2 style={{ fontSize: "1.5rem", fontWeight: 600, marginBottom: "1rem", marginTop: "2rem" }}>
-            17. Contact Us
-          </h2>
-          <p style={{ color: "var(--text2)", lineHeight: 1.6, marginBottom: "1rem" }}>
-            If you have questions about these Terms of Service, please contact us:
-          </p>
-          <p style={{ color: "var(--text2)", lineHeight: 1.8 }}>
-            <strong>Kin Technologies LLC</strong>
-            <br />
-            Email: hello@kinai.family
-            <br />
-            Legal Contact: legal@kinai.family
-          </p>
-        </section>
+        <Section title="17. Contact">
+          <p>Questions about these Terms? Contact us:</p>
+          <p><strong style={{ color: "#F0EDE6" }}>{COMPANY}</strong><br /><a href={`mailto:${EMAIL}`} style={{ color: "#7CB87A" }}>{EMAIL}</a></p>
+        </Section>
       </article>
 
-      {/* Footer */}
-      <footer
-        style={{
-          backgroundColor: "var(--surface)",
-          borderTop: "1px solid var(--border)",
-          padding: "2rem",
-          marginTop: "4rem",
-        }}
-      >
-        <div
-          style={{
-            maxWidth: "1200px",
-            margin: "0 auto",
-            textAlign: "center",
-            color: "var(--text3)",
-            fontSize: "0.875rem",
-          }}
-        >
-          © 2026 Kin Technologies LLC
-        </div>
+      <footer style={{ borderTop: "1px solid rgba(255,255,255,0.06)", padding: "24px", textAlign: "center" }}>
+        <p style={{ fontSize: "12px", color: "rgba(240,237,230,0.25)" }}>
+          © 2026 {COMPANY} · <Link href="/privacy" style={{ color: "rgba(240,237,230,0.4)" }}>Privacy</Link> · <a href={`mailto:${EMAIL}`} style={{ color: "rgba(240,237,230,0.4)" }}>{EMAIL}</a>
+        </p>
       </footer>
-    </main>
+    </div>
   );
 }

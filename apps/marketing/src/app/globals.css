@@ -2,6 +2,25 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  --bg:          #0C0F0A;
+  --surface:     #141810;
+  --surface2:    #1c211a;
+  --border:      rgba(255, 255, 255, 0.07);
+  --border2:     rgba(255, 255, 255, 0.13);
+  --text:        #F0EDE6;
+  --text2:       rgba(240, 237, 230, 0.55);
+  --text3:       rgba(240, 237, 230, 0.28);
+  --green:       #7CB87A;
+  --green-dim:   rgba(124, 184, 122, 0.12);
+  --green-glow:  rgba(124, 184, 122, 0.25);
+  --amber:       #D4A843;
+  --purple:      #A07EC8;
+  --blue:        #7AADCE;
+  --rose:        #D4748A;
+  --orange:      #E07B5A;
+}
+
 * {
   margin: 0;
   padding: 0;
@@ -13,11 +32,12 @@ html {
 }
 
 body {
-  background-color: var(--background);
+  background-color: var(--bg);
   color: var(--text);
-  font-family: var(--font-geist);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  font-size: 15px;
+  line-height: 1.65;
 }
 
 a {
@@ -32,7 +52,18 @@ button {
   font-family: inherit;
 }
 
-/* Smooth transitions */
-* {
-  transition: background-color 200ms ease, color 200ms ease, border-color 200ms ease;
+::-webkit-scrollbar {
+  width: 5px;
+}
+::-webkit-scrollbar-track {
+  background: var(--bg);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border2);
+  border-radius: 3px;
+}
+
+::selection {
+  background: var(--green-dim);
+  color: var(--text);
 }
