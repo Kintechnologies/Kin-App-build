@@ -5,16 +5,16 @@
  * Called from the Settings screen "Delete Account" flow.
  *
  * Deletion order (respect FK constraints):
- *   1. chat_messages         — thread content
- *   2. chat_threads          — thread metadata
- *   3. calendar_events       — calendar data
- *   4. coordination_issues   — alert data
- *   5. morning_briefings     — briefing data
- *   6. kin_check_ins         — check-in data
- *   7. push_tokens           — device tokens
- *   8. household_invites     — pending invites
- *   9. profiles              — user profile (also clears household membership)
- *  10. auth.users            — Supabase auth record (admin client, irreversible)
+ *   1. chat_messages              — thread content
+ *   2. chat_threads               — thread metadata
+ *   3. calendar_events            — calendar data
+ *   4. coordination_issues        — alert data
+ *   5. morning_briefings          — briefing data
+ *   6. kin_check_ins              — check-in data
+ *   7. push_tokens                — device tokens
+ *   8. [FK nullification]         — clear partner household_id + accepted_by_profile_id refs
+ *   9. profiles                   — user profile
+ *  10. auth.users                 — Supabase auth record (admin client, irreversible)
  *
  * Uses service-role admin client for auth.users deletion. All table deletes use
  * the standard server client (RLS + uid check for safety).
@@ -107,11 +107,24 @@ export async function DELETE(request: Request) {
       .delete()
       .eq("profile_id", uid);
 
-    // ── 7. Delete household invites ───────────────────────────────────────────
-    await supabase
+    // ── 7. Clear FK references that would block profile deletion ─────────────
+    // (a) Partner whose household_id points at this profile (Problem: profiles_household_id_fkey)
+    // (b) household_invites.accepted_by_profile_id pointing at this profile
+    // Both FKs are declared without CASCADE/SET NULL so we must null them out first.
+    const admin = createAdminClient();
+
+    await admin
+      .from("profiles")
+      .update({ household_id: null })
+      .eq("household_id", uid);
+
+    await admin
       .from("household_invites")
-      .delete()
-      .eq("invited_by", uid);
+      .update({ accepted_by_profile_id: null })
+      .eq("accepted_by_profile_id", uid);
+
+    // Note: inviter_profile_id ON DELETE CASCADE handles invite cleanup for the
+    // inviter side — no explicit delete needed here.
 
     // ── 8. Delete profile ─────────────────────────────────────────────────────
     await supabase
@@ -120,7 +133,6 @@ export async function DELETE(request: Request) {
       .eq("id", uid);
 
     // ── 9. Delete Supabase auth user (irreversible) ───────────────────────────
-    const admin = createAdminClient();
     const { error: authDeleteError } = await admin.auth.admin.deleteUser(uid);
     if (authDeleteError) {
       throw new Error(`Auth deletion failed: ${authDeleteError.message}`);

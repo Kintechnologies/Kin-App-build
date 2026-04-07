@@ -1,37 +1,19 @@
+/**
+ * POST /api/recipe
+ *
+ * Returns a recipe for a given meal name.
+ *
+ * STATUS: STUB — requires ANTHROPIC_API_KEY to generate real recipes.
+ * When the key is present, wire the Anthropic call following the pattern
+ * in apps/web/src/app/api/chat/route.ts.
+ *
+ * Without the key, this endpoint returns 501 Not Implemented so callers
+ * can surface a clear "not available" state rather than a generic template.
+ */
+
 import { NextResponse } from "next/server";
 import { getAuthenticatedUser } from "@/lib/supabase/api-auth";
-
-// Mock recipes keyed by meal name
-const mockRecipes: Record<string, string> = {};
-
-function generateMockRecipe(mealName: string): string {
-  // Generate a plausible mock recipe
-  return `## ${mealName}
-
-### Ingredients
-- 2 lbs protein (chicken, beef, or salmon depending on dish)
-- 2 cups mixed vegetables
-- 1 tbsp olive oil
-- 2 cloves garlic, minced
-- Salt and pepper to taste
-- 1 cup grain (rice, pasta, or bread)
-- Fresh herbs for garnish
-
-### Instructions
-1. **Prep** (5 min): Wash and chop all vegetables. Pat protein dry and season with salt and pepper.
-2. **Cook protein** (8-10 min): Heat olive oil in a large skillet over medium-high heat. Cook protein until golden on each side.
-3. **Add aromatics** (2 min): Add garlic and cook until fragrant, about 30 seconds.
-4. **Add vegetables** (5-7 min): Toss in vegetables and cook until tender-crisp.
-5. **Season & serve**: Adjust seasoning, plate over your grain of choice, and garnish with fresh herbs.
-
-### Tips
-- **Make it ahead**: Prep ingredients the night before and store in containers.
-- **Kid-friendly version**: Serve sauce on the side so kids can dip.
-- **Leftovers**: Great for next-day lunch bowls — just reheat and add fresh greens.
-
-### Nutrition (per serving)
-Calories, protein, carbs, and fat will vary based on specific ingredients used. See the meal card for estimated macros.`;
-}
+import * as Sentry from "@sentry/nextjs";
 
 export async function POST(request: Request) {
   try {
@@ -40,24 +22,29 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    // Gate: real recipe generation requires the Anthropic API key.
+    // Without it, return 501 so the client can show a graceful "not available" state.
+    // TODO: wire Anthropic call here (see chat/route.ts for the pattern).
+    if (!process.env.ANTHROPIC_API_KEY) {
+      return NextResponse.json(
+        { error: "Recipe generation is not yet available." },
+        { status: 501 }
+      );
+    }
+
     const { mealName } = await request.json();
 
     if (!mealName) {
       return NextResponse.json({ error: "Meal name is required" }, { status: 400 });
     }
 
-    // Check cache
-    if (mockRecipes[mealName]) {
-      return NextResponse.json({ recipe: mockRecipes[mealName] });
-    }
-
-    // TODO: When Anthropic API key is set, generate real recipes
-    // For now, return a structured mock
-    const recipe = generateMockRecipe(mealName);
-    mockRecipes[mealName] = recipe;
-
-    return NextResponse.json({ recipe });
-  } catch {
+    // TODO: call Anthropic here — pattern in apps/web/src/app/api/chat/route.ts
+    return NextResponse.json(
+      { error: "Recipe generation is not yet implemented." },
+      { status: 501 }
+    );
+  } catch (err) {
+    Sentry.captureException(err);
     return NextResponse.json({ error: "Failed to generate recipe" }, { status: 500 });
   }
 }
