@@ -205,3 +205,32 @@ docs/ops/
 - Mobile responsiveness tested via CSS media queries
 - Animations are CSS-based (no JavaScript dependencies for UI)
 - Terms reference correct company name (Kin Technologies LLC) and email (hello@kinai.family)
+
+---
+
+## Run 1 Update — April 8, 2026
+
+**Status:** Prototype corrected ✅
+
+### What Changed
+
+#### `docs/ops/website-prototype-v1.html` — replaced with correct current design
+Previous prototype used old copy ("Stop keeping your family schedule in your head"). Replaced with the current design:
+- **Hero:** Split layout — left copy + right phone mockup with animated morning briefing
+- **Phone animation:** Typing dots → pickup conflict alert → 4 supporting items cascade → footer reminder
+- **Chaos calendar:** Full 5-day week grid with overlapping events and Kin-resolved conflicts
+- **CTA strips:** Inline email capture at multiple scroll depths
+- **Outcome cards:** 4-up editorial grid with abstract mini-visuals (conflict bars, timeline, ripple, checkmark)
+- **Pricing:** Monthly/annual toggle, single early-access tier at $39/mo or $349/yr
+- **Testimonials, final CTA, footer** with Privacy + Terms links
+
+#### Privacy & Terms pages — confirmed complete (no changes needed)
+Both pages were already production-ready from Run 1 (April 6). Google OAuth submission can proceed using `kinai.family/privacy`.
+
+### Pending for Run 2 (awaiting prototype approval)
+- Full homepage in Next.js with Framer Motion animations
+- Waitlist form → `/api/waitlist` → Supabase insert
+- Vercel domain config: kinai.family → `apps/marketing`
+
+### One outstanding placeholder
+- **Terms of Service:** "the state where Kin Technologies LLC is registered" — fill in actual state before going live.

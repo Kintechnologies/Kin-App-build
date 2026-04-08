@@ -1,701 +1,794 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Kin — Stop keeping your family schedule in your head</title>
-    <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        :root {
-            --background: #0C0F0A;
-            --surface: #141810;
-            --surface2: #1c211a;
-            --border: rgba(255, 255, 255, 0.07);
-            --text: #F0EDE6;
-            --text2: rgba(240, 237, 230, 0.55);
-            --text3: rgba(240, 237, 230, 0.28);
-            --green: #7CB87A;
-            --greenDim: rgba(124, 184, 122, 0.12);
-            --greenGlow: rgba(124, 184, 122, 0.25);
-            --amber: #D4A843;
-            --purple: #A07EC8;
-        }
-
-        html {
-            scroll-behavior: smooth;
-        }
-
-        body {
-            font-family: 'Geist', system-ui, sans-serif;
-            background-color: var(--background);
-            color: var(--text);
-            line-height: 1.6;
-            -webkit-font-smoothing: antialiased;
-            -moz-osx-font-smoothing: grayscale;
-        }
-
-        a {
-            color: inherit;
-            text-decoration: none;
-            transition: color 200ms ease;
-        }
-
-        a:hover {
-            color: var(--green);
-        }
-
-        button {
-            cursor: pointer;
-            border: none;
-            font-family: inherit;
-            transition: all 200ms ease;
-        }
-
-        /* Navigation */
-        nav {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 1.5rem 2rem;
-            background-color: var(--surface);
-            border-bottom: 1px solid var(--border);
-            position: sticky;
-            top: 0;
-            z-index: 100;
-        }
-
-        .nav-brand {
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-            font-size: 1.25rem;
-            font-weight: 600;
-        }
-
-        .nav-links {
-            display: flex;
-            gap: 1rem;
-        }
-
-        .nav-links a {
-            color: var(--text2);
-        }
-
-        .nav-links a:hover {
-            color: var(--text);
-        }
-
-        /* Hero Section */
-        .hero {
-            padding: 6rem 2rem;
-            text-align: center;
-            background-color: var(--background);
-        }
-
-        .hero h1 {
-            font-size: 3.5rem;
-            font-weight: 700;
-            margin-bottom: 1.5rem;
-            line-height: 1.2;
-        }
-
-        .hero p {
-            font-size: 1.25rem;
-            color: var(--text2);
-            margin-bottom: 3rem;
-            max-width: 600px;
-            margin-left: auto;
-            margin-right: auto;
-        }
-
-        .hero-mockup {
-            max-width: 500px;
-            margin: 0 auto 3rem;
-            background-color: var(--surface);
-            border: 1px solid var(--border);
-            border-radius: 0.5rem;
-            padding: 1.5rem;
-            min-height: 200px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            animation: fadeIn 0.6s ease-in-out;
-        }
-
-        .mockup-content {
-            text-align: center;
-        }
-
-        .mockup-emoji {
-            font-size: 2rem;
-            margin-bottom: 1rem;
-            animation: pulse 2s ease-in-out infinite;
-        }
-
-        .mockup-text {
-            color: var(--text2);
-            font-size: 0.875rem;
-        }
-
-        .cta-button {
-            background-color: var(--green);
-            color: var(--background);
-            padding: 0.75rem 2rem;
-            border-radius: 0.5rem;
-            font-size: 1rem;
-            font-weight: 600;
-        }
-
-        .cta-button:hover {
-            opacity: 0.9;
-            transform: translateY(-2px);
-        }
-
-        /* Relatability Section */
-        .relatability {
-            padding: 4rem 2rem;
-            background-color: var(--surface);
-            margin-top: 2rem;
-        }
-
-        .relatability h2 {
-            font-size: 2rem;
-            font-weight: 700;
-            margin-bottom: 2rem;
-            text-align: center;
-        }
-
-        .items-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-            gap: 1rem;
-            margin-bottom: 2rem;
-            max-width: 800px;
-            margin-left: auto;
-            margin-right: auto;
-        }
-
-        .item {
-            background-color: var(--background);
-            padding: 1rem;
-            border-radius: 0.375rem;
-            border: 1px solid var(--border);
-            text-align: center;
-            font-size: 0.875rem;
-        }
-
-        .relatability-resolution {
-            font-size: 1.125rem;
-            font-style: italic;
-            color: var(--text2);
-            text-align: center;
-            margin-bottom: 1.5rem;
-        }
-
-        .relatability-answer {
-            font-size: 1.25rem;
-            font-weight: 600;
-            text-align: center;
-            color: var(--green);
-        }
-
-        /* Outcome Cards Section */
-        .outcomes {
-            padding: 4rem 2rem;
-            background-color: var(--background);
-            margin-top: 2rem;
-        }
-
-        .outcomes h2 {
-            font-size: 2rem;
-            font-weight: 700;
-            margin-bottom: 3rem;
-            text-align: center;
-        }
-
-        .cards-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-            gap: 1.5rem;
-            max-width: 1200px;
-            margin: 0 auto;
-        }
-
-        .card {
-            background-color: var(--surface);
-            padding: 1.5rem;
-            border-radius: 0.5rem;
-            border: 1px solid var(--border);
-            display: flex;
-            flex-direction: column;
-            transition: all 200ms ease;
-        }
-
-        .card:hover {
-            border-color: var(--green);
-            background-color: var(--surface2);
-        }
-
-        .card h3 {
-            font-size: 1.125rem;
-            font-weight: 600;
-            margin-bottom: 0.75rem;
-            color: var(--green);
-        }
-
-        .card p {
-            color: var(--text2);
-            font-size: 0.875rem;
-        }
-
-        /* Why Different Section */
-        .why-different {
-            padding: 4rem 2rem;
-            background-color: var(--surface);
-            margin-top: 2rem;
-            text-align: center;
-        }
-
-        .why-different h2 {
-            font-size: 2rem;
-            font-weight: 700;
-            margin-bottom: 2rem;
-            max-width: 700px;
-            margin-left: auto;
-            margin-right: auto;
-        }
-
-        .why-different p {
-            font-size: 1rem;
-            color: var(--text2);
-            line-height: 1.6;
-            max-width: 700px;
-            margin-left: auto;
-            margin-right: auto;
-        }
-
-        /* Social Proof Section */
-        .social-proof {
-            padding: 4rem 2rem;
-            background-color: var(--background);
-            margin-top: 2rem;
-        }
-
-        .social-proof h2 {
-            font-size: 2rem;
-            font-weight: 700;
-            margin-bottom: 3rem;
-            text-align: center;
-        }
-
-        .quotes-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 2rem;
-            max-width: 1000px;
-            margin: 0 auto;
-        }
-
-        .quote {
-            padding-left: 1.5rem;
-            border-left: 4px solid var(--green);
-            color: var(--text2);
-            font-size: 1rem;
-            font-style: italic;
-        }
-
-        .quote-author {
-            margin-top: 0.75rem;
-            color: var(--text3);
-            font-style: normal;
-            font-size: 0.875rem;
-        }
-
-        /* CTA Section */
-        .final-cta {
-            padding: 4rem 2rem;
-            background-color: var(--surface);
-            margin-top: 2rem;
-            text-align: center;
-        }
-
-        .final-cta h2 {
-            font-size: 1.75rem;
-            font-weight: 600;
-            margin-bottom: 2rem;
-        }
-
-        .email-form {
-            display: flex;
-            gap: 0.5rem;
-            max-width: 400px;
-            margin: 0 auto;
-            flex-wrap: wrap;
-            justify-content: center;
-        }
-
-        .email-form input {
-            flex: 1 1 200px;
-            padding: 0.75rem 1rem;
-            border-radius: 0.375rem;
-            border: 1px solid var(--border);
-            background-color: var(--background);
-            color: var(--text);
-            font-size: 0.875rem;
-            font-family: inherit;
-        }
-
-        .email-form input:focus {
-            outline: none;
-            border-color: var(--green);
-            box-shadow: 0 0 0 3px var(--greenDim);
-        }
-
-        .email-form button {
-            background-color: var(--green);
-            color: var(--background);
-            padding: 0.75rem 1.5rem;
-            border-radius: 0.375rem;
-            font-weight: 600;
-            cursor: pointer;
-            white-space: nowrap;
-        }
-
-        .email-form button:hover {
-            opacity: 0.9;
-            transform: translateY(-2px);
-        }
-
-        /* Footer */
-        footer {
-            background-color: var(--background);
-            border-top: 1px solid var(--border);
-            padding: 2rem;
-            margin-top: 4rem;
-        }
-
-        .footer-content {
-            max-width: 1200px;
-            margin: 0 auto;
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 2rem;
-            align-items: start;
-            margin-bottom: 2rem;
-        }
-
-        .footer-brand {
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
-
-        .footer-brand span {
-            font-size: 1.125rem;
-            font-weight: 600;
-        }
-
-        .footer-links {
-            display: flex;
-            justify-content: flex-end;
-            gap: 1.5rem;
-            font-size: 0.875rem;
-        }
-
-        .footer-links a {
-            color: var(--text2);
-        }
-
-        .footer-divider {
-            color: var(--text3);
-        }
-
-        .footer-bottom {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding-top: 2rem;
-            border-top: 1px solid var(--border);
-            text-align: center;
-            color: var(--text3);
-            font-size: 0.875rem;
-        }
-
-        /* Animations */
-        @keyframes fadeIn {
-            from {
-                opacity: 0;
-            }
-            to {
-                opacity: 1;
-            }
-        }
-
-        @keyframes pulse {
-            0%, 100% {
-                opacity: 1;
-            }
-            50% {
-                opacity: 0.7;
-            }
-        }
-
-        /* Chat Animation */
-        @keyframes slideIn {
-            from {
-                opacity: 0;
-                transform: translateY(10px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
-        @keyframes chatBubbleSequence {
-            0%, 10% {
-                opacity: 0;
-                transform: translateY(10px);
-            }
-            15%, 85% {
-                opacity: 1;
-                transform: translateY(0);
-            }
-            90%, 100% {
-                opacity: 0;
-                transform: translateY(10px);
-            }
-        }
-
-        .chat-message {
-            animation: chatBubbleSequence 6s ease-in-out infinite;
-            display: none;
-        }
-
-        .chat-message:nth-child(1) {
-            display: block;
-            animation-delay: 0s;
-        }
-
-        .chat-message:nth-child(2) {
-            display: block;
-            animation-delay: 2s;
-        }
-
-        .chat-message:nth-child(3) {
-            display: block;
-            animation-delay: 4s;
-        }
-
-        /* Responsive */
-        @media (max-width: 768px) {
-            .hero h1 {
-                font-size: 2rem;
-            }
-
-            .hero p {
-                font-size: 1rem;
-            }
-
-            .outcomes h2, .relatability h2, .social-proof h2 {
-                font-size: 1.5rem;
-            }
-
-            .final-cta h2 {
-                font-size: 1.375rem;
-            }
-
-            .footer-content {
-                grid-template-columns: 1fr;
-                gap: 1rem;
-            }
-
-            .footer-links {
-                justify-content: flex-start;
-            }
-
-            .cards-grid {
-                grid-template-columns: 1fr;
-            }
-
-            .email-form {
-                flex-direction: column;
-            }
-
-            .email-form input, .email-form button {
-                width: 100%;
-            }
-        }
-
-        @media (max-width: 480px) {
-            nav {
-                padding: 1rem;
-            }
-
-            .hero {
-                padding: 3rem 1rem;
-            }
-
-            .hero h1 {
-                font-size: 1.75rem;
-            }
-
-            .relatability, .outcomes, .why-different, .social-proof, .final-cta {
-                padding: 2rem 1rem;
-            }
-
-            .items-grid {
-                grid-template-columns: 1fr;
-            }
-
-            .quotes-grid {
-                grid-template-columns: 1fr;
-            }
-        }
-    </style>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Kin — One less thing to carry</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+  <style>
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    :root{
+      --bg:#0C0F0A; --surface:#141810; --surface2:#1c211a;
+      --border:rgba(255,255,255,0.07); --border2:rgba(255,255,255,0.13);
+      --text:#F0EDE6; --text2:rgba(240,237,230,0.55); --text3:rgba(240,237,230,0.28);
+      --green:#7CB87A; --green-dim:rgba(124,184,122,0.12); --green-glow:rgba(124,184,122,0.25);
+      --amber:#D4A843; --purple:#A07EC8; --blue:#7AADCE; --rose:#D4748A; --orange:#E07B5A;
+    }
+    html{scroll-behavior:smooth}
+    body{background:var(--bg);color:var(--text);font-family:'Geist',-apple-system,sans-serif;-webkit-font-smoothing:antialiased;overflow-x:hidden;font-size:15px;line-height:1.6}
+    ::selection{background:var(--green-glow);color:var(--text)}
+    body::after{content:'';position:fixed;inset:0;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");opacity:0.02;pointer-events:none;z-index:9999}
+    /* ── Navbar ── */
+    .navbar{position:fixed;top:0;left:0;right:0;z-index:100;padding:20px 32px;display:flex;align-items:center;justify-content:space-between;background:linear-gradient(to bottom,rgba(12,15,10,0.94) 0%,transparent 100%)}
+    .logo{display:flex;align-items:center;gap:9px;text-decoration:none}
+    .logo-wordmark{font-size:17px;font-weight:600;color:var(--text);letter-spacing:-0.4px}
+    .cta-nav{padding:9px 20px;background:var(--green-dim);border:1px solid rgba(124,184,122,0.22);border-radius:8px;color:var(--green);font-size:14px;font-weight:500;font-family:'Geist',sans-serif;text-decoration:none;transition:all 0.2s ease}
+    .cta-nav:hover{background:rgba(124,184,122,0.18);border-color:rgba(124,184,122,0.42);box-shadow:0 0 18px rgba(124,184,122,0.1)}
+    section{width:100%}
+    .container{width:100%;max-width:920px;margin:0 auto;padding:0 24px}
+    .container-sm{width:100%;max-width:660px;margin:0 auto;padding:0 24px}
+    .section-divider{width:100%;height:1px;background:linear-gradient(to right,transparent,rgba(255,255,255,0.055) 25%,rgba(255,255,255,0.055) 75%,transparent)}
+    /* ── Hero ── */
+    .hero-outer{width:100%;overflow:hidden}
+    .hero{min-height:100dvh;display:grid;grid-template-columns:1fr 1fr;align-items:center;padding:120px 64px 80px;position:relative;max-width:1200px;margin:0 auto;gap:40px}
+    .hero-bg{position:absolute;inset:0;pointer-events:none;overflow:hidden}
+    .orb{position:absolute;border-radius:50%;filter:blur(80px)}
+    .orb-1{width:560px;height:560px;background:radial-gradient(circle,rgba(124,184,122,0.08) 0%,transparent 70%);top:-140px;left:-120px}
+    .orb-2{width:380px;height:380px;background:radial-gradient(circle,rgba(124,184,122,0.055) 0%,transparent 70%);bottom:-60px;right:60px}
+    .hero-left{display:flex;flex-direction:column;align-items:flex-start;text-align:left;position:relative;z-index:1}
+    .hero-right{display:flex;justify-content:center;align-items:center;position:relative;z-index:1}
+    .badge{display:inline-flex;align-items:center;gap:7px;padding:5px 13px;background:rgba(124,184,122,0.08);border:1px solid rgba(124,184,122,0.16);border-radius:100px;font-size:11px;font-family:'Geist Mono',monospace;letter-spacing:1.3px;text-transform:uppercase;color:var(--green);margin-bottom:28px}
+    .badge-dot{width:6px;height:6px;border-radius:50%;background:var(--green);animation:pulse 2.2s ease-in-out infinite;box-shadow:0 0 5px var(--green)}
+    @keyframes pulse{0%,100%{opacity:1}50%{opacity:0.3}}
+    h1.headline{font-size:clamp(28px,3.2vw,46px);font-weight:600;letter-spacing:-0.6px;line-height:1.1;color:var(--text);margin-bottom:22px}
+    .situation-line{font-family:'Geist Mono',monospace;font-size:12px;letter-spacing:0.5px;color:var(--text3);margin-bottom:10px}
+    .situation-separator{color:rgba(124,184,122,0.28);margin:0 6px}
+    .falls-on-you{font-size:15px;font-style:italic;color:rgba(240,237,230,0.33);margin-bottom:7px}
+    .kin-takes-care{font-size:16px;font-weight:500;color:var(--green);margin-bottom:8px;letter-spacing:-0.2px}
+    .hero-proactivity{font-size:13px;font-style:italic;color:rgba(240,237,230,0.38);margin-bottom:36px;letter-spacing:0.1px}
+    .cta-primary{display:inline-flex;align-items:center;padding:14px 32px;background:var(--green);border-radius:12px;color:var(--bg);font-size:15px;font-weight:600;font-family:'Geist',sans-serif;text-decoration:none;transition:all 0.2s ease;border:none;cursor:pointer;position:relative;overflow:hidden}
+    .cta-primary::after{content:'';position:absolute;inset:0;background:linear-gradient(135deg,rgba(255,255,255,0.13) 0%,transparent 55%);pointer-events:none}
+    .cta-primary:hover{opacity:0.9;transform:translateY(-2px);box-shadow:0 10px 36px rgba(124,184,122,0.28)}
+    /* ── Phone mockup ── */
+    .phone-wrap{position:relative;width:285px;flex-shrink:0}
+    .phone-glow{position:absolute;width:340px;height:340px;background:radial-gradient(circle,rgba(124,184,122,0.16) 0%,transparent 65%);top:50%;left:50%;transform:translate(-50%,-50%);filter:blur(48px);pointer-events:none;animation:glowPulse 3.2s ease-in-out infinite}
+    @keyframes glowPulse{0%,100%{opacity:0.65;transform:translate(-50%,-50%) scale(1)}50%{opacity:1;transform:translate(-50%,-50%) scale(1.1)}}
+    .phone-frame{position:relative;width:285px;height:570px;background:linear-gradient(155deg,#1f2520 0%,#141810 45%,#0f1310 100%);border-radius:46px;border:1.5px solid rgba(255,255,255,0.11);box-shadow:0 0 0 1px rgba(0,0,0,0.6),0 48px 96px rgba(0,0,0,0.65),0 0 64px rgba(124,184,122,0.07),inset 0 1px 0 rgba(255,255,255,0.07),inset 0 -1px 0 rgba(0,0,0,0.3);overflow:hidden;display:flex;flex-direction:column}
+    .phone-glare{position:absolute;top:0;left:0;right:0;height:55%;background:linear-gradient(160deg,rgba(255,255,255,0.05) 0%,rgba(255,255,255,0.01) 40%,transparent 65%);border-radius:46px 46px 0 0;pointer-events:none;z-index:10}
+    .btn-right{position:absolute;right:-2px;top:145px;width:3px;height:66px;background:linear-gradient(to bottom,rgba(255,255,255,0.08),rgba(255,255,255,0.14),rgba(255,255,255,0.08));border-radius:0 2px 2px 0}
+    .btn-left-1{position:absolute;left:-2px;top:118px;width:3px;height:34px;background:linear-gradient(to bottom,rgba(255,255,255,0.08),rgba(255,255,255,0.13),rgba(255,255,255,0.08));border-radius:2px 0 0 2px}
+    .btn-left-2{position:absolute;left:-2px;top:168px;width:3px;height:56px;background:linear-gradient(to bottom,rgba(255,255,255,0.08),rgba(255,255,255,0.13),rgba(255,255,255,0.08));border-radius:2px 0 0 2px}
+    .btn-left-3{position:absolute;left:-2px;top:236px;width:3px;height:56px;background:linear-gradient(to bottom,rgba(255,255,255,0.08),rgba(255,255,255,0.13),rgba(255,255,255,0.08));border-radius:2px 0 0 2px}
+    .dynamic-island{width:104px;height:32px;background:#000;border-radius:20px;margin:14px auto 0;flex-shrink:0;position:relative;z-index:5;box-shadow:0 0 0 1px rgba(255,255,255,0.05),inset 0 1px 2px rgba(0,0,0,0.8)}
+    .phone-screen{flex:1;display:flex;flex-direction:column;padding:10px 16px 16px;overflow:hidden}
+    .status-bar{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;padding:0 2px}
+    .status-time{font-size:13px;font-weight:600;color:var(--text);letter-spacing:-0.3px}
+    .status-icons{display:flex;gap:5px;align-items:center}
+    .app-header{display:flex;align-items:center;gap:8px;margin-bottom:14px;padding-bottom:11px;border-bottom:1px solid rgba(255,255,255,0.055)}
+    .app-header-name{font-size:13px;font-weight:600;color:var(--text);letter-spacing:-0.2px}
+    .app-header-sub{font-size:10px;font-family:'Geist Mono',monospace;color:var(--text3);letter-spacing:0.5px;text-transform:uppercase;margin-left:auto}
+    /* ── Phone briefing UI ── */
+    .phone-briefing{flex:1;display:flex;flex-direction:column;gap:8px;overflow:hidden}
+    .briefing-date{font-size:10px;font-family:'Geist Mono',monospace;letter-spacing:0.8px;text-transform:uppercase;color:var(--text3);margin-bottom:2px}
+    /* Primary alert card */
+    .brief-alert{background:rgba(212,116,138,0.07);border:1px solid rgba(212,116,138,0.18);border-radius:9px;padding:9px 11px;opacity:0;transform:translateY(6px);transition:opacity 0.38s ease,transform 0.38s ease}
+    .brief-alert.visible{opacity:1;transform:translateY(0)}
+    .brief-alert-top{display:flex;align-items:center;gap:6px;margin-bottom:4px}
+    .brief-alert-dot{width:5px;height:5px;border-radius:50%;background:#D4748A;flex-shrink:0;animation:pulse 1.6s ease-in-out infinite}
+    .brief-alert-label{font-size:10px;font-weight:600;color:#D4748A;font-family:'Geist Mono',monospace;letter-spacing:0.5px;text-transform:uppercase}
+    .brief-alert-body{font-size:12px;color:var(--text);line-height:1.4}
+    /* Item rows */
+    .brief-items{display:flex;flex-direction:column;gap:0}
+    .brief-item{display:flex;align-items:center;gap:8px;font-size:11.5px;color:var(--text2);padding:5px 0;border-bottom:1px solid rgba(255,255,255,0.04);opacity:0;transform:translateX(-8px);transition:opacity 0.32s ease,transform 0.32s ease}
+    .brief-item:last-child{border-bottom:none}
+    .brief-item.visible{opacity:1;transform:translateX(0)}
+    .brief-pip{width:6px;height:6px;border-radius:50%;flex-shrink:0}
+    .brief-item-label{flex:1;font-size:11.5px;color:var(--text2);line-height:1.3}
+    .brief-item-tag{font-size:9.5px;font-family:'Geist Mono',monospace;color:var(--text3);white-space:nowrap}
+    /* Footer reminder */
+    .brief-footer{margin-top:auto;padding-top:8px;border-top:1px solid rgba(124,184,122,0.1);font-size:11px;font-family:'Geist Mono',monospace;color:rgba(124,184,122,0.7);letter-spacing:0.2px;opacity:0;transition:opacity 0.4s ease}
+    .brief-footer.visible{opacity:1}
+    /* Typing indicator */
+    .phone-typing{display:flex;gap:3px;padding:4px 2px}
+    .phone-dot{width:4px;height:4px;border-radius:50%;background:var(--text3);animation:pbounce 0.8s ease-in-out infinite}
+    .phone-dot:nth-child(2){animation-delay:0.15s}
+    .phone-dot:nth-child(3){animation-delay:0.3s}
+    @keyframes pbounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-4px)}}
+    .phone-home-bar{width:96px;height:4px;background:rgba(255,255,255,0.18);border-radius:2px;margin:10px auto 0;flex-shrink:0}
+    /* ── Inline CTA strip ── */
+    .cta-strip{padding:32px 0;background:linear-gradient(to right,transparent,rgba(124,184,122,0.04) 30%,rgba(124,184,122,0.04) 70%,transparent)}
+    .cta-strip-inner{display:flex;align-items:center;justify-content:space-between;gap:24px;flex-wrap:wrap}
+    .cta-strip-text{font-size:clamp(14px,2vw,17px);font-style:italic;color:var(--text2)}
+    .cta-strip-form{display:flex;gap:8px;flex-wrap:wrap}
+    .cta-strip-form input{padding:10px 14px;background:var(--surface);border:1px solid rgba(255,255,255,0.09);border-radius:8px;color:var(--text);font-size:14px;font-family:'Geist',sans-serif;outline:none;transition:border-color 0.2s;min-width:200px}
+    .cta-strip-form input:focus{border-color:rgba(124,184,122,0.32)}
+    .cta-strip-form input::placeholder{color:var(--text3)}
+    .cta-strip-form button{padding:10px 22px;background:var(--green);border:none;border-radius:8px;color:var(--bg);font-size:14px;font-weight:600;font-family:'Geist',sans-serif;cursor:pointer;transition:all 0.2s ease;white-space:nowrap}
+    .cta-strip-form button:hover{opacity:0.88;transform:translateY(-1px);box-shadow:0 4px 16px rgba(124,184,122,0.24)}
+    /* ── Chaos calendar section ── */
+    .section-chaos{padding:clamp(72px,10vw,100px) 0}
+    .chaos-label{font-size:12px;font-family:'Geist Mono',monospace;letter-spacing:1.5px;text-transform:uppercase;color:rgba(124,184,122,0.65);margin-bottom:12px}
+    .chaos-headline{font-size:clamp(24px,3.8vw,34px);font-weight:600;letter-spacing:-0.5px;color:var(--text);margin-bottom:8px;line-height:1.2}
+    .chaos-sub{font-size:clamp(14px,2vw,16px);font-style:italic;color:var(--text2);margin-bottom:44px;line-height:1.6}
+    /* Calendar grid */
+    .cal-wrap{width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch}
+    .cal{width:100%;min-width:640px;border:1px solid var(--border);border-radius:16px;overflow:hidden;background:var(--surface)}
+    .cal-header{display:grid;grid-template-columns:48px repeat(5,1fr);border-bottom:1px solid var(--border)}
+    .cal-header-cell{padding:10px 8px;font-size:11px;font-family:'Geist Mono',monospace;letter-spacing:0.8px;text-transform:uppercase;color:var(--text3);text-align:center;border-right:1px solid var(--border)}
+    .cal-header-cell:last-child{border-right:none}
+    .cal-header-cell.today{color:var(--green)}
+    .cal-body{display:grid;grid-template-columns:48px repeat(5,1fr);position:relative}
+    .cal-time-col{display:flex;flex-direction:column}
+    .cal-time-slot{height:44px;display:flex;align-items:center;justify-content:flex-end;padding-right:8px;font-size:10px;font-family:'Geist Mono',monospace;color:var(--text3);border-bottom:1px solid rgba(255,255,255,0.03);letter-spacing:0.3px}
+    .cal-day-col{border-left:1px solid var(--border);position:relative;min-height:396px}
+    .cal-day-col .slot{height:44px;border-bottom:1px solid rgba(255,255,255,0.03)}
+    /* Events */
+    .evt{position:absolute;left:3px;right:3px;border-radius:6px;padding:4px 7px;font-size:11px;font-weight:500;line-height:1.3;overflow:hidden;cursor:default;transition:opacity 0.2s}
+    .evt:hover{opacity:0.85;z-index:20!important}
+    .evt-title{font-size:11px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .evt-time{font-size:9px;font-family:'Geist Mono',monospace;opacity:0.7;white-space:nowrap}
+    /* Conflict indicator */
+    .conflict-badge{display:inline-flex;align-items:center;gap:6px;margin-top:20px;padding:7px 13px;background:rgba(212,116,138,0.1);border:1px solid rgba(212,116,138,0.2);border-radius:100px;font-size:12px;font-family:'Geist Mono',monospace;color:#D4748A;letter-spacing:0.4px}
+    .conflict-badge::before{content:'';width:6px;height:6px;border-radius:50%;background:#D4748A;animation:pulse 1.6s ease-in-out infinite}
+    /* ── Section 2: Relatability ── */
+    .section-relatability{padding:clamp(80px,12vw,120px) 0}
+    .section-h2{font-size:clamp(24px,3.8vw,34px);font-weight:600;letter-spacing:-0.5px;color:var(--text);margin-bottom:36px;line-height:1.2}
+    .word-list{margin-bottom:34px}
+    .stagger-word{display:block;font-size:clamp(21px,3.6vw,30px);font-weight:500;letter-spacing:-0.4px;line-height:1.35;margin-bottom:3px;opacity:0;transform:translateX(-14px);transition:opacity 0.5s ease,transform 0.5s ease}
+    .stagger-word.visible{opacity:1;transform:translateX(0)}
+    .stagger-word:nth-child(1){color:var(--text);transition-delay:0s}
+    .stagger-word:nth-child(2){color:var(--text);transition-delay:0.1s}
+    .stagger-word:nth-child(3){color:rgba(240,237,230,0.72);transition-delay:0.2s}
+    .stagger-word:nth-child(4){color:rgba(240,237,230,0.52);transition-delay:0.3s}
+    .stagger-word:nth-child(5){color:rgba(240,237,230,0.36);transition-delay:0.4s}
+    .stagger-word:nth-child(6){color:rgba(240,237,230,0.22);transition-delay:0.5s}
+    .transition-line{font-size:clamp(16px,2.5vw,21px);font-style:italic;color:rgba(240,237,230,0.36);margin-bottom:16px;opacity:0;transition:opacity 0.6s ease 0.62s}
+    .transition-line.visible{opacity:1}
+    .resolution{font-size:clamp(18px,3.2vw,26px);font-weight:500;color:var(--green);letter-spacing:-0.3px;opacity:0;transform:translateY(8px);transition:opacity 0.6s ease 0.78s,transform 0.6s ease 0.78s}
+    .resolution.visible{opacity:1;transform:translateY(0)}
+    /* ── Mid-page CTA ── */
+    .mid-cta{padding:clamp(48px,8vw,80px) 0;text-align:center}
+    .mid-cta-inner{background:linear-gradient(135deg,rgba(124,184,122,0.06) 0%,rgba(124,184,122,0.03) 100%);border:1px solid rgba(124,184,122,0.12);border-radius:20px;padding:40px 32px;position:relative;overflow:hidden}
+    .mid-cta-inner::before{content:'';position:absolute;top:-60px;right:-60px;width:200px;height:200px;background:radial-gradient(circle,rgba(124,184,122,0.1) 0%,transparent 70%);pointer-events:none}
+    .mid-cta h3{font-size:clamp(20px,3vw,26px);font-weight:600;letter-spacing:-0.4px;color:var(--text);margin-bottom:8px}
+    .mid-cta p{font-size:15px;font-style:italic;color:var(--text2);margin-bottom:28px}
+    .mid-cta-form{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;max-width:440px;margin:0 auto}
+    .mid-cta-form input{flex:1 1 180px;min-width:0;padding:12px 15px;background:var(--surface);border:1px solid rgba(255,255,255,0.1);border-radius:9px;color:var(--text);font-size:14px;font-family:'Geist',sans-serif;outline:none;transition:border-color 0.2s}
+    .mid-cta-form input:focus{border-color:rgba(124,184,122,0.32)}
+    .mid-cta-form input::placeholder{color:var(--text3)}
+    .mid-cta-form button{padding:12px 24px;background:var(--green);border:none;border-radius:9px;color:var(--bg);font-size:14px;font-weight:600;font-family:'Geist',sans-serif;cursor:pointer;transition:all 0.2s ease;white-space:nowrap}
+    .mid-cta-form button:hover{opacity:0.88;transform:translateY(-1px);box-shadow:0 4px 18px rgba(124,184,122,0.24)}
+    /* ── Abstract cards ── */
+    .section-cards{padding:clamp(64px,10vw,100px) 0}
+    .section-mono-label{font-size:12px;font-family:'Geist Mono',monospace;letter-spacing:1.5px;text-transform:uppercase;color:rgba(124,184,122,0.65);margin-bottom:10px}
+    /* Large editorial card layout */
+    .cards-editorial{display:grid;grid-template-columns:1fr 1fr;gap:2px;margin-top:40px;border-radius:18px;overflow:hidden}
+    .ecard{background:linear-gradient(145deg,#171c15 0%,#131710 100%);padding:36px 32px;position:relative;overflow:hidden;transition:background 0.3s ease;cursor:default}
+    .ecard::before{content:'';position:absolute;inset:0;background:linear-gradient(135deg,rgba(124,184,122,0.03) 0%,transparent 60%);pointer-events:none;transition:opacity 0.3s}
+    .ecard:hover{background:linear-gradient(145deg,#1b211a 0%,#161b13 100%)}
+    .ecard:hover::before{opacity:2}
+    .ecard-wide{grid-column:span 2}
+    .ecard-num{font-size:11px;font-family:'Geist Mono',monospace;letter-spacing:1.5px;text-transform:uppercase;color:rgba(124,184,122,0.4);margin-bottom:20px}
+    .ecard-title{font-size:clamp(16px,2vw,20px);font-weight:600;color:var(--text);letter-spacing:-0.3px;margin-bottom:12px;line-height:1.3}
+    .ecard-body{font-size:14px;font-style:italic;color:var(--text2);line-height:1.65;margin-bottom:0}
+    /* Abstract visual per card */
+    .ecard-visual{margin-bottom:20px}
+    /* Conflict visual */
+    .vis-conflict{display:flex;gap:4px;align-items:flex-end;height:40px}
+    .vis-bar{border-radius:3px;transition:height 0.3s}
+    /* Timeline visual */
+    .vis-timeline{position:relative;height:36px;display:flex;align-items:center}
+    .vis-line{flex:1;height:1px;background:rgba(255,255,255,0.08)}
+    .vis-node{width:10px;height:10px;border-radius:50%;flex-shrink:0;position:relative}
+    .vis-node::after{content:'';position:absolute;inset:-3px;border-radius:50%;opacity:0.3}
+    /* Ripple visual */
+    .vis-ripple{width:40px;height:40px;position:relative;display:flex;align-items:center;justify-content:center}
+    .rip{position:absolute;border-radius:50%;border:1px solid rgba(124,184,122,0.3);animation:ripple 2s ease-out infinite}
+    .rip:nth-child(2){animation-delay:0.5s}
+    .rip:nth-child(3){animation-delay:1s}
+    @keyframes ripple{0%{width:8px;height:8px;opacity:1}100%{width:40px;height:40px;opacity:0}}
+    .rip-center{width:8px;height:8px;border-radius:50%;background:var(--green);position:relative;z-index:1}
+    /* Checkmark visual */
+    .vis-check{width:36px;height:36px;border-radius:50%;background:rgba(124,184,122,0.1);border:1px solid rgba(124,184,122,0.25);display:flex;align-items:center;justify-content:center}
+    .notification-chip{margin-top:16px;padding:8px 10px;background:rgba(124,184,122,0.06);border:1px solid rgba(124,184,122,0.15);border-radius:8px;display:flex;align-items:center;gap:7px}
+    .notification-chip span{font-size:11px;font-family:'Geist Mono',monospace;color:rgba(124,184,122,0.72);letter-spacing:0.2px}
+    /* ── Why Different ── */
+    .section-why{padding:clamp(64px,10vw,100px) 0}
+    .why-lead{font-size:clamp(18px,3vw,25px);font-weight:500;letter-spacing:-0.3px;color:var(--text);margin-bottom:16px;line-height:1.45}
+    .why-body{font-size:clamp(14px,2vw,16px);font-style:italic;color:var(--text2);line-height:1.8}
+    /* ── Pricing ── */
+    .section-pricing{padding:clamp(72px,12vw,120px) 0}
+    .pricing-toggle{display:inline-flex;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:3px;margin-bottom:48px;gap:0}
+    .toggle-btn{padding:7px 18px;border-radius:7px;font-size:13px;font-weight:500;font-family:'Geist',sans-serif;cursor:pointer;border:none;background:transparent;color:var(--text2);transition:all 0.2s ease}
+    .toggle-btn.active{background:var(--surface2);color:var(--text);box-shadow:0 1px 4px rgba(0,0,0,0.3)}
+    .save-badge{margin-left:6px;padding:2px 7px;background:rgba(124,184,122,0.15);border-radius:100px;font-size:10px;font-family:'Geist Mono',monospace;color:var(--green);letter-spacing:0.5px}
+    .pricing-grid{display:grid;grid-template-columns:1fr;gap:16px;max-width:480px;margin:0 auto}
+    .price-card{background:linear-gradient(145deg,#171c15 0%,#131710 100%);border:1px solid var(--border);border-radius:18px;padding:32px;position:relative;overflow:hidden;transition:border-color 0.2s}
+    .price-card.featured{border-color:rgba(124,184,122,0.25);background:linear-gradient(145deg,#1a201a 0%,#141a12 100%)}
+    .price-card.featured::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(to right,transparent,rgba(124,184,122,0.4),transparent)}
+    .price-badge{display:inline-block;padding:3px 10px;background:rgba(124,184,122,0.12);border:1px solid rgba(124,184,122,0.2);border-radius:100px;font-size:10px;font-family:'Geist Mono',monospace;letter-spacing:1px;text-transform:uppercase;color:var(--green);margin-bottom:20px}
+    .price-name{font-size:15px;font-weight:600;color:var(--text);margin-bottom:8px;letter-spacing:-0.2px}
+    .price-desc{font-size:13px;font-style:italic;color:var(--text2);margin-bottom:24px;line-height:1.5}
+    .price-amount{display:flex;align-items:flex-end;gap:4px;margin-bottom:6px}
+    .price-dollar{font-size:clamp(32px,4vw,44px);font-weight:600;color:var(--text);letter-spacing:-1px;line-height:1}
+    .price-period{font-size:13px;color:var(--text3);margin-bottom:6px;font-family:'Geist Mono',monospace}
+    .price-annual-note{font-size:12px;color:var(--text3);margin-bottom:28px;font-style:italic;height:16px}
+    .price-features{list-style:none;display:flex;flex-direction:column;gap:10px;margin-bottom:28px}
+    .price-features li{display:flex;align-items:flex-start;gap:10px;font-size:13px;color:var(--text2);line-height:1.4}
+    .feat-check{width:16px;height:16px;border-radius:50%;background:rgba(124,184,122,0.15);border:1px solid rgba(124,184,122,0.25);display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px}
+    .feat-check svg{opacity:0.9}
+    .feat-dash{width:16px;height:16px;border-radius:50%;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px;font-size:10px;color:var(--text3)}
+    .price-cta{display:block;width:100%;padding:12px;text-align:center;border-radius:10px;font-size:14px;font-weight:600;font-family:'Geist',sans-serif;text-decoration:none;cursor:pointer;border:none;transition:all 0.2s ease}
+    .price-cta-ghost{background:transparent;border:1px solid var(--border2);color:var(--text2)}
+    .price-cta-ghost:hover{border-color:rgba(255,255,255,0.2);color:var(--text)}
+    .price-cta-primary{background:var(--green);color:var(--bg);position:relative;overflow:hidden}
+    .price-cta-primary::after{content:'';position:absolute;inset:0;background:linear-gradient(135deg,rgba(255,255,255,0.1) 0%,transparent 55%);pointer-events:none}
+    .price-cta-primary:hover{opacity:0.9;transform:translateY(-1px);box-shadow:0 6px 20px rgba(124,184,122,0.24)}
+    .price-early{display:flex;align-items:center;gap:6px;margin-top:14px;font-size:11px;font-family:'Geist Mono',monospace;color:rgba(124,184,122,0.5);letter-spacing:0.3px;justify-content:center}
+    .price-early::before{content:'';width:5px;height:5px;border-radius:50%;background:rgba(124,184,122,0.4)}
+    /* ── Testimonials ── */
+    .section-testimonials{padding:clamp(64px,10vw,100px) 0}
+    .testimonials-list{display:flex;flex-direction:column;gap:32px;margin-top:36px}
+    .testimonial{padding-left:24px;border-left:2px solid rgba(124,184,122,0.32);opacity:0;transform:translateX(-12px);transition:opacity 0.6s ease,transform 0.6s ease}
+    .testimonial.visible{opacity:1;transform:translateX(0)}
+    .testimonial-quote{font-size:clamp(17px,2.8vw,21px);font-style:italic;font-weight:300;color:var(--text);margin-bottom:10px;line-height:1.5}
+    .testimonial-author{font-size:12px;font-family:'Geist Mono',monospace;color:var(--text3);letter-spacing:0.5px}
+    /* ── Final CTA ── */
+    .section-cta{padding:clamp(80px,14vw,140px) 0;text-align:center;position:relative}
+    .section-cta::before{content:'';position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:600px;height:400px;background:radial-gradient(ellipse,rgba(124,184,122,0.05) 0%,transparent 70%);pointer-events:none}
+    .cta-headline{font-size:clamp(26px,5vw,42px);font-weight:600;letter-spacing:-0.5px;color:var(--text);margin-bottom:12px;line-height:1.15;position:relative}
+    .cta-sub{font-size:15px;font-style:italic;color:rgba(240,237,230,0.36);margin-bottom:40px;position:relative}
+    .waitlist-form{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;max-width:460px;margin:0 auto;position:relative}
+    .email-input{flex:1 1 200px;min-width:0;padding:13px 16px;background:var(--surface);border:1px solid rgba(255,255,255,0.08);border-radius:10px;color:var(--text);font-size:15px;font-family:'Geist',sans-serif;outline:none;transition:border-color 0.2s,box-shadow 0.2s}
+    .email-input:focus{border-color:rgba(124,184,122,0.32);box-shadow:0 0 0 3px rgba(124,184,122,0.07)}
+    .email-input::placeholder{color:var(--text3)}
+    .submit-btn{padding:13px 28px;background:var(--green);border:none;border-radius:10px;color:var(--bg);font-size:15px;font-weight:600;font-family:'Geist',sans-serif;cursor:pointer;transition:all 0.2s ease;white-space:nowrap;position:relative;overflow:hidden}
+    .submit-btn::after{content:'';position:absolute;inset:0;background:linear-gradient(135deg,rgba(255,255,255,0.1) 0%,transparent 55%);pointer-events:none}
+    .submit-btn:hover{opacity:0.88;transform:translateY(-1px);box-shadow:0 6px 26px rgba(124,184,122,0.26)}
+    .success-msg{display:none;padding:18px 24px;background:rgba(124,184,122,0.07);border:1px solid rgba(124,184,122,0.16);border-radius:12px;color:var(--green);font-size:15px;max-width:460px;margin:0 auto;text-align:center}
+    /* ── Footer ── */
+    .footer{padding:44px 24px;border-top:1px solid rgba(255,255,255,0.05);display:flex;flex-direction:column;align-items:center;gap:20px}
+    .footer-logo{display:flex;align-items:center;gap:8px}
+    .footer-wordmark{font-size:15px;font-weight:600;color:var(--text);letter-spacing:-0.3px}
+    .footer-links{display:flex;gap:24px;flex-wrap:wrap;justify-content:center}
+    .footer-link{font-size:13px;color:var(--text3);text-decoration:none;transition:color 0.2s}
+    .footer-link:hover{color:rgba(240,237,230,0.6)}
+    .footer-copy{font-size:12px;font-family:'Geist Mono',monospace;color:rgba(240,237,230,0.14);letter-spacing:0.3px}
+    /* ── Scroll reveal ── */
+    .reveal{opacity:0;transform:translateY(20px);transition:opacity 0.7s ease,transform 0.7s ease}
+    .reveal.visible{opacity:1;transform:translateY(0)}
+    /* ── Responsive ── */
+    @media(max-width:800px){
+      .hero{grid-template-columns:1fr;padding:100px 24px 60px;text-align:center;gap:56px}
+      .hero-left{align-items:center}
+      .phone-frame{width:248px;height:496px;border-radius:40px}
+      .phone-wrap{width:248px}
+      .dynamic-island{width:90px;height:28px}
+      .cards-editorial{grid-template-columns:1fr}
+      .ecard-wide{grid-column:span 1}
+      .pricing-grid{grid-template-columns:1fr;max-width:100%}
+      .cta-strip-inner{flex-direction:column;text-align:center}
+    }
+    @media(max-width:480px){
+      .navbar{padding:14px 18px}
+      .phone-frame{width:210px;height:420px;border-radius:34px}
+      .phone-wrap{width:210px}
+    }
+  </style>
 </head>
 <body>
-    <!-- Navigation -->
-    <nav>
-        <div class="nav-brand">
-            <svg width="40" height="40" viewBox="0 0 64 64" fill="none">
-                <circle cx="32" cy="20" r="8" fill="#7CB87A" />
-                <circle cx="21.75" cy="37.9" r="9" fill="#7CB87A" />
-                <circle cx="42.25" cy="37.9" r="9" fill="#7CB87A" />
-            </svg>
-            <span>Kin</span>
-        </div>
-        <div class="nav-links">
-            <a href="#privacy">Privacy</a>
-            <a href="#terms">Terms</a>
-        </div>
-    </nav>
-
-    <!-- Hero Section -->
-    <section class="hero">
-        <h1>Stop keeping your family schedule in your head</h1>
-        <p>Kin is the family AI that takes care of scheduling. Never miss a pickup, appointment, or family moment again.</p>
-        <div class="hero-mockup">
-            <div class="mockup-content">
-                <div class="mockup-emoji">💬</div>
-                <div class="mockup-text">
-                    <div class="chat-message">"Your partner's meeting is running late."</div>
-                    <div class="chat-message">"You're on for pickup at 3pm."</div>
-                    <div class="chat-message">"Everything is on track."</div>
+<!-- Navbar -->
+<nav class="navbar">
+  <a href="#" class="logo">
+    <svg width="28" height="28" viewBox="0 0 64 64" fill="none"><circle cx="32" cy="20" r="8" fill="#7CB87A"/><circle cx="21.75" cy="37.9" r="9" fill="#7CB87A"/><circle cx="42.25" cy="37.9" r="9" fill="#7CB87A"/></svg>
+    <span class="logo-wordmark">Kin</span>
+  </a>
+  <a href="#waitlist" class="cta-nav">Claim your spot</a>
+</nav>
+<!-- ── HERO ── -->
+<div class="hero-outer">
+  <div class="hero">
+    <div class="hero-bg"><div class="orb orb-1"></div><div class="orb orb-2"></div></div>
+    <div class="hero-left">
+      <div class="badge"><span class="badge-dot"></span>Early access</div>
+      <h1 class="headline">You're already doing everything. You shouldn't have to keep track of it all too.</h1>
+      <p class="situation-line">Pickup<span class="situation-separator">·</span>Dinner<span class="situation-separator">·</span>Meetings<span class="situation-separator">·</span>Your schedule<span class="situation-separator">·</span>Your partner's schedule</p>
+      <p class="falls-on-you">And somehow… it still falls on you to figure it out.</p>
+      <p class="kin-takes-care">Kin takes care of that.</p>
+      <p class="hero-proactivity">Across your household — before you even realize something's off.</p>
+      <a href="#waitlist" class="cta-primary">Claim your spot</a>
+    </div>
+    <div class="hero-right">
+      <div class="phone-wrap">
+        <div class="phone-glow"></div>
+        <div class="phone-frame">
+          <div class="phone-glare"></div>
+          <div class="btn-right"></div><div class="btn-left-1"></div><div class="btn-left-2"></div><div class="btn-left-3"></div>
+          <div class="dynamic-island"></div>
+          <div class="phone-screen">
+            <div class="status-bar">
+              <span class="status-time">7:02</span>
+              <div class="status-icons">
+                <svg width="15" height="11" viewBox="0 0 16 12" fill="none"><rect x="0" y="8" width="3" height="4" rx="0.5" fill="white" opacity="0.85"/><rect x="4.5" y="5" width="3" height="7" rx="0.5" fill="white" opacity="0.85"/><rect x="9" y="2" width="3" height="10" rx="0.5" fill="white" opacity="0.85"/><rect x="13.5" y="0" width="2.5" height="12" rx="0.5" fill="white" opacity="0.25"/></svg>
+                <svg width="21" height="11" viewBox="0 0 22 12" fill="none"><rect x="0.5" y="0.5" width="18" height="11" rx="2.5" stroke="white" stroke-opacity="0.85"/><rect x="2" y="2" width="13" height="8" rx="1.5" fill="white" opacity="0.85"/><path d="M20 4v4a2 2 0 000-4z" fill="white" opacity="0.45"/></svg>
+              </div>
+            </div>
+            <div class="app-header">
+              <svg width="18" height="18" viewBox="0 0 64 64" fill="none"><circle cx="32" cy="20" r="8" fill="#7CB87A"/><circle cx="21.75" cy="37.9" r="9" fill="#7CB87A"/><circle cx="42.25" cy="37.9" r="9" fill="#7CB87A"/></svg>
+              <span class="app-header-name">Kin</span>
+              <span class="app-header-sub">Morning briefing</span>
+            </div>
+            <div class="phone-briefing">
+              <div class="briefing-date">Thu, Apr 10 · Morning briefing</div>
+              <div class="phone-typing" id="ptyping"><div class="phone-dot"></div><div class="phone-dot"></div><div class="phone-dot"></div></div>
+              <!-- Primary conflict alert -->
+              <div class="brief-alert" id="pmsg1">
+                <div class="brief-alert-top">
+                  <div class="brief-alert-dot"></div>
+                  <div class="brief-alert-label">Pickup conflict</div>
                 </div>
+                <div class="brief-alert-body">Partner's offsite all day — you're on solo pickup. Leave by 2:55.</div>
+              </div>
+              <!-- Supporting insight rows -->
+              <div class="brief-items">
+                <div class="brief-item" id="bitem1">
+                  <div class="brief-pip" style="background:#7AADCE"></div>
+                  <span class="brief-item-label">Back-to-back meetings 10–12pm</span>
+                  <span class="brief-item-tag">tight</span>
+                </div>
+                <div class="brief-item" id="bitem2">
+                  <div class="brief-pip" style="background:#A07EC8"></div>
+                  <span class="brief-item-label">Ava: soccer 4:30pm</span>
+                  <span class="brief-item-tag" style="color:rgba(124,184,122,0.6)">covered ✓</span>
+                </div>
+                <div class="brief-item" id="bitem3">
+                  <div class="brief-pip" style="background:#7CB87A"></div>
+                  <span class="brief-item-label">Free window 1–2pm</span>
+                  <span class="brief-item-tag">use it</span>
+                </div>
+                <div class="brief-item" id="bitem4">
+                  <div class="brief-pip" style="background:#D4A843"></div>
+                  <span class="brief-item-label">Liam: dentist Fri 10am</span>
+                  <span class="brief-item-tag" style="color:rgba(212,116,138,0.7)">no one assigned</span>
+                </div>
+              </div>
+              <!-- Reminder footer -->
+              <div class="brief-footer" id="pmsg2">I'll remind you at 2:20 to leave for pickup.</div>
             </div>
+          </div>
+          <div class="phone-home-bar"></div>
         </div>
-        <button class="cta-button">Get early access</button>
-    </section>
-
-    <!-- Relatability Section -->
-    <section class="relatability">
-        <h2>You're keeping track of everything.</h2>
-        <div class="items-grid">
-            <div class="item">pickup</div>
-            <div class="item">dinner</div>
-            <div class="item">bedtime</div>
-            <div class="item">your meetings</div>
-            <div class="item">your partner's meetings</div>
-            <div class="item">and everything in between</div>
+      </div>
+    </div>
+  </div>
+</div>
+<div class="section-divider"></div>
+<!-- ── CTA STRIP #1 ── -->
+<div class="cta-strip">
+  <div class="container">
+    <div class="cta-strip-inner">
+      <p class="cta-strip-text">Sound familiar? You're not alone — and you shouldn't have to figure it out alone either.</p>
+      <form class="cta-strip-form" onsubmit="handleInlineSubmit(event,this)">
+        <input type="email" placeholder="your@email.com" required/>
+        <button type="submit">Claim your spot</button>
+      </form>
+    </div>
+  </div>
+</div>
+<div class="section-divider"></div>
+<!-- ── CHAOS CALENDAR ── -->
+<section class="section-chaos">
+  <div class="container">
+    <p class="chaos-label reveal">A typical Tuesday</p>
+    <h2 class="chaos-headline reveal">This is what your week actually looks like.</h2>
+    <p class="chaos-sub reveal">Every colored block is something you used to hold in your head.<br>Every overlap is a conflict Kin catches — before your day starts.</p>
+    <div class="cal-wrap reveal">
+      <div class="cal">
+        <!-- Header -->
+        <div class="cal-header">
+          <div class="cal-header-cell"></div>
+          <div class="cal-header-cell">MON</div>
+          <div class="cal-header-cell today">TUE</div>
+          <div class="cal-header-cell">WED</div>
+          <div class="cal-header-cell">THU</div>
+          <div class="cal-header-cell">FRI</div>
         </div>
-        <p class="relatability-resolution">And somehow… it still falls through sometimes.</p>
-        <p class="relatability-answer">Kin takes that off your plate.</p>
-    </section>
-
-    <!-- Outcome Cards -->
-    <section class="outcomes">
-        <h2>What Kin does for you</h2>
-        <div class="cards-grid">
-            <div class="card">
-                <h3>Knows when things don't line up</h3>
-                <p>Your partner's meeting runs late — you've got pickup.</p>
+        <!-- Body: 9 rows × 44px = 396px, 8am–5pm -->
+        <div class="cal-body">
+          <!-- Time column -->
+          <div class="cal-time-col">
+            <div class="cal-time-slot">8am</div>
+            <div class="cal-time-slot">9am</div>
+            <div class="cal-time-slot">10am</div>
+            <div class="cal-time-slot">11am</div>
+            <div class="cal-time-slot">12pm</div>
+            <div class="cal-time-slot">1pm</div>
+            <div class="cal-time-slot">2pm</div>
+            <div class="cal-time-slot">3pm</div>
+            <div class="cal-time-slot">4pm</div>
+          </div>
+          <!-- MON -->
+          <div class="cal-day-col" style="min-height:396px">
+            <div class="slot"></div><div class="slot"></div><div class="slot"></div><div class="slot"></div><div class="slot"></div><div class="slot"></div><div class="slot"></div><div class="slot"></div><div class="slot"></div>
+            <div class="evt" style="top:0;height:66px;left:3px;right:42%;background:rgba(122,173,206,0.2);border-left:2px solid #7AADCE;z-index:2">
+              <div class="evt-title" style="color:#7AADCE">Team standup</div>
+              <div class="evt-time" style="color:#7AADCE">8–9:30am</div>
             </div>
-            <div class="card">
-                <h3>Catches tight schedules before they break</h3>
-                <p>Back-to-back until 6, then pickup — tight stretch.</p>
+            <div class="evt" style="top:22px;height:44px;left:42%;right:3px;background:rgba(224,123,90,0.22);border-left:2px solid #E07B5A;z-index:3">
+              <div class="evt-title" style="color:#E07B5A">Partner: drop-off</div>
+              <div class="evt-time" style="color:#E07B5A">8:30am ⚠</div>
             </div>
-            <div class="card">
-                <h3>Adapts when plans change</h3>
-                <p>Your 3pm cleared — you're back on for pickup.</p>
+            <div class="evt" style="top:176px;height:44px;left:3px;right:3px;background:rgba(160,126,200,0.2);border-left:2px solid #A07EC8;z-index:2">
+              <div class="evt-title" style="color:#A07EC8">Dentist — Ava</div>
+              <div class="evt-time" style="color:#A07EC8">12–1pm</div>
             </div>
-            <div class="card">
-                <h3>Closes the loop</h3>
-                <p>Pickup's sorted — you're clear for the evening.</p>
+            <div class="evt" style="top:264px;height:44px;left:3px;right:3px;background:rgba(122,173,206,0.18);border-left:2px solid #7AADCE;z-index:2">
+              <div class="evt-title" style="color:#7AADCE">Budget review</div>
+              <div class="evt-time" style="color:#7AADCE">2–3pm</div>
             </div>
+            <div class="evt" style="top:319px;height:33px;left:3px;right:3px;background:rgba(212,168,67,0.2);border-left:2px solid #D4A843;z-index:2">
+              <div class="evt-title" style="color:#D4A843">Pickup 3:15pm</div>
+            </div>
+          </div>
+          <!-- TUE (today — max chaos) -->
+          <div class="cal-day-col" style="background:rgba(124,184,122,0.015);min-height:396px">
+            <div class="slot"></div><div class="slot"></div><div class="slot"></div><div class="slot"></div><div class="slot"></div><div class="slot"></div><div class="slot"></div><div class="slot"></div><div class="slot"></div>
+            <div class="evt" style="top:22px;height:44px;left:3px;right:3px;background:rgba(122,173,206,0.2);border-left:2px solid #7AADCE;z-index:2">
+              <div class="evt-title" style="color:#7AADCE">1:1 w/ Sarah</div>
+              <div class="evt-time" style="color:#7AADCE">8:30–9:30am</div>
+            </div>
+            <div class="evt" style="top:88px;height:88px;left:3px;right:42%;background:rgba(122,173,206,0.22);border-left:2px solid #7AADCE;z-index:3">
+              <div class="evt-title" style="color:#7AADCE">Quarterly review</div>
+              <div class="evt-time" style="color:#7AADCE">10am–12pm</div>
+            </div>
+            <div class="evt" style="top:132px;height:66px;left:42%;right:3px;background:rgba(224,123,90,0.25);border-left:2px solid #E07B5A;z-index:4">
+              <div class="evt-title" style="color:#E07B5A">Partner: Dr. appt</div>
+              <div class="evt-time" style="color:#E07B5A">11am ⚠</div>
+            </div>
+            <div class="evt" style="top:220px;height:66px;left:3px;right:42%;background:rgba(224,123,90,0.2);border-left:2px solid #E07B5A;z-index:3">
+              <div class="evt-title" style="color:#E07B5A">Partner: all-hands</div>
+              <div class="evt-time" style="color:#E07B5A">1–2:30pm</div>
+            </div>
+            <div class="evt" style="top:242px;height:44px;left:42%;right:3px;background:rgba(160,126,200,0.25);border-left:2px solid #A07EC8;z-index:4">
+              <div class="evt-title" style="color:#A07EC8">Soccer — Liam</div>
+              <div class="evt-time" style="color:#A07EC8">1:30pm ⚠</div>
+            </div>
+            <div class="evt" style="top:319px;height:55px;left:3px;right:3px;background:rgba(212,116,138,0.22);border-left:2px solid #D4748A;z-index:4">
+              <div class="evt-title" style="color:#D4748A">🚨 Pickup 3:15pm</div>
+              <div class="evt-time" style="color:#D4748A">Who's going?</div>
+            </div>
+          </div>
+          <!-- WED -->
+          <div class="cal-day-col" style="min-height:396px">
+            <div class="slot"></div><div class="slot"></div><div class="slot"></div><div class="slot"></div><div class="slot"></div><div class="slot"></div><div class="slot"></div><div class="slot"></div><div class="slot"></div>
+            <div class="evt" style="top:44px;height:22px;left:3px;right:3px;background:rgba(122,173,206,0.18);border-left:2px solid #7AADCE;z-index:2">
+              <div class="evt-title" style="color:#7AADCE">Sprint planning</div>
+            </div>
+            <div class="evt" style="top:88px;height:66px;left:3px;right:42%;background:rgba(122,173,206,0.2);border-left:2px solid #7AADCE;z-index:3">
+              <div class="evt-title" style="color:#7AADCE">Client demo</div>
+              <div class="evt-time" style="color:#7AADCE">10–11:30am</div>
+            </div>
+            <div class="evt" style="top:110px;height:88px;left:42%;right:3px;background:rgba(122,173,206,0.14);border-left:2px solid #7AADCE;z-index:3;opacity:0.9">
+              <div class="evt-title" style="color:#7AADCE">All-hands</div>
+              <div class="evt-time" style="color:#7AADCE">10:30am ⚠</div>
+            </div>
+            <div class="evt" style="top:132px;height:88px;left:3px;right:42%;background:rgba(160,126,200,0.2);border-left:2px solid #A07EC8;z-index:2">
+              <div class="evt-title" style="color:#A07EC8">Soccer — Liam</div>
+              <div class="evt-time" style="color:#A07EC8">11am–1pm</div>
+            </div>
+            <div class="evt" style="top:319px;height:33px;left:3px;right:3px;background:rgba(124,184,122,0.18);border-left:2px solid #7CB87A;z-index:2">
+              <div class="evt-title" style="color:#7CB87A">✓ Kin: pickup covered</div>
+            </div>
+          </div>
+          <!-- THU -->
+          <div class="cal-day-col" style="min-height:396px">
+            <div class="slot"></div><div class="slot"></div><div class="slot"></div><div class="slot"></div><div class="slot"></div><div class="slot"></div><div class="slot"></div><div class="slot"></div><div class="slot"></div>
+            <div class="evt" style="top:0;height:44px;left:3px;right:3px;background:rgba(122,173,206,0.18);border-left:2px solid #7AADCE;z-index:2">
+              <div class="evt-title" style="color:#7AADCE">Standup</div>
+              <div class="evt-time" style="color:#7AADCE">8–9am</div>
+            </div>
+            <div class="evt" style="top:44px;height:44px;left:3px;right:3px;background:rgba(122,173,206,0.15);border-left:2px solid #7AADCE;z-index:2">
+              <div class="evt-title" style="color:#7AADCE">1:1 w/ manager</div>
+            </div>
+            <div class="evt" style="top:88px;height:264px;left:3px;right:3px;background:rgba(224,123,90,0.15);border-left:3px solid #E07B5A;z-index:2">
+              <div class="evt-title" style="color:#E07B5A">Partner: offsite</div>
+              <div class="evt-time" style="color:#E07B5A">10am–4pm (all day)</div>
+            </div>
+            <div class="evt" style="top:132px;height:66px;left:42%;right:3px;background:rgba(160,126,200,0.28);border-left:2px solid #A07EC8;z-index:4">
+              <div class="evt-title" style="color:#A07EC8">Gymnastics — Ava</div>
+              <div class="evt-time" style="color:#A07EC8">11am ⚠</div>
+            </div>
+            <div class="evt" style="top:264px;height:44px;left:42%;right:3px;background:rgba(122,173,206,0.28);border-left:2px solid #7AADCE;z-index:4">
+              <div class="evt-title" style="color:#7AADCE">Product review</div>
+              <div class="evt-time" style="color:#7AADCE">2–3pm ⚠</div>
+            </div>
+            <div class="evt" style="top:319px;height:55px;left:3px;right:3px;background:rgba(212,116,138,0.2);border-left:2px solid #D4748A;z-index:5">
+              <div class="evt-title" style="color:#D4748A">🚨 Pickup — solo</div>
+              <div class="evt-time" style="color:#D4748A">Partner's at offsite</div>
+            </div>
+          </div>
+          <!-- FRI -->
+          <div class="cal-day-col" style="min-height:396px">
+            <div class="slot"></div><div class="slot"></div><div class="slot"></div><div class="slot"></div><div class="slot"></div><div class="slot"></div><div class="slot"></div><div class="slot"></div><div class="slot"></div>
+            <div class="evt" style="top:66px;height:110px;left:3px;right:42%;background:rgba(160,126,200,0.2);border-left:2px solid #A07EC8;z-index:3">
+              <div class="evt-title" style="color:#A07EC8">Dr. appt — Ava</div>
+              <div class="evt-time" style="color:#A07EC8">9:30am–12pm</div>
+            </div>
+            <div class="evt" style="top:66px;height:66px;left:42%;right:3px;background:rgba(122,173,206,0.22);border-left:2px solid #7AADCE;z-index:4">
+              <div class="evt-title" style="color:#7AADCE">Product review</div>
+              <div class="evt-time" style="color:#7AADCE">9:30am ⚠</div>
+            </div>
+            <div class="evt" style="top:220px;height:44px;left:3px;right:3px;background:rgba(122,173,206,0.18);border-left:2px solid #7AADCE;z-index:2">
+              <div class="evt-title" style="color:#7AADCE">Client call</div>
+              <div class="evt-time" style="color:#7AADCE">1–2pm</div>
+            </div>
+            <div class="evt" style="top:264px;height:66px;left:3px;right:3px;background:rgba(224,123,90,0.18);border-left:2px solid #E07B5A;z-index:2">
+              <div class="evt-title" style="color:#E07B5A">Partner: team lunch</div>
+              <div class="evt-time" style="color:#E07B5A">2–3:30pm</div>
+            </div>
+            <div class="evt" style="top:319px;height:55px;left:3px;right:3px;background:rgba(124,184,122,0.18);border-left:2px solid #7CB87A;z-index:5">
+              <div class="evt-title" style="color:#7CB87A">✓ Kin: covered</div>
+              <div class="evt-time" style="color:#7CB87A">Pickup sorted — leave by 2:55</div>
+            </div>
+          </div>
         </div>
-    </section>
-
-    <!-- Why Different -->
-    <section class="why-different">
-        <h2>Most tools show you your schedule. Kin tells you what it means.</h2>
-        <p>It figures out who needs to act, what actually matters, and when you need to know. So you don't have to think about it.</p>
-    </section>
-
-    <!-- Social Proof -->
-    <section class="social-proof">
-        <h2>What parents are saying</h2>
-        <div class="quotes-grid">
-            <div class="quote">
-                "It's the first time I haven't had to double check everything."
-                <div class="quote-author">— Parent of 2</div>
-            </div>
-            <div class="quote">
-                "I didn't realize how much I was keeping in my head."
-                <div class="quote-author">— Parent of 3</div>
-            </div>
-            <div class="quote">
-                "It just… tells me what I need to know."
-                <div class="quote-author">— Working parent</div>
-            </div>
+      </div>
+    </div>
+    <div class="reveal" style="transition-delay:0.2s">
+      <div class="conflict-badge">Kin surfaced this conflict at 7am — before your day started.</div>
+    </div>
+  </div>
+</section>
+<div class="section-divider"></div>
+<!-- ── SECTION 2: RELATABILITY ── -->
+<section class="section-relatability">
+  <div class="container-sm">
+    <h2 class="section-h2 reveal">You're keeping all of this in your head — every day.</h2>
+    <div class="word-list" id="wordList">
+      <span class="stagger-word">pickup</span>
+      <span class="stagger-word">dinner</span>
+      <span class="stagger-word">bedtime</span>
+      <span class="stagger-word">your meetings</span>
+      <span class="stagger-word">your partner's meetings</span>
+      <span class="stagger-word">and everything in between</span>
+    </div>
+    <p class="transition-line" id="transitionLine">And when something falls through, everyone looks at you.</p>
+    <p class="resolution" id="resolution">Kin takes that off your plate.</p>
+  </div>
+</section>
+<div class="section-divider"></div>
+<!-- ── MID-PAGE CTA ── -->
+<div class="mid-cta">
+  <div class="container-sm">
+    <div class="mid-cta-inner reveal">
+      <h3>You already know this is your life.</h3>
+      <p>Get early access before we open to everyone.</p>
+      <form class="mid-cta-form" onsubmit="handleInlineSubmit(event,this)">
+        <input type="email" placeholder="your@email.com" required/>
+        <button type="submit">Claim your spot</button>
+      </form>
+    </div>
+  </div>
+</div>
+<div class="section-divider"></div>
+<!-- ── CARDS ── -->
+<section class="section-cards">
+  <div class="container">
+    <p class="section-mono-label reveal">What it takes off your plate</p>
+    <h2 class="section-h2 reveal" style="max-width:520px">The coordination that used to live in your head — handled.</h2>
+    <div class="cards-editorial">
+      <!-- Card 1 -->
+      <div class="ecard reveal">
+        <div class="ecard-visual">
+          <div class="vis-conflict">
+            <div class="vis-bar" style="width:12px;height:28px;background:rgba(122,173,206,0.4);border-radius:3px"></div>
+            <div class="vis-bar" style="width:12px;height:36px;background:rgba(160,126,200,0.4);border-radius:3px;margin-top:-8px"></div>
+            <div class="vis-bar" style="width:3px;height:36px;background:rgba(212,116,138,0.6);border-radius:3px"></div>
+            <div class="vis-bar" style="width:12px;height:22px;background:rgba(224,123,90,0.4);border-radius:3px"></div>
+            <div class="vis-bar" style="width:12px;height:32px;background:rgba(212,168,67,0.4);border-radius:3px"></div>
+          </div>
         </div>
-    </section>
-
-    <!-- Final CTA -->
-    <section class="final-cta">
-        <h2>One less thing to think about — every day.</h2>
-        <form class="email-form" onsubmit="handleSubmit(event)">
-            <input type="email" placeholder="your@email.com" required>
-            <button type="submit">Get early access</button>
-        </form>
-    </section>
-
-    <!-- Footer -->
-    <footer>
-        <div class="footer-content">
-            <div class="footer-brand">
-                <svg width="32" height="32" viewBox="0 0 64 64" fill="none">
-                    <circle cx="32" cy="20" r="8" fill="#7CB87A" />
-                    <circle cx="21.75" cy="37.9" r="9" fill="#7CB87A" />
-                    <circle cx="42.25" cy="37.9" r="9" fill="#7CB87A" />
-                </svg>
-                <span>Kin</span>
-            </div>
-            <div class="footer-links">
-                <a href="#privacy">Privacy</a>
-                <span class="footer-divider">·</span>
-                <a href="#terms">Terms</a>
-                <span class="footer-divider">·</span>
-                <a href="mailto:hello@kinai.family">hello@kinai.family</a>
-            </div>
+        <div class="ecard-num">01</div>
+        <div class="ecard-title">Sees the conflict before you do</div>
+        <p class="ecard-body">"Your partner's meeting runs late — you've got pickup."</p>
+      </div>
+      <!-- Card 2 -->
+      <div class="ecard reveal" style="transition-delay:0.1s">
+        <div class="ecard-visual">
+          <div class="vis-timeline">
+            <div class="vis-line"></div>
+            <div class="vis-node" style="background:#7AADCE;box-shadow:0 0 8px rgba(122,173,206,0.4)"><div style="position:absolute;inset:-3px;border-radius:50%;background:rgba(122,173,206,0.15)"></div></div>
+            <div class="vis-line" style="flex:0.3"></div>
+            <div class="vis-node" style="background:#D4A843;box-shadow:0 0 8px rgba(212,168,67,0.4)"><div style="position:absolute;inset:-3px;border-radius:50%;background:rgba(212,168,67,0.15)"></div></div>
+            <div class="vis-line" style="flex:0.3"></div>
+            <div class="vis-node" style="background:#D4748A;width:14px;height:14px;box-shadow:0 0 8px rgba(212,116,138,0.5)"><div style="position:absolute;inset:-3px;border-radius:50%;background:rgba(212,116,138,0.15)"></div></div>
+            <div class="vis-line"></div>
+          </div>
         </div>
-        <div class="footer-bottom">
-            © 2026 Kin Technologies LLC
+        <div class="ecard-num">02</div>
+        <div class="ecard-title">Names the tight window — and when to leave</div>
+        <p class="ecard-body">"Back-to-back until 6, then pickup — leave by 5:45."</p>
+        <div class="notification-chip">
+          <svg width="12" height="12" viewBox="0 0 64 64" fill="none" style="flex-shrink:0;opacity:0.6"><circle cx="32" cy="20" r="8" fill="#7CB87A"/><circle cx="21.75" cy="37.9" r="9" fill="#7CB87A"/><circle cx="42.25" cy="37.9" r="9" fill="#7CB87A"/></svg>
+          <span>Leave by 4:40 to make pickup on time.</span>
         </div>
-    </footer>
-
-    <script>
-        function handleSubmit(event) {
-            event.preventDefault();
-            const email = event.target.querySelector('input[type="email"]').value;
-            alert(`Thank you! We'll send early access details to ${email}`);
-            event.target.reset();
-        }
-    </script>
+      </div>
+      <!-- Card 3 -->
+      <div class="ecard reveal" style="transition-delay:0.2s">
+        <div class="ecard-visual">
+          <div class="vis-ripple">
+            <div class="rip"></div><div class="rip"></div><div class="rip"></div>
+            <div class="rip-center"></div>
+          </div>
+        </div>
+        <div class="ecard-num">03</div>
+        <div class="ecard-title">Adjusts the second something shifts</div>
+        <p class="ecard-body">"Your 3pm cleared — you're back on for pickup."</p>
+        <div class="notification-chip">
+          <svg width="12" height="12" viewBox="0 0 64 64" fill="none" style="flex-shrink:0;opacity:0.6"><circle cx="32" cy="20" r="8" fill="#7CB87A"/><circle cx="21.75" cy="37.9" r="9" fill="#7CB87A"/><circle cx="42.25" cy="37.9" r="9" fill="#7CB87A"/></svg>
+          <span>You're on pickup. Dinner's handled.</span>
+        </div>
+      </div>
+      <!-- Card 4 -->
+      <div class="ecard reveal" style="transition-delay:0.3s">
+        <div class="ecard-visual">
+          <div class="vis-check">
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2.5 7l3 3 6-6" stroke="#7CB87A" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </div>
+        </div>
+        <div class="ecard-num">04</div>
+        <div class="ecard-title">Tells you when you can stop thinking about it</div>
+        <p class="ecard-body">"Pickup's sorted — you're clear for the evening."</p>
+      </div>
+    </div>
+  </div>
+</section>
+<div class="section-divider"></div>
+<!-- ── WHY DIFFERENT ── -->
+<section class="section-why">
+  <div class="container-sm">
+    <div class="reveal">
+      <p class="why-lead">Most apps show you the data. Kin tells you what it means.</p>
+      <p class="why-body">It's not a calendar viewer — it's a coordination engine. It reads both sides of your household, figures out what's about to fall through, and surfaces exactly one thing at a time: the implication, and what to do about it. Across your schedule, your partner's, and everything in between.</p>
+    </div>
+  </div>
+</section>
+<div class="section-divider"></div>
+<!-- ── PRICING ── -->
+<section class="section-pricing" id="pricing">
+  <div class="container">
+    <p class="section-mono-label reveal">Pricing</p>
+    <h2 class="section-h2 reveal">Simple pricing. No surprises.</h2>
+    <p class="reveal" style="font-style:italic;color:var(--text2);margin-bottom:36px;font-size:15px;margin-top:-20px">Early access members lock in this price forever.</p>
+    <div class="reveal" style="text-align:center">
+      <div class="pricing-toggle">
+        <button class="toggle-btn active" id="btn-monthly" onclick="setPricing('monthly')">Monthly</button>
+        <button class="toggle-btn" id="btn-annual" onclick="setPricing('annual')">Annual <span class="save-badge">save $119</span></button>
+      </div>
+    </div>
+    <div class="pricing-grid reveal" style="transition-delay:0.1s">
+      <div class="price-card featured">
+        <div class="price-badge">Early Access</div>
+        <div class="price-name">Everything Kin does — for your whole family.</div>
+        <div class="price-amount" style="margin-top:20px">
+          <span class="price-dollar" id="price-display">$39</span>
+          <span class="price-period" style="margin-bottom:8px" id="price-period-label">/mo</span>
+        </div>
+        <div class="price-annual-note" id="annual-note" style="height:auto;min-height:16px"></div>
+        <ul class="price-features" style="margin-top:24px">
+          <li><div class="feat-check"><svg width="8" height="8" viewBox="0 0 8 8" fill="none"><path d="M1 4l2 2 4-4" stroke="#7CB87A" stroke-width="1.5" stroke-linecap="round"/></svg></div>Daily morning briefing — one sharp coordination insight, every day</li>
+          <li><div class="feat-check"><svg width="8" height="8" viewBox="0 0 8 8" fill="none"><path d="M1 4l2 2 4-4" stroke="#7CB87A" stroke-width="1.5" stroke-linecap="round"/></svg></div>Real-time alerts when your partner's schedule shifts and it affects you</li>
+          <li><div class="feat-check"><svg width="8" height="8" viewBox="0 0 8 8" fill="none"><path d="M1 4l2 2 4-4" stroke="#7CB87A" stroke-width="1.5" stroke-linecap="round"/></svg></div>Pickup risk detection — Kin catches coverage gaps before you do</li>
+          <li><div class="feat-check"><svg width="8" height="8" viewBox="0 0 8 8" fill="none"><path d="M1 4l2 2 4-4" stroke="#7CB87A" stroke-width="1.5" stroke-linecap="round"/></svg></div>Partner calendar sync — Kin sees both sides of your household</li>
+          <li><div class="feat-check"><svg width="8" height="8" viewBox="0 0 8 8" fill="none"><path d="M1 4l2 2 4-4" stroke="#7CB87A" stroke-width="1.5" stroke-linecap="round"/></svg></div>Kids' schedules, activities & pickup windows — all tracked</li>
+          <li><div class="feat-check"><svg width="8" height="8" viewBox="0 0 8 8" fill="none"><path d="M1 4l2 2 4-4" stroke="#7CB87A" stroke-width="1.5" stroke-linecap="round"/></svg></div>Escalating reminders — from heads-up to "leave now" as time closes in</li>
+          <li><div class="feat-check"><svg width="8" height="8" viewBox="0 0 8 8" fill="none"><path d="M1 4l2 2 4-4" stroke="#7CB87A" stroke-width="1.5" stroke-linecap="round"/></svg></div>Household memory — learns your routines and gets sharper over time</li>
+          <li><div class="feat-check"><svg width="8" height="8" viewBox="0 0 8 8" fill="none"><path d="M1 4l2 2 4-4" stroke="#7CB87A" stroke-width="1.5" stroke-linecap="round"/></svg></div>Ask Kin anything — AI chat with full family context</li>
+        </ul>
+        <a href="#waitlist" class="price-cta price-cta-primary" style="margin-top:4px">Claim your spot</a>
+        <div class="price-early">Early access price — locked in forever</div>
+      </div>
+    </div>
+  </div>
+</section>
+<div class="section-divider"></div>
+<!-- ── TESTIMONIALS ── -->
+<section class="section-testimonials">
+  <div class="container-sm">
+    <p class="section-mono-label reveal">Early feedback</p>
+    <div class="testimonials-list">
+      <div class="testimonial"><p class="testimonial-quote">"It's the first time I haven't had to double check everything."</p><span class="testimonial-author">— Parent of 2</span></div>
+      <div class="testimonial" style="transition-delay:0.12s"><p class="testimonial-quote">"I didn't realize how much I was keeping in my head."</p><span class="testimonial-author">— Parent of 3</span></div>
+      <div class="testimonial" style="transition-delay:0.24s"><p class="testimonial-quote">"It just… tells me what I need to know."</p><span class="testimonial-author">— Parent of 1</span></div>
+    </div>
+  </div>
+</section>
+<div class="section-divider"></div>
+<!-- ── FINAL CTA ── -->
+<section class="section-cta" id="waitlist">
+  <div class="container-sm">
+    <div class="reveal">
+      <h2 class="cta-headline">One less thing to carry —<br>every day.</h2>
+      <p class="cta-sub">Join families getting early access to Kin.</p>
+    </div>
+    <div class="reveal" style="transition-delay:0.15s">
+      <form class="waitlist-form" id="waitlistForm" onsubmit="handleSubmit(event)">
+        <input type="email" class="email-input" placeholder="your@email.com" required id="emailInput"/>
+        <button type="submit" class="submit-btn" id="submitBtn">Claim your spot</button>
+      </form>
+      <div class="success-msg" id="successMsg">You're on the list. We'll be in touch. 🌱</div>
+    </div>
+  </div>
+</section>
+<!-- Footer -->
+<footer class="footer">
+  <div class="footer-logo">
+    <svg width="22" height="22" viewBox="0 0 64 64" fill="none"><circle cx="32" cy="20" r="8" fill="#7CB87A"/><circle cx="21.75" cy="37.9" r="9" fill="#7CB87A"/><circle cx="42.25" cy="37.9" r="9" fill="#7CB87A"/></svg>
+    <span class="footer-wordmark">Kin</span>
+  </div>
+  <div class="footer-links">
+    <a href="/privacy" class="footer-link">Privacy</a>
+    <a href="/terms" class="footer-link">Terms</a>
+    <a href="mailto:hello@kinai.family" class="footer-link">hello@kinai.family</a>
+  </div>
+  <p class="footer-copy">© 2026 Kin Technologies LLC</p>
+</footer>
+<script>
+  // Morning briefing animation — staggered cascade
+  const ptyping=document.getElementById('ptyping')
+  setTimeout(()=>{ ptyping.style.display='none'; document.getElementById('pmsg1').classList.add('visible') },1100)
+  ;['bitem1','bitem2','bitem3','bitem4'].forEach((id,i)=>{
+    setTimeout(()=>{ document.getElementById(id).classList.add('visible') },1500+i*130)
+  })
+  setTimeout(()=>{ document.getElementById('pmsg2').classList.add('visible') },2200)
+  // Pricing toggle
+  function setPricing(mode){
+    document.getElementById('btn-monthly').classList.toggle('active',mode==='monthly')
+    document.getElementById('btn-annual').classList.toggle('active',mode==='annual')
+    document.getElementById('price-display').textContent=mode==='annual'?'$349':'$39'
+    document.getElementById('price-period-label').textContent=mode==='annual'?'/yr':'/mo'
+    document.getElementById('annual-note').textContent=mode==='annual'?'Billed $349/year — save $119':'Billed $39/month'
+  }
+  setPricing('monthly')
+  // Scroll reveals
+  const obs=new IntersectionObserver((entries)=>{
+    entries.forEach(e=>{ if(e.isIntersecting){e.target.classList.add('visible');obs.unobserve(e.target)} })
+  },{threshold:0.1,rootMargin:'-24px'})
+  document.querySelectorAll('.reveal').forEach(el=>obs.observe(el))
+  document.querySelectorAll('.testimonial').forEach(el=>obs.observe(el))
+  // Word stagger
+  const wlo=new IntersectionObserver((entries)=>{
+    entries.forEach(e=>{ if(e.isIntersecting){ document.querySelectorAll('.stagger-word').forEach(w=>w.classList.add('visible')); document.getElementById('transitionLine')?.classList.add('visible'); document.getElementById('resolution')?.classList.add('visible'); wlo.unobserve(e.target) } })
+  },{threshold:0.15,rootMargin:'-20px'})
+  const wl=document.getElementById('wordList'); if(wl)wlo.observe(wl)
+  // Form handlers
+  function showSuccess(form){
+    form.style.display='none'
+    const msg=document.createElement('div')
+    msg.style.cssText='padding:12px 18px;background:rgba(124,184,122,0.08);border:1px solid rgba(124,184,122,0.18);border-radius:9px;color:#7CB87A;font-size:14px;text-align:center;opacity:0;transition:opacity 0.4s ease'
+    msg.textContent="You're on the list. We'll be in touch. 🌱"
+    form.parentNode.insertBefore(msg,form.nextSibling)
+    requestAnimationFrame(()=>{ msg.style.opacity='1' })
+  }
+  function handleInlineSubmit(e,form){
+    e.preventDefault()
+    const btn=form.querySelector('button')
+    btn.textContent='Joining…'; btn.disabled=true
+    setTimeout(()=>showSuccess(form),700)
+  }
+  function handleSubmit(e){
+    e.preventDefault()
+    const btn=document.getElementById('submitBtn')
+    btn.textContent='Joining…'; btn.disabled=true
+    setTimeout(()=>{
+      document.getElementById('waitlistForm').style.display='none'
+      const msg=document.getElementById('successMsg')
+      msg.style.display='block'; msg.style.opacity='0'; msg.style.transition='opacity 0.4s ease'
+      requestAnimationFrame(()=>{ msg.style.opacity='1' })
+    },700)
+  }
+</script>
 </body>
 </html>
