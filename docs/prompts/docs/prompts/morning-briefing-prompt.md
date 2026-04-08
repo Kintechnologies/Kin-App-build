@@ -1,6 +1,6 @@
 # Morning Briefing Prompt
 **Route:** `/api/morning-briefing`
-**Last updated:** 2026-04-06T06:00 (session 13)
+**Last updated:** 2026-04-06T12:00 (session 16)
 **Spec sections:** §5, §7, §8, §10, §23
 
 ---
@@ -503,6 +503,52 @@ Full prioritization rule (all dimensions now documented):
 
 ---
 
+### Scenario 12: ACKNOWLEDGED Issue — Previously Surfaced in Briefing, No Change → Suppress (Null)
+**Input:**
+```json
+{
+  "today_events": [
+    { "time": "15:00", "type": "meeting", "owner": "parent_a", "title": "Client call (can't leave)" },
+    { "time": "15:00", "type": "gym", "owner": "parent_b", "title": "PT session" }
+  ],
+  "pickup_assignments": [
+    { "time": "15:30", "child": "Maya", "assigned": null, "conflict": true, "state": "ACKNOWLEDGED" }
+  ],
+  "household_conflicts": [
+    { "description": "3:30pm pickup uncovered", "state": "ACKNOWLEDGED" }
+  ],
+  "last_coordination_change": null,
+  "last_surfaced_insight": {
+    "issue_id": "pickup-maya-1530-2026-04-05",
+    "surfaced_at": "2026-04-05T07:30:00Z"
+  },
+  "current_time": "2026-04-06T07:30:00Z",
+  "confidence": "HIGH"
+}
+```
+**Expected output:**
+```json
+null
+```
+**Pass criteria:** SUPPRESSED. The same issue (`pickup-maya-1530-2026-04-05`) was surfaced in yesterday's morning briefing — at that point with ACKNOWLEDGED framing ("still open — acknowledged but not yet resolved"). Nothing has changed: `last_coordination_change: null`, state is still ACKNOWLEDGED, pickup is still uncovered. Repeat suppression applies to ACKNOWLEDGED issues exactly as it applies to OPEN issues: if the same issue_id was surfaced in the prior briefing and no material change has occurred, the result is null.
+
+**Key distinction from Scenario 10 (ACKNOWLEDGED — first briefing appearance):** Scenario 10 has `last_surfaced_insight: null` — the issue was acknowledged via alert/chat but has never appeared in a morning briefing. First briefing appearance with ACKNOWLEDGED state → surface with status-aware framing. Scenario 12 has `last_surfaced_insight` pointing to the same issue_id — yesterday's briefing already delivered the ACKNOWLEDGED framing. Second consecutive briefing, no change → SUPPRESS.
+
+**Key distinction from Scenario 6 (suppression bypass — status changed):** Scenario 6 has a `last_coordination_change.added_at` that postdates `last_surfaced_insight.surfaced_at` — the issue changed (parent_b freed up), so bypassing suppression is correct. Scenario 12 has `last_coordination_change: null` — nothing has changed at all, making suppression correct regardless of the issue's ACKNOWLEDGED state.
+
+**Suppression taxonomy — all five cases now fully tested:**
+- Scenario 4: OPEN + same issue_id + no change → **SUPPRESS**
+- Scenario 6: OPEN + same issue_id + status changed → **BYPASS** (re-surface with updated framing)
+- Scenario 7: any state + different issue_id → **SURFACE NORMALLY** (suppression does not apply)
+- Scenario 10: ACKNOWLEDGED + `last_surfaced_insight: null` → **SURFACE** (status-aware softer framing, first briefing appearance)
+- Scenario 12: ACKNOWLEDGED + same issue_id + no change → **SUPPRESS** (repeat suppression applies to ACKNOWLEDGED state)
+
+**§26 drift check:** The ACKNOWLEDGED state does not exempt an issue from repeat suppression. A parent who received "still open — acknowledged but not yet resolved" yesterday and sees nothing new in the data today does not benefit from hearing it again. Daily re-surfacing of a known, acknowledged issue degrades the morning briefing's utility and trains the parent to expect repetition rather than signal.
+
+**Failure mode this validates:** Failure Mode 11 (below) — model re-delivers ACKNOWLEDGED framing each morning because the state is not RESOLVED, ignoring that `last_surfaced_insight` already covered this issue with the same framing on the prior day. (New — Session 16)
+
+---
+
 ## Known Failure Modes
 
 1. **Vague primary_insight** — "You've got a busy afternoon" or "Today looks hectic." These pass format checks but fail §8. Fix: ensure prompt explicitly blocks these patterns; QA validates rendered strings.
@@ -515,3 +561,4 @@ Full prioritization rule (all dimensions now documented):
 8. **Dual-insight output when multiple issues exist** — When two open issues are present, the model lists both ("Maya's pickup is uncovered AND Leo's pickup is at risk"). This violates the 1-primary-insight rule and overwhelms the parent rather than directing attention. Fix: prompt enforces exactly 1 `primary_insight`. When multiple issues exist, the highest-urgency issue takes the primary slot (RED > YELLOW; PICKUP_RISK > LATE_SCHEDULE_CHANGE when urgency is equal). The secondary issue appears in `supporting_detail` only — and only if it adds material value beyond the primary. Never co-equal issue listing. Validated in Scenario 8.
 9. **ACKNOWLEDGED issue re-alerted with OPEN urgency in morning briefing** — The model outputs "you're both tied up at that time" for an issue with `state: ACKNOWLEDGED`, ignoring that a parent has already seen and engaged with the alert. Fix: ACKNOWLEDGED = parent has seen it and is presumably handling it. Framing should be a status update: "still open — acknowledged but not yet resolved." OPEN-state language ("you're both tied up", "no one confirmed", "has no coverage") is for issues the parent has NOT yet engaged with. Validated in Scenario 10. (New — Session 12)
 10. **ACKNOWLEDGED issue retains primary slot when OPEN issue also exists** — When an ACKNOWLEDGED RED issue and an OPEN YELLOW issue coexist, the model places the ACKNOWLEDGED issue in `primary_insight` because its severity is higher. Fix: OPEN > ACKNOWLEDGED for primary slot selection regardless of severity. An ACKNOWLEDGED issue is presumably in-progress; the OPEN issue is the one that needs attention now. ACKNOWLEDGED issues belong in `supporting_detail` with status-aware framing when an OPEN issue exists. Validated in Scenario 11. (New — Session 13)
+11. **ACKNOWLEDGED issue resurfaces despite suppression** — Model re-delivers ACKNOWLEDGED-state framing ("still open — acknowledged but not yet resolved") on consecutive mornings because the issue is not RESOLVED and the model treats ACKNOWLEDGED as perpetually worth re-surfacing. Fix: repeat suppression applies equally to ACKNOWLEDGED and OPEN issues. If `last_surfaced_insight.issue_id` matches today's surfaced issue AND `last_coordination_change` is null, the result is null — regardless of the issue's state. An acknowledged issue the parent already heard about yesterday, with no new development, does not warrant a second briefing. Validated in Scenario 12. (New — Session 16)

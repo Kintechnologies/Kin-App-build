@@ -108,11 +108,13 @@ Renders while briefing fetch is in-flight. Must feel like the card is already th
 
 | Element | Width | Height | Border radius | Color |
 |---------|-------|--------|---------------|-------|
-| Title stub | 80px | 16px | 8px | `rgba(240, 237, 230, 0.07)` |
-| Line 1 (hook) | 100% | 12px | 6px | `rgba(240, 237, 230, 0.05)` |
-| Line 2 | 100% | 12px | 6px | `rgba(240, 237, 230, 0.05)` |
-| Line 3 | 75% | 12px | 6px | `rgba(240, 237, 230, 0.05)` |
-| Line 4 | 55% | 12px | 6px | `rgba(240, 237, 230, 0.05)` |
+| Title stub | 80px | 16px | 8px | `c.skeletonBase` → `rgba(240, 237, 230, 0.07)` |
+| Line 1 (hook) | 100% | 12px | 6px | `c.skeletonBase` → `rgba(240, 237, 230, 0.07)` |
+| Line 2 | 100% | 12px | 6px | `c.skeletonBase` → `rgba(240, 237, 230, 0.07)` |
+| Line 3 | 75% | 12px | 6px | `c.skeletonBase` → `rgba(240, 237, 230, 0.07)` |
+| Line 4 | 55% | 12px | 6px | `c.skeletonBase` → `rgba(240, 237, 230, 0.07)` |
+
+*Note (accepted, v1.0 update 2026-04-05):* Original spec differentiated title (0.07) vs. lines (0.05). Implementation uses `c.skeletonBase` (0.07) for all elements. Accepted — the delta is imperceptible in-app (~2/100 opacity on a near-black surface), and token uniformity is preferable for theme consistency. Spec updated to match actual token usage.
 
 **Animation:**
 

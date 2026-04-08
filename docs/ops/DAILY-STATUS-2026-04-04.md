@@ -1,11 +1,294 @@
 # Kin AI — Daily Status Note
 **Date:** 2026-04-04 (Sprint Day 4 of 14)
-**Author:** CoS Coordinator (scheduled runs N + R + V + Y + AB + AD)
+**Author:** CoS Coordinator (scheduled runs N + R + V + Y + AB + AD + AH + AJ + AL + AP)
 **Sprint target:** TestFlight by 2026-04-16
 
 ---
 
-## Latest Update — CoS Run AD (odd-hour :20, following QA Run F)
+## Latest Update — CoS Run AP (odd-hour :20, following QA Run AO)
+
+### Sprint Pulse — Day 4 Night (Run AP)
+
+**QA Run AO verified Lead Eng run AN completely clean.** The thread_type routing pre-wire is solid: `route.ts` routing logic correct, `api.ts` threadType param backward-compatible, `chat.tsx` thread.thread_type passed inside try/catch. 0 new P0/P1 issues. Architecture clean: 3 tabs, domain files intact, scope guard passed.
+
+**1 new P2 filed: P2-23 (household context block single-parent only).** QA identified that `route.ts` lines 270–338 only fetch the logged-in parent's `today_events` and `recent_schedule_changes`. Before `household-chat-prompt.md` is wired, Lead Eng must extend the context block to also fetch partner calendar events (resolve partner's `profile_id` → fetch their `calendar_events` → merge as `partner_today_events`). This is **not blocking TestFlight** — household route uses personal prompt as safe fallback today — but it must be addressed before the household prompt goes live. **Lead Eng has 1 open code task: P2-23.**
+
+**IE `household-chat-prompt.md` is now 11+ consecutive even-hour cycles overdue.** Escalated to Austin in run AH. No delivery across 11+ even-hour windows. The household thread continues to use `chat-prompt.md` (personal prompt), meaning §16 balanced-framing is not enforced for household coordination conversations. S4.6 household thread e2e audit cannot run until this is delivered. The routing infrastructure (run AN) is fully ready — IE need only deliver the prompt text; Lead Eng wiring is a one-step paste operation.
+
+**Critical path note:** The dependency chain is now: IE delivers `household-chat-prompt.md` → Lead Eng extends context (P2-23) + wires prompt → QA audits §16 compliance + context completeness → S4.6 e2e declared complete → Austin B2 (RC iOS app + products) → S5.2 TestFlight. P2-23 adds one Lead Eng step to the household wiring sequence, but it's a targeted fix (fetch partner calendar events when `thread_type === "household"`) and should not add more than one cycle.
+
+**Sprint remains ~8 days ahead of schedule.** If IE delivers `household-chat-prompt.md` in the next even-hour window, Stage 4 can complete in 2–3 cycles thereafter.
+
+### What QA Run AO Found (auditing Lead Eng run AN)
+
+- **thread_type routing logic ✅ CLEAN** — Route correctly extracts `thread_type`; routing condition safe (empty `HOUSEHOLD_CHAT_SYSTEM_PROMPT.trim()` evaluates falsy); fallback to personal prompt confirmed; invalid/missing `thread_type` values fall through safely.
+- **`api.ts` threadType param ✅ CLEAN** — Optional param, backward-compatible, snake_case forwarding correct, no `any` types.
+- **`chat.tsx` thread.thread_type pass ✅ CLEAN** — Passed correctly at send, inside try/catch, `thread` non-null guarded at line 403.
+- **Code quality ✅ CLEAN** — 0 bare console.error, 0 `any` types, 0 unused imports across all 3 changed files. Outer try/catch present in `route.ts`.
+- **P2-17 / P2-18 spot-check ✅ CONFIRMED** — sectionLabel "RECENT" at line 593; `marginTop: 4` at line 1053 — both still in place.
+- **Architecture ✅ CLEAN** — 3-tab shell unchanged; domain files intact; migrations 024–028 all present; scope guard passed (no Layer 2/3 features).
+- **1 new P2 filed:** P2-23 — household context block single-parent only (see above).
+
+### Pipeline Health (post-CoS Run AP)
+
+| Check | Status |
+|-------|--------|
+| P&D specs current | ✅ 11 v0 specs current |
+| IE prompts at correct path | ✅ All 6 at `docs/prompts/` |
+| IE new deliverable | 🔴 `household-chat-prompt.md` CRITICAL — **11+ cycles overdue. Escalated to Austin run AH.** |
+| Lead Eng open code tasks | 🟡 1 — P2-23 (household context extension; address before IE delivers prompt) |
+| P&D open spec tasks | ✅ None (P2-22 closed run AM) |
+| QA cadence | ✅ Strong — 10 audits today (A–G + H + AK + AO) |
+| Scope violations | ✅ None — 3-tab architecture clean all runs |
+| B29 — supabase db push | 🟢 UNBLOCKED — Austin can run now (clear since run AL) |
+| Check-in AI wiring | ❌ Awaiting Austin direction (cron vs inline architecture) |
+| P2-5 / B31 | ❌ Stale `docs/prompts/docs/` — Austin must delete from terminal |
+| P2-7 | ❌ IE: `morning-briefing-prompt.md` INPUT FORMAT mismatch still open |
+| P2-23 | 🟡 Lead Eng: extend household context block before IE prompt wiring |
+
+### Stage Status (post-CoS Run AP)
+
+| Stage | Status |
+|-------|--------|
+| Stage 1 — Shell + Data Layer | ✅ Complete (IE: `household-chat-prompt.md` + P2-7 still pending) |
+| Stage 2 — Today Screen | ✅ Functionally complete (check-in AI wiring pending Austin S2.3 direction) |
+| Stage 3 — Conversations | ✅ Complete |
+| Stage 4 — First-Use + Settings | ✅ Personal thread e2e verified. Settings spec-compliant. Household context pre-wire done. **Household thread e2e: blocked on IE** (11+ cycles overdue — escalated). Lead Eng has 1 code task (P2-23) pending IE delivery. |
+| Stage 5 — RC + TestFlight | ⬜ Blocked on Austin B2 (RC iOS app + products) |
+
+### Active Blockers (post-CoS Run AP)
+
+| # | Priority | Owner | Description |
+|---|----------|-------|-------------|
+| B2 | 🔴 P0 | **Austin** | RevenueCat iOS app + products not yet configured. RC project `kin-ai-492223` created. Still needed: iOS app (bundle ID + ASC), `kin_monthly_3999` + `kin_annual_29900` products, `EXPO_PUBLIC_REVENUECAT_API_KEY` in `.env`. Blocks S5.2 TestFlight. |
+| `household-chat-prompt.md` | 🔴 P1 | **IE / Austin** | **ESCALATION (run AH).** 11+ cycles overdue. Household thread using personal chat prompt — §16 balanced-framing not enforced. S4.6 household thread e2e blocked. Stage 4 completion gate open. |
+| B4 | 🟡 P1 | **Austin** | OAuth branding incomplete — verification clock running. Logo + homepage/privacy/ToS URLs + authorized domain + submit still needed. |
+| B21 | 🟡 P1 | **Austin** | Patch `first_name` for existing Supabase `profiles` row in dashboard. |
+| B29 | 🟢 UNBLOCKED | **Austin** | `supabase db push` — B33 resolved + QA-verified. Run now. Apply `027_coordination_issues_severity.sql` + `028_profile_timezone.sql`. Also delete `027_profile_timezone.sql` stub. |
+| P2-23 | 🟡 P2 | **Lead Eng** | Extend household context block in `route.ts` (lines 270–338) to fetch partner's `calendar_events` when `thread_type === "household"`. Address before IE delivers `household-chat-prompt.md` (not before TestFlight). |
+| P2-7 | 🟡 P2 | **IE** | `morning-briefing-prompt.md` INPUT FORMAT describes structured JSON that route never sends. |
+| B31 / P2-5 | 🟡 P2 | **Austin** | Stale `docs/prompts/docs/` directory — `rm -rf docs/prompts/docs`. |
+
+---
+
+## Previous Update — CoS Run AL (odd-hour :20, following QA Run AK)
+
+### Sprint Pulse — Day 4 Late Night (Run AL)
+
+**All settings cleanup tasks verified closed.** QA Run AK confirmed B33 + P2-19 + P2-20 + P2-21 all resolved by Lead Eng run AK. The settings.tsx screen is now fully spec-compliant: correct badge colors (neutral, not rose), no sign-out haptic, no unused imports, migration rename done.
+
+**B29 is now unblocked.** B33 (duplicate `027_` migration prefix) was the only thing blocking `supabase db push`. QA Run AK verified the rename is correct. Austin can now run `supabase db push` to apply `027_coordination_issues_severity.sql` to production — severity field writes from alert-prompt are currently failing silently in prod until this runs. Also clean up the `027_profile_timezone.sql` no-op stub file (harmless but should be removed).
+
+**Lead Eng has zero open code tasks — third consecutive CoS cycle with a clean queue.** All P0/P1/P2 issues across Stages 1–4 are resolved at the code level. The sprint is fully dependent on external unblocks at this point.
+
+**IE `household-chat-prompt.md` is now 10+ consecutive even-hour cycles overdue.** This was escalated to Austin in run AH. The household thread continues to use `chat-prompt.md` (personal thread prompt), meaning §16 balanced-framing is not enforced for household coordination conversations. S4.6 household thread e2e audit cannot run until this is delivered. This is the longest-standing open P1 in the sprint.
+
+**P2-22 remains open for P&D.** The Family Members card in `settings.tsx` (lines 192–204) is present in the app but absent from `settings-screen-spec.md` §7. P&D should add the card documentation in their next even-hour session.
+
+**Sprint remains ~8 days ahead of schedule.** If IE delivers `household-chat-prompt.md` in the next even-hour window, Stage 4 can complete within 1–2 cycles thereafter.
+
+### What QA Run AK Found (auditing Lead Eng run AK)
+
+- **B33 ✅ RESOLVED** — `028_profile_timezone.sql` created with correct `ALTER TABLE` + attribution. `027_profile_timezone.sql` overwritten to harmless no-op stub with deletion instructions. No duplicate migration execution risk.
+- **P2-19 ✅ RESOLVED** — All 34 imported identifiers in `settings.tsx` are in use; 0 unused imports.
+- **P2-20 ✅ RESOLVED** — Calendar badge: `c.surfaceSubtle` bg, `c.textFaint` text, `borderRadius: 20`, `paddingH: 4`, `paddingV: 6` — spec-exact match.
+- **P2-21 ✅ RESOLVED** — No `Haptics.impactAsync()` in `handleSignOut`. Comment confirms spec §12 intent.
+- **Architecture ✅ CLEAN** — 3 tabs, domain files intact, migrations 024–028 all present (no duplicate active prefixes).
+- **Today screen spot-check ✅** — §5/§7/§8/§12/§21 compliance confirmed (no new changes, continued compliance).
+- **0 new P0/P1/P2 issues.**
+
+### Pipeline Health (post-CoS Run AL)
+
+| Check | Status |
+|-------|--------|
+| P&D specs current | ✅ 11 v0 specs current (P2-22 gap: Family Members card missing from settings-screen-spec.md §7) |
+| IE prompts at correct path | ✅ All 6 at `docs/prompts/` |
+| IE new deliverable | 🔴 `household-chat-prompt.md` CRITICAL — **10+ cycles overdue. Escalated to Austin run AH.** |
+| Lead Eng open code tasks | ✅ ZERO — third consecutive cycle with no open code tasks |
+| P&D open spec tasks | 🟡 P2-22 (Family Members card in settings-screen-spec.md §7) |
+| QA cadence | ✅ 9 audits today (A–G + H + AK) — strong cadence |
+| Scope violations | ✅ None — 3-tab architecture clean all runs |
+| B33 — migration rename | ✅ RESOLVED — QA verified run AK |
+| B29 — supabase db push | 🟢 UNBLOCKED — Austin can run now |
+| Check-in wiring | ❌ Awaiting Austin direction (cron vs inline) |
+| P2-5/B31 | ❌ Stale `docs/prompts/docs/` — Austin must delete from terminal |
+| P2-7 | ❌ IE: `morning-briefing-prompt.md` INPUT FORMAT mismatch still open |
+| P2-22 | 🟡 P&D: add Family Members card to settings-screen-spec.md §7 |
+
+### Stage Status (post-CoS Run AL)
+
+| Stage | Status |
+|-------|--------|
+| Stage 1 — Shell + Data Layer | ✅ Complete (IE: `household-chat-prompt.md` + P2-7 still pending) |
+| Stage 2 — Today Screen | ✅ Functionally complete (check-in AI wiring pending Austin S2.3 direction) |
+| Stage 3 — Conversations | ✅ Complete |
+| Stage 4 — First-Use + Settings | ✅ Personal thread e2e verified. Settings spec-compliant. Lead Eng clean. Household thread e2e: **blocked on IE** (10+ cycles overdue — escalated). |
+| Stage 5 — RC + TestFlight | ⬜ Blocked on Austin B2 (RC iOS app + products) |
+
+### Active Blockers (post-CoS Run AL)
+
+| # | Priority | Owner | Description |
+|---|----------|-------|-------------|
+| B2 | 🔴 P0 | **Austin** | RevenueCat iOS app + products not yet configured. RC project `kin-ai-492223` created. Still needed: iOS app (bundle ID + ASC), `kin_monthly_3999` + `kin_annual_29900` products, `EXPO_PUBLIC_REVENUECAT_API_KEY` in `.env`. Blocks S5.2 TestFlight. |
+| `household-chat-prompt.md` | 🔴 P1 | **IE / Austin** | **ESCALATION (run AH).** 10+ cycles overdue. Household thread using personal chat prompt — §16 balanced-framing not enforced. S4.6 household thread e2e blocked. Stage 4 completion gate open. |
+| B4 | 🟡 P1 | **Austin** | OAuth branding incomplete — verification clock running. Logo + homepage/privacy/ToS URLs + authorized domain + submit still needed. |
+| B21 | 🟡 P1 | **Austin** | Patch `first_name` for existing Supabase `profiles` row in dashboard. |
+| B29 | 🟢 UNBLOCKED | **Austin** | `supabase db push` — B33 resolved + QA-verified. Run now. Apply `027_coordination_issues_severity.sql`. Also delete `027_profile_timezone.sql` stub. |
+| P2-22 | 🟡 P2 | **P&D** | Add Family Members card to `settings-screen-spec.md` §7 Account section. |
+| P2-7 | 🟡 P2 | **IE** | `morning-briefing-prompt.md` INPUT FORMAT describes structured JSON that route never sends. |
+| B31 / P2-5 | 🟡 P2 | **Austin** | Stale `docs/prompts/docs/` directory — `rm -rf docs/prompts/docs`. |
+
+---
+
+## Previous Update — CoS Run AJ (odd-hour :20, following QA Run H)
+
+### Sprint Pulse — Day 4 Late Night
+
+**New P1 filed (B33) — action required before Austin's next db push.** QA Run H discovered `027_profile_timezone.sql` in the migrations directory — an undocumented file with a duplicate `027_` prefix alongside `027_coordination_issues_severity.sql`. Both files would apply simultaneously when Austin runs `supabase db push` (B29). The migration itself is safe (`ADD COLUMN IF NOT EXISTS timezone TEXT NOT NULL DEFAULT 'UTC'` on `profiles`) but Austin has no knowledge it exists. Lead Eng must rename it to `028_profile_timezone.sql` (B33) and commit before Austin touches B29. This is the single most urgent action item entering the next even-hour cycle.
+
+**Lead Eng has 4 new tasks from QA Run H:** B33 (rename migration — P1, urgent), P2-19 (remove 4 unused imports from `settings.tsx`), P2-20 (fix Calendar badge rose colors → neutral per spec §8), P2-21 (remove haptic from sign-out handler per spec §12). All are straightforward fixes — should clear in one Lead Eng session.
+
+**P&D has 1 new task:** P2-22 — add Family Members card documentation to `settings-screen-spec.md` §7 (spec authoring gap from run AI; card exists in `settings.tsx` but was missing from the spec).
+
+**Two P2-NOTED items** from QA Run H are deferred to P&D judgment: `cardTitle` uses Geist-SemiBold vs spec Geist Regular, and `pageTitle` uses `c.green` vs spec `c.textPrimary`. P&D reviewed both in staging (run AI) and accepted the implementation — if intentional, P&D should update the spec to document them as deliberate product choices.
+
+**The `household-chat-prompt.md` escalation continues.** Now 8+ consecutive even-hour cycles with no IE delivery. This remains the sole blocker on S4.6 household thread e2e and Stage 4 completion. CoS escalated to Austin in run AH. No change.
+
+**Sprint remains ~8 days ahead of schedule.**
+
+### What QA Run H Found (auditing P&D run AI)
+
+- **P1-NEW B33** — `027_profile_timezone.sql` undocumented migration with duplicate `027_` prefix. Will apply silently alongside B29 push. Lead Eng must rename to `028_profile_timezone.sql` before Austin runs `supabase db push`.
+- **P2-19** — 4 unused imports in `settings.tsx` (Palette, Globe, Lock, Heart)
+- **P2-20** — Calendar badge uses rose semantic colors instead of neutral per spec §8 (background + text + borderRadius + padding all wrong)
+- **P2-21** — Sign-out fires Medium haptic; spec §12 explicitly says no haptic on destructive actions
+- **P2-22** — Family Members card in `settings.tsx` Account section absent from `settings-screen-spec.md` §7 (P&D spec gap)
+- **alert-card-spec.md v1.1** ✅ all 3 changes verified clean
+- **Architecture** ✅ 3-tab shell clean, domain files intact, migrations 024–027 accounted for
+- **P0 issues (new):** None
+- **P1 issues (standing):** `household-chat-prompt.md` still missing — 8+ cycles overdue
+
+### Pipeline Health (post-CoS Run AJ)
+
+| Check | Status |
+|-------|--------|
+| P&D specs current | ✅ 11 v0 specs current (settings-screen-spec.md added run AI) |
+| IE prompts at correct path | ✅ All 6 at `docs/prompts/` |
+| IE new deliverable | 🔴 `household-chat-prompt.md` CRITICAL — **8+ cycles overdue. Escalated to Austin run AH.** |
+| Lead Eng open code tasks | 🟡 4 new tasks: B33 (P1), P2-19, P2-20, P2-21 |
+| P&D open spec tasks | 🟡 P2-22 (Family Members card in settings spec) |
+| QA cadence | ✅ 8 audits today (A–H) — strong cadence |
+| Scope violations | ✅ None — 3-tab architecture clean all 8 runs |
+| B33 — migration rename | 🔴 Unresolved — Lead Eng must act before Austin's B29 |
+| B29 — supabase db push | ⛔ HOLD — wait for B33 rename first |
+| Check-in wiring | ❌ Awaiting Austin direction (cron vs inline) |
+| P2-5/B31 | ❌ Stale `docs/prompts/docs/` — Austin must delete from terminal |
+| P2-7 | ❌ IE: `morning-briefing-prompt.md` INPUT FORMAT mismatch still open |
+
+### Stage Status (post-CoS Run AJ)
+
+| Stage | Status |
+|-------|--------|
+| Stage 1 — Shell + Data Layer | ✅ Complete (S1.8 IE: `household-chat-prompt.md` + P2-7 still pending) |
+| Stage 2 — Today Screen | ✅ Functionally complete (check-in AI wiring pending Austin S2.3 direction) |
+| Stage 3 — Conversations | ✅ Complete |
+| Stage 4 — First-Use + Settings | ✅ Personal thread e2e verified. Settings spec formalized. Lead Eng has 4 cleanup tasks (B33/P2-19/20/21). Household thread e2e: **blocked on IE** (8+ cycles overdue). |
+| Stage 5 — RC + TestFlight | ⬜ Blocked on Austin B2 (RC iOS app + products) |
+
+### Active Blockers (post-CoS Run AJ)
+
+| # | Priority | Owner | Description |
+|---|----------|-------|-------------|
+| B33 | 🔴 P1 URGENT | **Lead Eng** | Rename `027_profile_timezone.sql` → `028_profile_timezone.sql` before Austin runs supabase db push. |
+| B2 | 🔴 P0 | **Austin** | RevenueCat iOS app + products not yet configured. Blocks S5.2 TestFlight. |
+| `household-chat-prompt.md` | 🔴 P1 | **IE / Austin** | **ESCALATION.** 8+ cycles overdue. Household thread using personal chat prompt — §16 gap. S4.6 blocked. |
+| B4 | 🟡 P1 | **Austin** | OAuth branding incomplete — verification clock running. Logo + URLs + submit still needed. |
+| B21 | 🟡 P1 | **Austin** | Patch `first_name` in existing Supabase `profiles` row. |
+| B29 | ⛔ ON HOLD | **Austin** | `supabase db push` — wait for B33 rename by Lead Eng first. Then apply migration 027. |
+| P2-7 | 🟡 P2 | **IE** | `morning-briefing-prompt.md` INPUT FORMAT describes structured JSON that route never sends. |
+| B31 / P2-5 | 🟡 P2 | **Austin** | Stale `docs/prompts/docs/` directory — `rm -rf docs/prompts/docs`. |
+
+---
+
+## Previous Update — CoS Run AH (odd-hour :20, following QA Run AG)
+
+### Sprint Pulse — Day 4 Late Evening
+
+**P2-17 and P2-18 are closed.** QA run AG (audit file: `QA-AUDIT-2026-04-04G.md`) confirmed both `chat.tsx` sectionLabel fixes from Lead Eng run AF: text is now exactly `"RECENT"` and margins are `marginTop: 4, marginBottom: 8` per spec. Full sectionLabel audit was 8/9 properties spec-exact (one pre-existing 0.02 opacity delta on `c.textFaint` — non-blocking, no action required before TestFlight). Architecture clean: 3 tabs, domain files intact, migrations 024–027 all present. Code quality clean. 0 new P0/P1/P2 issues.
+
+**Lead Eng has zero open code tasks for the 2nd consecutive CoS cycle.** The sprint is clean at the code level. All P0/P1/P2 issues across Stages 1–4 are resolved.
+
+**The sole blocker on Stage 4 completion is IE's `household-chat-prompt.md`.** This prompt has been open since QA Run R — it is now 7+ cycles overdue (approximately 3.5+ hours of elapsed sprint time with no delivery). Without it:
+- Household thread continues using `chat-prompt.md` (personal prompt, no §16 balanced-framing enforcement)
+- S4.6 household thread e2e audit cannot run
+- Stage 4 remains incomplete
+
+**CoS is escalating `household-chat-prompt.md` to Austin this cycle.** The IE agent has missed 7 consecutive even-hour delivery windows. This warrants Austin's attention — either the IE agent needs a direct prompt or Austin needs to author the file manually.
+
+After IE delivers, the path to TestFlight clears in 2–3 cycles: QA audits §16 → Lead Eng wires household prompt → QA verifies → Stage 4 complete → Austin B2 (RC iOS app + products) → S5.2 TestFlight build.
+
+**The sprint remains ~8 days ahead of schedule.**
+
+### What QA Run AG Found (auditing Lead Eng run AF)
+
+- **P2-17 ✅ RESOLVED** — `chat.tsx` line 593: sectionLabel text `"RECENT"` confirmed (spec-exact match). Conditional guard (`generalThreads.length > 0`) correct — section header only renders when threads exist.
+- **P2-18 ✅ RESOLVED** — sectionLabel `marginTop: 4, marginBottom: 8` confirmed (spec-exact match). Both values corrected from prior 20/10.
+- **Full sectionLabel style audit:** 8/9 properties spec-exact. One 0.02 opacity delta on `c.textFaint` (`rgba(240,237,230,0.22)` vs spec `0.20`) — pre-existing theme constant, perceptually invisible, no action required.
+- **Architecture ✅ CLEAN** — 3 tabs, domain files intact, migrations 024–027 present.
+- **Code quality ✅ CLEAN** — no bare `console.error`, no `any` types, no unused imports. tsc 0 new errors.
+- **0 new P0/P1/P2 issues.**
+
+### Pipeline Health (post-CoS Run AH)
+
+| Check | Status |
+|-------|--------|
+| P&D specs current | ✅ All 10 v0 specs complete and current |
+| IE prompts at correct path | ✅ All 6 at `docs/prompts/` |
+| IE new deliverable | 🔴 `household-chat-prompt.md` CRITICAL — **7+ cycles overdue. Escalating to Austin.** |
+| Lead Eng consuming specs | ✅ All specs consumed |
+| Lead Eng consuming prompts | ✅ All wired prompts consumed; household prompt pending IE |
+| Lead Eng open code tasks | ✅ ZERO — second consecutive cycle with no open tasks |
+| QA cadence | ✅ 7 audits today (A–G) — strong cadence |
+| Scope violations | ✅ None — 3-tab architecture clean all 7 runs |
+| Chat scope guard | ✅ `CHAT_SYSTEM_PROMPT` correctly gates out-of-scope questions |
+| Check-in wiring | ❌ Awaiting Austin direction (cron vs inline) |
+| P2-5/B31 | ❌ Stale `docs/prompts/docs/` — Austin must delete from terminal |
+| P2-7 | ❌ IE: `morning-briefing-prompt.md` INPUT FORMAT mismatch still open |
+| B29 | ❌ Austin must run `supabase db push` — migration 027 unapplied in prod |
+
+### Stage Status (post-CoS Run AH)
+
+| Stage | Status |
+|-------|--------|
+| Stage 1 — Shell + Data Layer | ✅ Complete (IE: `household-chat-prompt.md` + P2-7 still outstanding) |
+| Stage 2 — Today Screen | ✅ Functionally complete (check-in AI wiring pending Austin S2.3 direction) |
+| Stage 3 — Conversations | ✅ Complete |
+| Stage 4 — First-Use + Settings | ✅ Personal thread e2e fully verified. Household thread e2e: **blocked on IE** (7+ cycles overdue — escalating). |
+| Stage 5 — RC + TestFlight | ⬜ Blocked on Austin B2 (RC iOS app + products) |
+
+### Active Blockers (post-CoS Run AH)
+
+| # | Priority | Owner | Description |
+|---|----------|-------|-------------|
+| B2 | 🔴 P0 | **Austin** | RevenueCat iOS app + products not yet configured. RC project `kin-ai-492223` created. Still needed: iOS app (bundle ID + ASC), `kin_monthly_3999` + `kin_annual_29900` products, `EXPO_PUBLIC_REVENUECAT_API_KEY` in `.env`. Blocks S5.2 TestFlight. |
+| `household-chat-prompt.md` | 🔴 P1 | **IE / Austin** | **ESCALATION.** Not delivered. 7+ cycles overdue. Household thread using personal chat prompt — §16 balanced-framing not enforced. S4.6 household thread e2e blocked. Stage 4 completion gate open. Austin should trigger IE directly or author manually. |
+| B4 | 🟡 P1 | **Austin** | OAuth branding incomplete. Consent configured, verification clock running. Still needed: logo (120×120px), homepage/privacy/ToS URLs, `kinai.family` authorized domain, submit for verification. |
+| B21 | 🟡 P1 | **Austin** | Patch `first_name` in existing Supabase `profiles` row — greeting shows "there" for existing accounts. |
+| B29 | 🟡 P1 | **Austin** | Run `supabase db push` to apply `027_coordination_issues_severity.sql`. Alert-prompt severity writes live — without column in prod, silently fail. |
+| P2-7 | 🟡 P2 | **IE** | `morning-briefing-prompt.md` INPUT FORMAT describes structured JSON that `route.ts` never sends. Update to reflect actual text format. |
+| B31 / P2-5 | 🟡 P2 | **Austin** | Stale `docs/prompts/docs/` directory still present. Austin must `rm -rf docs/prompts/docs`. |
+
+### Decisions Still Needed from Austin
+
+| Decision | Impact if delayed |
+|----------|-------------------|
+| **`household-chat-prompt.md` (IE escalation)** | Stage 4 stays incomplete; household thread §16 gap persists. CoS recommends Austin trigger IE directly next even-hour cycle or author the prompt manually. |
+| **S2.3 check-in wiring approach** (cron vs inline at Today-screen load) | Lead Eng cannot wire checkin AI generation. Check-in cards remain static. |
+| **P2-2: after-6pm schedule changes** (ship silently dropping, or queue for briefing?) | Determines scope before TestFlight cutoff. |
+
+---
+
+## Previous Update — CoS Run AD (odd-hour :20, following QA Run F)
 
 ### Sprint Pulse — Day 4 Evening
 

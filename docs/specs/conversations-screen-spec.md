@@ -1,8 +1,19 @@
 # Conversations Screen — Component Spec
-**Version:** 1.0
+**Version:** 1.2
 **Author:** Product & Design
-**Date:** 2026-04-03
+**Date:** 2026-04-05 (updated from v1.1, 2026-04-04)
 **Status:** APPROVED — Lead Eng may build against this spec
+
+**v1.2 Changelog:**
+- §4 Compliance checklist: P2-OPEN `pinnedThreadName` typography marked **P2-RESOLVED** — `chat.tsx` now uses `"InstrumentSerif-Italic"` (verified P&D audit run AW, 2026-04-05)
+- §5 P2-OPEN entry updated to P2-RESOLVED with fix confirmation
+
+**v1.1 Changelog:**
+- §1 Personal Thread: Replaced bare Lock thread icon spec with Sparkles avatar orb + Private pill pattern (design improvement — accepted, documented below)
+- §1 Household Thread: Added Users avatar orb + Shared/Invite-Pending pill pattern (accepted, documented below)
+- §1 Personal Thread: `pinnedThreadName` font **deviation noted** — implementation uses Geist-SemiBold; spec standard is Instrument Serif Italic (P2 — fixed in subsequent Lead Eng session; see §5)
+- §1 Background tokens: Updated Personal card to `c.surfacePrimary` token (dark: `#141810` ✅); Household card to `c.surfaceOverlay` token (dark: `#121618` — spec was `#131519`, minor drift accepted)
+- §5 New section: Known deviations & QA checklist additions
 
 ---
 
@@ -47,37 +58,62 @@ Two always-present threads at the top of the list. They are never below general 
 
 | Property | Value |
 |----------|-------|
-| Card background | `#141810` |
+| Card background | `c.surfacePrimary` (dark: `#141810`) |
 | Border radius | 18px |
 | Padding | 16px |
-| Margin bottom | 8px |
-| Border | 1px `rgba(124, 184, 122, 0.12)` (green, personal) |
+| Margin bottom | 10px |
+| Border | 1px `c.greenSubtle` → `rgba(124, 184, 122, 0.12)` (green, personal) |
 | Shadow color | `#7CB87A` |
 | Shadow opacity | 0.05 |
 | Shadow radius | 8px |
 
-**Thread header row:**
+**Avatar orb (left of title row):**
+
+| Property | Value |
+|----------|-------|
+| Size | 42×42px |
+| Border radius | 16px |
+| Background | `c.greenSubtle` |
+| Icon | `Sparkles`, 18px, `c.green` |
+
+The Sparkles icon is the Kin brand mark. This replaced the bare Lock icon (v1.0) as the Personal thread identity mark — it better communicates "this is Kin" rather than "this is locked." Privacy is communicated via the Private pill (see below).
+
+**Thread title row (right of avatar):**
 
 | Element | Font | Size | Color |
 |---------|------|------|-------|
-| Thread icon | `Lock` icon, 14px | — | `rgba(124, 184, 122, 0.50)` |
-| Thread title "Kin" | Instrument Serif Italic | 18px | `#F0EDE6` |
+| Thread title "Kin" | **⚠️ Instrument Serif Italic** | 18px | `c.textPrimary` |
+| Private pill | `Lock` 9px `c.roseSubtle` bg, `c.rose` text, GeistMono 9px uppercase | — | See pill spec below |
 | Badge (unread count) | Geist Mono Regular, 10px | 10px | `#0C0F0A` on `#7CB87A` pill |
 | Timestamp | Geist Mono Regular | 10px | `rgba(240, 237, 230, 0.25)` |
+
+**⚠️ P2 deviation:** Implementation uses `Geist-SemiBold` for `pinnedThreadName`. Spec standard is **Instrument Serif Italic**. This must be corrected — Geist-SemiBold reads as a UI label, not a named presence. See §5.
+
+**Private pill (next to thread title):**
+
+| Property | Value |
+|----------|-------|
+| Icon | `Lock`, 9px |
+| Icon color | `rgba(240, 237, 230, 0.30)` |
+| Text | "Private" |
+| Text font | Geist Mono Regular, 9px, `c.rose`, uppercase, letterSpacing 0.4 |
+| Background | `c.roseSubtle` |
+| Padding | 6px horizontal, 2px vertical |
+| Border radius | 10px |
+
+The rose color for the Private pill intentionally echoes care/wellness — it signals personal and protected. The pill replaces the v1.0 bare green Lock icon; it communicates privacy more explicitly with a text label.
 
 **Preview line:**
 
 | Property | Value |
 |----------|-------|
 | Prefix | "Kin: " or "You: " |
-| Font | Geist Regular, 13px, `rgba(240, 237, 230, 0.40)` |
-| Truncation | 60 characters max |
+| Font | Geist Regular, 13px, `c.textMuted` |
+| Truncation | 60 characters max (1 line, `numberOfLines={1}`) |
 | Line height | 19px |
-| Margin top | 6px |
+| Margin top | 3px |
 
 **Empty preview state:** No preview text — don't show "Start a conversation" or any placeholder. The thread exists; it's just quiet.
-
-**Lock icon significance:** The lock differentiates Personal (private) from Household (shared). This visual cue is important — users need to know personal messages are only visible to them.
 
 ---
 
@@ -87,28 +123,64 @@ Two always-present threads at the top of the list. They are never below general 
 
 | Property | Value |
 |----------|-------|
-| Card background | `#131519` (very slightly blue-shifted from personal thread) |
+| Card background | `c.surfaceOverlay` (dark: `#121618` — slightly blue-shifted) |
 | Border radius | 18px |
 | Padding | 16px |
-| Margin bottom | 8px |
-| Border | 1px `rgba(122, 173, 206, 0.12)` (blue — partnership/coordination) |
+| Margin bottom | 10px |
+| Border | 1px `c.blueSubtle` → `rgba(122, 173, 206, 0.12)` (blue — partnership/coordination) |
 | Shadow color | `#7AADCE` |
 | Shadow opacity | 0.05 |
 | Shadow radius | 8px |
 
 The blue tint (vs. green for personal) distinguishes the household thread visually. Blue = coordination, shared, partnership.
 
-**Thread header row:**
+**Avatar orb (left of title row):**
+
+| Property | Value |
+|----------|-------|
+| Size | 42×42px |
+| Border radius | 16px |
+| Background | `c.blueSubtle` |
+| Icon | `Users`, 18px, `rgba(122, 173, 206, 0.80)` |
+
+**Thread title row (right of avatar):**
 
 | Element | Font | Size | Color |
 |---------|------|------|-------|
-| Thread icon | `Globe` or `Users` icon, 14px | — | `rgba(122, 173, 206, 0.50)` |
-| Thread title | Instrument Serif Italic | 18px | `#F0EDE6` |
-| Title text | `family_name` from profile, or "Home" as fallback | — | — |
+| Thread title | **⚠️ Instrument Serif Italic** | 18px | `c.textPrimary` |
+| Title text | `[family_name] Home` if family_name set, or "Home" as fallback | — | — |
+| Shared pill (partner linked) | `Globe` 9px, GeistMono 9px "Shared" uppercase, `c.blue` text, `c.blueSubtle` bg | — | See pill spec below |
+| Invite-Pending pill (partner not linked) | `UserPlus` 9px, GeistMono 9px "Invite Partner" uppercase, `c.amber` text, `c.amberSubtle` bg | — | See pill spec below |
 | Badge (unread count) | Geist Mono Regular, 10px | 10px | `#0C0F0A` on `#7AADCE` pill |
 | Timestamp | Geist Mono Regular | 10px | `rgba(240, 237, 230, 0.25)` |
 
-**Preview line:** Same spec as Personal thread.
+**⚠️ P2 deviation:** Same as Personal thread — implementation uses `Geist-SemiBold`. Spec standard is **Instrument Serif Italic**. See §5.
+
+**Shared pill (partner linked state):**
+
+| Property | Value |
+|----------|-------|
+| Icon | `Globe`, 9px, `rgba(122, 173, 206, 0.50)` |
+| Text | "Shared" |
+| Text font | Geist Mono Regular, 9px, `c.blue`, uppercase, letterSpacing 0.4 |
+| Background | `c.blueSubtle` |
+| Padding | 6px horizontal, 2px vertical |
+| Border radius | 10px |
+
+**Invite-Pending pill (partner not linked):**
+
+| Property | Value |
+|----------|-------|
+| Icon | `UserPlus`, 9px, `rgba(212, 168, 67, 0.60)` |
+| Text | "Invite Partner" |
+| Text font | Geist Mono Regular, 9px, `c.amber`, uppercase, letterSpacing 0.4 |
+| Background | `c.amberSubtle` |
+| Padding | 6px horizontal, 2px vertical |
+| Border radius | 10px |
+
+The amber Invite-Pending pill communicates a gentle call to action without being alarming. Partner linking is presented as an opportunity, not an error.
+
+**Preview line:** Same spec as Personal thread (Geist Regular 13px, `c.textMuted`, 1 line truncated).
 
 ---
 
@@ -282,11 +354,12 @@ Shown while Kin is generating a response.
 ## 4. Spec Compliance Checklist (for QA)
 
 - [ ] Two pinned threads always present (Personal + Household), always at top
-- [ ] Personal thread: green border, Lock icon
-- [ ] Household thread: blue border, Globe/Users icon
-- [ ] Partner-not-linked: invite prompt inside household thread card (not empty state)
+- [ ] Personal thread: green border (`c.greenSubtle`), Sparkles avatar orb, Private pill (rose)
+- [ ] Household thread: blue border (`c.blueSubtle`), Users avatar orb, Shared or Invite-Pending pill
+- [x] **P2-RESOLVED: `pinnedThreadName` font — corrected to Instrument Serif Italic (verified P&D audit run AW, 2026-04-05)**
+- [ ] Partner-not-linked: Invite-Pending pill in thread list card + invite prompt in thread detail view
 - [ ] General threads have loading state (`ActivityIndicator`) while fetching
-- [ ] Thread list shows "RECENT" section header above general threads
+- [ ] Thread list shows "RECENT" section header above general threads (only when general threads exist)
 - [ ] Conversation detail: back button, centered title, FlatList message list
 - [ ] Kin messages: avatar orb + bubble
 - [ ] User messages: right-aligned bubble
@@ -294,3 +367,35 @@ Shown while Kin is generating a response.
 - [ ] Prefill from Today screen alert tap opens personal thread with text in input
 - [ ] No purple in any element
 - [ ] No budget-related chip suggestions (B10 — P0-4)
+
+---
+
+## 5. Known Deviations (v1.1 — 2026-04-04)
+
+### P2-RESOLVED — `pinnedThreadName` typography: corrected to Instrument Serif Italic
+
+**Spec:** Thread title "Kin" / "Home" → Instrument Serif Italic, 18px, `c.textPrimary`
+
+**Previous deviation:** `Geist-SemiBold`, 18px (set in `chat.tsx` StyleSheet `pinnedThreadName`)
+
+**Resolution:** Fixed — `chat.tsx` `StyleSheet.pinnedThreadName.fontFamily` is now `"InstrumentSerif-Italic"`, confirmed by P&D code audit run AW (2026-04-05). Size (18px) and color (`c.textPrimary`) unchanged.
+
+**Why it mattered:** Thread names are named presences ("Kin", "Home"), not UI navigation labels. Instrument Serif Italic communicates a human voice; Geist-SemiBold read as a list item label. Typography is now correct.
+
+**No other pinned card typography deviations outstanding.** Avatar icons, pill labels, and preview text are all correct.
+
+---
+
+### P2-ACCEPTED — Avatar orb + pill pattern (replaces bare Lock thread icon)
+
+v1.0 specified a bare `Lock` icon (14px, green) as the Personal thread icon in the header row. The built implementation uses a richer pattern:
+- A 42×42px avatar orb (Sparkles for Personal, Users for Household)
+- A status pill (Private/Shared/Invite-Pending) positioned next to the thread title
+
+This is accepted as a design improvement. The avatar orb gives the threads a stronger visual identity; the pill communicates privacy/sharing status with a text label rather than icon-only signaling. Spec updated to document this pattern as the standard.
+
+---
+
+### P2-ACCEPTED — Household card background token drift
+
+v1.0 specified `#131519` (raw hex). Implementation uses `c.surfaceOverlay` (dark: `#121618`). The difference is imperceptible in-app (3-point hex delta across R, G, B channels on a near-black surface). Token-based value accepted; spec updated to reference `c.surfaceOverlay`.

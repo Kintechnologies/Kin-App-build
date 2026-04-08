@@ -27,6 +27,7 @@ export const darkColors = {
   textFaint: 'rgba(240,237,230,0.22)',
   textAcknowledged: 'rgba(240,237,230,0.25)',
   textOnGreen: '#0C0F0A',
+  textOnGreenMuted: 'rgba(12,15,10,0.60)',
 
   // ── Brand accents ─────────────────────────────────────────────────────────
   green: '#7CB87A',
@@ -84,6 +85,7 @@ export const lightColors = {
   textFaint: 'rgba(30,28,24,0.18)',
   textAcknowledged: 'rgba(30,28,24,0.22)',
   textOnGreen: '#0C0F0A',
+  textOnGreenMuted: 'rgba(10,10,6,0.60)',
 
   // ── Brand accents ─────────────────────────────────────────────────────────
   green: '#7CB87A',

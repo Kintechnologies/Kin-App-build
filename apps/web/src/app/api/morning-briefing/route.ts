@@ -5,6 +5,7 @@ import { getAnthropicClient, ANTHROPIC_MODEL } from "@/lib/anthropic";
 import { buildCommuteLine } from "@/lib/commute";
 import { buildDateNightSuggestion } from "@/lib/date-night";
 import { detectPickupRisk } from "@/lib/pickup-risk";
+import { checkRateLimit, rateLimitResponse } from "@/lib/rate-limit";
 import Anthropic from "@anthropic-ai/sdk";
 
 // Local shape types for Supabase query results in this route
@@ -123,14 +124,18 @@ async function generateBriefingContent(
         .eq("profile_id", profileId)
         .lte("next_due_date", today)
         .order("next_due_date", { ascending: true }),
-      // §3A: fetch open coordination issues (pickup risk + others) for priority briefing context
+      // §3A: fetch OPEN + ACKNOWLEDGED coordination issues for briefing context.
+      // S2-LE-05 (morning-briefing-prompt.md session 13): ACKNOWLEDGED issues must be
+      // included so the model can apply softer framing ("still open — acknowledged")
+      // rather than OPEN discovery framing ("you're both tied up at that time").
+      // RESOLVED issues excluded — state machine discipline same as chat route.
       // §B20: use primaryId — coordination_issues.household_id stores the primary parent's ID;
       // querying by profileId would return 0 rows for partner users.
       supabase
         .from("coordination_issues")
-        .select("trigger_type, content")
+        .select("trigger_type, content, state")
         .eq("household_id", primaryId)
-        .eq("state", "OPEN")
+        .in("state", ["OPEN", "ACKNOWLEDGED"])
         .order("surfaced_at", { ascending: false })
         .limit(5),
     ]);
@@ -144,15 +149,18 @@ Today: ${new Date().toLocaleDateString("en-US", {
       day: "numeric",
     })}`;
 
-    // §3A: If there are open coordination issues, lead with them.
+    // §3A + S2-LE-05: Include OPEN and ACKNOWLEDGED coordination issues.
+    // State is passed explicitly so the model applies correct framing:
+    //   OPEN → discovery framing ("coverage is unconfirmed")
+    //   ACKNOWLEDGED → status-update framing ("still open — parent is aware")
     // Pickup risk is the highest-priority insight — surface it first.
     const issueList = openIssues ?? [];
     const pickupIssues = issueList.filter(
-      (i: { trigger_type: string; content: string }) =>
+      (i: { trigger_type: string; content: string; state: string }) =>
         i.trigger_type === "pickup_risk"
     );
     const otherIssues = issueList.filter(
-      (i: { trigger_type: string; content: string }) =>
+      (i: { trigger_type: string; content: string; state: string }) =>
         i.trigger_type !== "pickup_risk"
     );
 
@@ -163,20 +171,25 @@ Today: ${new Date().toLocaleDateString("en-US", {
  COORDINATION ISSUES — LEAD WITH THESE (highest priority)
 ═══════════════════════════════════════════════════════════════
 INSTRUCTION: Open the briefing with the most critical coordination issue below.
+State field determines framing: OPEN = discovery alert; ACKNOWLEDGED = status update (softer language — parent already aware).
 Do not bury these. They are the primary reason for the briefing.`;
 
       if (pickupIssues.length > 0) {
-        briefingContext += `\n\nPickup risk (CRITICAL):`;
-        pickupIssues.forEach((i: { content: string }) => {
-          briefingContext += `\n  - ${i.content}`;
-        });
+        briefingContext += `\n\nPickup risk:`;
+        pickupIssues.forEach(
+          (i: { content: string; state: string }) => {
+            briefingContext += `\n  - [state: ${i.state}] ${i.content}`;
+          }
+        );
       }
 
       if (otherIssues.length > 0) {
-        briefingContext += `\n\nOther open issues:`;
-        otherIssues.forEach((i: { trigger_type: string; content: string }) => {
-          briefingContext += `\n  - [${i.trigger_type}] ${i.content}`;
-        });
+        briefingContext += `\n\nOther coordination issues:`;
+        otherIssues.forEach(
+          (i: { trigger_type: string; content: string; state: string }) => {
+            briefingContext += `\n  - [${i.trigger_type}] [state: ${i.state}] ${i.content}`;
+          }
+        );
       }
     }
 
@@ -324,8 +337,9 @@ Due vaccination(s):`;
     // Allergies are not needed here. (Meal planning queries allergies separately via /api/meals)
     const anthropic = getAnthropicClient();
 
-    // ── System prompt from docs/prompts/morning-briefing-prompt.md (IE S1.7) ──
+    // ── System prompt from docs/prompts/morning-briefing-prompt.md (IE session 13) ──
     // Source of truth: docs/prompts/morning-briefing-prompt.md
+    // Updated run AX: added ACKNOWLEDGED state framing (S2-LE-05) + relief selection guide.
     // §5: 1 primary insight + 1 supporting detail, ≤4 sentences total
     // §7: return null when nothing worth surfacing
     // §8: no forbidden openers; first-person present tense; exact relief language only
@@ -357,17 +371,21 @@ Generate the morning briefing for the Today screen. This runs once per day, earl
 - Medium confidence → one qualifier max ("looks like", "worth confirming", "probably")
 - Low confidence → return null (silence is correct here)
 
-**Relief language — use exact phrases only:**
+**Relief language — use exact phrases only. Selection guide:**
 - "I'll remind you when it's time to leave." → use when there is a specific departure or action time the parent needs to hit (a pickup window, a school dropoff, a hard deadline)
 - "I'll keep an eye on it." → use when an unresolved issue exists but is not yet escalated; Kin is actively watching for changes
 - "I'll flag it if anything changes." → use when the current state is adequate but dynamic; Kin is in standby, not active watch
 
-One relief line max. Only include if monitoring is genuinely warranted. Do not append a relief line to a null briefing.
+One relief line max per briefing. Only include if monitoring is genuinely warranted. Do not append a relief line to a null briefing.
 
 **Never use:**
 - "I've got this" or "Don't worry"
 - Stacked hedges ("It looks like it might be worth…")
 - Generic reassurance
+
+**ACKNOWLEDGED state framing:** Coordination issues in the context include a [state: OPEN] or [state: ACKNOWLEDGED] tag.
+- OPEN → full discovery framing ("coverage is unconfirmed — you're both tied up at that time")
+- ACKNOWLEDGED → status-update framing: a parent has already seen this alert and is presumably handling it. Use softer language: "still open — acknowledged but not yet resolved." Do NOT re-alert with full urgency. This is a status check, not a discovery.
 
 ## OUTPUT FORMAT
 Return a JSON object:
@@ -448,6 +466,10 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    // ── Rate limiting (BACKLOG-007): 1 req/day per user ──────────────────────
+    const rl = await checkRateLimit(user.id, "morning-briefing");
+    if (!rl.allowed) return rateLimitResponse(rl);
+
     const supabase = createClient();
     const today = new Date().toISOString().split("T")[0];
 
@@ -495,6 +517,10 @@ export async function POST(request: Request) {
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+
+    // ── Rate limiting (BACKLOG-007): 1 req/day per user ──────────────────────
+    const rl = await checkRateLimit(user.id, "morning-briefing");
+    if (!rl.allowed) return rateLimitResponse(rl);
 
     const supabase = createClient();
     const today = new Date().toISOString().split("T")[0];

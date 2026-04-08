@@ -23,11 +23,20 @@ Key specs — read both before every session:
 - Check `docs/prompts/` for what already exists
 
 **Step 2 — Produce or refine prompts**
-Save each prompt to `docs/prompts/[type]-prompt.md`. Required files:
+
+> ⚠️ **CRITICAL — FILE PATH RULE (P2-NEW-5, CoS fix 2026-04-05):**
+> All file writes must use paths **relative to the repository root** (the `kin/` monorepo root, the same directory that contains `apps/`, `supabase/`, `docs/`).
+> - ✅ CORRECT: `docs/prompts/household-chat-prompt.md`
+> - ❌ WRONG: Writing from within `docs/prompts/` to a relative `docs/prompts/` path — this creates `docs/prompts/docs/prompts/` nesting.
+> - ❌ WRONG: Writing SPRINT.md updates to `docs/ops/SPRINT.md` from within `docs/` — this creates `docs/ops/docs/ops/SPRINT.md`.
+> Always confirm the absolute path begins with the repo root before saving. Delete `docs/prompts/docs/` if it appears again.
+
+Save each prompt to `docs/prompts/[type]-prompt.md` (repo-root-relative). Required files:
 - `morning-briefing-prompt.md` — for `/api/morning-briefing` route
 - `alert-prompt.md` — coordination issue text generation
 - `checkin-prompt.md` — check-in card copy
-- `chat-prompt.md` — main Kin chat system prompt
+- `chat-prompt.md` — main Kin chat system prompt (personal thread)
+- `household-chat-prompt.md` — **🔴 CRITICAL — household thread system prompt (§16). NOT YET DELIVERED. This is P1 and the sole blocker on Stage 4 completion.** Must differ from `chat-prompt.md`: both parents visible in context; balanced non-accusatory framing (§16 — do not single out one parent); surface ambiguous shared responsibility; coordination-only scope. Save to `docs/prompts/household-chat-prompt.md`. If this file does not exist, authoring it is your first and only priority this session.
 - `closure-prompt.md` — resolution closure lines (§24)
 - `first-use-prompt.md` — engineered first-insight (§21)
 

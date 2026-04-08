@@ -1,11 +1,66 @@
 # CTO Flags — P0 Issues
 
 > These MUST be addressed by Lead Engineer before the next deployment.
-> Last updated: 2026-04-06 (Run 3)
+> Last updated: 2026-04-07 (Run 6)
 
 ---
 
-## ✅ No open P0 flags.
+## 🚨 FLAG-005 · Marketing waitlist route uses anon key — blocked by RLS, all submissions fail
+
+**File:** `apps/marketing/src/app/api/waitlist/route.ts:17–25`
+**Commit introduced:** `07cea50` (Rebuild marketing site with warm dark design system)
+**Severity:** P0 — top-of-funnel lead collection is completely broken
+
+### What's wrong
+
+The marketing waitlist route constructs a Supabase client with the anon key:
+
+```ts
+const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+const supabase = createClient(supabaseUrl, supabaseKey);
+```
+
+But `023_waitlist.sql` explicitly locks the `waitlist` table to service-role only:
+
+```sql
+-- Deny all direct access; the API route uses the service role key.
+CREATE POLICY "no_direct_access"
+  ON waitlist
+  FOR ALL
+  USING (false);
+```
+
+An anon-key client is denied by this policy. Every POST to `/api/waitlist` on the marketing site will hit the Supabase error path (non-23505), log `console.error("Supabase insert error:", error)`, and return `500 "Failed to join waitlist"` to the user. No emails are being collected.
+
+### Impact
+
+Every marketing site visitor who enters their email gets a failure response. The waitlist table has zero rows from the marketing site since launch.
+
+### Fix
+
+Replace the anon client with a service-role admin client, matching the pattern already used in `apps/web/src/app/api/waitlist/route.ts`:
+
+```ts
+// apps/marketing/src/app/api/waitlist/route.ts
+import { createClient } from "@supabase/supabase-js";
+
+// Replace lines 17–25 with:
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+if (!supabaseUrl || !supabaseServiceKey) {
+  console.error("Supabase env vars not configured");
+  return NextResponse.json({ error: "Service unavailable" }, { status: 503 });
+}
+
+const supabase = createClient(supabaseUrl, supabaseServiceKey, {
+  auth: { persistSession: false },
+});
+```
+
+`SUPABASE_SERVICE_ROLE_KEY` must be added to the marketing app's Vercel env (it's already in the main app). Do NOT use `NEXT_PUBLIC_` prefix — service role key must never be exposed to the browser.
+
+---
 
 ---
 

@@ -188,7 +188,7 @@ Agents: check this queue to know what to work on next. Mark items **[IN PROGRESS
 | S4.3 | First-use moment implementation | Lead Eng | S4.1 + S4.2 | ✅ DONE — Dynamic first-use live (S4.2 complete). |
 | S4.4 | Settings screen cleanup (remove domain tab refs) | Lead Eng | Nothing | ✅ DONE — settings.tsx updated in pivot build |
 | S4.5 | IE: pre-TestFlight drift review (all prompts) | Intelligence Eng | All prompts done | ✅ DONE — Lead Eng Run T documented drift in B30: `/api/chat/route.ts` uses `buildSystemPrompt` not `chat-prompt.md`. B30 filed; Lead Eng to wire. |
-| S4.6 | QA: full e2e flow (onboarding → Today → alert → chat) | QA | All above + B30 resolved | ⬜ — blocked on B30 (chat route migration). Austin B8 + B3 resolved. Ready after Lead Eng Run W. |
+| S4.6 | QA: full e2e flow (onboarding → Today → alert → chat) | QA | All above + B30 resolved | ✅ DONE — QA run BB §16 sign-off complete. P1-NEW-2 resolved, §16 audit passes. P2-NEW-BB-1 filed (non-blocking). |
 
 ### Stage 5 — RevenueCat + TestFlight (needs Austin: B1–B3)
 | # | Task | Owner | Needs | Status |
@@ -204,11 +204,11 @@ Agents: check this queue to know what to work on next. Mark items **[IN PROGRESS
 | # | Blocker | Blocks | What Austin does |
 |---|---------|--------|-----------------|
 | B1 | ~~Commit Step 10 (RevenueCat + #67)~~ | ✅ Resolved | Committed + pushed 2026-04-03 evening. |
-| B2 | Create RC products in RevenueCat dashboard | S5.1 | Add iOS app (bundle ID + ASC), create `kin_monthly_3999` + `kin_annual_29900`, add `EXPO_PUBLIC_REVENUECAT_API_KEY` to `.env`. |
+| B2 | Create RC products + entitlements in RevenueCat dashboard | S5.1 | ~~Products `kin_monthly_3999` + `kin_annual_29900` created 2026-04-04 ✅.~~ Still needed: create entitlement (e.g. `premium`), attach both products to it, add iOS app (bundle ID + ASC), add `EXPO_PUBLIC_REVENUECAT_API_KEY` to `.env`. |
 | B3 | ~~`supabase db push` (migrations 013–026)~~ | ✅ Resolved | Run 2026-04-03 evening. |
 | B4 | Google OAuth verification submitted | TestFlight | Logo, homepage/privacy/ToS URLs, `kinai.family` authorized domain → submit verification. |
-| B29 | `supabase db push` (migration 027 — severity column) | Production alerts | `027_coordination_issues_severity.sql` created; Austin must push to prod. |
-| B31 | Delete `docs/prompts/docs/` stale directory | P2-5 cleanup | `rm -rf docs/prompts/docs` from terminal. AI sandbox cannot delete. |
+| B29 | ~~`supabase db push` (migrations 027–028)~~ | ✅ Resolved | Run 2026-04-04. Severity column + profile timezone now live in prod. |
+| B31 | ~~Delete `docs/prompts/docs/` stale directory~~ | ✅ Resolved | `rm -rf docs/prompts/docs` run 2026-04-04. |
 
 ---
 

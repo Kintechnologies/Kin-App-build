@@ -13,6 +13,7 @@ import { Link } from "expo-router";
 import * as Haptics from "expo-haptics";
 import { useAuth } from "../../lib/auth";
 import FloatingOrbs from "../../components/ui/FloatingOrbs";
+import { KinLogo } from "../../components/KinLogo";
 
 export default function SignUp() {
   const { signUp } = useAuth();
@@ -56,7 +57,7 @@ export default function SignUp() {
       <View style={styles.container}>
         <View style={styles.inner}>
           <View>
-            <Text style={styles.logo}>Kin</Text>
+            <View style={styles.logoContainer}><KinLogo markSize={40} fontSize={36} /></View>
             <Text style={styles.subtitle}>Check your email</Text>
             <Text style={styles.description}>
               We sent a confirmation link to {email}. Tap it to activate your
@@ -81,7 +82,7 @@ export default function SignUp() {
       <FloatingOrbs />
       <View style={styles.inner}>
         <View>
-          <Text style={styles.logo}>Kin</Text>
+          <View style={styles.logoContainer}><KinLogo markSize={40} fontSize={36} /></View>
           <Text style={styles.subtitle}>Get started</Text>
           <Text style={styles.description}>
             Create your Kin account — 7-day free trial
@@ -165,8 +166,8 @@ export default function SignUp() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#0C0F0A" },
   inner: { flex: 1, justifyContent: "center", paddingHorizontal: 32 },
-  logo: { fontFamily: "InstrumentSerif-Italic", fontSize: 48, color: "#7CB87A", textAlign: "center", marginBottom: 8 },
-  subtitle: { fontFamily: "InstrumentSerif-Italic", fontSize: 28, color: "#F0EDE6", textAlign: "center", marginBottom: 4 },
+  logoContainer: { alignItems: "center", marginBottom: 16 },
+  subtitle: { fontFamily: "Geist-SemiBold", fontSize: 28, color: "#F0EDE6", textAlign: "center", marginBottom: 4, letterSpacing: -0.5 },
   description: { fontFamily: "Geist", fontSize: 15, color: "rgba(240, 237, 230, 0.4)", textAlign: "center", marginBottom: 40 },
   form: { backgroundColor: "#141810", borderRadius: 24, padding: 24, borderWidth: 1, borderColor: "rgba(240, 237, 230, 0.05)" },
   errorBox: { backgroundColor: "rgba(212, 116, 138, 0.1)", borderRadius: 12, padding: 12, marginBottom: 16, borderWidth: 1, borderColor: "rgba(212, 116, 138, 0.2)" },

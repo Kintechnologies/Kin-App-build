@@ -357,7 +357,7 @@ const styles = StyleSheet.create({
   },
 
   headline: {
-    fontFamily: "InstrumentSerif-Italic",
+    fontFamily: "Geist-SemiBold",
     fontSize: 24,
     color: "#F0EDE6",
     textAlign: "center",

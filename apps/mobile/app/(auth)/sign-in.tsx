@@ -13,6 +13,7 @@ import { Link } from "expo-router";
 import * as Haptics from "expo-haptics";
 import { useAuth } from "../../lib/auth";
 import FloatingOrbs from "../../components/ui/FloatingOrbs";
+import { KinLogo } from "../../components/KinLogo";
 
 export default function SignIn() {
   const { signIn } = useAuth();
@@ -46,7 +47,9 @@ export default function SignIn() {
       <View style={styles.inner}>
         {/* Logo */}
         <View>
-          <Text style={styles.logo}>Kin</Text>
+          <View style={styles.logoContainer}>
+            <KinLogo markSize={40} fontSize={36} />
+          </View>
           <Text style={styles.subtitle}>Welcome back</Text>
           <Text style={styles.description}>
             Sign in to your Kin account
@@ -126,19 +129,17 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     paddingHorizontal: 32,
   },
-  logo: {
-    fontFamily: "InstrumentSerif-Italic",
-    fontSize: 48,
-    color: "#7CB87A",
-    textAlign: "center",
-    marginBottom: 8,
+  logoContainer: {
+    alignItems: "center",
+    marginBottom: 16,
   },
   subtitle: {
-    fontFamily: "InstrumentSerif-Italic",
+    fontFamily: "Geist-SemiBold",
     fontSize: 28,
     color: "#F0EDE6",
     textAlign: "center",
     marginBottom: 4,
+    letterSpacing: -0.5,
   },
   description: {
     fontFamily: "Geist",

@@ -18,6 +18,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getAuthenticatedUser } from "@/lib/supabase/api-auth";
 import { getAnthropicClient, ANTHROPIC_MODEL } from "@/lib/anthropic";
+import { checkRateLimit, rateLimitResponse } from "@/lib/rate-limit";
 import Anthropic from "@anthropic-ai/sdk";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -122,6 +123,10 @@ export async function GET(request: Request) {
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+
+    // ── Rate limiting (BACKLOG-007): 5 req / 365 days per user ───────────────
+    const rl = await checkRateLimit(user.id, "first-use");
+    if (!rl.allowed) return rateLimitResponse(rl);
 
     const supabase = createClient();
     const now = new Date();

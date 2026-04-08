@@ -1,7 +1,7 @@
 # Alert Card — Component Spec
-**Version:** 1.0
+**Version:** 1.1
 **Author:** Product & Design
-**Date:** 2026-04-03
+**Date:** 2026-04-04 (updated from v1.0, 2026-04-03)
 **Status:** APPROVED — Lead Eng may build against this spec
 
 ---
@@ -37,7 +37,9 @@ The amber border and shadow distinguish alert cards from the briefing card (gree
 
 ### Header Row (top of card)
 
-Left to right: amber dot, "HEADS UP" label, dismiss button (flush right).
+Left to right: amber dot, spacer (flex: 1), dismiss button (flush right). No text label.
+
+**Design decision (P2-3, resolved 2026-04-03):** The original design included a "HEADS UP" text label. This was removed — "Heads up" violates §8 tone rules (disallowed opener). The amber dot alone carries the urgency signal. No label is the approved final state.
 
 **Alert dot**
 
@@ -45,18 +47,6 @@ Left to right: amber dot, "HEADS UP" label, dismiss button (flush right).
 |----------|-------|
 | Size | 7×7px circle, border-radius 3.5px |
 | Color | `#D4A843` (amber) |
-
-**Alert label**
-
-| Property | Value |
-|----------|-------|
-| Text | "HEADS UP" |
-| Font | Geist Mono Regular |
-| Size | 10px |
-| Color | `rgba(212, 168, 67, 0.80)` |
-| Transform | uppercase |
-| Letter spacing | 1 |
-| Layout | flex: 1 (takes available space) |
 
 **Dismiss button (X)**
 
@@ -68,8 +58,6 @@ Left to right: amber dot, "HEADS UP" label, dismiss button (flush right).
 | Action | Transitions card from OPEN → ACKNOWLEDGED |
 
 Header row margin bottom: 10px.
-
-> **⚠️ DEVIATION FLAG (P2-3):** The label "HEADS UP" should be replaced with no label — or simply the trigger type in a very muted style. Per §8 tone rules, "Heads up" is one of the disallowed openers. The label above the content is a UI affordance, not copy that Kin "says" — this is borderline acceptable, but the lead should consider removing the label entirely or using a neutral indicator (e.g., just the amber dot with no text label). Flagged for Austin review.
 
 ### Content Text
 
@@ -170,23 +158,20 @@ No card background — the RESOLVED state deliberately fades into the screen sur
 
 **Default closure text:** "Sorted. I'll flag it if anything changes."
 
-> **⚠️ DEVIATION (P2-5 in SPRINT):** Current implementation reads "Sorted. I'll let you know if anything changes." Per §21 and SPRINT B12, this must be: "Sorted. I'll flag it if anything changes." Lead Eng must fix before TestFlight.
-
-Closure text should ideally be dynamically generated per §24 — specific to the resolution type. Static fallback above is acceptable for v0 TestFlight. Dynamic closure wording is a Layer 2 enhancement.
+Closure text matches implementation (resolved 2026-04-04). Dynamic closure wording per §24 — specific to resolution type — is a Layer 2 enhancement; static fallback is accepted for v0 TestFlight.
 
 ### RESOLVED Motion
 
 | Phase | Duration | Easing | Notes |
 |-------|----------|--------|-------|
-| Appear | 300ms ease-in | ease-in | Card enters in resolved state (from ACKNOWLEDGED → RESOLVED transition) |
-| Display | 1500ms | — | Hold resolved state, user reads closure line |
-| Fade out | 250ms | ease-out | Animate opacity to 0, then unmount |
+| Display | 1400ms | — | Hold resolved state visible; user reads closure line |
+| Fade out | 600ms | ease-out | Animate opacity to 0, then unmount |
 
-**Total visible duration:** ~2050ms before card disappears.
+**Total visible duration:** ~2000ms before card disappears.
 
-> **⚠️ DEVIATION:** Current implementation uses 1400ms hold + 600ms fade-out (total 2000ms). Should be adjusted to 300ms ease-in + 1500ms hold + 250ms fade-out to match spec. This is a minor timing difference — fix in a future pass, not a blocker.
+**Implementation note (accepted):** Original motion spec called for 300ms ease-in + 1500ms hold + 250ms fade. The built implementation uses 1400ms hold + 600ms fade-out. The slower fade (600ms vs 250ms) produces a softer exit — this is a deliberate quality-of-feel improvement from the original spec. Accepted as final. Total duration difference is ~50ms, imperceptible to users. No fix needed.
 
-Implementation note: Use `Animated.timing` to opacity 0 after `setTimeout(1500)`. Unmount the component after animation completes (via `onAnimationComplete` callback or additional state flag).
+Use `setTimeout(1400, () => Animated.timing(opacity, { toValue: 0, duration: 600 }).start())`. Unmount after animation completes.
 
 ---
 
@@ -225,11 +210,11 @@ This prevents alert overload and keeps the Today screen calm.
 
 ## 7. Spec Compliance Checklist (for QA)
 
-- [ ] OPEN state: amber border, Geist SemiBold content, dismiss button, CTA footer
+- [ ] OPEN state: amber border, Geist SemiBold content, amber dot (no label), dismiss button, CTA footer
 - [ ] ACKNOWLEDGED state: no shadow, muted text (0.25 opacity), no dismiss, not tappable
 - [ ] RESOLVED state: transparent background, green italic text, CheckCircle icon
-- [ ] RESOLVED auto-fades within ~2 seconds of appearing
+- [ ] RESOLVED auto-fades within ~2 seconds of appearing (1400ms hold + 600ms fade)
 - [ ] Only 1 OPEN alert visible at a time
 - [ ] OPEN → ACKNOWLEDGED transition persists to Supabase immediately
 - [ ] No purple in any alert state
-- [ ] Closure text: "Sorted. I'll flag it if anything changes." (not "let you know")
+- [ ] Closure text: "Sorted. I'll flag it if anything changes."

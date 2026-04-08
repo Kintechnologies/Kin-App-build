@@ -9,7 +9,7 @@
  *   <PaywallModal visible={showPaywall} onClose={() => setShowPaywall(false)} />
  */
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import {
   Modal,
   View,
@@ -42,6 +42,8 @@ import {
   restorePurchases,
   REVENUECAT_CONFIGURED,
 } from "../../lib/revenuecat";
+import { useThemeColors } from "../../lib/theme";
+import type { ThemeColors } from "../../constants/colors";
 
 const { height: SCREEN_HEIGHT } = Dimensions.get("window");
 
@@ -67,16 +69,6 @@ const STATIC_PLANS = [
     highlight: true,
     savings: "Save $169 vs monthly",
   },
-] as const;
-
-const FEATURES = [
-  { icon: Sparkles, label: "Personalized morning briefings", color: "#D4A843" },
-  { icon: MessageCircle, label: "Unlimited Kin AI chat", color: "#7CB87A" },
-  { icon: CalendarDays, label: "Smart family calendar sync", color: "#7AADCE" },
-  { icon: Wallet, label: "Household budget tracking", color: "#D4A843" },
-  { icon: Zap, label: "Real-time coordination alerts", color: "#7CB87A" },
-  { icon: Star, label: "Family meal planning", color: "#D4A843" },
-  { icon: Shield, label: "Private & encrypted", color: "#7AADCE" },
 ] as const;
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -105,6 +97,22 @@ export default function PaywallModal({
   const [restoring, setRestoring] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [purchased, setPurchased] = useState(false);
+
+  const c = useThemeColors();
+  const styles = useMemo(() => createPaywallStyles(c), [c]);
+
+  const features = useMemo(
+    () => [
+      { icon: Sparkles, label: "Personalized morning briefings", color: c.amber },
+      { icon: MessageCircle, label: "Unlimited Kin AI chat", color: c.green },
+      { icon: CalendarDays, label: "Smart family calendar sync", color: c.blue },
+      { icon: Wallet, label: "Household budget tracking", color: c.amber },
+      { icon: Zap, label: "Real-time coordination alerts", color: c.green },
+      { icon: Star, label: "Family meal planning", color: c.amber },
+      { icon: Shield, label: "Private & encrypted", color: c.blue },
+    ],
+    [c]
+  );
 
   // Load RC offering when the modal opens
   useEffect(() => {
@@ -212,7 +220,7 @@ export default function PaywallModal({
       >
         <View style={styles.successContainer}>
           <View style={styles.successIcon}>
-            <Check size={40} color="#7CB87A" strokeWidth={3} />
+            <Check size={40} color={c.green} strokeWidth={3} />
           </View>
           <Text style={styles.successTitle}>Welcome to Kin Family Plan</Text>
           <Text style={styles.successSubtitle}>
@@ -234,7 +242,7 @@ export default function PaywallModal({
       <SafeAreaView style={styles.safeArea} edges={["top", "bottom"]}>
         {/* Close button */}
         <Pressable style={styles.closeButton} onPress={onClose} hitSlop={12}>
-          <X size={20} color="rgba(240, 237, 230, 0.4)" />
+          <X size={20} color={c.textMuted} />
         </Pressable>
 
         <ScrollView
@@ -246,11 +254,11 @@ export default function PaywallModal({
           {/* Header */}
           <View style={styles.header}>
             <View style={styles.crownRow}>
-              <Crown size={28} color="#D4A843" />
+              <Crown size={28} color={c.amber} />
             </View>
             <Text style={styles.heading}>Kin Family Plan</Text>
             <View style={styles.trialBadge}>
-              <Sparkles size={12} color="#D4A843" />
+              <Sparkles size={12} color={c.amber} />
               <Text style={styles.trialBadgeText}>7 days free, then choose your plan</Text>
             </View>
           </View>
@@ -273,7 +281,7 @@ export default function PaywallModal({
               <Text style={styles.planDetail}>Billed monthly</Text>
               {selectedPlan === "monthly" && (
                 <View style={styles.planCheckmark}>
-                  <Check size={12} color="#7CB87A" strokeWidth={3} />
+                  <Check size={12} color={c.green} strokeWidth={3} />
                 </View>
               )}
             </Pressable>
@@ -291,9 +299,9 @@ export default function PaywallModal({
               <View style={styles.bestValueBadge}>
                 <Text style={styles.bestValueText}>BEST VALUE</Text>
               </View>
-              <Text style={[styles.planLabel, { color: "#F0EDE6" }]}>Annual</Text>
+              <Text style={[styles.planLabel, { color: c.textPrimary }]}>Annual</Text>
               <View style={styles.planPriceRow}>
-                <Text style={[styles.planPrice, { color: "#D4A843" }]}>
+                <Text style={[styles.planPrice, { color: c.amber }]}>
                   {getAnnualMonthlyPrice()}
                 </Text>
                 <Text style={styles.planPeriod}>/mo</Text>
@@ -301,8 +309,8 @@ export default function PaywallModal({
               <Text style={styles.planDetail}>{getAnnualTotalPrice()}</Text>
               <Text style={styles.planSavings}>Save $169 vs monthly</Text>
               {selectedPlan === "annual" && (
-                <View style={[styles.planCheckmark, { backgroundColor: "rgba(212, 168, 67, 0.15)" }]}>
-                  <Check size={12} color="#D4A843" strokeWidth={3} />
+                <View style={[styles.planCheckmark, { backgroundColor: c.amberSubtle }]}>
+                  <Check size={12} color={c.amber} strokeWidth={3} />
                 </View>
               )}
             </Pressable>
@@ -311,7 +319,7 @@ export default function PaywallModal({
           {/* Features */}
           <View style={styles.features}>
             <Text style={styles.featuresHeading}>Everything included</Text>
-            {FEATURES.map(({ icon: Icon, label, color }) => (
+            {features.map(({ icon: Icon, label, color }) => (
               <View key={label} style={styles.featureRow}>
                 <View style={[styles.featureIconWrap, { backgroundColor: `${color}18` }]}>
                   <Icon size={15} color={color} />
@@ -339,7 +347,7 @@ export default function PaywallModal({
             disabled={purchasing || restoring || !offeringLoaded}
           >
             {purchasing ? (
-              <ActivityIndicator color="#0C0F0A" size="small" />
+              <ActivityIndicator color={c.background} size="small" />
             ) : (
               <>
                 <Text style={styles.ctaText}>Start 7-Day Free Trial</Text>
@@ -357,7 +365,7 @@ export default function PaywallModal({
               disabled={purchasing || restoring}
             >
               {restoring ? (
-                <ActivityIndicator size="small" color="rgba(240, 237, 230, 0.3)" />
+                <ActivityIndicator size="small" color={c.textMuted} />
               ) : (
                 <Text style={styles.footerLink}>Restore purchases</Text>
               )}
@@ -388,294 +396,296 @@ export default function PaywallModal({
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
-const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: "#0C0F0A",
-  },
+function createPaywallStyles(c: ThemeColors) {
+  return StyleSheet.create({
+    safeArea: {
+      flex: 1,
+      backgroundColor: c.background,
+    },
 
-  closeButton: {
-    position: "absolute",
-    top: 16,
-    right: 20,
-    zIndex: 10,
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: "#141810",
-    alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 1,
-    borderColor: "rgba(240, 237, 230, 0.06)",
-  },
+    closeButton: {
+      position: "absolute",
+      top: 16,
+      right: 20,
+      zIndex: 10,
+      width: 36,
+      height: 36,
+      borderRadius: 18,
+      backgroundColor: c.surfacePrimary,
+      alignItems: "center",
+      justifyContent: "center",
+      borderWidth: 1,
+      borderColor: c.tabBarBorder,
+    },
 
-  scroll: { flex: 1 },
-  scrollContent: {
-    paddingHorizontal: 20,
-    paddingTop: 52,
-    paddingBottom: 32,
-    minHeight: SCREEN_HEIGHT * 0.85,
-  },
+    scroll: { flex: 1 },
+    scrollContent: {
+      paddingHorizontal: 20,
+      paddingTop: 52,
+      paddingBottom: 32,
+      minHeight: SCREEN_HEIGHT * 0.85,
+    },
 
-  // ── Header ──────────────────────────────────────────────────────────────
-  header: { alignItems: "center", marginBottom: 28 },
-  crownRow: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: "rgba(212, 168, 67, 0.12)",
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: "rgba(212, 168, 67, 0.2)",
-  },
-  heading: {
-    fontFamily: "InstrumentSerif-Italic",
-    fontSize: 26,
-    color: "#F0EDE6",
-    marginBottom: 10,
-  },
-  trialBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    backgroundColor: "rgba(212, 168, 67, 0.1)",
-    borderRadius: 20,
-    paddingHorizontal: 14,
-    paddingVertical: 6,
-    borderWidth: 1,
-    borderColor: "rgba(212, 168, 67, 0.2)",
-  },
-  trialBadgeText: {
-    fontFamily: "Geist",
-    fontSize: 13,
-    color: "#D4A843",
-  },
+    // ── Header ──────────────────────────────────────────────────────────────
+    header: { alignItems: "center", marginBottom: 28 },
+    crownRow: {
+      width: 56,
+      height: 56,
+      borderRadius: 28,
+      backgroundColor: c.amberSubtle,
+      alignItems: "center",
+      justifyContent: "center",
+      marginBottom: 12,
+      borderWidth: 1,
+      borderColor: c.amberBorder,
+    },
+    heading: {
+      fontFamily: "Geist-SemiBold",
+      fontSize: 26,
+      color: c.textPrimary,
+      marginBottom: 10,
+    },
+    trialBadge: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 6,
+      backgroundColor: c.amberSubtle,
+      borderRadius: 20,
+      paddingHorizontal: 14,
+      paddingVertical: 6,
+      borderWidth: 1,
+      borderColor: c.amberBorder,
+    },
+    trialBadgeText: {
+      fontFamily: "Geist",
+      fontSize: 13,
+      color: c.amber,
+    },
 
-  // ── Plan cards ───────────────────────────────────────────────────────────
-  plansRow: {
-    flexDirection: "row",
-    gap: 10,
-    marginBottom: 24,
-  },
-  planCard: {
-    flex: 1,
-    backgroundColor: "#141810",
-    borderRadius: 18,
-    padding: 16,
-    borderWidth: 1.5,
-    borderColor: "rgba(240, 237, 230, 0.06)",
-    position: "relative",
-    minHeight: 130,
-  },
-  planCardAnnual: {
-    borderColor: "rgba(212, 168, 67, 0.15)",
-    backgroundColor: "rgba(212, 168, 67, 0.04)",
-  },
-  planCardSelected: {
-    borderColor: "#7CB87A",
-  },
-  planCardAnnualSelected: {
-    borderColor: "#D4A843",
-  },
-  planLabel: {
-    fontFamily: "GeistMono-Regular",
-    fontSize: 11,
-    color: "rgba(240, 237, 230, 0.4)",
-    textTransform: "uppercase",
-    letterSpacing: 1,
-    marginBottom: 8,
-  },
-  planPriceRow: {
-    flexDirection: "row",
-    alignItems: "baseline",
-    gap: 2,
-    marginBottom: 4,
-  },
-  planPrice: {
-    fontFamily: "GeistMono-Regular",
-    fontSize: 28,
-    color: "#7CB87A",
-  },
-  planPeriod: {
-    fontFamily: "Geist",
-    fontSize: 13,
-    color: "rgba(240, 237, 230, 0.35)",
-  },
-  planDetail: {
-    fontFamily: "Geist",
-    fontSize: 11,
-    color: "rgba(240, 237, 230, 0.25)",
-    marginBottom: 4,
-  },
-  planSavings: {
-    fontFamily: "Geist-SemiBold",
-    fontSize: 11,
-    color: "#D4A843",
-  },
-  planCheckmark: {
-    position: "absolute",
-    top: 10,
-    right: 10,
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    backgroundColor: "rgba(124, 184, 122, 0.15)",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  bestValueBadge: {
-    position: "absolute",
-    top: -11,
-    left: "50%",
-    transform: [{ translateX: -34 }],
-    backgroundColor: "#D4A843",
-    borderRadius: 8,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-  },
-  bestValueText: {
-    fontFamily: "GeistMono-Regular",
-    fontSize: 9,
-    color: "#0C0F0A",
-    letterSpacing: 0.5,
-  },
+    // ── Plan cards ───────────────────────────────────────────────────────────
+    plansRow: {
+      flexDirection: "row",
+      gap: 10,
+      marginBottom: 24,
+    },
+    planCard: {
+      flex: 1,
+      backgroundColor: c.surfacePrimary,
+      borderRadius: 18,
+      padding: 16,
+      borderWidth: 1.5,
+      borderColor: c.tabBarBorder,
+      position: "relative",
+      minHeight: 130,
+    },
+    planCardAnnual: {
+      borderColor: c.amberBorder,
+      backgroundColor: c.amberSubtle,
+    },
+    planCardSelected: {
+      borderColor: c.green,
+    },
+    planCardAnnualSelected: {
+      borderColor: c.amber,
+    },
+    planLabel: {
+      fontFamily: "GeistMono-Regular",
+      fontSize: 11,
+      color: c.textMuted,
+      textTransform: "uppercase",
+      letterSpacing: 1,
+      marginBottom: 8,
+    },
+    planPriceRow: {
+      flexDirection: "row",
+      alignItems: "baseline",
+      gap: 2,
+      marginBottom: 4,
+    },
+    planPrice: {
+      fontFamily: "GeistMono-Regular",
+      fontSize: 28,
+      color: c.green,
+    },
+    planPeriod: {
+      fontFamily: "Geist",
+      fontSize: 13,
+      color: c.textMuted,
+    },
+    planDetail: {
+      fontFamily: "Geist",
+      fontSize: 11,
+      color: c.textDim,
+      marginBottom: 4,
+    },
+    planSavings: {
+      fontFamily: "Geist-SemiBold",
+      fontSize: 11,
+      color: c.amber,
+    },
+    planCheckmark: {
+      position: "absolute",
+      top: 10,
+      right: 10,
+      width: 22,
+      height: 22,
+      borderRadius: 11,
+      backgroundColor: c.greenSubtle,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    bestValueBadge: {
+      position: "absolute",
+      top: -11,
+      left: "50%",
+      transform: [{ translateX: -34 }],
+      backgroundColor: c.amber,
+      borderRadius: 8,
+      paddingHorizontal: 8,
+      paddingVertical: 3,
+    },
+    bestValueText: {
+      fontFamily: "GeistMono-Regular",
+      fontSize: 9,
+      color: c.background,
+      letterSpacing: 0.5,
+    },
 
-  // ── Features ─────────────────────────────────────────────────────────────
-  features: {
-    backgroundColor: "#141810",
-    borderRadius: 18,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: "rgba(240, 237, 230, 0.04)",
-    marginBottom: 20,
-    gap: 12,
-  },
-  featuresHeading: {
-    fontFamily: "GeistMono-Regular",
-    fontSize: 11,
-    color: "rgba(240, 237, 230, 0.2)",
-    textTransform: "uppercase",
-    letterSpacing: 2,
-    marginBottom: 4,
-  },
-  featureRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-  },
-  featureIconWrap: {
-    width: 28,
-    height: 28,
-    borderRadius: 8,
-    alignItems: "center",
-    justifyContent: "center",
-    flexShrink: 0,
-  },
-  featureLabel: {
-    fontFamily: "Geist",
-    fontSize: 14,
-    color: "#F0EDE6",
-    flex: 1,
-  },
+    // ── Features ─────────────────────────────────────────────────────────────
+    features: {
+      backgroundColor: c.surfacePrimary,
+      borderRadius: 18,
+      padding: 16,
+      borderWidth: 1,
+      borderColor: c.inputBorder,
+      marginBottom: 20,
+      gap: 12,
+    },
+    featuresHeading: {
+      fontFamily: "GeistMono-Regular",
+      fontSize: 11,
+      color: c.textFaint,
+      textTransform: "uppercase",
+      letterSpacing: 2,
+      marginBottom: 4,
+    },
+    featureRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 12,
+    },
+    featureIconWrap: {
+      width: 28,
+      height: 28,
+      borderRadius: 8,
+      alignItems: "center",
+      justifyContent: "center",
+      flexShrink: 0,
+    },
+    featureLabel: {
+      fontFamily: "Geist",
+      fontSize: 14,
+      color: c.textPrimary,
+      flex: 1,
+    },
 
-  // ── Error ────────────────────────────────────────────────────────────────
-  errorBanner: {
-    backgroundColor: "rgba(212, 116, 138, 0.1)",
-    borderRadius: 12,
-    padding: 12,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: "rgba(212, 116, 138, 0.15)",
-  },
-  errorText: {
-    fontFamily: "Geist",
-    fontSize: 13,
-    color: "#D4748A",
-    textAlign: "center",
-  },
+    // ── Error ────────────────────────────────────────────────────────────────
+    errorBanner: {
+      backgroundColor: c.roseSubtle,
+      borderRadius: 12,
+      padding: 12,
+      marginBottom: 12,
+      borderWidth: 1,
+      borderColor: c.roseSubtle,
+    },
+    errorText: {
+      fontFamily: "Geist",
+      fontSize: 13,
+      color: c.rose,
+      textAlign: "center",
+    },
 
-  // ── CTA ──────────────────────────────────────────────────────────────────
-  ctaButton: {
-    backgroundColor: "#7CB87A",
-    borderRadius: 18,
-    paddingVertical: 18,
-    alignItems: "center",
-    marginBottom: 16,
-    gap: 2,
-  },
-  ctaButtonDisabled: {
-    opacity: 0.6,
-  },
-  ctaText: {
-    fontFamily: "Geist-SemiBold",
-    fontSize: 17,
-    color: "#0C0F0A",
-  },
-  ctaSubtext: {
-    fontFamily: "Geist",
-    fontSize: 12,
-    color: "rgba(12, 15, 10, 0.6)",
-  },
+    // ── CTA ──────────────────────────────────────────────────────────────────
+    ctaButton: {
+      backgroundColor: c.green,
+      borderRadius: 18,
+      paddingVertical: 18,
+      alignItems: "center",
+      marginBottom: 16,
+      gap: 2,
+    },
+    ctaButtonDisabled: {
+      opacity: 0.6,
+    },
+    ctaText: {
+      fontFamily: "Geist-SemiBold",
+      fontSize: 17,
+      color: c.textOnGreen,
+    },
+    ctaSubtext: {
+      fontFamily: "Geist",
+      fontSize: 12,
+      color: c.textOnGreenMuted,
+    },
 
-  // ── Footer ───────────────────────────────────────────────────────────────
-  footer: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-    marginBottom: 12,
-    flexWrap: "wrap",
-  },
-  footerLink: {
-    fontFamily: "Geist",
-    fontSize: 13,
-    color: "rgba(240, 237, 230, 0.35)",
-  },
-  footerDot: {
-    fontFamily: "Geist",
-    fontSize: 13,
-    color: "rgba(240, 237, 230, 0.15)",
-  },
-  disclaimer: {
-    fontFamily: "Geist",
-    fontSize: 11,
-    color: "rgba(240, 237, 230, 0.18)",
-    textAlign: "center",
-    lineHeight: 16,
-  },
+    // ── Footer ───────────────────────────────────────────────────────────────
+    footer: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 8,
+      marginBottom: 12,
+      flexWrap: "wrap",
+    },
+    footerLink: {
+      fontFamily: "Geist",
+      fontSize: 13,
+      color: c.textMuted,
+    },
+    footerDot: {
+      fontFamily: "Geist",
+      fontSize: 13,
+      color: c.textFaint,
+    },
+    disclaimer: {
+      fontFamily: "Geist",
+      fontSize: 11,
+      color: c.textFaint,
+      textAlign: "center",
+      lineHeight: 16,
+    },
 
-  // ── Success state ─────────────────────────────────────────────────────────
-  successContainer: {
-    flex: 1,
-    backgroundColor: "#0C0F0A",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 16,
-    paddingHorizontal: 32,
-  },
-  successIcon: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: "rgba(124, 184, 122, 0.15)",
-    alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 2,
-    borderColor: "rgba(124, 184, 122, 0.3)",
-  },
-  successTitle: {
-    fontFamily: "InstrumentSerif-Italic",
-    fontSize: 24,
-    color: "#F0EDE6",
-    textAlign: "center",
-  },
-  successSubtitle: {
-    fontFamily: "Geist",
-    fontSize: 15,
-    color: "rgba(240, 237, 230, 0.5)",
-    textAlign: "center",
-    lineHeight: 22,
-  },
-});
+    // ── Success state ─────────────────────────────────────────────────────────
+    successContainer: {
+      flex: 1,
+      backgroundColor: c.background,
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 16,
+      paddingHorizontal: 32,
+    },
+    successIcon: {
+      width: 80,
+      height: 80,
+      borderRadius: 40,
+      backgroundColor: c.greenSubtle,
+      alignItems: "center",
+      justifyContent: "center",
+      borderWidth: 2,
+      borderColor: c.greenDim,
+    },
+    successTitle: {
+      fontFamily: "Geist-SemiBold",
+      fontSize: 24,
+      color: c.textPrimary,
+      textAlign: "center",
+    },
+    successSubtitle: {
+      fontFamily: "Geist",
+      fontSize: 15,
+      color: c.textMuted,
+      textAlign: "center",
+      lineHeight: 22,
+    },
+  });
+}
