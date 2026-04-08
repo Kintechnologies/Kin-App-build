@@ -1,7 +1,7 @@
 # CTO Backlog — P1 Issues
 
 > Code quality, missing coverage, technical debt. Address in order of listed priority.
-> Last updated: 2026-04-07 (Run 6)
+> Last updated: 2026-04-08 (Run 7)
 
 ---
 
@@ -84,6 +84,7 @@ Mock objects updated to satisfy current Anthropic SDK `ContentBlock` and `Usage`
 | BACKLOG-008 | OnboardingSurvey.tsx unguarded console.error, no Sentry | `@sentry/react-native` added to mobile; `lib/sentry.ts` init module created; `initSentry()` called in root `_layout.tsx`; `Sentry.captureException(error)` replaces console.error in onboarding catch block. Resolved Run 3. |
 | BACKLOG-009 | No tests for DELETE /api/account | Full test suite added in `apps/web/src/__tests__/account-delete.test.ts` covering 401, solo delete, paired primary delete (household_id null), paired invitee delete (accepted_by_profile_id null), and DB failure → 500 + Sentry + no auth deletion. Resolved Run 3. |
 | BACKLOG-010 | handleDeleteAccount in settings.tsx: no Sentry on mobile-side failure | `import * as Sentry from "@sentry/react-native"` added; `Sentry.captureException(err)` added to catch block before Alert. Resolved Run 3. |
+| BACKLOG-015 (P1-CARRY-BF-1) | `morning-briefing` route not writing to `morning_briefing_log` for repeat suppression | Admin client read (§7 repeat check) and write (§11 log after delivery) both wired to `morning_briefing_log` table in `apps/web/src/app/api/morning-briefing/route.ts`. Resolved Run 6 (hotfix commit a83a540). |
 | BACKLOG-004 | recipe/route.ts: mock data serving in production + memory leak | `mockRecipes` object and generic template recipe removed; endpoint gates on `ANTHROPIC_API_KEY` and returns 501 when absent; Sentry added. Resolved Run 4. |
 | BACKLOG-005 | TypeScript strict-mode failures in test files | `TextBlock`, `Message`, and `Usage` mock objects updated to match current Anthropic SDK interface; `tsc --noEmit --isolatedModules --skipLibCheck` passes clean; 44/44 tests pass. Resolved Run 4. |
 | BACKLOG-007 | No rate limiting on AI-calling routes | Upstash sliding-window rate limiter added to chat (10/min), morning-briefing (1/day), first-use (5/365d). Graceful degrade when env vars absent. `.env.example` updated. Resolved Run 5. |

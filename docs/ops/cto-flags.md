@@ -1,7 +1,7 @@
 # CTO Flags — P0 Issues
 
 > These MUST be addressed by Lead Engineer before the next deployment.
-> Last updated: 2026-04-07 (Run 6)
+> Last updated: 2026-04-08 (Run 7)
 
 ---
 
@@ -73,3 +73,4 @@ const supabase = createClient(supabaseUrl, supabaseServiceKey, {
 | FLAG-003 | pickup-risk cron auth bypassed when CRON_SECRET unset | Auth guard now uses `if (authHeader !== \`Bearer ${process.env.CRON_SECRET}\`)` — tight pattern, consistent with other cron routes. Resolved prior to Run 2. |
 | FLAG-004 | DELETE /api/account FK constraint violations for paired users | `createAdminClient()` nulls `profiles.household_id` and `household_invites.accepted_by_profile_id` before profile delete; dead `invited_by` column reference removed. Tests added in `account-delete.test.ts`. Resolved Run 3. |
 | FLAG-005 | Marketing waitlist anon key blocked by RLS | `NEXT_PUBLIC_SUPABASE_ANON_KEY` → `SUPABASE_SERVICE_ROLE_KEY` with `persistSession: false`. `apps/marketing/.env.example` created. Resolved Run 6 (hotfix). |
+| FLAG-006 (P0-NEW-BH-1) | `InstrumentSerif-Italic` not registered in `_layout.tsx`; 6 hero elements fell back to system font on device | Re-added `"InstrumentSerif-Italic": require("../assets/fonts/InstrumentSerif-Italic.ttf")` to `useFonts` call in `apps/mobile/app/_layout.tsx`. Font file confirmed present at `assets/fonts/InstrumentSerif-Italic.ttf`. Resolved Run 6 (hotfix commit a83a540). |
