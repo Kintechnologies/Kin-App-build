@@ -1,6 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
 import { NextRequest, NextResponse } from "next/server";
-import * as Sentry from "@sentry/nextjs";
 import { Ratelimit } from "@upstash/ratelimit";
 import { Redis } from "@upstash/redis";
 
@@ -55,7 +54,7 @@ export async function POST(req: NextRequest) {
     const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
     if (!supabaseUrl || !supabaseKey) {
-      Sentry.captureMessage("Supabase env vars not configured in marketing app");
+      console.error("Supabase env vars not configured in marketing app");
       return NextResponse.json({ error: "Service unavailable" }, { status: 503 });
     }
 
@@ -72,13 +71,13 @@ export async function POST(req: NextRequest) {
       if (error.code === "23505") {
         return NextResponse.json({ success: true, message: "Already on the list" });
       }
-      Sentry.captureException(error);
+      console.error("Waitlist insert error:", error);
       return NextResponse.json({ error: "Failed to join waitlist" }, { status: 500 });
     }
 
     return NextResponse.json({ success: true });
   } catch (err) {
-    Sentry.captureException(err);
+    console.error("Waitlist route unhandled error:", err);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
