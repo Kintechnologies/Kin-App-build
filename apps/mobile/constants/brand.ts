@@ -33,7 +33,6 @@ export const Typography = {
     sans:      'Geist',         // All UI text and wordmark
     sansMed:   'Geist-Medium',
     sansSemi:  'Geist-SemiBold',
-    sansLight: 'Geist-Light',
     mono:      'GeistMono',     // Labels, timestamps, codes
   },
   weights: {
