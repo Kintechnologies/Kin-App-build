@@ -5,7 +5,7 @@
 
 ---
 
-## 🚨 FLAG-005 · Marketing waitlist route uses anon key — blocked by RLS, all submissions fail
+## ✅ FLAG-005 · Marketing waitlist route uses anon key — blocked by RLS, all submissions fail — RESOLVED
 
 **File:** `apps/marketing/src/app/api/waitlist/route.ts:17–25`
 **Commit introduced:** `07cea50` (Rebuild marketing site with warm dark design system)
@@ -72,3 +72,4 @@ const supabase = createClient(supabaseUrl, supabaseServiceKey, {
 | FLAG-002 | RevenueCat webhook no Sentry — silent revenue errors | `import * as Sentry` added; `Sentry.captureException(error)` in outer catch at line 147–148. Resolved prior to Run 2. |
 | FLAG-003 | pickup-risk cron auth bypassed when CRON_SECRET unset | Auth guard now uses `if (authHeader !== \`Bearer ${process.env.CRON_SECRET}\`)` — tight pattern, consistent with other cron routes. Resolved prior to Run 2. |
 | FLAG-004 | DELETE /api/account FK constraint violations for paired users | `createAdminClient()` nulls `profiles.household_id` and `household_invites.accepted_by_profile_id` before profile delete; dead `invited_by` column reference removed. Tests added in `account-delete.test.ts`. Resolved Run 3. |
+| FLAG-005 | Marketing waitlist anon key blocked by RLS | `NEXT_PUBLIC_SUPABASE_ANON_KEY` → `SUPABASE_SERVICE_ROLE_KEY` with `persistSession: false`. `apps/marketing/.env.example` created. Resolved Run 6 (hotfix). |

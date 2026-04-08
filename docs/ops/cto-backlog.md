@@ -7,47 +7,37 @@
 
 ## BACKLOG-011 · Marketing waitlist route: no Sentry, no error visibility
 
-**File:** `apps/marketing/src/app/api/waitlist/route.ts:22,37,41`
-**Status:** Open
+**File:** `apps/marketing/src/app/api/waitlist/route.ts`
+**Status:** RESOLVED (Run 6)
 
-Three `console.error` calls in the marketing waitlist route — two in error paths (Supabase insert failure, general catch) plus the env-missing path — with no Sentry. The marketing app has no `@sentry/nextjs` dependency at all. After FLAG-005 is fixed and real submissions start flowing, any new failure mode will be completely invisible.
-
-Fix: Add `@sentry/nextjs` to `apps/marketing/package.json`, import it in the route, replace all three `console.error` calls with `Sentry.captureException(err)`.
+`@sentry/nextjs` added to `apps/marketing/package.json`. All three `console.error` calls replaced with `Sentry.captureException` / `Sentry.captureMessage`. Env-missing path now calls `Sentry.captureMessage`. `SENTRY_DSN` and `NEXT_PUBLIC_SENTRY_DSN` added to `apps/marketing/.env.example`.
 
 ---
 
 ## BACKLOG-012 · Marketing waitlist route: no rate limiting
 
 **File:** `apps/marketing/src/app/api/waitlist/route.ts`
-**Status:** Open
+**Status:** RESOLVED (Run 6)
 
-The marketing `/api/waitlist` endpoint is fully public and has no rate limiting. After FLAG-005 is fixed, a trivial loop can flood the waitlist table with junk emails. The main app's `apps/web/src/app/api/waitlist/route.ts` has the same exposure.
-
-Fix: Apply the same Upstash sliding-window pattern used on the AI routes. Suggested limit: 3 submissions per IP per hour. If Upstash isn't available in the marketing app environment, a simple in-memory or edge-config approach works for v0.
+`@upstash/ratelimit` + `@upstash/redis` added to `apps/marketing/package.json`. IP-based sliding-window limiter added: 3 submissions per IP per hour, prefix `rl:waitlist`. Graceful degrade when `UPSTASH_REDIS_REST_URL` / `UPSTASH_REDIS_REST_TOKEN` absent (dev/CI unaffected). 429 response includes `Retry-After` header. `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN` added to `apps/marketing/.env.example`. **Requires `npm install` in `apps/marketing/` to activate.**
 
 ---
 
 ## BACKLOG-013 · No `.env.example` in apps/marketing/
 
 **File:** `apps/marketing/` (missing)
-**Status:** Open
+**Status:** RESOLVED (Run 6 hotfix)
 
-The marketing app uses `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY`. After FLAG-005 is fixed it will also need `SUPABASE_SERVICE_ROLE_KEY`. None of these are documented — there's no `apps/marketing/.env.example`. A new dev or a new Vercel project setup will have no reference for what env vars are required.
-
-Fix: Create `apps/marketing/.env.example` documenting all required vars with placeholder values.
+`apps/marketing/.env.example` created documenting all required vars: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN`, `SENTRY_DSN`, `NEXT_PUBLIC_SENTRY_DSN`. Comments explain purpose of each.
 
 ---
 
 ## BACKLOG-014 · Untracked TODO in apps/mobile/app/_layout.tsx
 
-**File:** `apps/mobile/app/_layout.tsx:63`
-**Status:** Open (introduced in commit `68c270e`)
+**File:** `apps/mobile/app/_layout.tsx:63`, `apps/mobile/constants/brand.ts:36`
+**Status:** RESOLVED (Run 6)
 
-```ts
-// TODO: add Geist-Light.ttf from github.com/vercel/geist-font/releases
-```
-
-The font registration fix wired Regular, Medium, and SemiBold but left Light as a TODO. This is low-severity (Light weight likely unused in the current design), but it's an untracked TODO in production code. Either add the font file and wire it, or remove the comment if Light is genuinely not needed.
+`Geist-Light` is defined in `brand.ts` as `Typography.families.sansLight` but is not referenced in any component. Font file does not exist in assets. Removed `sansLight: 'Geist-Light'` from `brand.ts` and removed the TODO comment + commented-out require from `_layout.tsx`. If Light weight is needed in future, add the font asset and re-introduce the constant at that time.
 
 ---
 

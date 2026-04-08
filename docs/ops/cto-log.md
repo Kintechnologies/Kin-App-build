@@ -50,7 +50,7 @@ All prior open backlog items resolved (BACKLOG-001 through BACKLOG-010, includin
 
 Major cleanup sprint delivered: all prior flags and backlog items resolved. Mobile Sentry initialization is clean (`lib/sentry.ts` + `initSentry()` at app root before first render). Account deletion now handles the paired-household FK case correctly with tests. Rate limiting is wired on all AI-calling routes with graceful degrade in dev. The marketing site itself is well-structured — FLAG-005 is a single-line fix (wrong key) rather than a design flaw.
 
-**Grade this cycle: B+ (FLAG-005 is a one-line fix but it's actively breaking top-of-funnel. Once patched + BACKLOG-011 Sentry added: A-)**
+**Grade this cycle: A- (FLAG-005 hotfixed same run; BACKLOG-011/012/013/014 all resolved. Zero open P0s. Zero open P1s.)**
 
 ---
 
