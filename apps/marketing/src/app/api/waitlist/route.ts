@@ -1,8 +1,45 @@
 import { createClient } from "@supabase/supabase-js";
 import { NextRequest, NextResponse } from "next/server";
+import * as Sentry from "@sentry/nextjs";
+import { Ratelimit } from "@upstash/ratelimit";
+import { Redis } from "@upstash/redis";
+
+// Rate limiter: 3 submissions per IP per hour.
+// Gracefully disabled when UPSTASH env vars are absent (dev/CI).
+let ratelimit: Ratelimit | null = null;
+function getRatelimit(): Ratelimit | null {
+  if (ratelimit) return ratelimit;
+  const url = process.env.UPSTASH_REDIS_REST_URL;
+  const token = process.env.UPSTASH_REDIS_REST_TOKEN;
+  if (!url || !token) return null;
+  ratelimit = new Ratelimit({
+    redis: new Redis({ url, token }),
+    limiter: Ratelimit.slidingWindow(3, "1 h"),
+    prefix: "rl:waitlist",
+  });
+  return ratelimit;
+}
 
 export async function POST(req: NextRequest) {
   try {
+    // Rate limit by IP — public endpoint, no user auth.
+    const ip =
+      req.headers.get("x-forwarded-for")?.split(",")[0].trim() ?? "unknown";
+    const limiter = getRatelimit();
+    if (limiter) {
+      const { success, reset } = await limiter.limit(ip);
+      if (!success) {
+        const retryAfter = Math.ceil((reset - Date.now()) / 1000);
+        return NextResponse.json(
+          { error: "Too many requests. Please try again later." },
+          {
+            status: 429,
+            headers: { "Retry-After": String(Math.max(retryAfter, 1)) },
+          }
+        );
+      }
+    }
+
     const { email } = await req.json();
 
     if (!email || typeof email !== "string") {
@@ -15,14 +52,16 @@ export async function POST(req: NextRequest) {
     }
 
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+    const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
     if (!supabaseUrl || !supabaseKey) {
-      console.error("Supabase env vars not configured");
+      Sentry.captureMessage("Supabase env vars not configured in marketing app");
       return NextResponse.json({ error: "Service unavailable" }, { status: 503 });
     }
 
-    const supabase = createClient(supabaseUrl, supabaseKey);
+    const supabase = createClient(supabaseUrl, supabaseKey, {
+      auth: { persistSession: false },
+    });
 
     const { error } = await supabase
       .from("waitlist")
@@ -33,13 +72,13 @@ export async function POST(req: NextRequest) {
       if (error.code === "23505") {
         return NextResponse.json({ success: true, message: "Already on the list" });
       }
-      console.error("Supabase insert error:", error);
+      Sentry.captureException(error);
       return NextResponse.json({ error: "Failed to join waitlist" }, { status: 500 });
     }
 
     return NextResponse.json({ success: true });
   } catch (err) {
-    console.error("Waitlist error:", err);
+    Sentry.captureException(err);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }

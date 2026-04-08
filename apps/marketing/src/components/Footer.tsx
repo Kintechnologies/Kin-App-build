@@ -1,3 +1,5 @@
+"use client";
+
 import { KinMark } from "./KinMark";
 
 export function Footer() {
