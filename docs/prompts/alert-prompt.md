@@ -1,6 +1,6 @@
 # Alert Prompt
 **Route:** Coordination issue text generation (writes `content` field in `coordination_issues` table)
-**Last updated:** 2026-04-04T08:00 (session 2)
+**Last updated:** 2026-04-08T00:00 (session 14)
 **Spec sections:** §3A, §3C, §5, §8, §12, §16, §23
 
 ---
@@ -71,6 +71,15 @@ Return null if confidence is LOW.
 - RED: Both parents conflicted, no coverage exists → use direct, urgent language
 - YELLOW: Default handler unavailable but backup may exist → use responsibility prompt language
 - CLEAR: Coverage confirmed → return null (no alert generated)
+
+## ROUTING GATE — ACKNOWLEDGED STATE
+This prompt generates content only for **new OPEN alerts** (when a coordination issue is first detected, or when a RESOLVED issue re-opens). The route must NOT call this prompt for issues already in ACKNOWLEDGED or RESOLVED state.
+
+- `coordination_issues.state = "OPEN"` → call this prompt to generate/regenerate `content`
+- `coordination_issues.state = "ACKNOWLEDGED"` → do NOT call this prompt; the content field was already written when the issue was OPEN. Re-calling would overwrite the original alert text, potentially changing wording the parent already read.
+- `coordination_issues.state = "RESOLVED"` → do NOT call this prompt; issue is closed.
+
+If the route incorrectly calls this prompt for an ACKNOWLEDGED issue, the model will generate discovery-urgency language ("you're both tied up") for an issue the parent has already seen — eroding trust. Fix is at the route level, not the prompt level.
 ```
 
 ---
@@ -223,3 +232,4 @@ null
 3. **Qualifier stacking under ambiguity** — "It looks like it might be worth confirming…" Fix: §26 drift review; route validation should flag strings containing two qualifier words.
 4. **CLEAR state generating an alert** — Model produces content even when severity is CLEAR. Fix: explicit null-return rule for CLEAR; validated in QA-S2.
 5. **Generic reassurance in content** — "Don't worry, this can be sorted." Fix: blocked in prompt; QA validates all rendered alert strings.
+6. **Prompt called for ACKNOWLEDGED issue** — Route error results in this prompt being called when `state = "ACKNOWLEDGED"`. Model generates OPEN-state urgency language for an issue the parent has already seen. Fix: route must gate on `state = "OPEN"` before calling this prompt. See ROUTING GATE section above. (New — Session 14)

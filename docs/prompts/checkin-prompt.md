@@ -1,6 +1,6 @@
 # Check-In Prompt
 **Route:** Check-in card copy generation
-**Last updated:** 2026-04-04
+**Last updated:** 2026-04-08T00:00 (session 14)
 **Spec sections:** §5, §7, §8, §12, §23
 
 ---
@@ -62,6 +62,7 @@ You will receive:
 - household_has_open_high_priority_alert: bool
 - checkins_generated_today: number
 - confidence: "HIGH" | "MEDIUM" | "LOW"
+- last_surfaced_at: ISO timestamp or null — the last time a check-in was generated for this same event; null if never surfaced. If non-null and the observation has not changed since that timestamp, return null (do not repeat).
 
 ## OUTPUT FORMAT
 Return a JSON object:
@@ -171,5 +172,5 @@ null
 1. **Alert-tone language in a check-in** — "Leo's pickup is at risk" or "Conflict detected." Fix: block urgency vocabulary in prompt; QA validates rendered strings.
 2. **Check-in rendered with open High-priority alert** — Suppression rule missed by routing logic. Fix: check `household_has_open_high_priority_alert` before calling this prompt; also enforced in prompt itself.
 3. **Third check-in generated** — Frequency cap not respected. Fix: route must check `checkins_generated_today` before calling; prompt also enforces.
-4. **Repeated check-in** — Same observation surfaced two days in a row with no change. Fix: include `last_surfaced_at` in context; prompt should return null if unchanged within 24h.
+4. **Repeated check-in** — Same observation surfaced two days in a row with no change. Fix: `last_surfaced_at` now included in INPUT FORMAT; model returns null if the same event was surfaced and nothing has changed. Route must pass this field; without it, suppression cannot be applied. (Session 14 — field added to schema.)
 5. **Prompt is a demand** — "You need to confirm this now." Fix: prompt field must be invitation language only; block imperative constructions.
