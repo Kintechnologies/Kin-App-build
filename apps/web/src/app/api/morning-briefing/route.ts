@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { getAuthenticatedUser } from "@/lib/supabase/api-auth";
 import { getAnthropicClient, ANTHROPIC_MODEL } from "@/lib/anthropic";
 import { buildCommuteLine } from "@/lib/commute";
@@ -42,6 +43,12 @@ interface PetVaccinationRow {
   family_member?: { name: string };
 }
 
+interface MorningBriefingLogRow {
+  insight_key: string;
+  insight_summary: string;
+  briefing_date: string;
+}
+
 /**
  * Generates the daily morning briefing for an authenticated user
  * Returns today's briefing if already generated, or generates a new one
@@ -71,6 +78,26 @@ async function generateBriefingContent(
 
     // Get all necessary data for briefing
     const today = new Date().toISOString().split("T")[0];
+    const yesterday = new Date(Date.now() - 86400000).toISOString().split("T")[0];
+
+    // ── §7/§11: Query morning_briefing_log for repeat suppression ─────────────
+    // morning_briefing_log has RLS enabled with no user policies — must use admin client.
+    // Non-fatal: if service role key absent in dev, log is skipped (graceful degrade).
+    let adminClient: ReturnType<typeof createAdminClient> | null = null;
+    let lastLogEntry: MorningBriefingLogRow | null = null;
+    try {
+      adminClient = createAdminClient();
+      const { data: recentLogEntries } = await adminClient
+        .from("morning_briefing_log")
+        .select("insight_key, insight_summary, briefing_date")
+        .like("insight_key", `${profileId}:%`)
+        .gte("briefing_date", yesterday)
+        .order("surfaced_at", { ascending: false })
+        .limit(1);
+      lastLogEntry = (recentLogEntries as MorningBriefingLogRow[] | null)?.[0] ?? null;
+    } catch {
+      // Non-fatal: proceed without repeat suppression if admin client unavailable
+    }
 
     const [
       { data: profile },
@@ -333,6 +360,20 @@ Due vaccination(s):`;
       });
     }
 
+    // ── §7/§11: Repeat suppression — inject last_surfaced_insight ─────────────
+    // Tells the model what was surfaced yesterday or earlier today so it can
+    // apply the §7 silence rule: return null if situation is materially unchanged.
+    if (lastLogEntry) {
+      const dayLabel = lastLogEntry.briefing_date === today ? "earlier today" : "yesterday";
+      briefingContext += `
+
+═══════════════════════════════════════════════════════════════
+ REPEAT SUPPRESSION (§7 — DO NOT SURFACE AGAIN IF UNCHANGED)
+═══════════════════════════════════════════════════════════════
+last_surfaced_insight (${dayLabel}): ${lastLogEntry.insight_summary}
+INSTRUCTION: If today's primary situation is materially identical to the above, return null (§7 silence rule). Only re-surface if there is a meaningful change — new state transition, new assignment, new time, or new conflict.`;
+    }
+
     // Note: This briefing focuses on logistics and budget — no meal suggestions.
     // Allergies are not needed here. (Meal planning queries allergies separately via /api/meals)
     const anthropic = getAnthropicClient();
@@ -440,6 +481,30 @@ Return null for the entire object if there is nothing worth surfacing (§7 silen
       if (!parsed) {
         // §7 silence rule: AI returned null — nothing worth surfacing today
         return "";
+      }
+
+      // ── §7/§11: Write to morning_briefing_log for repeat suppression ──────
+      // insight_key = {profileId}:{trigger_type} so queries can filter by profile.
+      // Unique constraint (insight_key, briefing_date) dedupes same-day duplicates.
+      // Fire-and-forget: log failure is non-fatal — briefing delivery continues.
+      if (adminClient) {
+        const primaryIssue = (openIssues as Array<{ trigger_type: string; content: string; state: string }> | null)?.[0];
+        const insightCategory = primaryIssue?.trigger_type ?? "routine";
+        // Fire-and-forget: unique constraint violation on forced regen is expected — swallow
+        void (async () => {
+          try {
+            await adminClient!
+              .from("morning_briefing_log")
+              .insert({
+                insight_key: `${profileId}:${insightCategory}`,
+                insight_summary: parsed.primary_insight,
+                category: insightCategory,
+                briefing_date: today,
+              });
+          } catch {
+            // Non-fatal
+          }
+        })();
       }
 
       const parts = [parsed.primary_insight];
