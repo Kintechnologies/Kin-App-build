@@ -74,6 +74,12 @@ vi.mock("@sentry/nextjs", () => ({
   captureMessage: vi.fn(),
 }));
 
+// Rate limiter — allow all requests in tests (Upstash env vars not present in CI)
+vi.mock("@/lib/rate-limit", () => ({
+  checkRateLimit: vi.fn().mockResolvedValue({ allowed: true, remaining: 99, limit: 100, reset: 0 }),
+  rateLimitResponse: vi.fn(),
+}));
+
 vi.stubEnv("ANTHROPIC_API_KEY", "sk-ant-test-xxx");
 
 import { POST } from "../app/api/chat/route";

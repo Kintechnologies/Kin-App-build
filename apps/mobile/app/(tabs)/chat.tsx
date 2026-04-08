@@ -31,6 +31,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import * as Haptics from "expo-haptics";
 import * as Speech from "expo-speech";
 import * as ImagePicker from "expo-image-picker";
+import NetInfo from "@react-native-community/netinfo";
 import {
   Send,
   Mic,
@@ -45,6 +46,7 @@ import {
   Globe,
   Users,
   UserPlus,
+  WifiOff,
 } from "lucide-react-native";
 import { api } from "../../lib/api";
 import { supabase } from "../../lib/supabase";
@@ -213,7 +215,18 @@ export default function ConversationsScreen() {
   const [householdId, setHouseholdId] = useState<string | null>(null);
   const [familyName, setFamilyName] = useState<string>("");
 
+  // Offline detection
+  const [isOffline, setIsOffline] = useState(false);
+
   const listLoaded = useRef(false);
+
+  // Offline detection: subscribe to network state changes
+  useEffect(() => {
+    const unsubscribe = NetInfo.addEventListener((state) => {
+      setIsOffline(state.isConnected === false);
+    });
+    return () => unsubscribe();
+  }, []);
 
   useEffect(() => {
     initConversations();
@@ -490,6 +503,12 @@ export default function ConversationsScreen() {
     return (
       <SafeAreaView style={styles.safeArea}>
         <FloatingOrbs />
+        {isOffline && (
+          <View style={styles.offlineBanner}>
+            <WifiOff size={13} color={c.textMuted} />
+            <Text style={styles.offlineBannerText}>You're offline — showing last known data.</Text>
+          </View>
+        )}
         <FlatList
           data={generalThreads}
           keyExtractor={(item) => item.id}
@@ -733,6 +752,14 @@ export default function ConversationsScreen() {
 
           <View style={{ width: 36 }} />
         </View>
+
+        {/* Offline banner */}
+        {isOffline && (
+          <View style={styles.offlineBanner}>
+            <WifiOff size={13} color={c.textMuted} />
+            <Text style={styles.offlineBannerText}>You're offline — messages won't send.</Text>
+          </View>
+        )}
 
         {/* Messages */}
         {isEmpty ? (
@@ -1413,6 +1440,26 @@ function createChatStyles(c: ThemeColors) {
   },
   threadsLoadingIndicator: {
     paddingVertical: 20,
+  },
+  offlineBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginHorizontal: 20,
+    marginTop: 6,
+    marginBottom: 2,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 10,
+    backgroundColor: c.surfaceSubtle,
+    borderWidth: 1,
+    borderColor: c.inputBorder,
+  },
+  offlineBannerText: {
+    fontFamily: "Geist",
+    fontSize: 12,
+    color: c.textMuted,
+    flex: 1,
   },
   });
 }
