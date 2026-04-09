@@ -62,12 +62,12 @@ const STATIC_PLANS = [
   {
     id: "annual",
     label: "Annual",
-    price: "$25",
+    price: "$29",
     period: "/ month",
     priceDetail: "$349.00 billed annually",
     badge: "Best Value",
     highlight: true,
-    savings: "Save $169 vs monthly",
+    savings: "Save $119 vs monthly",
   },
 ] as const;
 
