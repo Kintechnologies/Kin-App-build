@@ -2,15 +2,14 @@
  * RevenueCat integration for Kin mobile billing.
  *
  * Products (create in RC dashboard):
- *   kin_monthly_3999   — $39.00 / month
- *   kin_annual_29900   — $299.00 / year
+ *   kin_monthly_39     — $39.00 / month
+ *   kin_annual_34900   — $349.00 / year
  *
  * Required env var:
  *   EXPO_PUBLIC_REVENUECAT_API_KEY — Apple App Store API key from RC project settings.
  *   Add to apps/mobile/.env before TestFlight build.
  *
- * Austin: once RC products are configured and .env is set, remove the
- * REVENUECAT_NOT_CONFIGURED guard and the static-price fallback in PaywallModal.
+ * Static-price fallback in PaywallModal renders when key is absent (local dev without .env).
  */
 
 import Purchases, {
@@ -42,11 +41,6 @@ let initialized = false;
  */
 export async function initRevenueCat(userId?: string): Promise<void> {
   if (initialized) return;
-
-  if (!REVENUECAT_CONFIGURED) {
-    // Placeholder key — RC SDK will initialise but won't return real offerings.
-    // All purchase calls will fail gracefully. Paywall shows static prices.
-  }
 
   if (process.env.NODE_ENV !== "production") {
     Purchases.setLogLevel(LOG_LEVEL.DEBUG);

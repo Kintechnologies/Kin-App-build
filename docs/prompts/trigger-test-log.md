@@ -21,6 +21,32 @@ All 6 prompts produced. All tests passed. See archive below.
 
 ---
 
+### Session 15 — 2026-04-08T02:00 (test coverage gaps closed; household thread trigger tests added)
+
+**Context:** Session 14 updated `chat-prompt.md`, `checkin-prompt.md`, and `alert-prompt.md`. Two test coverage gaps survived into this session: (1) `checkin-prompt.md` had no test scenario validating the `last_surfaced_at` suppression field added in S14 or the frequency cap; (2) `first-use-prompt.md` had no test for MEDIUM confidence → fallback. Additionally, the trigger test log had no household-thread equivalents for the ACKNOWLEDGED/RESOLVED symmetry tests added in S14 (personal thread only). All three gaps closed this session.
+
+**Changes this session:**
+
+- `checkin-prompt.md` — **Test coverage + schema completeness:**
+  - Updated Scenario 1 and Scenario 2 inputs to include `last_surfaced_at: null` (first-surface case; field was in INPUT FORMAT but not in test inputs)
+  - Added Scenario 4: `last_surfaced_at` suppression — same event, no change since prior surface → null. Validates Failure Mode 4 fix end-to-end
+  - Added Scenario 5: frequency cap — `checkins_generated_today: 2` → null. Validates Failure Mode 3 (route + prompt dual enforcement)
+  - Added Failure Mode 6: frequency cap bypassed (route passes stale or missing count)
+
+- `first-use-prompt.md` — **MEDIUM confidence path validated:**
+  - Added Scenario 5: MEDIUM confidence → exact fallback text, `is_fallback: true`. Confirms that the first-use confidence threshold is stricter than general §23 (MEDIUM = fallback, not hedged live insight)
+  - Updated Failure Mode 3: clarified fallback applies to MEDIUM or LOW (was: "when confidence is LOW")
+  - Added Failure Mode 6: MEDIUM confidence produces hedged live insight instead of falling back
+
+**§26 drift review:** All 7 prompts reviewed — see results below.
+**Trigger tests:** Core §3A and §3C re-run (no regressions). New household thread ACKNOWLEDGED and RESOLVED tests added. New checkin and first-use scenario validations.
+
+**What Lead Eng can now wire:**
+- `checkin-prompt.md` route must pass `last_surfaced_at` (validated in Scenario 4) and `checkins_generated_today` (validated in Scenario 5) — both required for correct suppression behavior
+- `first-use-prompt.md` route must derive a `confidence` signal from household data before calling this prompt; MEDIUM and LOW must both produce `is_fallback: true` output
+
+---
+
 ### Session 14 — 2026-04-08T00:00 (ACKNOWLEDGED/RESOLVED parity + schema fixes)
 
 **Context:** Sessions 3–13 progressively added ACKNOWLEDGED and RESOLVED state handling to `morning-briefing-prompt.md` (Sessions 10–11, 12–13) and `household-chat-prompt.md` (Sessions 8, 11, 13). `chat-prompt.md` had not been updated since Session 2 and lacked symmetric ACKNOWLEDGED/RESOLVED handling for the personal thread. Three schema gaps also identified.
@@ -460,10 +486,236 @@ Core §3A and §3C tests re-run to validate no regressions from session 14 promp
 
 ---
 
+---
+
+## §26 DRIFT REVIEW — SESSION 15 (2026-04-08T02:00)
+
+Review question: *"Would this feel helpful to a busy, slightly stressed user?"*
+
+### morning-briefing-prompt.md
+| Pattern | Status | Notes |
+|---------|--------|-------|
+| Unnecessary preamble | ✅ Blocked | No changes this session; prior review holds |
+| Stacked hedges | ✅ Blocked | No changes this session |
+| Generic reassurance | ✅ Blocked | No changes this session |
+| Insights that change nothing | ✅ Blocked | No changes this session |
+| Over-explained silence | ✅ Blocked | No changes this session |
+| Compression without specificity | ✅ Blocked | No changes this session |
+
+**No session 15 changes.** Last updated S13. Verdict: **PASS** (carry-forward from S14)
+
+---
+
+### alert-prompt.md
+| Pattern | Status | Notes |
+|---------|--------|-------|
+| Unnecessary preamble | ✅ Blocked | No changes this session; routing gate in place |
+| Stacked hedges | ✅ Blocked | No changes this session |
+| Generic reassurance | ✅ Blocked | No changes this session |
+| Insights that change nothing | ✅ Blocked | No changes this session |
+| Over-explained silence | ✅ Blocked | No changes this session |
+| Compression without specificity | ✅ Blocked | No changes this session |
+
+**No session 15 changes.** Last updated S14. Verdict: **PASS** (carry-forward from S14)
+
+---
+
+### checkin-prompt.md
+| Pattern | Status | Notes |
+|---------|--------|-------|
+| Unnecessary preamble | ✅ Blocked | No prompt text changes — only test scenarios and failure mode additions |
+| Stacked hedges | ✅ Blocked | No prompt text changes |
+| Generic reassurance | ✅ Blocked | No prompt text changes |
+| Insights that change nothing | ✅ Blocked | Scenario 4 suppression rule now validated: unchanged observation → null, not repeated content |
+| Over-explained silence | ✅ Blocked | Scenarios 4 and 5 return null cleanly with no explanation in the output |
+| Compression without specificity | ✅ Blocked | No prompt text changes |
+
+**Session 15 additions reviewed:** Scenario 4 and Scenario 5 are null-return tests — no output text to drift-check. The prompt rules that produce those null results were already validated in S14. No new drift surface introduced.
+**Verdict: PASS**
+
+---
+
+### chat-prompt.md
+| Pattern | Status | Notes |
+|---------|--------|-------|
+| Unnecessary preamble | ✅ Blocked | No changes this session |
+| Stacked hedges | ✅ Blocked | No changes this session |
+| Generic reassurance | ✅ Blocked | No changes this session |
+| Insights that change nothing | ✅ Blocked | No changes this session |
+| Over-explained silence | ✅ Blocked | No changes this session |
+| Compression without specificity | ✅ Blocked | No changes this session |
+
+**No session 15 changes.** Last updated S14. Verdict: **PASS** (carry-forward from S14)
+
+---
+
+### household-chat-prompt.md
+| Pattern | Status | Notes |
+|---------|--------|-------|
+| Unnecessary preamble | ✅ Blocked | No changes this session |
+| Stacked hedges | ✅ Blocked | No changes this session |
+| Generic reassurance | ✅ Blocked | No changes this session |
+| Insights that change nothing | ✅ Blocked | No changes this session |
+| Over-explained silence | ✅ Blocked | No changes this session |
+| Compression without specificity | ✅ Blocked | No changes this session |
+
+**No session 15 changes.** Last updated S13. Verdict: **PASS** (carry-forward from S14)
+
+---
+
+### closure-prompt.md
+| Pattern | Status | Notes |
+|---------|--------|-------|
+| Unnecessary preamble | ✅ Blocked | No changes this session |
+| Stacked hedges | N/A | HIGH confidence only |
+| Generic reassurance | ✅ Blocked | No changes this session |
+| Insights that change nothing | ✅ Blocked | No changes this session |
+| Over-explained silence | N/A | No silence in closure state |
+| Compression without specificity | ✅ Blocked | No changes this session |
+
+**No session 15 changes.** Last updated S2. Verdict: **PASS** (carry-forward from S14)
+
+---
+
+### first-use-prompt.md
+| Pattern | Status | Notes |
+|---------|--------|-------|
+| Unnecessary preamble | ✅ Blocked | "Welcome," "Hi," "I'm Kin" blocked; no changes to prompt text |
+| Stacked hedges | ✅ Blocked | Scenario 5 confirms MEDIUM → fallback; no qualified live insight permitted for first-use |
+| Generic reassurance | ✅ Blocked | Exact fallback text is the only generic output permitted; still holds |
+| Insights that change nothing | ✅ Blocked | Scenario 5 fallback text passes §26: "I'm watching your household schedule. The moment something needs your attention, I'll surface it." — this is a functional status statement, not filler. It tells the parent what Kin is doing and when it will speak again. It changes the parent's mental model. |
+| Over-explained silence | N/A | First-use always produces output (fallback covers silence cases) |
+| Compression without specificity | ✅ Blocked | Scenario 5 is a fallback — specificity comes from live-insight scenarios |
+
+**Session 15 addition reviewed:** Scenario 5 fallback test — §26 check: "I'm watching your household schedule. The moment something needs your attention, I'll surface it." passes the drift test. It is not filler — it makes a specific promise (monitoring + threshold-based output) rather than a generic one ("I'm here to help"). The two-sentence structure also validates the 2-sentence max for fallback.
+**Verdict: PASS**
+
+**All 7 prompts passed §26 drift review.**
+
+---
+
+## TRIGGER SCENARIO TESTS — SESSION 15
+
+Core §3A and §3C re-run to validate no regressions. Three new scenarios added: household thread ACKNOWLEDGED and RESOLVED parity (missing from S14 log despite being in household-chat-prompt.md since Sessions 11 and 13 respectively), and checkin/first-use gap scenarios.
+
+### §3A — PICKUP RISK (regression check)
+
+#### RED: Both Parents Conflicted (re-run)
+**Input:** `trigger_type: PICKUP_RISK | severity: RED | parent_a: CONFLICTED | parent_b: CONFLICTED | child: Maya | window: 15:30 | confidence: HIGH`
+**Expected:** `"Maya's 3:30 pickup has no coverage — you're both tied up."`
+**Result:** ✅ PASS — no regression
+
+---
+
+#### YELLOW: Default Handler Unavailable (re-run)
+**Input:** `trigger_type: PICKUP_RISK | severity: YELLOW | parent_a: CONFLICTED | parent_b: UNCONFIRMED | child: Leo | window: 15:30 | confidence: MEDIUM`
+**Expected:** `"Leo's 3:30 pickup is unconfirmed — probably worth a quick check between you."`
+**Result:** ✅ PASS — no regression
+
+---
+
+#### CLEAR: Coverage Confirmed (re-run)
+**Input:** `trigger_type: PICKUP_RISK | severity: CLEAR | parent_a: AVAILABLE | parent_b: AVAILABLE | confidence: HIGH`
+**Expected:** `null`
+**Result:** ✅ PASS — no regression
+
+---
+
+### §3C — LATE SCHEDULE CHANGE (regression check)
+
+#### RED: Change Creates Uncovered Pickup (re-run)
+**Input:** `trigger_type: LATE_SCHEDULE_CHANGE | severity: RED | change: "Parent A work dinner at 17:00" | parent_a: CONFLICTED | parent_b: CONFLICTED | child: Leo | window: 17:30 | confidence: HIGH`
+**Expected:** `"A work dinner was just added at 5 — Leo's 5:30 pickup is now uncovered."`
+**Result:** ✅ PASS — no regression
+
+---
+
+#### CLEAR: Change Resolves Itself (re-run)
+**Input:** `trigger_type: LATE_SCHEDULE_CHANGE | severity: CLEAR | parent_a: AVAILABLE | parent_b: AVAILABLE | confidence: HIGH`
+**Expected:** `null`
+**Result:** ✅ PASS — no regression
+
+---
+
+### HOUSEHOLD THREAD — ACKNOWLEDGED/RESOLVED (new session 15)
+
+These scenarios mirror the personal-thread tests added in S14 but apply household-thread framing (§16 neutral, "between you" phrasing, both parents visible). They validate that household-chat-prompt.md Scenarios 8 and 9 — which have been in the prompt since Sessions 11 and 13 — produce spec-correct output distinct from personal-thread equivalents.
+
+#### §3A Symmetry: ACKNOWLEDGED Issue in Household Thread
+**Input:** `household_thread: true | open_coordination_issues: [{ trigger: PICKUP_RISK, child: Leo, time: 17:30, state: ACKNOWLEDGED, parent_a: CONFLICTED, parent_b: CONFLICTED }] | speaking_to: parent_a`
+**User input:** "What's happening with Leo's pickup tonight?"
+**Expected:** `"Leo's 5:30 is flagged and acknowledged — has it been sorted between you?"`
+**Result:** ✅ PASS — ACKNOWLEDGED framing (softer, status-aware); "between you" is household-thread framing (both parents present, Kin does not know who acknowledged); distinct from personal thread "has it been sorted yet?"
+
+**§16 framing validation:** "between you" correctly avoids attributing the acknowledgment to either parent. In the personal thread the phrase is "yet?" (directed at one parent). In the household thread the phrase is "between you?" (directed at both parents equally). This distinction is correctly embedded in household-chat-prompt.md Scenario 8.
+
+---
+
+#### §3C Symmetry: RESOLVED Issue Query in Household Thread (via conversation history)
+**Input:** `household_thread: true | open_coordination_issues: [] | conversation_history: [{ role: user, "We sorted Leo's pickup." }, { role: kin, "Leo's 5:30 is covered — I'll take it off the list." }]`
+**User input:** "Just to confirm — is Leo's pickup still an issue?"
+**Expected:** `"Leo's 5:30 was sorted — it's off the list."`
+**Result:** ✅ PASS — RESOLVED state confirmed from conversation_history + empty open_coordination_issues. Passive framing ("was sorted") — Kin does not attribute resolution to either parent. Consistent with §16 household neutral framing. 1 sentence. No forbidden opener.
+
+**Distinction from personal thread RESOLVED (S14):** Personal thread: "Leo's 5:30 was sorted — it's off the list." (same core phrase). The household thread does not use "your partner sorted it" (attribution to one parent) even if technically only one parent reported it — because both parents are reading the household thread. Passive framing is the correct and only appropriate form here.
+
+---
+
+### CHECKIN SUPPRESSION — NEW SCENARIOS (session 15)
+
+#### last_surfaced_at Suppression (Scenario 4 validation)
+**Input:** `observation_type: CONFIRMATION_PENDING | child: Maya | time: 16:00 | confirmed: false | household_has_open_high_priority_alert: false | checkins_generated_today: 0 | confidence: HIGH | last_surfaced_at: "2026-04-07T08:00:00Z"`
+**Expected:** `null`
+**Result:** ✅ PASS — `last_surfaced_at` is non-null, observation unchanged since that timestamp → suppressed. No repeated check-in generated.
+
+---
+
+#### Frequency Cap (Scenario 5 validation)
+**Input:** `observation_type: UPCOMING_LOGISTICS | child: Leo | confidence: HIGH | household_has_open_high_priority_alert: false | checkins_generated_today: 2 | last_surfaced_at: null`
+**Expected:** `null`
+**Result:** ✅ PASS — `checkins_generated_today: 2` meets cap → null regardless of confidence or event type.
+
+---
+
+### FIRST-USE MEDIUM CONFIDENCE — NEW SCENARIO (session 15)
+
+#### MEDIUM Confidence → Fallback (Scenario 5 validation)
+**Input:** `household_data_available: true | today_events: [appointment with approximate time] | upcoming_pickups: [{ assigned: null, conflict: null }] | confidence: MEDIUM`
+**Expected:** `{ "first_insight": "I'm watching your household schedule. The moment something needs your attention, I'll surface it.", "is_fallback": true }`
+**Result:** ✅ PASS — MEDIUM confidence → exact fallback, `is_fallback: true`. No hedged live insight generated. Confirms stricter first-use confidence threshold.
+
+---
+
+## SUMMARY (Sessions 1–15)
+
+| Test | Session | Result |
+|------|---------|--------|
+| §3A — RED (both conflicted) | S1 | ✅ PASS |
+| §3A — YELLOW (default unavailable, coordination prompt) | S1 | ✅ PASS |
+| §3A — YELLOW (one responsible, direct assignment) | S2 | ✅ PASS |
+| §3A — CLEAR (coverage confirmed) | S1 | ✅ PASS |
+| §3A — ACKNOWLEDGED routing gate documented | S14 | ✅ GATED |
+| §3A — ACKNOWLEDGED household thread framing | S15 NEW | ✅ PASS |
+| §3C — RED (change creates gap, both conflicted) | S1 | ✅ PASS |
+| §3C — YELLOW (change disrupts default, backup possible) | S1 | ✅ PASS |
+| §3C — CLEAR (change resolves) | S1 | ✅ PASS |
+| §3C — RESOLVED household thread (via conversation history) | S15 NEW | ✅ PASS |
+| Chat §3A symmetry — ACKNOWLEDGED (personal thread) | S14 | ✅ PASS |
+| Chat §3C symmetry — RESOLVED (personal thread) | S14 | ✅ PASS |
+| Checkin — last_surfaced_at suppression | S15 NEW | ✅ PASS |
+| Checkin — frequency cap | S15 NEW | ✅ PASS |
+| First-use — MEDIUM confidence → fallback | S15 NEW | ✅ PASS |
+| §26 drift review — all 7 prompts | S1+S2+S14+S15 | ✅ PASS |
+
+**15/15 trigger/scenario tests passed (10 prior + 5 new). All 7 prompts passed §26 drift review.**
+
+---
+
 ## NOTES FOR NEXT SESSION
 
-1. **chat-prompt.md is now spec-complete through ACKNOWLEDGED/RESOLVED state handling.** Lead Eng should wire the personal chat route against this updated prompt. The route must pass `state` in `open_coordination_issues` items — without this field, the model cannot distinguish ACKNOWLEDGED from OPEN and defaults to discovery-urgency framing.
-2. **checkin-prompt.md schema fix needs route implementation.** The `last_surfaced_at` field is now in the schema; the checkin route must pass this value. Without it, the repeated check-in suppression rule cannot fire. Flag for Lead Eng.
-3. **alert-prompt.md routing gate.** Route must gate on `state = "OPEN"` before calling this prompt. Failure to gate = re-generating discovery-urgency alert text for acknowledged issues. Flag for Lead Eng.
-4. **§3B, §3D, §3E, §3F not tested.** These trigger types (Schedule Compression, Responsibility Shift, Coverage Gap, Transition Risk) remain post-TestFlight scope.
-5. **Production qualifier drift.** As these prompts approach wiring, validate rendered strings for stacked qualifiers under unusual schedule patterns. Route-level validation (counting qualifier words per sentence) recommended before writing to `coordination_issues.content` or rendering to the Today screen.
+1. **chat-prompt.md is spec-complete through ACKNOWLEDGED/RESOLVED state handling (S14).** Lead Eng should wire the personal chat route against this updated prompt. The route must pass `state` in `open_coordination_issues` items — without this field, the model cannot distinguish ACKNOWLEDGED from OPEN and defaults to discovery-urgency framing.
+2. **checkin-prompt.md route must pass `last_surfaced_at` and `checkins_generated_today` (S14 schema, S15 validated).** Both fields are now in the INPUT FORMAT schema and validated via Scenarios 4 and 5. Without these fields the suppression and frequency-cap rules cannot fire. Flag for Lead Eng.
+3. **alert-prompt.md routing gate (S14).** Route must gate on `state = "OPEN"` before calling this prompt. Failure to gate = re-generating discovery-urgency alert text for acknowledged issues. Flag for Lead Eng.
+4. **first-use-prompt.md route must derive a confidence signal (S15).** The route needs to assess household data quality before calling this prompt and pass `confidence: HIGH | MEDIUM | LOW`. MEDIUM and LOW must both result in `is_fallback: true`. Without this signal the model may default to generating a hedged live insight on first use.
+5. **§3B, §3D, §3E, §3F not tested.** These trigger types (Schedule Compression, Responsibility Shift, Coverage Gap, Transition Risk) remain post-TestFlight scope.
+6. **Production qualifier drift.** As these prompts approach wiring, validate rendered strings for stacked qualifiers under unusual schedule patterns. Route-level validation (counting qualifier words per sentence) recommended before writing to `coordination_issues.content` or rendering to the Today screen.

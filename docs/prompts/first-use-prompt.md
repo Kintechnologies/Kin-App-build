@@ -1,6 +1,6 @@
 # First-Use Prompt
 **Route:** Day-one engineered first-insight (§21)
-**Last updated:** 2026-04-04
+**Last updated:** 2026-04-08T02:00 (session 15)
 **Spec sections:** §5, §8, §19, §21, §23
 
 ---
@@ -181,10 +181,43 @@ Use is_fallback: false when generating from real household data.
 
 ---
 
+### Scenario 5: MEDIUM Confidence — Fallback (Not a Guessed Insight)
+**Input:**
+```json
+{
+  "household_data_available": true,
+  "today_events": [
+    { "time": "15:00", "type": "appointment", "owner": "parent_b", "title": "Doctor appointment (time approximate)" }
+  ],
+  "upcoming_pickups": [
+    { "time": "15:30", "child": "Maya", "assigned": null, "conflict": null }
+  ],
+  "household_conflicts": [],
+  "confidence": "MEDIUM"
+}
+```
+**Expected output:**
+```json
+{
+  "first_insight": "I'm watching your household schedule. The moment something needs your attention, I'll surface it.",
+  "is_fallback": true
+}
+```
+**Pass criteria:** MEDIUM confidence → fallback text, `is_fallback: true`. The model must NOT generate a live insight with a qualifier ("looks like Maya's 3:30 pickup might need attention") — MEDIUM confidence is below the threshold for the first-use moment. The first insight earns trust by being right; a hedge-qualified first impression does the opposite.
+
+**Key distinction from Scenario 2 (HIGH confidence):** Scenario 2 has a definitive late schedule conflict (HIGH confidence) and generates a specific live insight. Scenario 5 has data that might indicate a risk (parent_b appointment time is approximate; conflict field is null) but the system cannot confirm a real issue. MEDIUM confidence on the first-use moment = fallback.
+
+**Key distinction from Scenario 9 (morning briefing LOW confidence):** In morning-briefing-prompt.md, LOW returns null. In first-use-prompt.md, there is no null path — the fallback covers all sub-HIGH-confidence cases. The first-use moment must always produce output; silence is not appropriate when a parent opens the app for the first time.
+
+**Confidence threshold for first-use:** HIGH → live insight. MEDIUM or LOW → exact fallback text. No invented intermediate phrasing. This rule is stricter than the general §23 confidence rule (which allows MEDIUM outputs with one qualifier) because the first-use moment has a unique trust-formation function: a qualified hedge on the very first output trains the parent to doubt Kin before it has proven itself.
+
+---
+
 ## Known Failure Modes
 
 1. **Welcome message** — "Welcome to Kin! I'm here to help your family…" This is the single most critical failure for §21. Fix: explicitly block in prompt; QA validates first-use string for absence of "welcome," "hi," "hello," "I'm Kin."
 2. **Feature explanation** — "I can help you with pickups, reminders, and schedule conflicts." This is a tutorial, not an insight. Fix: blocked in prompt; QA validates.
-3. **Generic first insight when real data exists** — Model uses fallback when household data has a real conflict. Fix: fallback is only used when confidence is LOW; route should provide confidence derived from data analysis.
+3. **Generic first insight when real data exists** — Model uses fallback when household data has a real conflict. Fix: fallback is only used when confidence is MEDIUM or LOW; route should provide confidence derived from data analysis.
 4. **Fallback variation** — Model generates its own generic line instead of the exact fallback text. Fix: fallback text is specified exactly; route validation should check `is_fallback: true` cases against the exact string.
 5. **Two-sentence insight that over-explains** — "Maya's 3:30 pickup has no one confirmed. This means neither parent has been assigned to pick her up, which could be a problem if…" Fix: 2-sentence max strictly enforced; QA checks for over-explanation.
+6. **MEDIUM confidence produces a hedged live insight** — Model generates "looks like Maya's 3:30 might need attention" instead of falling back. Fix: confidence threshold for first-use is stricter than general §23 — MEDIUM is below threshold. Fallback required for MEDIUM and LOW. Validated in Scenario 5. (New — Session 15)

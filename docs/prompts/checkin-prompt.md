@@ -1,6 +1,6 @@
 # Check-In Prompt
 **Route:** Check-in card copy generation
-**Last updated:** 2026-04-08T00:00 (session 14)
+**Last updated:** 2026-04-08T02:00 (session 15)
 **Spec sections:** §5, §7, §8, §12, §23
 
 ---
@@ -106,7 +106,8 @@ Return null if:
   },
   "household_has_open_high_priority_alert": false,
   "checkins_generated_today": 0,
-  "confidence": "HIGH"
+  "confidence": "HIGH",
+  "last_surfaced_at": null
 }
 ```
 **Expected output:**
@@ -134,7 +135,8 @@ Return null if:
   },
   "household_has_open_high_priority_alert": false,
   "checkins_generated_today": 1,
-  "confidence": "MEDIUM"
+  "confidence": "MEDIUM",
+  "last_surfaced_at": null
 }
 ```
 **Expected output:**
@@ -167,10 +169,73 @@ null
 
 ---
 
+### Scenario 4: Repeat Suppression — Same Event, No Change Since Last Surface
+**Input:**
+```json
+{
+  "observation_type": "CONFIRMATION_PENDING",
+  "upcoming_event": {
+    "time": "16:00",
+    "type": "soccer_practice",
+    "child": "Maya",
+    "assigned_parent": "parent_b",
+    "confirmed": false
+  },
+  "household_has_open_high_priority_alert": false,
+  "checkins_generated_today": 0,
+  "confidence": "HIGH",
+  "last_surfaced_at": "2026-04-07T08:00:00Z"
+}
+```
+**Expected output:**
+```json
+null
+```
+**Pass criteria:** Silence. `last_surfaced_at` is non-null and the observation (Maya's 4pm soccer unconfirmed) has not changed since that timestamp — same event, same assigned parent, still unconfirmed. Re-surfacing the same check-in on consecutive days when nothing has changed is the exact failure mode this field was added to prevent.
+
+**Key distinction from Scenario 1:** Scenario 1 has `last_surfaced_at: null` — never surfaced before — so the check-in fires. Scenario 4 has a non-null timestamp for the same event with no change → suppressed.
+
+**Key distinction from Scenario 3 (alert suppression):** Scenario 3 is suppressed because of an open high-priority alert. Scenario 4 is suppressed because the same event was already checked in yesterday and its status hasn't changed. Both return null; the reason differs.
+
+**Route note (Failure Mode 4):** The route must pass `last_surfaced_at` for the specific event being evaluated. If this field is omitted, the model cannot apply suppression and will re-surface the same observation on consecutive days — producing check-in fatigue. The field is now in the INPUT FORMAT schema; the route must implement it.
+
+---
+
+### Scenario 5: Frequency Cap — Maximum Check-ins Reached
+**Input:**
+```json
+{
+  "observation_type": "UPCOMING_LOGISTICS",
+  "upcoming_event": {
+    "time": "19:00",
+    "type": "school_night_cutoff",
+    "child": "Leo",
+    "assigned_parent": null,
+    "confirmed": false
+  },
+  "household_has_open_high_priority_alert": false,
+  "checkins_generated_today": 2,
+  "confidence": "HIGH",
+  "last_surfaced_at": null
+}
+```
+**Expected output:**
+```json
+null
+```
+**Pass criteria:** Silence. `checkins_generated_today: 2` meets the maximum — no further check-ins may be generated today regardless of confidence or event type. This is not a consequence of the event itself being low-value; it is a frequency cap enforcement.
+
+**Key distinction from Scenario 3 (alert suppression) and Scenario 4 (repeat suppression):** Both Scenario 3 and 4 suppress based on household state. Scenario 5 suppresses based on a count limit — the check-in system is exhausted for the day. The model must not find a workaround (e.g., generating a "final" check-in despite the cap).
+
+**Route note:** The route must check `checkins_generated_today` before calling this prompt. The prompt also enforces the cap as a safety net. Both layers should enforce it.
+
+---
+
 ## Known Failure Modes
 
 1. **Alert-tone language in a check-in** — "Leo's pickup is at risk" or "Conflict detected." Fix: block urgency vocabulary in prompt; QA validates rendered strings.
 2. **Check-in rendered with open High-priority alert** — Suppression rule missed by routing logic. Fix: check `household_has_open_high_priority_alert` before calling this prompt; also enforced in prompt itself.
 3. **Third check-in generated** — Frequency cap not respected. Fix: route must check `checkins_generated_today` before calling; prompt also enforces.
-4. **Repeated check-in** — Same observation surfaced two days in a row with no change. Fix: `last_surfaced_at` now included in INPUT FORMAT; model returns null if the same event was surfaced and nothing has changed. Route must pass this field; without it, suppression cannot be applied. (Session 14 — field added to schema.)
+4. **Repeated check-in** — Same observation surfaced two days in a row with no change. Fix: `last_surfaced_at` now included in INPUT FORMAT; model returns null if the same event was surfaced and nothing has changed. Route must pass this field; without it, suppression cannot be applied. (Session 14 — field added to schema. Session 15 — validated in Scenario 4.)
 5. **Prompt is a demand** — "You need to confirm this now." Fix: prompt field must be invitation language only; block imperative constructions.
+6. **Frequency cap bypassed** — Route omits `checkins_generated_today` or passes a stale count; model generates a third check-in. Fix: route must track and pass the accurate count before calling this prompt. Validated in Scenario 5. (New — Session 15)
