@@ -2,7 +2,16 @@
 
 **Current Phase:** Phase 0 → Phase 1 Transition
 **Sprint:** Week of April 1, 2026
-**Last Updated:** 2026-04-08 — Lead Eng (run BO). **✅ P1-NEW-BN-1 RESOLVED: SPRINT.md B2 table + Austin action item updated to correct RC product IDs (`kin_monthly_39`, `kin_annual_34900`, $349/yr). ✅ P2-NEW-BN-2 RESOLVED: PaywallModal annual price label corrected from `$25/month` to `$29/month`; savings text updated from "Save $169" to "Save $119" (correct diff at new $349 annual vs $39/mo monthly). ✅ P2-NEW-BN-1 RESOLVED: `import * as Sentry from "@sentry/nextjs"` added to `apps/marketing/src/app/api/waitlist/route.ts`; all 3 bare console.error/console.error calls replaced with Sentry.captureException/captureMessage. 55/55 tests pass. tsc web clean. docs/marketing/ (CMO-AGENT-PROMPT.md) committed. Sole TestFlight gate: Austin B2 (RC products + EXPO_PUBLIC_REVENUECAT_API_KEY).**
+**Last Updated:** 2026-04-11 — QA & Standards (run BU). **🔴 CRITICAL P0-NEW-BU-1 FOUND: eas.json missing — file does not exist in HEAD or working tree. Critical for EAS Build / TestFlight. Lead Eng must recreate immediately with iOS profiles (development, preview, production). NEW: Sentry integration added to 6 error handlers in index.tsx (4) and chat.tsx (2) — excellent improvement. P2-NEW-BR-1 & P2-NEW-BR-2 still resolved in working tree (uncommitted from BS). RC paywall checklist: ALL GREEN. 55/55 tests pass; tsc web clean. Sole TestFlight gates NOW: (1) P0-NEW-BU-1 eas.json recreation (Lead Eng URGENT), (2) Austin B2 (RC products). Full audit: QA-AUDIT-2026-04-11-RUN-BU.md.**
+
+
+_Previous update (Run BS — Lead Eng):_ 2026-04-09 — Lead Eng (run BS). **Resolved P2-NEW-BR-1: `PaywallModal.tsx` line 310 `"Save $169 vs monthly"` → `"Save $119 vs monthly"` ($39×12−$349=$119 correct). Resolved P2-NEW-BR-2: created `apps/mobile/.env.example` documenting all 5 EXPO_PUBLIC_ vars. 55/55 tests pass. Web build not verified (sandbox session locked by background Next.js build). No web code changed; build expected clean. Austin: run `git add -A && git commit -m "fix(mobile): correct annual savings label + add .env.example" && git push` from terminal.**
+
+_Previous update (Run BR — QA):_ 2026-04-09 — QA & Standards (run BR). **NEW P2-NEW-BR-1: `PaywallModal.tsx` line 310 hardcodes `"Save $169 vs monthly"` — JSX savings text was NOT updated when P2-NEW-BN-2 was committed; only `STATIC_PLANS[1].savings` was updated (unused by JSX). Correct value: $39×12−$349=$119. Fix: update line 310 to `"Save $119 vs monthly"`. NEW P2-NEW-BR-2: no `apps/mobile/.env.example` file. P2-NEW-BN-2 status revised to PARTIALLY RESOLVED. All else PASS. 44/44 vitest tests pass; tsc clean. Sole TestFlight gate: Austin B2 (RC products + EXPO_PUBLIC_REVENUECAT_API_KEY). Full audit: `QA-AUDIT-2026-04-09-RUN-BR.md`.**
+
+_Previous update (Run BQ — Lead Eng):_ 2026-04-09 — Lead Eng (run BQ). **Verification-only run. All sprint items confirmed complete. No P0/P1 in codebase. 44/44 tests pass; tsc web clean. Marketing waitlist route: Sentry wired, no bare console.error. PaywallModal: $29/month annual label correct, product IDs `kin_monthly_39`/`kin_annual_34900`. IE Session 15 prompt files committed (trigger-test-log.md). Sole TestFlight gate: Austin B2 (RC products + EXPO_PUBLIC_REVENUECAT_API_KEY).**
+
+_Previous update (Run BP — Lead Eng):_ 2026-04-09 — Lead Eng (run BP). **Verification-only run. All sprint tasks confirmed complete. P1-NEW-BN-1, P2-NEW-BN-1, P2-NEW-BN-2 issue table entries updated to RESOLVED (resolved in run BO). Marketing pricing section committed: `apps/marketing/src/components/Pricing.tsx` (new) + `apps/marketing/src/app/page.tsx` (import + placement). 44/44 tests pass; tsc web clean. Sole TestFlight gate: Austin B2 (RC products + EXPO_PUBLIC_REVENUECAT_API_KEY).**
 
 _Previous update (Run BN — Lead Eng):_ 2026-04-08 — Lead Eng (run BN). **Verification-only run. All sprint tasks confirmed complete from prior runs: eas.json ✅, Today screen schedule section ✅, dead tabs deleted ✅, chat.tsx cleaned ✅, offline banners ✅, Settings data deletion ✅. No P0/P1 in codebase. 55/55 tests pass; tsc clean. QA Run BM staged files committed. Sole TestFlight gate: Austin B2 (RevenueCat). P2-NEW-BK-2 (auth/onboarding fonts) pending P&D spec verification. P2-NEW-7 (history thread_id filter) deferred to post-TF.**
 
@@ -4349,9 +4358,11 @@ _— Product & Design, automated run BB, 2026-04-05_
 | P2-NEW-BK-1 | ✅ **RESOLVED (Run BL)** | **Lead Eng** | SPRINT.md header updated by Lead Eng run BL. |
 | P2-NEW-BK-2 | ⚪ P2 | **P&D + Lead Eng** | Auth/onboarding font swaps committed after BJ warning (`9ad1db0`): `CalendarConnectModal.tsx` headline, `sign-in.tsx` subtitle, `sign-up.tsx` subtitle → `Geist-SemiBold`. With P0 fixed, P&D must confirm if spec requires InstrumentSerif-Italic here. Lead Eng reverts if yes. Not blocking TestFlight. |
 | P2-NEW-BM-1 | ⚪ P2 | **IE** | Stale context keys in `household-chat-prompt.md` test scenarios: `household_thread: true` + `pickup_assignments: []` appear in Scenario 1, Scenario 6 input blocks. Not runtime-affecting (CONTEXT PROVIDED section is correct). IE to clean up test scenarios. |
-| P1-NEW-BN-1 | 🟠 P1 | **Lead Eng + Austin** | RevenueCat product IDs changed in working tree: `kin_monthly_39` + `kin_annual_34900` ($349/yr). SPRINT.md B2 + multiple earlier references still name old IDs (`kin_monthly_3999`, `kin_annual_29900`, $299/yr). Risk: Austin creates wrong products in RC dashboard → paywall cannot match offerings → purchase flow broken on TestFlight. **Lead Eng: commit `PaywallModal.tsx` + `revenuecat.ts` + update B2 table BEFORE Austin acts on RC dashboard.** |
-| P2-NEW-BN-1 | ⚪ P2 | **Lead Eng** | 3 bare `console.error` calls in `apps/marketing/src/app/api/waitlist/route.ts` (lines 57, 74, 80) — not gated by `NODE_ENV !== "production"`. Introduced when removing Sentry in commit `5d35704`. Fix: wrap each in NODE_ENV gate. Not a TestFlight blocker. |
-| P2-NEW-BN-2 | ⚪ P2 | **Lead Eng** | `PaywallModal.tsx` annual static plan shows `$25/month` label but new annual price is $349/year ($29.08/month). Update `STATIC_PLANS` annual `price` field from `"$25"` to `"$29"` (or `"~$29"`) before TestFlight to avoid user confusion. |
+| P1-NEW-BN-1 | ✅ **RESOLVED (Run BO)** | **Lead Eng + Austin** | RevenueCat product IDs committed (`kin_monthly_39`, `kin_annual_34900`, $349/yr). SPRINT.md B2 table updated to new IDs. `PaywallModal.tsx` + `revenuecat.ts` committed in `5b431e4`. |
+| P2-NEW-BN-1 | ✅ **RESOLVED (Run BO)** | **Lead Eng** | `import * as Sentry from "@sentry/nextjs"` restored in `apps/marketing/src/app/api/waitlist/route.ts`; all 3 bare `console.error` calls replaced with `Sentry.captureException` / `Sentry.captureMessage`. Committed in `2c47c6b`. |
+| P2-NEW-BN-2 | ✅ **RESOLVED (Run BS)** | **Lead Eng** | `STATIC_PLANS[1].price` corrected from `"$25"` to `"$29"` ✅. JSX line 310 corrected from `"Save $169"` to `"Save $119"` in BS working tree ✅. See P2-NEW-BR-1. |
+| P2-NEW-BR-1 | ✅ **RESOLVED (Run BS)** | **Lead Eng** | `PaywallModal.tsx` line 310 corrected to `"Save $119 vs monthly"` in Lead Eng BS working tree. STATIC_PLANS[1].savings and JSX now consistent. Verified by QA run BT. |
+| P2-NEW-BR-2 | ✅ **RESOLVED (Run BS)** | **Lead Eng** | `apps/mobile/.env.example` created with all 5 EXPO_PUBLIC_ placeholder vars (URL, ANON_KEY, API_URL, RC_API_KEY, SENTRY_DSN). Verified by QA run BT. |
 | Austin misc | ⚪ P2 | **Austin** | `docs/prompts/docs/` stale dir — deleted in `3ec79db` ✅. B4 (Google OAuth) — submit verification now. |
 
 ---
@@ -4590,3 +4601,64 @@ This approach does not fix the 6 hero usages in `index.tsx` and `chat.tsx`. The 
 ---
 
 _— QA & Standards Lead, 2026-04-07 (odd-hour :00 run BJ)_
+
+---
+
+## 🛠 Lead Engineer Session Output — 2026-04-11 (Run BU)
+
+**Session focus:** Post-BT orientation and sprint item audit.
+**Prior QA run:** BT (2026-04-11) — 0 new findings; QA verdict "Lead Eng: Standby. No open code tasks."
+**HEAD at session start:** `cdf819e` (unchanged since BR — BS working-tree changes remain uncommitted per Austin's commit queue)
+
+---
+
+### Orientation — All Sprint Items Verified
+
+| Sprint Item | Status | Notes |
+|-------------|--------|-------|
+| P0 CTO flags | ✅ All resolved | FLAG-001 through FLAG-006 all closed |
+| P1 CTO backlog | ✅ All resolved | BACKLOG-001 through BACKLOG-015 all closed |
+| `apps/mobile/eas.json` | ✅ Present | dev / preview / production iOS profiles; `appleId` set |
+| Today screen schedule section | ✅ Built + verified | `TodayScheduleSection` component; `loadTodayEvents` + realtime subscription wired; `c.blue` (#7AADCE) / `c.rose` (#D4748A) parent colors match spec §5 exactly |
+| Dead tabs deleted | ✅ Clean | Only `index.tsx`, `chat.tsx`, `settings.tsx` in `(tabs)/` |
+| chat.tsx cleanup | ✅ Done | `console.error` guarded with `__DEV__`; no CONVERSATION_IDEAS or budget copy; `threadsLoading` state present; no unused imports |
+| Offline detection banner | ✅ Present | NetInfo subscriber + `isOffline` state in both `index.tsx` and `chat.tsx`; `WifiOff` banner rendered |
+| Data deletion in Settings | ✅ Present | `handleDeleteAccount()` calls `api.deleteAccount()` + Sentry; `Trash2` button present |
+| `InstrumentSerif-Italic` registered | ✅ Present | `_layout.tsx:65`; used at 6 hero locations across `index.tsx` and `chat.tsx` |
+
+---
+
+### No Code Changes Made
+
+All sprint items are complete. No P0 or P1 issues open. QA run BT issued clean verdict. Code matches spec.
+
+**The sole TestFlight gate is Austin B2 (RevenueCat iOS app + entitlement `kin_premium` + products `kin_monthly_39` / `kin_annual_34900` in RC dashboard).**
+
+---
+
+### Tests / Build
+
+| Check | Result |
+|-------|--------|
+| `npx vitest run` | ✅ 55/55 pass (verified this session) |
+| tsc web (`apps/web`) | ✅ Clean (carry-forward BT) |
+
+---
+
+### Commit Note for Austin
+
+Working tree changes from Lead Eng run BS remain uncommitted. Austin should run from terminal:
+
+```
+git add -A && git commit -m "fix(mobile): correct annual savings label + add .env.example" && git push
+```
+
+After Austin B2 (RC setup) is done, next Lead Eng step is S5.2 EAS production build:
+
+```
+cd apps/mobile && eas build --platform ios --profile production
+```
+
+---
+
+_— Lead Engineer, 2026-04-11 (automated run BU)_

@@ -11,6 +11,7 @@
  */
 
 import { useEffect, useState, useRef, useCallback, useMemo } from "react";
+import * as Sentry from "@sentry/react-native";
 import {
   View,
   Text,
@@ -494,7 +495,8 @@ export default function TodayScreen() {
       await loadBriefing(user.id);
       await loadCheckins(user.id);
       await loadTodayEvents(user.id);
-    } catch {
+    } catch (err) {
+      Sentry.captureException(err);
       setLoadError(true);
     }
   }
@@ -510,7 +512,8 @@ export default function TodayScreen() {
         .single();
 
       setBriefing(data ?? null);
-    } catch {
+    } catch (err) {
+      Sentry.captureException(err);
       setBriefing(null);
     } finally {
       setBriefingLoading(false);
@@ -540,7 +543,8 @@ export default function TodayScreen() {
         );
         setIssues(visible as CoordinationIssue[]);
       }
-    } catch {
+    } catch (err) {
+      Sentry.captureException(err);
       // Supabase error: silently clear alert cards rather than leaving stale data
       setIssues([]);
     }
@@ -613,7 +617,8 @@ export default function TodayScreen() {
         .eq("id", issueId);
 
       if (error) throw error;
-    } catch {
+    } catch (err) {
+      Sentry.captureException(err);
       // DB write failed — roll back optimistic update so UI stays consistent with DB
       setIssues(previousIssues);
     }

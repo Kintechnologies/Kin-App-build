@@ -13,6 +13,7 @@
  */
 
 import { useState, useRef, useEffect, useCallback, useMemo } from "react";
+import * as Sentry from "@sentry/react-native";
 import {
   View,
   Text,
@@ -369,7 +370,8 @@ export default function ConversationsScreen() {
       const newThread = created as ChatThread;
       setGeneralThreads((prev) => [newThread, ...prev]);
       await openThread(newThread);
-    } catch {
+    } catch (err) {
+      Sentry.captureException(err);
       if (__DEV__) console.error("Error creating new thread");
     }
   }
@@ -444,7 +446,8 @@ export default function ConversationsScreen() {
         .from("chat_threads")
         .update({ updated_at: new Date().toISOString() })
         .eq("id", thread.id);
-    } catch {
+    } catch (err) {
+      Sentry.captureException(err);
       setMessages((prev) => [
         ...prev,
         {

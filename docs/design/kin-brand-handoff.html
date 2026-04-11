@@ -1,0 +1,570 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Kin — Engineering Brand Handoff</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #0C0F0A; --surface: #141810; --surface2: #1c211a;
+      --border: rgba(255,255,255,0.07); --border2: rgba(255,255,255,0.13);
+      --text: #F0EDE6; --text2: rgba(240,237,230,0.55); --text3: rgba(240,237,230,0.28);
+      --green: #7CB87A; --amber: #D4A843; --purple: #A07EC8;
+      --blue: #7AADCE; --rose: #D4748A; --orange: #E07B5A;
+    }
+    body { font-family: 'Geist', sans-serif; background: var(--bg); color: var(--text); padding: 0; margin: 0; }
+    .page { max-width: 960px; margin: 0 auto; padding: 64px 48px 100px; }
+
+    /* Header */
+    .doc-header { border-bottom: 1px solid var(--border); padding-bottom: 40px; margin-bottom: 64px; }
+    .doc-logo { display: flex; align-items: center; gap: 12px; margin-bottom: 32px; }
+    .doc-logo-text { font-weight: 500; font-size: 24px; letter-spacing: 0.01em; }
+    .doc-title { font-size: 36px; font-weight: 600; letter-spacing: -1px; margin-bottom: 10px; }
+    .doc-meta { display: flex; gap: 24px; }
+    .doc-meta-item { font-size: 12px; font-family: 'Geist Mono', monospace; color: var(--text3); letter-spacing: 0.08em; display: flex; gap: 8px; }
+    .doc-meta-item span { color: var(--text2); }
+
+    /* Section */
+    .section { margin-bottom: 72px; }
+    .section-header { display: flex; align-items: center; gap: 12px; margin-bottom: 32px; padding-bottom: 16px; border-bottom: 1px solid var(--border); }
+    .section-num { font-family: 'Geist Mono', monospace; font-size: 11px; letter-spacing: 0.14em; color: var(--green); text-transform: uppercase; }
+    .section-title { font-size: 20px; font-weight: 600; letter-spacing: -0.3px; }
+
+    /* Color palette */
+    .color-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+    .color-tile { border-radius: 12px; overflow: hidden; border: 1px solid var(--border); }
+    .color-swatch { height: 64px; }
+    .color-info { background: var(--surface); padding: 12px 14px; }
+    .color-name { font-size: 13px; font-weight: 500; margin-bottom: 4px; }
+    .color-hex { font-family: 'Geist Mono', monospace; font-size: 11px; color: var(--text2); margin-bottom: 2px; }
+    .color-token { font-family: 'Geist Mono', monospace; font-size: 10px; color: var(--green); letter-spacing: 0.06em; }
+
+    /* Code blocks */
+    .code-block { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; margin-bottom: 16px; }
+    .code-header { display: flex; align-items: center; justify-content: space-between; padding: 12px 20px; border-bottom: 1px solid var(--border); }
+    .code-filename { font-family: 'Geist Mono', monospace; font-size: 12px; color: var(--text2); }
+    .code-lang { font-family: 'Geist Mono', monospace; font-size: 10px; color: var(--text3); letter-spacing: 0.1em; text-transform: uppercase; }
+    pre { padding: 20px; overflow-x: auto; font-family: 'Geist Mono', monospace; font-size: 12.5px; line-height: 1.7; color: var(--text); }
+    .kw { color: #A07EC8; } /* keywords */
+    .str { color: #7CB87A; } /* strings */
+    .cm { color: rgba(240,237,230,0.28); } /* comments */
+    .num { color: #D4A843; } /* numbers */
+    .fn { color: #7AADCE; } /* function names */
+    .ty { color: #D4748A; } /* types */
+
+    /* Typography specimen */
+    .type-rows { display: flex; flex-direction: column; gap: 0; border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+    .type-row { display: flex; align-items: baseline; gap: 0; border-bottom: 1px solid var(--border); }
+    .type-row:last-child { border-bottom: none; }
+    .type-meta { width: 200px; flex-shrink: 0; padding: 16px 20px; background: var(--surface); }
+    .type-meta-label { font-family: 'Geist Mono', monospace; font-size: 10px; color: var(--text3); letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 4px; }
+    .type-meta-val { font-family: 'Geist Mono', monospace; font-size: 11px; color: var(--green); }
+    .type-sample { padding: 16px 20px; flex: 1; }
+
+    /* Logo showcase */
+    .logo-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 24px; }
+    .logo-card { border: 1px solid var(--border); border-radius: 12px; padding: 40px; display: flex; align-items: center; justify-content: center; }
+    .logo-card.dark { background: var(--bg); }
+    .logo-card.light { background: #F5F3EE; }
+    .logo-lockup { display: flex; align-items: center; gap: 12px; }
+    .logo-lockup-text { font-weight: 500; font-size: 32px; letter-spacing: 0.01em; color: #F0EDE6; }
+    .logo-lockup-text.on-light { color: #0C0F0A; }
+
+    /* Spec table */
+    .spec-table { width: 100%; border-collapse: collapse; border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+    .spec-table th { background: var(--surface); padding: 12px 16px; text-align: left; font-size: 11px; font-family: 'Geist Mono', monospace; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text3); border-bottom: 1px solid var(--border); }
+    .spec-table td { padding: 12px 16px; font-size: 13px; border-bottom: 1px solid var(--border); vertical-align: top; }
+    .spec-table tr:last-child td { border-bottom: none; }
+    .spec-table td:first-child { font-family: 'Geist Mono', monospace; font-size: 12px; color: var(--green); width: 200px; }
+    .spec-table td:last-child { color: var(--text2); }
+
+    /* OAuth section */
+    .oauth-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .oauth-field { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 16px 18px; }
+    .oauth-label { font-family: 'Geist Mono', monospace; font-size: 10px; color: var(--text3); letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 6px; }
+    .oauth-value { font-size: 13px; color: var(--text); }
+    .oauth-value.mono { font-family: 'Geist Mono', monospace; font-size: 12px; color: var(--green); }
+    .oauth-icon-preview { display: flex; align-items: center; gap: 16px; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 20px; margin-bottom: 16px; }
+    .oauth-icon-box { background: #0C0F0A; border-radius: 18px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+
+    /* Alert box */
+    .alert { border-radius: 10px; padding: 14px 18px; margin-bottom: 16px; font-size: 13px; line-height: 1.6; }
+    .alert.green { background: rgba(124,184,122,0.08); border: 1px solid rgba(124,184,122,0.2); color: var(--text); }
+    .alert.amber { background: rgba(212,168,67,0.08); border: 1px solid rgba(212,168,67,0.22); color: var(--text); }
+    .alert strong { color: var(--green); font-weight: 500; }
+    .alert.amber strong { color: var(--amber); }
+
+    /* Footer */
+    .doc-footer { border-top: 1px solid var(--border); padding-top: 32px; display: flex; justify-content: space-between; align-items: center; }
+    .doc-footer p { font-size: 11px; font-family: 'Geist Mono', monospace; color: var(--text3); letter-spacing: 0.08em; }
+  </style>
+</head>
+<body>
+<div class="page">
+
+  <!-- HEADER -->
+  <div class="doc-header">
+    <div class="doc-logo">
+      <svg width="28" height="28" viewBox="0 0 64 64" fill="none">
+        <circle cx="32" cy="20" r="8" fill="#7CB87A"/>
+        <circle cx="21.75" cy="37.9" r="9" fill="#7CB87A"/>
+        <circle cx="42.25" cy="37.9" r="9" fill="#7CB87A"/>
+      </svg>
+      <span class="doc-logo-text">kin</span>
+    </div>
+    <h1 class="doc-title">Engineering Brand Handoff</h1>
+    <div class="doc-meta">
+      <div class="doc-meta-item">Version <span>1.0</span></div>
+      <div class="doc-meta-item">Date <span>April 2026</span></div>
+      <div class="doc-meta-item">Status <span style="color:var(--green)">Current</span></div>
+      <div class="doc-meta-item">Platform <span>iOS · React Native / Expo</span></div>
+    </div>
+  </div>
+
+  <!-- 1. LOGO -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-num">01</span>
+      <h2 class="section-title">Logo System</h2>
+    </div>
+
+    <div class="logo-grid">
+      <div class="logo-card dark">
+        <div class="logo-lockup">
+          <svg width="36" height="36" viewBox="0 0 64 64" fill="none">
+            <circle cx="32" cy="20" r="8" fill="#7CB87A"/>
+            <circle cx="21.75" cy="37.9" r="9" fill="#7CB87A"/>
+            <circle cx="42.25" cy="37.9" r="9" fill="#7CB87A"/>
+          </svg>
+          <span class="logo-lockup-text">kin</span>
+        </div>
+      </div>
+      <div class="logo-card light">
+        <div class="logo-lockup">
+          <svg width="36" height="36" viewBox="0 0 64 64" fill="none">
+            <circle cx="32" cy="20" r="8" fill="#5A9A58"/>
+            <circle cx="21.75" cy="37.9" r="9" fill="#5A9A58"/>
+            <circle cx="42.25" cy="37.9" r="9" fill="#5A9A58"/>
+          </svg>
+          <span class="logo-lockup-text on-light">kin</span>
+        </div>
+      </div>
+    </div>
+
+    <p style="font-size:13px;color:var(--text2);line-height:1.7;margin-bottom:24px;">The mark is three circles in an equilateral triangle arrangement — two parents (bottom, r=9), one child (top, r=8). Always render with react-native-svg using the <code style="font-family:'Geist Mono',monospace;color:var(--green);font-size:12px;">KinMark</code> component. Never use an image file for the logo.</p>
+
+    <table class="spec-table">
+      <thead><tr><th>Context</th><th>Component</th><th>Mark size</th><th>Wordmark size</th></tr></thead>
+      <tbody>
+        <tr><td>Tab bar icon</td><td>KinMark only</td><td>24×24</td><td>—</td></tr>
+        <tr><td>Navigation header</td><td>KinLogo (mark + text)</td><td>22×22</td><td>22px / weight 500</td></tr>
+        <tr><td>Onboarding splash</td><td>KinLogo (stacked)</td><td>64×64</td><td>48px / weight 500</td></tr>
+        <tr><td>App icon (iOS)</td><td>KinMark on dark bg</td><td>Fill ~60% of canvas</td><td>—</td></tr>
+        <tr><td>Settings / About</td><td>KinLogo (mark + text)</td><td>28×28</td><td>24px / weight 500</td></tr>
+      </tbody>
+    </table>
+
+    <div style="margin-top:24px;">
+      <div class="code-block">
+        <div class="code-header">
+          <span class="code-filename">components/KinMark.tsx</span>
+          <span class="code-lang">TSX</span>
+        </div>
+        <pre><span class="kw">import</span> React <span class="kw">from</span> <span class="str">'react'</span>;
+<span class="kw">import</span> Svg, { Circle } <span class="kw">from</span> <span class="str">'react-native-svg'</span>;
+
+<span class="kw">interface</span> <span class="ty">KinMarkProps</span> {
+  size?: <span class="ty">number</span>;
+  color?: <span class="ty">string</span>;
+}
+
+<span class="cm">/** The three-circle family constellation mark. Use for icons, app icon, tab bar. */</span>
+<span class="kw">export const</span> <span class="fn">KinMark</span> = ({ size = <span class="num">32</span>, color = <span class="str">'#7CB87A'</span> }: <span class="ty">KinMarkProps</span>) => (
+  &lt;Svg width={size} height={size} viewBox=<span class="str">"0 0 64 64"</span>&gt;
+    <span class="cm">{/* Top circle — child */}</span>
+    &lt;Circle cx=<span class="str">"32"</span> cy=<span class="str">"20"</span> r=<span class="str">"8"</span> fill={color} /&gt;
+    <span class="cm">{/* Bottom-left circle — parent */}</span>
+    &lt;Circle cx=<span class="str">"21.75"</span> cy=<span class="str">"37.9"</span> r=<span class="str">"9"</span> fill={color} /&gt;
+    <span class="cm">{/* Bottom-right circle — parent */}</span>
+    &lt;Circle cx=<span class="str">"42.25"</span> cy=<span class="str">"37.9"</span> r=<span class="str">"9"</span> fill={color} /&gt;
+  &lt;/Svg&gt;
+);
+
+<span class="kw">export default</span> KinMark;</pre>
+      </div>
+
+      <div class="code-block">
+        <div class="code-header">
+          <span class="code-filename">components/KinLogo.tsx</span>
+          <span class="code-lang">TSX</span>
+        </div>
+        <pre><span class="kw">import</span> React <span class="kw">from</span> <span class="str">'react'</span>;
+<span class="kw">import</span> { View, Text, StyleSheet } <span class="kw">from</span> <span class="str">'react-native'</span>;
+<span class="kw">import</span> { KinMark } <span class="kw">from</span> <span class="str">'./KinMark'</span>;
+<span class="kw">import</span> { Colors, Typography } <span class="kw">from</span> <span class="str">'../constants/brand'</span>;
+
+<span class="kw">interface</span> <span class="ty">KinLogoProps</span> {
+  markSize?: <span class="ty">number</span>;
+  fontSize?: <span class="ty">number</span>;
+  color?: <span class="ty">string</span>;
+  gap?: <span class="ty">number</span>;
+}
+
+<span class="cm">/** Full horizontal lockup: mark + wordmark. Use in nav headers and splash. */</span>
+<span class="kw">export const</span> <span class="fn">KinLogo</span> = ({
+  markSize = <span class="num">24</span>,
+  fontSize = <span class="num">22</span>,
+  color = Colors.text,
+  gap = <span class="num">10</span>,
+}: <span class="ty">KinLogoProps</span>) => (
+  &lt;View style={[styles.row, { gap }]}&gt;
+    &lt;KinMark size={markSize} /&gt;
+    &lt;Text style={[styles.wordmark, { fontSize, color }]}&gt;kin&lt;/Text&gt;
+  &lt;/View&gt;
+);
+
+<span class="kw">const</span> styles = StyleSheet.<span class="fn">create</span>({
+  row: { flexDirection: <span class="str">'row'</span>, alignItems: <span class="str">'center'</span> },
+  wordmark: {
+    fontFamily: Typography.families.sans,
+    fontWeight: Typography.weights.medium,
+    letterSpacing: <span class="num">0.2</span>,
+    lineHeight: <span class="num">1</span>,
+  },
+});
+
+<span class="kw">export default</span> KinLogo;</pre>
+      </div>
+    </div>
+  </div>
+
+  <!-- 2. COLORS -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-num">02</span>
+      <h2 class="section-title">Color Tokens</h2>
+    </div>
+
+    <div class="color-grid" style="margin-bottom:24px;">
+      <div class="color-tile">
+        <div class="color-swatch" style="background:#7CB87A;"></div>
+        <div class="color-info"><div class="color-name">Primary Green</div><div class="color-hex">#7CB87A</div><div class="color-token">Colors.green</div></div>
+      </div>
+      <div class="color-tile">
+        <div class="color-swatch" style="background:#0C0F0A; border-bottom:1px solid rgba(255,255,255,0.07);"></div>
+        <div class="color-info"><div class="color-name">Background</div><div class="color-hex">#0C0F0A</div><div class="color-token">Colors.bg</div></div>
+      </div>
+      <div class="color-tile">
+        <div class="color-swatch" style="background:#141810; border-bottom:1px solid rgba(255,255,255,0.07);"></div>
+        <div class="color-info"><div class="color-name">Surface</div><div class="color-hex">#141810</div><div class="color-token">Colors.surface</div></div>
+      </div>
+      <div class="color-tile">
+        <div class="color-swatch" style="background:#F0EDE6; border-bottom:1px solid rgba(0,0,0,0.08);"></div>
+        <div class="color-info"><div class="color-name">Text Primary</div><div class="color-hex">#F0EDE6</div><div class="color-token">Colors.text</div></div>
+      </div>
+      <div class="color-tile">
+        <div class="color-swatch" style="background:#D4A843;"></div>
+        <div class="color-info"><div class="color-name">Amber</div><div class="color-hex">#D4A843</div><div class="color-token">Colors.amber</div></div>
+      </div>
+      <div class="color-tile">
+        <div class="color-swatch" style="background:#A07EC8;"></div>
+        <div class="color-info"><div class="color-name">Purple</div><div class="color-hex">#A07EC8</div><div class="color-token">Colors.purple</div></div>
+      </div>
+      <div class="color-tile">
+        <div class="color-swatch" style="background:#7AADCE;"></div>
+        <div class="color-info"><div class="color-name">Blue</div><div class="color-hex">#7AADCE</div><div class="color-token">Colors.blue</div></div>
+      </div>
+      <div class="color-tile">
+        <div class="color-swatch" style="background:#D4748A;"></div>
+        <div class="color-info"><div class="color-name">Rose / Alert</div><div class="color-hex">#D4748A</div><div class="color-token">Colors.rose</div></div>
+      </div>
+    </div>
+
+    <div class="code-block">
+      <div class="code-header">
+        <span class="code-filename">constants/brand.ts</span>
+        <span class="code-lang">TypeScript</span>
+      </div>
+      <pre><span class="cm">// ─────────────────────────────────────────
+// Kin Brand Tokens  ·  v1.0  ·  April 2026
+// ─────────────────────────────────────────</span>
+
+<span class="kw">export const</span> Colors = {
+  <span class="cm">// Backgrounds</span>
+  bg:       <span class="str">'#0C0F0A'</span>,   <span class="cm">// App background</span>
+  surface:  <span class="str">'#141810'</span>,   <span class="cm">// Cards, sheets, input fills</span>
+  surface2: <span class="str">'#1c211a'</span>,   <span class="cm">// Elevated surface (modals)</span>
+
+  <span class="cm">// Borders</span>
+  border:   <span class="str">'rgba(255,255,255,0.07)'</span>,
+  border2:  <span class="str">'rgba(255,255,255,0.13)'</span>,  <span class="cm">// Hover / focus</span>
+
+  <span class="cm">// Text</span>
+  text:     <span class="str">'#F0EDE6'</span>,              <span class="cm">// Primary text</span>
+  text2:    <span class="str">'rgba(240,237,230,0.55)'</span>, <span class="cm">// Secondary text</span>
+  text3:    <span class="str">'rgba(240,237,230,0.28)'</span>, <span class="cm">// Placeholder / muted</span>
+
+  <span class="cm">// Brand accent — primary interactive color</span>
+  green:    <span class="str">'#7CB87A'</span>,
+
+  <span class="cm">// Semantic colors — alert types</span>
+  amber:    <span class="str">'#D4A843'</span>,   <span class="cm">// Warning / schedule compression</span>
+  purple:   <span class="str">'#A07EC8'</span>,   <span class="cm">// Household thread</span>
+  blue:     <span class="str">'#7AADCE'</span>,   <span class="cm">// Coverage gap</span>
+  rose:     <span class="str">'#D4748A'</span>,   <span class="cm">// Urgent / high-priority alert</span>
+  orange:   <span class="str">'#E07B5A'</span>,   <span class="cm">// Transition risk</span>
+} <span class="kw">as const</span>;
+
+<span class="kw">export const</span> Typography = {
+  families: {
+    sans:  <span class="str">'Geist'</span>,        <span class="cm">// All UI text and wordmark</span>
+    mono:  <span class="str">'GeistMono'</span>,    <span class="cm">// Labels, timestamps, codes</span>
+  },
+  weights: {
+    light:    <span class="str">'300'</span> <span class="kw">as const</span>,
+    regular:  <span class="str">'400'</span> <span class="kw">as const</span>,
+    medium:   <span class="str">'500'</span> <span class="kw">as const</span>,
+    semibold: <span class="str">'600'</span> <span class="kw">as const</span>,
+  },
+  sizes: {
+    xs:   <span class="num">11</span>,   <span class="cm">// Timestamps, metadata</span>
+    sm:   <span class="num">13</span>,   <span class="cm">// Secondary body, captions</span>
+    base: <span class="num">15</span>,   <span class="cm">// Primary body copy</span>
+    md:   <span class="num">17</span>,   <span class="cm">// Lead text, emphasized body</span>
+    lg:   <span class="num">20</span>,   <span class="cm">// Subheadings, card titles</span>
+    xl:   <span class="num">24</span>,   <span class="cm">// Section headings</span>
+    '2xl': <span class="num">30</span>, <span class="cm">// Large headings</span>
+    '3xl': <span class="num">36</span>, <span class="cm">// Hero / display</span>
+  },
+  tracking: {
+    tight:   -<span class="num">0.5</span>,
+    normal:   <span class="num">0</span>,
+    wide:     <span class="num">0.5</span>,
+    widest:   <span class="num">1.5</span>,  <span class="cm">// Mono labels (uppercase)</span>
+  },
+} <span class="kw">as const</span>;
+
+<span class="kw">export const</span> Spacing = {
+  xs:  <span class="num">4</span>,
+  sm:  <span class="num">8</span>,
+  md:  <span class="num">16</span>,
+  lg:  <span class="num">24</span>,
+  xl:  <span class="num">32</span>,
+  '2xl': <span class="num">48</span>,
+  '3xl': <span class="num">64</span>,
+} <span class="kw">as const</span>;
+
+<span class="kw">export const</span> Radii = {
+  sm:   <span class="num">8</span>,
+  md:   <span class="num">12</span>,
+  lg:   <span class="num">16</span>,
+  xl:   <span class="num">20</span>,
+  full: <span class="num">9999</span>,  <span class="cm">// Pills / tags</span>
+} <span class="kw">as const</span>;</pre>
+    </div>
+  </div>
+
+  <!-- 3. TYPOGRAPHY -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-num">03</span>
+      <h2 class="section-title">Typography</h2>
+    </div>
+
+    <div class="alert green" style="margin-bottom:24px;">
+      <strong>Font: Geist</strong> — Made by Vercel. Open source. Download from <code style="font-family:'Geist Mono',monospace;font-size:12px;">github.com/vercel/geist-font</code> and bundle via Expo's custom fonts system. Use <code style="font-family:'Geist Mono',monospace;font-size:12px;">Geist-Regular.ttf</code>, <code style="font-family:'Geist Mono',monospace;font-size:12px;">Geist-Medium.ttf</code>, <code style="font-family:'Geist Mono',monospace;font-size:12px;">Geist-SemiBold.ttf</code>, <code style="font-family:'Geist Mono',monospace;font-size:12px;">Geist-Light.ttf</code>, and the Mono variants.
+    </div>
+
+    <div class="type-rows" style="margin-bottom:24px;">
+      <div class="type-row">
+        <div class="type-meta"><div class="type-meta-label">Wordmark</div><div class="type-meta-val">Geist 500 · 22–36px</div></div>
+        <div class="type-sample" style="font-weight:500;font-size:28px;letter-spacing:0.2px;">kin</div>
+      </div>
+      <div class="type-row">
+        <div class="type-meta"><div class="type-meta-label">Display / Hero</div><div class="type-meta-val">Geist 600 · 30–36px</div></div>
+        <div class="type-sample" style="font-weight:600;font-size:30px;letter-spacing:-0.5px;">Good morning, Austin.</div>
+      </div>
+      <div class="type-row">
+        <div class="type-meta"><div class="type-meta-label">Section heading</div><div class="type-meta-val">Geist 600 · 20–24px</div></div>
+        <div class="type-sample" style="font-weight:600;font-size:22px;letter-spacing:-0.3px;">Today's briefing</div>
+      </div>
+      <div class="type-row">
+        <div class="type-meta"><div class="type-meta-label">Card title</div><div class="type-meta-val">Geist 500 · 17–20px</div></div>
+        <div class="type-sample" style="font-weight:500;font-size:18px;">Pickup coverage</div>
+      </div>
+      <div class="type-row">
+        <div class="type-meta"><div class="type-meta-label">Body / Briefing</div><div class="type-meta-val">Geist 400 · 15px · italic</div></div>
+        <div class="type-sample" style="font-size:15px;font-style:italic;color:rgba(240,237,230,0.85);">Your partner's evening is blocked — pickup and dinner are on you. Practice ends at 6:30. Leave by 5:45.</div>
+      </div>
+      <div class="type-row">
+        <div class="type-meta"><div class="type-meta-label">Secondary body</div><div class="type-meta-val">Geist 300 · 14–15px</div></div>
+        <div class="type-sample" style="font-weight:300;font-size:14px;color:rgba(240,237,230,0.55);">Both calendars are synced and Kin is watching in real time.</div>
+      </div>
+      <div class="type-row">
+        <div class="type-meta"><div class="type-meta-label">Labels / Tags</div><div class="type-meta-val">Geist Mono 400 · 10–12px · uppercase</div></div>
+        <div class="type-sample" style="font-family:'Geist Mono',monospace;font-size:11px;letter-spacing:1.4px;text-transform:uppercase;color:rgba(240,237,230,0.28);">TODAY · 7:14 AM · PICKUP RISK</div>
+      </div>
+    </div>
+
+    <div class="code-block">
+      <div class="code-header">
+        <span class="code-filename">app/_layout.tsx — Font loading (Expo)</span>
+        <span class="code-lang">TSX</span>
+      </div>
+      <pre><span class="kw">import</span> { useFonts } <span class="kw">from</span> <span class="str">'expo-font'</span>;
+<span class="kw">import</span> { SplashScreen } <span class="kw">from</span> <span class="str">'expo-router'</span>;
+
+SplashScreen.<span class="fn">preventAutoHideAsync</span>();
+
+<span class="kw">export default function</span> <span class="fn">RootLayout</span>() {
+  <span class="kw">const</span> [loaded] = <span class="fn">useFonts</span>({
+    <span class="str">'Geist'</span>:        require(<span class="str">'../assets/fonts/Geist-Regular.ttf'</span>),
+    <span class="str">'Geist-Medium'</span>:  require(<span class="str">'../assets/fonts/Geist-Medium.ttf'</span>),
+    <span class="str">'Geist-SemiBold'</span>: require(<span class="str">'../assets/fonts/Geist-SemiBold.ttf'</span>),
+    <span class="str">'Geist-Light'</span>:   require(<span class="str">'../assets/fonts/Geist-Light.ttf'</span>),
+    <span class="str">'GeistMono'</span>:     require(<span class="str">'../assets/fonts/GeistMono-Regular.ttf'</span>),
+    <span class="str">'GeistMono-Medium'</span>: require(<span class="str">'../assets/fonts/GeistMono-Medium.ttf'</span>),
+  });
+
+  <span class="kw">if</span> (!loaded) <span class="kw">return null</span>;
+  SplashScreen.<span class="fn">hideAsync</span>();
+  <span class="kw">return</span> &lt;Stack /&gt;;
+}</pre>
+    </div>
+  </div>
+
+  <!-- 4. INSTALL -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-num">04</span>
+      <h2 class="section-title">Dependencies</h2>
+    </div>
+
+    <div class="code-block">
+      <div class="code-header">
+        <span class="code-filename">Terminal</span>
+        <span class="code-lang">Shell</span>
+      </div>
+      <pre><span class="cm"># SVG support for the KinMark component</span>
+npx expo install react-native-svg
+
+<span class="cm"># Font loading</span>
+npx expo install expo-font expo-splash-screen
+
+<span class="cm"># Download Geist font files from:</span>
+<span class="cm"># https://github.com/vercel/geist-font/releases</span>
+<span class="cm"># Place .ttf files in: assets/fonts/</span></pre>
+    </div>
+  </div>
+
+  <!-- 5. GOOGLE OAUTH -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-num">05</span>
+      <h2 class="section-title">Google OAuth Consent Screen</h2>
+    </div>
+
+    <div class="alert amber" style="margin-bottom:24px;">
+      <strong>Setup path:</strong> Google Cloud Console → APIs &amp; Services → OAuth consent screen. Fill in the fields below exactly as shown. Verification takes 4–6 weeks — submit as soon as possible.
+    </div>
+
+    <div class="oauth-icon-preview">
+      <div class="oauth-icon-box" style="width:72px;height:72px;">
+        <svg width="44" height="44" viewBox="0 0 64 64" fill="none">
+          <circle cx="32" cy="20" r="8" fill="#7CB87A"/>
+          <circle cx="21.75" cy="37.9" r="9" fill="#7CB87A"/>
+          <circle cx="42.25" cy="37.9" r="9" fill="#7CB87A"/>
+        </svg>
+      </div>
+      <div>
+        <div style="font-size:13px;font-weight:500;margin-bottom:4px;">App icon</div>
+        <div style="font-size:12px;color:var(--text2);line-height:1.6;">Use <code style="font-family:'Geist Mono',monospace;color:var(--green);font-size:11px;">kin-google-oauth-icon.png</code> — export from the provided SVG at <strong>512×512px</strong>. Google displays it at 120×120 on the consent screen. Must be square, max 1MB, PNG format.</div>
+      </div>
+    </div>
+
+    <div class="oauth-grid">
+      <div class="oauth-field">
+        <div class="oauth-label">App name</div>
+        <div class="oauth-value">Kin</div>
+      </div>
+      <div class="oauth-field">
+        <div class="oauth-label">User support email</div>
+        <div class="oauth-value mono">hello@kinai.family</div>
+      </div>
+      <div class="oauth-field">
+        <div class="oauth-label">App logo</div>
+        <div class="oauth-value">kin-google-oauth-icon.png (512×512, PNG)</div>
+      </div>
+      <div class="oauth-field">
+        <div class="oauth-label">App home page</div>
+        <div class="oauth-value mono">https://kinai.family</div>
+      </div>
+      <div class="oauth-field">
+        <div class="oauth-label">Privacy policy URL</div>
+        <div class="oauth-value mono">https://kinai.family/privacy</div>
+      </div>
+      <div class="oauth-field">
+        <div class="oauth-label">Terms of service URL</div>
+        <div class="oauth-value mono">https://kinai.family/terms</div>
+      </div>
+      <div class="oauth-field">
+        <div class="oauth-label">Authorized domain 1</div>
+        <div class="oauth-value mono">kinai.family</div>
+      </div>
+      <div class="oauth-field">
+        <div class="oauth-label">Developer contact email</div>
+        <div class="oauth-value mono">hello@kinai.family</div>
+      </div>
+    </div>
+
+    <div style="margin-top:16px;">
+      <div class="oauth-field" style="background:rgba(160,126,200,0.06);border-color:rgba(160,126,200,0.2);">
+        <div class="oauth-label" style="color:var(--purple);">Required OAuth Scopes</div>
+        <div class="oauth-value mono" style="line-height:2;">
+          https://www.googleapis.com/auth/calendar.readonly<br>
+          https://www.googleapis.com/auth/calendar.events<br>
+          https://www.googleapis.com/auth/userinfo.email<br>
+          https://www.googleapis.com/auth/userinfo.profile
+        </div>
+      </div>
+    </div>
+
+    <div class="alert amber" style="margin-top:16px;">
+      <strong>Note:</strong> calendar.events (write access) requires Google verification. Submit the consent screen for verification immediately — the 4–6 week review clock starts only after you submit. Read-only calendar access works in testing mode while verification is pending.
+    </div>
+  </div>
+
+  <!-- 6. DO / DON'T -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-num">06</span>
+      <h2 class="section-title">Brand Rules</h2>
+    </div>
+
+    <table class="spec-table">
+      <thead><tr><th>Rule</th><th>Requirement</th><th>Reason</th></tr></thead>
+      <tbody>
+        <tr><td>Logo rendering</td><td>Always use the KinMark SVG component — never an image asset</td><td>SVG scales perfectly at all densities; no pixelation on high-DPI screens</td></tr>
+        <tr><td>Logo color</td><td>Mark must be #7CB87A on dark backgrounds; #5A9A58 on light</td><td>Contrast compliance and brand consistency</td></tr>
+        <tr><td>Wordmark font</td><td>Geist weight 500, letter-spacing 0.2, lowercase only</td><td>Custom weight/spacing is part of the brand identity</td></tr>
+        <tr><td>Body text font</td><td>Geist 400 for body, Geist Mono for all labels/timestamps</td><td>Mono establishes a visual hierarchy distinct from prose</td></tr>
+        <tr><td>Instrument Serif</td><td>Do not use — fully removed from the brand</td><td>Previous font; all uses replaced with Geist</td></tr>
+        <tr><td>Background</td><td>#0C0F0A for all screens; #141810 for cards/sheets</td><td>Slight green tint is intentional — not pure black</td></tr>
+        <tr><td>Alert colors</td><td>Use the semantic colors as defined — no substitutions</td><td>Colors map to alert types; users learn the system</td></tr>
+        <tr><td>Border opacity</td><td>7% white for default, 13% for hover/focus states</td><td>Maintains visibility without harsh contrast in dark mode</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- FOOTER -->
+  <div class="doc-footer">
+    <p>KIN TECHNOLOGIES LLC · ENGINEERING BRAND HANDOFF · v1.0</p>
+    <p>APRIL 2026 · INTERNAL</p>
+  </div>
+
+</div>
+</body>
+</html>

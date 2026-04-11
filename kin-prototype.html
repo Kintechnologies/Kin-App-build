@@ -1,0 +1,1471 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Kin — Interactive Prototype</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Geist:wght@300;400;500;600;700&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+/* ═══════════════════════════════════════════
+   KIN DESIGN SYSTEM TOKENS
+   ═══════════════════════════════════════════ */
+:root {
+  --bg: #0C0F0A;
+  --surface: #141810;
+  --surface2: #1C2118;
+  --surface3: #20261C;
+  --border: rgba(255,255,255,0.07);
+  --border2: rgba(255,255,255,0.13);
+  --text: #F0EDE6;
+  --text2: rgba(240,237,230,0.55);
+  --text3: rgba(240,237,230,0.28);
+  --green: #7CB87A;
+  --gdim: rgba(124,184,122,0.12);
+  --gmid: rgba(124,184,122,0.22);
+  --gold: #D4A843;
+  --adim: rgba(212,168,67,0.12);
+  --purple: #A07EC8;
+  --pdim: rgba(160,126,200,0.12);
+  --blue: #7AADCE;
+  --bdim: rgba(122,173,206,0.12);
+  --rose: #D4748A;
+  --rdim: rgba(212,116,138,0.12);
+  --coral: #E07B5A;
+  --cdim: rgba(224,123,90,0.12);
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; font-family: 'Geist', sans-serif; background: #050705; overflow: hidden; }
+
+/* ═══════════════════════════════════════════
+   LAYOUT SHELL
+   ═══════════════════════════════════════════ */
+.app-shell {
+  display: flex; height: 100vh;
+  background: radial-gradient(ellipse at 20% 15%, rgba(124,184,122,0.05) 0%, transparent 55%),
+              radial-gradient(ellipse at 80% 85%, rgba(212,168,67,0.03) 0%, transparent 50%), #050705;
+}
+
+/* LEFT: Screen navigation */
+.nav-panel {
+  width: 260px; flex-shrink: 0; padding: 32px 20px;
+  border-right: 1px solid var(--border); display: flex; flex-direction: column;
+  background: rgba(12,15,10,0.6);
+}
+.nav-logo {
+  font-family: 'Instrument Serif', serif; font-style: italic; font-size: 32px;
+  color: var(--text); margin-bottom: 6px; letter-spacing: -0.5px;
+}
+.nav-tagline {
+  font-size: 11px; color: var(--text3); font-family: 'Geist Mono', monospace;
+  letter-spacing: 0.08em; margin-bottom: 32px; text-transform: uppercase;
+}
+.nav-section-label {
+  font-size: 9px; font-family: 'Geist Mono', monospace; color: var(--text3);
+  letter-spacing: 0.15em; text-transform: uppercase; margin-bottom: 10px; margin-top: 20px;
+}
+.nav-section-label:first-of-type { margin-top: 0; }
+.nav-btn {
+  display: flex; align-items: center; gap: 10px; width: 100%; padding: 10px 12px;
+  border: 1px solid transparent; border-radius: 10px; background: transparent;
+  color: var(--text2); font-size: 13px; font-family: 'Geist', sans-serif;
+  cursor: pointer; transition: all 0.2s; margin-bottom: 3px; text-align: left;
+}
+.nav-btn:hover { background: var(--surface); color: var(--text); }
+.nav-btn.active { background: var(--gdim); border-color: rgba(124,184,122,0.2); color: var(--green); }
+.nav-btn .nav-icon { font-size: 16px; width: 22px; text-align: center; }
+.nav-btn .nav-badge {
+  margin-left: auto; font-size: 9px; font-family: 'Geist Mono', monospace;
+  padding: 2px 7px; border-radius: 100px; background: var(--surface2); color: var(--text3);
+}
+.nav-btn.active .nav-badge { background: var(--gdim); color: var(--green); }
+
+.nav-footer {
+  margin-top: auto; padding-top: 20px; border-top: 1px solid var(--border);
+  font-size: 10px; color: var(--text3); font-family: 'Geist Mono', monospace;
+  letter-spacing: 0.05em; line-height: 1.7;
+}
+
+/* RIGHT: Phone viewport */
+.phone-area {
+  flex: 1; display: flex; align-items: center; justify-content: center;
+  position: relative;
+}
+
+.phone {
+  width: 390px; height: 844px; background: var(--bg);
+  border-radius: 52px; border: 1.5px solid rgba(255,255,255,0.1);
+  overflow: hidden; position: relative; display: flex; flex-direction: column;
+  box-shadow: 0 0 0 6px rgba(255,255,255,0.025), 0 50px 140px rgba(0,0,0,0.85),
+              inset 0 1px 0 rgba(255,255,255,0.06);
+}
+
+/* Status bar */
+.statusbar {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 28px 0; flex-shrink: 0;
+}
+.stime { font-size: 15px; font-weight: 600; color: var(--text); font-family: 'Geist Mono', monospace; }
+.sicons { display: flex; align-items: center; gap: 5px; font-size: 12px; color: var(--text); }
+
+/* Dynamic Island */
+.island {
+  width: 120px; height: 34px; background: #000; border-radius: 100px;
+  margin: 8px auto 0; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center; gap: 7px;
+}
+.idot {
+  width: 8px; height: 8px; border-radius: 50%; background: var(--green);
+  box-shadow: 0 0 8px var(--green); animation: pulse 2s ease-in-out infinite;
+}
+.itxt { font-size: 9px; font-family: 'Geist Mono', monospace; color: var(--green); letter-spacing: 0.1em; }
+@keyframes pulse { 0%,100% { opacity:1; transform:scale(1); } 50% { opacity:0.5; transform:scale(0.8); } }
+
+/* Screen container */
+.screens { flex: 1; position: relative; overflow: hidden; }
+.screen {
+  position: absolute; inset: 0; display: flex; flex-direction: column;
+  padding: 20px 22px 26px; opacity: 0; transform: translateX(30px);
+  transition: opacity 0.3s ease, transform 0.3s ease;
+  pointer-events: none; overflow-y: auto; scrollbar-width: none;
+}
+.screen::-webkit-scrollbar { display: none; }
+.screen.active { opacity: 1; transform: translateX(0); pointer-events: all; }
+
+/* Bottom tab bar (for main app screens) */
+.tab-bar {
+  display: flex; flex-shrink: 0; border-top: 1px solid var(--border);
+  background: rgba(12,15,10,0.95); backdrop-filter: blur(20px);
+  padding: 8px 8px 30px;
+}
+.tab-item {
+  flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px;
+  padding: 6px 0; border: none; background: none; cursor: pointer;
+  color: var(--text3); font-size: 10px; font-family: 'Geist', sans-serif;
+  transition: color 0.2s;
+}
+.tab-item.active { color: var(--green); }
+.tab-item .tab-icon { font-size: 20px; }
+
+/* ═══════════════════════════════════════════
+   SHARED COMPONENTS
+   ═══════════════════════════════════════════ */
+.eyebrow {
+  font-size: 10px; font-family: 'Geist Mono', monospace; letter-spacing: 0.12em;
+  text-transform: uppercase; color: var(--green); margin-bottom: 8px;
+  display: flex; align-items: center; gap: 7px;
+}
+.eyebrow::before { content: ''; width: 14px; height: 1px; background: currentColor; }
+.eyebrow.gold { color: var(--gold); }
+.eyebrow.purple { color: var(--purple); }
+.eyebrow.blue { color: var(--blue); }
+
+.headline {
+  font-family: 'Instrument Serif', serif; font-size: 28px; color: var(--text);
+  line-height: 1.15; margin-bottom: 8px; letter-spacing: -0.5px;
+}
+.headline em { font-style: italic; }
+.headline .g { color: var(--green); }
+.headline .a { color: var(--gold); }
+.headline .p { color: var(--purple); }
+
+.subtitle {
+  font-size: 13px; color: var(--text2); line-height: 1.55; font-weight: 300; margin-bottom: 18px;
+}
+
+.card {
+  background: var(--surface); border: 1px solid var(--border); border-radius: 14px;
+  padding: 14px 15px; margin-bottom: 8px;
+}
+.card-glow { border-color: rgba(124,184,122,0.25); background: var(--gdim); }
+
+.btn-primary {
+  width: 100%; padding: 15px; background: var(--green); color: var(--bg);
+  border: none; border-radius: 13px; font-size: 15px; font-weight: 600;
+  font-family: 'Geist', sans-serif; cursor: pointer;
+  transition: opacity 0.2s, transform 0.1s;
+}
+.btn-primary:hover { opacity: 0.9; }
+.btn-primary:active { transform: scale(0.98); }
+
+.btn-secondary {
+  width: 100%; padding: 13px; background: var(--surface); color: var(--text);
+  border: 1px solid var(--border2); border-radius: 13px; font-size: 14px;
+  font-weight: 500; font-family: 'Geist', sans-serif; cursor: pointer;
+  transition: all 0.2s;
+}
+.btn-secondary:hover { border-color: var(--green); color: var(--green); }
+
+.input-field {
+  width: 100%; background: var(--surface); border: 1px solid var(--border2);
+  border-radius: 13px; padding: 13px 15px; font-size: 14px; color: var(--text);
+  font-family: 'Geist', sans-serif; outline: none; transition: border-color 0.2s;
+}
+.input-field:focus { border-color: var(--green); }
+.input-field::placeholder { color: var(--text3); }
+
+.label {
+  font-size: 10px; color: var(--text3); font-family: 'Geist Mono', monospace;
+  letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 6px;
+}
+
+.chip-group { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+.chip {
+  background: var(--surface); border: 1px solid var(--border2); color: var(--text2);
+  font-size: 12px; padding: 7px 13px; border-radius: 100px; cursor: pointer;
+  transition: all 0.18s; font-family: 'Geist', sans-serif; user-select: none;
+}
+.chip:hover { border-color: rgba(255,255,255,0.2); color: var(--text); }
+.chip.selected { background: var(--gdim); border-color: var(--green); color: var(--green); }
+
+.progress-dots {
+  display: flex; gap: 4px; margin-bottom: 20px;
+}
+.pdot {
+  height: 3px; border-radius: 100px; flex: 1; background: var(--surface2); transition: all 0.4s;
+}
+.pdot.done { background: var(--green); }
+.pdot.active { background: rgba(124,184,122,0.45); flex: 2; }
+
+.spacer { flex: 1; }
+.mt-auto { margin-top: auto; }
+.mb-8 { margin-bottom: 8px; }
+.mb-12 { margin-bottom: 12px; }
+.mb-16 { margin-bottom: 16px; }
+.mb-20 { margin-bottom: 20px; }
+.gap-8 { gap: 8px; }
+.flex { display: flex; }
+.flex-col { flex-direction: column; }
+.items-center { align-items: center; }
+.justify-between { justify-content: space-between; }
+
+/* ═══════════════════════════════════════════
+   SCREEN 1: ONBOARDING
+   ═══════════════════════════════════════════ */
+#onboarding .ob-step {
+  display: none; flex-direction: column; flex: 1;
+}
+#onboarding .ob-step.active { display: flex; }
+
+.ob-icon {
+  width: 52px; height: 52px; border-radius: 16px; display: flex;
+  align-items: center; justify-content: center; font-size: 24px;
+  margin-bottom: 18px;
+}
+.ob-icon.green-bg { background: var(--gdim); }
+.ob-icon.gold-bg { background: var(--adim); }
+.ob-icon.purple-bg { background: var(--pdim); }
+
+.household-option {
+  display: flex; align-items: center; gap: 12px; padding: 14px 16px;
+  background: var(--surface); border: 1px solid var(--border2); border-radius: 14px;
+  cursor: pointer; transition: all 0.2s; margin-bottom: 8px;
+}
+.household-option:hover { border-color: rgba(255,255,255,0.2); }
+.household-option.selected { border-color: var(--green); background: var(--gdim); }
+.household-option .ho-icon { font-size: 24px; }
+.household-option .ho-label { font-size: 14px; color: var(--text); font-weight: 500; }
+.household-option .ho-desc { font-size: 11px; color: var(--text2); margin-top: 2px; }
+.household-option .ho-check {
+  margin-left: auto; width: 22px; height: 22px; border-radius: 50%;
+  border: 1.5px solid var(--border2); display: flex; align-items: center;
+  justify-content: center; font-size: 12px; color: transparent; transition: all 0.2s;
+}
+.household-option.selected .ho-check {
+  border-color: var(--green); background: var(--green); color: var(--bg);
+}
+
+.slider-track {
+  width: 100%; height: 4px; background: var(--surface2); border-radius: 100px;
+  position: relative; margin: 24px 0 8px;
+}
+.slider-fill {
+  height: 100%; background: var(--green); border-radius: 100px;
+  width: 50%; transition: width 0.2s;
+}
+.slider-values {
+  display: flex; justify-content: space-between; font-size: 11px; color: var(--text3);
+  font-family: 'Geist Mono', monospace;
+}
+
+.budget-display {
+  text-align: center; margin: 16px 0;
+}
+.budget-amount {
+  font-family: 'Instrument Serif', serif; font-size: 48px; color: var(--gold);
+  letter-spacing: -1px;
+}
+.budget-label {
+  font-size: 12px; color: var(--text2); margin-top: 4px;
+}
+
+/* Food love/hate tags */
+.food-tags {
+  display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; min-height: 30px;
+}
+.food-tag {
+  display: flex; align-items: center; gap: 5px; padding: 5px 10px;
+  border-radius: 100px; font-size: 11px; font-family: 'Geist', sans-serif;
+}
+.food-tag.love { background: var(--gdim); color: var(--green); border: 1px solid rgba(124,184,122,0.3); }
+.food-tag.hate { background: var(--cdim); color: var(--coral); border: 1px solid rgba(224,123,90,0.3); }
+
+/* Loading screen */
+.loading-screen {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  flex: 1; text-align: center;
+}
+.loading-orb {
+  width: 80px; height: 80px; border-radius: 50%; margin-bottom: 28px;
+  background: radial-gradient(circle at 35% 35%, var(--green), rgba(124,184,122,0.2));
+  animation: orb-pulse 2s ease-in-out infinite;
+  box-shadow: 0 0 60px rgba(124,184,122,0.3);
+}
+@keyframes orb-pulse {
+  0%, 100% { transform: scale(1); box-shadow: 0 0 60px rgba(124,184,122,0.3); }
+  50% { transform: scale(1.08); box-shadow: 0 0 80px rgba(124,184,122,0.5); }
+}
+.loading-steps {
+  display: flex; flex-direction: column; gap: 10px; margin-top: 24px;
+}
+.loading-step {
+  display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--text3);
+  font-family: 'Geist Mono', monospace; transition: color 0.3s;
+}
+.loading-step.active { color: var(--green); }
+.loading-step .ls-dot {
+  width: 6px; height: 6px; border-radius: 50%; background: var(--surface2); transition: all 0.3s;
+}
+.loading-step.active .ls-dot { background: var(--green); box-shadow: 0 0 8px var(--green); }
+
+/* ═══════════════════════════════════════════
+   SCREEN 2: DASHBOARD
+   ═══════════════════════════════════════════ */
+.greeting-section { margin-bottom: 20px; }
+.greeting-time {
+  font-size: 10px; font-family: 'Geist Mono', monospace; color: var(--text3);
+  letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 6px;
+}
+.greeting-text {
+  font-family: 'Instrument Serif', serif; font-size: 26px; color: var(--text);
+  line-height: 1.2; letter-spacing: -0.5px;
+}
+.greeting-text .g { color: var(--green); }
+
+.insight-card {
+  background: var(--surface); border: 1px solid var(--border); border-radius: 16px;
+  padding: 16px; margin-bottom: 10px; cursor: pointer; transition: all 0.2s;
+}
+.insight-card:hover { border-color: var(--border2); }
+.insight-header {
+  display: flex; align-items: center; gap: 10px; margin-bottom: 10px;
+}
+.insight-dot {
+  width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
+}
+.insight-label {
+  font-size: 10px; font-family: 'Geist Mono', monospace; letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+.insight-body { font-size: 14px; color: var(--text); line-height: 1.5; font-weight: 400; }
+.insight-meta {
+  font-size: 11px; color: var(--text3); margin-top: 8px;
+  font-family: 'Geist Mono', monospace;
+}
+
+.quick-actions {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 16px;
+}
+.quick-action {
+  background: var(--surface); border: 1px solid var(--border); border-radius: 14px;
+  padding: 14px; cursor: pointer; transition: all 0.2s; text-align: left;
+}
+.quick-action:hover { border-color: var(--border2); background: var(--surface2); }
+.qa-icon { font-size: 20px; margin-bottom: 8px; }
+.qa-label { font-size: 13px; color: var(--text); font-weight: 500; }
+.qa-desc { font-size: 11px; color: var(--text3); margin-top: 3px; }
+
+/* ═══════════════════════════════════════════
+   SCREEN 3: MEAL PLANNING
+   ═══════════════════════════════════════════ */
+.week-nav {
+  display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px;
+}
+.week-label {
+  font-size: 14px; font-weight: 600; color: var(--text);
+}
+.week-arrow {
+  width: 32px; height: 32px; border-radius: 10px; background: var(--surface);
+  border: 1px solid var(--border); display: flex; align-items: center;
+  justify-content: center; cursor: pointer; color: var(--text2); font-size: 14px;
+  transition: all 0.2s;
+}
+.week-arrow:hover { border-color: var(--green); color: var(--green); }
+
+.budget-bar {
+  background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+  padding: 12px 14px; margin-bottom: 14px;
+}
+.bb-top {
+  display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 8px;
+}
+.bb-spent { font-size: 13px; color: var(--text); font-weight: 500; }
+.bb-spent span { color: var(--gold); font-family: 'Instrument Serif', serif; font-size: 18px; }
+.bb-budget { font-size: 11px; color: var(--text3); font-family: 'Geist Mono', monospace; }
+.bb-track {
+  width: 100%; height: 4px; background: var(--surface2); border-radius: 100px; overflow: hidden;
+}
+.bb-fill {
+  height: 100%; background: linear-gradient(90deg, var(--green), var(--gold));
+  border-radius: 100px; width: 79%;
+}
+
+.meal-card {
+  background: var(--surface); border: 1px solid var(--border); border-radius: 14px;
+  padding: 14px 15px; margin-bottom: 8px; cursor: pointer; transition: all 0.2s;
+}
+.meal-card:hover { border-color: var(--border2); }
+.mc-day {
+  font-size: 10px; font-family: 'Geist Mono', monospace; letter-spacing: 0.1em;
+  text-transform: uppercase; margin-bottom: 6px;
+}
+.mc-day.today { color: var(--green); }
+.mc-day.future { color: var(--text3); }
+.mc-name { font-size: 15px; color: var(--text); font-weight: 500; margin-bottom: 6px; }
+.mc-meta {
+  display: flex; gap: 12px; font-size: 11px; color: var(--text3);
+  font-family: 'Geist Mono', monospace;
+}
+.mc-meta .cost { color: var(--gold); }
+.mc-rating {
+  display: flex; gap: 2px; margin-top: 8px;
+}
+.mc-star {
+  font-size: 14px; cursor: pointer; color: var(--surface2); transition: color 0.15s;
+}
+.mc-star.filled { color: var(--gold); }
+.mc-star:hover { color: var(--gold); }
+
+.grocery-toggle {
+  display: flex; align-items: center; justify-content: space-between;
+  background: var(--gdim); border: 1px solid rgba(124,184,122,0.2);
+  border-radius: 13px; padding: 13px 15px; margin-top: 6px; cursor: pointer;
+  transition: all 0.2s;
+}
+.grocery-toggle:hover { border-color: var(--green); }
+.gt-left { display: flex; align-items: center; gap: 8px; }
+.gt-icon { font-size: 16px; }
+.gt-label { font-size: 13px; color: var(--green); font-weight: 500; }
+.gt-count { font-size: 11px; color: var(--text2); }
+.gt-arrow { color: var(--green); font-size: 14px; }
+
+/* ═══════════════════════════════════════════
+   SCREEN 4: CHAT / AI
+   ═══════════════════════════════════════════ */
+.chat-messages {
+  flex: 1; display: flex; flex-direction: column; gap: 12px;
+  padding-bottom: 12px; overflow-y: auto;
+}
+.chat-bubble {
+  max-width: 85%; padding: 13px 16px; border-radius: 18px;
+  font-size: 14px; line-height: 1.55;
+}
+.chat-bubble.kin {
+  background: var(--surface); border: 1px solid var(--border);
+  color: var(--text); align-self: flex-start;
+  border-bottom-left-radius: 6px;
+}
+.chat-bubble.user {
+  background: var(--green); color: var(--bg); align-self: flex-end;
+  border-bottom-right-radius: 6px; font-weight: 500;
+}
+.chat-bubble .kin-label {
+  font-size: 10px; font-family: 'Geist Mono', monospace; color: var(--green);
+  letter-spacing: 0.1em; margin-bottom: 6px; text-transform: uppercase;
+}
+
+.chat-suggestion-row {
+  display: flex; gap: 6px; flex-wrap: wrap; padding: 4px 0;
+}
+.chat-suggestion {
+  padding: 8px 14px; background: var(--surface); border: 1px solid var(--border2);
+  border-radius: 100px; font-size: 12px; color: var(--text2); cursor: pointer;
+  transition: all 0.2s; font-family: 'Geist', sans-serif;
+}
+.chat-suggestion:hover { border-color: var(--green); color: var(--green); }
+
+.chat-input-bar {
+  display: flex; gap: 8px; align-items: center; padding-top: 10px;
+  border-top: 1px solid var(--border);
+}
+.chat-input {
+  flex: 1; background: var(--surface); border: 1px solid var(--border2);
+  border-radius: 24px; padding: 12px 16px; font-size: 14px; color: var(--text);
+  font-family: 'Geist', sans-serif; outline: none; transition: border-color 0.2s;
+}
+.chat-input:focus { border-color: var(--green); }
+.chat-input::placeholder { color: var(--text3); }
+.chat-send {
+  width: 42px; height: 42px; border-radius: 50%; background: var(--green);
+  border: none; color: var(--bg); font-size: 16px; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: opacity 0.2s;
+}
+.chat-send:hover { opacity: 0.85; }
+
+/* ═══════════════════════════════════════════
+   SCREEN 5: BUDGET
+   ═══════════════════════════════════════════ */
+.budget-hero {
+  text-align: center; padding: 16px 0 20px;
+}
+.bh-amount {
+  font-family: 'Instrument Serif', serif; font-size: 44px; color: var(--text);
+  letter-spacing: -1px;
+}
+.bh-label { font-size: 12px; color: var(--text2); margin-top: 2px; }
+.bh-bar {
+  margin-top: 14px; height: 6px; background: var(--surface2); border-radius: 100px;
+  overflow: hidden;
+}
+.bh-fill {
+  height: 100%; border-radius: 100px; width: 62%;
+  background: linear-gradient(90deg, var(--green), var(--gold));
+}
+.bh-meta {
+  display: flex; justify-content: space-between; margin-top: 6px;
+  font-size: 11px; font-family: 'Geist Mono', monospace; color: var(--text3);
+}
+
+.category-list { margin-top: 12px; }
+.cat-item {
+  display: flex; align-items: center; gap: 12px; padding: 12px 0;
+  border-bottom: 1px solid var(--border);
+}
+.cat-item:last-child { border-bottom: none; }
+.cat-dot {
+  width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0;
+}
+.cat-info { flex: 1; }
+.cat-name { font-size: 13px; color: var(--text); font-weight: 500; }
+.cat-bar-wrap {
+  height: 3px; background: var(--surface2); border-radius: 100px; margin-top: 5px;
+  overflow: hidden;
+}
+.cat-bar-fill { height: 100%; border-radius: 100px; }
+.cat-amount {
+  font-size: 13px; color: var(--text); font-weight: 500;
+  font-family: 'Geist Mono', monospace;
+}
+.cat-budget {
+  font-size: 10px; color: var(--text3); font-family: 'Geist Mono', monospace; margin-top: 1px;
+}
+
+.add-expense-btn {
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  width: 100%; padding: 14px; background: var(--adim); border: 1px solid rgba(212,168,67,0.2);
+  border-radius: 13px; color: var(--gold); font-size: 14px; font-weight: 500;
+  font-family: 'Geist', sans-serif; cursor: pointer; transition: all 0.2s;
+  margin-top: 14px;
+}
+.add-expense-btn:hover { border-color: var(--gold); }
+
+.recent-transactions { margin-top: 16px; }
+.rt-header {
+  font-size: 10px; font-family: 'Geist Mono', monospace; color: var(--text3);
+  letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 10px;
+}
+.tx-item {
+  display: flex; align-items: center; gap: 10px; padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+}
+.tx-item:last-child { border-bottom: none; }
+.tx-icon {
+  width: 34px; height: 34px; border-radius: 10px; display: flex;
+  align-items: center; justify-content: center; font-size: 14px; flex-shrink: 0;
+}
+.tx-info { flex: 1; }
+.tx-name { font-size: 13px; color: var(--text); }
+.tx-cat { font-size: 10px; color: var(--text3); font-family: 'Geist Mono', monospace; margin-top: 1px; }
+.tx-amount { font-size: 13px; font-weight: 600; font-family: 'Geist Mono', monospace; }
+
+/* ═══════════════════════════════════════════
+   SCREEN 6: PARTNER INVITE
+   ═══════════════════════════════════════════ */
+.invite-visual {
+  display: flex; align-items: center; justify-content: center; gap: 16px;
+  margin: 24px 0;
+}
+.invite-avatar {
+  width: 64px; height: 64px; border-radius: 50%; display: flex;
+  align-items: center; justify-content: center; font-size: 24px;
+}
+.invite-connect {
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+}
+.invite-line {
+  width: 40px; height: 2px; background: linear-gradient(90deg, var(--green), var(--purple));
+  border-radius: 100px;
+}
+.invite-line-label {
+  font-size: 9px; font-family: 'Geist Mono', monospace; color: var(--text3);
+  letter-spacing: 0.08em;
+}
+
+.unlock-list { margin: 16px 0; }
+.unlock-item {
+  display: flex; align-items: flex-start; gap: 10px; padding: 10px 0;
+}
+.unlock-check {
+  width: 20px; height: 20px; border-radius: 6px; background: var(--pdim);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 11px; color: var(--purple); flex-shrink: 0; margin-top: 1px;
+}
+.unlock-text { font-size: 13px; color: var(--text); line-height: 1.4; }
+.unlock-text span { color: var(--text2); font-size: 12px; display: block; margin-top: 2px; }
+
+/* Responsive */
+@media (max-width: 750px) {
+  .nav-panel { display: none; }
+  .app-shell { flex-direction: column; }
+  .phone-area { padding: 20px; }
+  .phone { transform: scale(0.85); transform-origin: top center; }
+}
+@media (max-width: 420px) {
+  .phone { transform: scale(0.75); }
+}
+</style>
+</head>
+<body>
+
+<div class="app-shell">
+  <!-- NAV PANEL -->
+  <nav class="nav-panel">
+    <div class="nav-logo">kin</div>
+    <div class="nav-tagline">The Mental Load, Handled.</div>
+
+    <div class="nav-section-label">Flows</div>
+    <button class="nav-btn active" onclick="showScreen('onboarding')">
+      <span class="nav-icon">✦</span> Onboarding
+      <span class="nav-badge">5 steps</span>
+    </button>
+    <button class="nav-btn" onclick="showScreen('partner-invite')">
+      <span class="nav-icon">♡</span> Partner Invite
+    </button>
+
+    <div class="nav-section-label">App Screens</div>
+    <button class="nav-btn" onclick="showScreen('dashboard')">
+      <span class="nav-icon">◉</span> Dashboard
+    </button>
+    <button class="nav-btn" onclick="showScreen('meals')">
+      <span class="nav-icon">◈</span> Meal Planning
+    </button>
+    <button class="nav-btn" onclick="showScreen('chat')">
+      <span class="nav-icon">◎</span> Chat / AI
+    </button>
+    <button class="nav-btn" onclick="showScreen('budget')">
+      <span class="nav-icon">◇</span> Budget
+    </button>
+
+    <div class="nav-footer">
+      Kin Interactive Prototype<br>
+      v1.0 · April 2026<br>
+      Brand Guide v2 compliant
+    </div>
+  </nav>
+
+  <!-- PHONE -->
+  <div class="phone-area">
+    <div class="phone">
+      <div class="statusbar">
+        <span class="stime">9:41</span>
+        <span class="sicons">
+          <svg width="15" height="11" viewBox="0 0 15 11" fill="currentColor"><rect x="0" y="4" width="3" height="7" rx="0.5" opacity="0.3"/><rect x="4" y="3" width="3" height="8" rx="0.5" opacity="0.5"/><rect x="8" y="1" width="3" height="10" rx="0.5" opacity="0.8"/><rect x="12" y="0" width="3" height="11" rx="0.5"/></svg>
+          <svg width="16" height="10" viewBox="0 0 16 10" fill="currentColor"><path d="M8 2C5.5 2 3.3 3 1.8 4.6L0.4 3.2C2.3 1.2 4.9 0 8 0s5.7 1.2 7.6 3.2L14.2 4.6C12.7 3 10.5 2 8 2z" opacity="0.3"/><path d="M8 5C6.3 5 4.8 5.7 3.7 6.8L2.3 5.4C3.8 3.9 5.8 3 8 3s4.2 0.9 5.7 2.4L12.3 6.8C11.2 5.7 9.7 5 8 5z" opacity="0.6"/><circle cx="8" cy="9" r="1.5"/></svg>
+          <svg width="25" height="11" viewBox="0 0 25 11" fill="currentColor"><rect x="0" y="0.5" width="22" height="10" rx="2.5" stroke="currentColor" stroke-width="1" fill="none" opacity="0.35"/><rect x="23" y="3" width="2" height="5" rx="0.5" opacity="0.35"/><rect x="1.5" y="2" width="17" height="7" rx="1.5" fill="var(--green)"/></svg>
+        </span>
+      </div>
+      <div class="island">
+        <div class="idot"></div>
+        <span class="itxt">KIN ACTIVE</span>
+      </div>
+
+      <!-- ═══ ALL SCREENS ═══ -->
+      <div class="screens">
+
+        <!-- SCREEN: ONBOARDING -->
+        <div id="onboarding" class="screen active">
+          <!-- Step 1: Welcome -->
+          <div class="ob-step active" data-step="1">
+            <div class="progress-dots">
+              <div class="pdot active"></div><div class="pdot"></div><div class="pdot"></div>
+              <div class="pdot"></div><div class="pdot"></div>
+            </div>
+            <div class="ob-icon green-bg">✦</div>
+            <div class="eyebrow">Step 1 of 5</div>
+            <div class="headline"><em>Let's meet your</em> <span class="g">family.</span></div>
+            <div class="subtitle">Kin builds everything around who you are. Start with the basics — we'll learn the rest through conversation.</div>
+
+            <div class="label">Family Name</div>
+            <input class="input-field mb-12" placeholder="e.g. Johnson" value="Johnson">
+
+            <div class="label">Household Type</div>
+            <div class="household-option selected" onclick="selectHousehold(this)">
+              <span class="ho-icon">👫</span>
+              <div><div class="ho-label">Two parents + kids</div><div class="ho-desc">Dual-parent household</div></div>
+              <div class="ho-check">✓</div>
+            </div>
+            <div class="household-option" onclick="selectHousehold(this)">
+              <span class="ho-icon">👤</span>
+              <div><div class="ho-label">Single parent</div><div class="ho-desc">Solo parent household</div></div>
+              <div class="ho-check">✓</div>
+            </div>
+            <div class="household-option" onclick="selectHousehold(this)">
+              <span class="ho-icon">💑</span>
+              <div><div class="ho-label">Couple, no kids</div><div class="ho-desc">Partners only</div></div>
+              <div class="ho-check">✓</div>
+            </div>
+
+            <div class="spacer"></div>
+            <button class="btn-primary" onclick="nextObStep()">Continue</button>
+          </div>
+
+          <!-- Step 2: Family Size -->
+          <div class="ob-step" data-step="2">
+            <div class="progress-dots">
+              <div class="pdot done"></div><div class="pdot active"></div><div class="pdot"></div>
+              <div class="pdot"></div><div class="pdot"></div>
+            </div>
+            <div class="ob-icon green-bg">👨‍👩‍👧‍👦</div>
+            <div class="eyebrow">Step 2 of 5</div>
+            <div class="headline"><em>Who's at the</em> <span class="g">table?</span></div>
+            <div class="subtitle">This helps Kin size portions, plan meals, and personalize for each family member.</div>
+
+            <div class="label">Adults</div>
+            <div style="display:flex;align-items:center;gap:16px;margin-bottom:16px;">
+              <button class="chip selected" style="width:44px;text-align:center">2</button>
+              <span style="font-size:12px;color:var(--text2)">parents in household</span>
+            </div>
+
+            <div class="label">Kids</div>
+            <div style="margin-bottom:16px;">
+              <div style="display:flex;gap:8px;margin-bottom:10px;">
+                <div style="flex:1;background:var(--surface);border:1px solid var(--border2);border-radius:12px;padding:12px;text-align:center;">
+                  <div style="font-size:20px;margin-bottom:4px;">👧</div>
+                  <div style="font-size:12px;color:var(--text);">Mia, 7</div>
+                </div>
+                <div style="flex:1;background:var(--surface);border:1px solid var(--border2);border-radius:12px;padding:12px;text-align:center;">
+                  <div style="font-size:20px;margin-bottom:4px;">👦</div>
+                  <div style="font-size:12px;color:var(--text);">Liam, 4</div>
+                </div>
+                <div style="flex:1;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:12px;text-align:center;cursor:pointer;border-style:dashed;">
+                  <div style="font-size:20px;margin-bottom:4px;color:var(--text3)">+</div>
+                  <div style="font-size:11px;color:var(--text3);">Add</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="label">Pets</div>
+            <div style="display:flex;gap:8px;margin-bottom:16px;">
+              <div style="flex:0 0 auto;background:var(--rdim);border:1px solid rgba(212,116,138,0.25);border-radius:12px;padding:10px 16px;display:flex;align-items:center;gap:8px;">
+                <span style="font-size:16px">🐕</span>
+                <span style="font-size:12px;color:var(--rose)">Buddy</span>
+              </div>
+              <div style="flex:0 0 auto;background:var(--surface);border:1px dashed var(--border);border-radius:12px;padding:10px 16px;display:flex;align-items:center;gap:6px;cursor:pointer;">
+                <span style="font-size:12px;color:var(--text3)">+ Add pet</span>
+              </div>
+            </div>
+
+            <div class="spacer"></div>
+            <button class="btn-primary" onclick="nextObStep()">Continue</button>
+          </div>
+
+          <!-- Step 3: Budget -->
+          <div class="ob-step" data-step="3">
+            <div class="progress-dots">
+              <div class="pdot done"></div><div class="pdot done"></div><div class="pdot active"></div>
+              <div class="pdot"></div><div class="pdot"></div>
+            </div>
+            <div class="ob-icon gold-bg">💰</div>
+            <div class="eyebrow gold">Step 3 of 5</div>
+            <div class="headline"><em>What's your weekly</em> <span class="a">grocery budget?</span></div>
+            <div class="subtitle">Kin builds every meal plan within this number. You can always change it later.</div>
+
+            <div class="budget-display">
+              <div class="budget-amount" id="budgetAmount">$180</div>
+              <div class="budget-label">per week for 4 people</div>
+            </div>
+
+            <div style="padding:0 8px;">
+              <input type="range" min="80" max="400" value="180" step="10"
+                style="width:100%;accent-color:var(--gold);height:4px;margin-bottom:8px;"
+                oninput="document.getElementById('budgetAmount').textContent='$'+this.value">
+              <div class="slider-values">
+                <span>$80</span><span>$180</span><span>$400</span>
+              </div>
+            </div>
+
+            <div class="card" style="margin-top:20px;border-color:rgba(212,168,67,0.15);background:var(--adim)">
+              <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
+                <span style="font-size:14px">💡</span>
+                <span style="font-size:10px;font-family:'Geist Mono',monospace;color:var(--gold);letter-spacing:0.08em;text-transform:uppercase">Kin Insight</span>
+              </div>
+              <div style="font-size:13px;color:var(--text);line-height:1.5;">
+                Average family of 4 spends $150–250/week on groceries. Kin typically saves families $20–30/week through smart store recommendations.
+              </div>
+            </div>
+
+            <div class="spacer"></div>
+            <button class="btn-primary" onclick="nextObStep()">Continue</button>
+          </div>
+
+          <!-- Step 4: Dietary -->
+          <div class="ob-step" data-step="4">
+            <div class="progress-dots">
+              <div class="pdot done"></div><div class="pdot done"></div><div class="pdot done"></div>
+              <div class="pdot active"></div><div class="pdot"></div>
+            </div>
+            <div class="ob-icon green-bg">🥗</div>
+            <div class="eyebrow">Step 4 of 5</div>
+            <div class="headline"><em>Any dietary</em> <span class="g">needs?</span></div>
+            <div class="subtitle">Tap any that apply. Kin filters every recipe and ingredient automatically. You can skip this.</div>
+
+            <div class="label">Restrictions</div>
+            <div class="chip-group">
+              <span class="chip" onclick="toggleChip(this)">Vegetarian</span>
+              <span class="chip" onclick="toggleChip(this)">Gluten-Free</span>
+              <span class="chip" onclick="toggleChip(this)">Dairy-Free</span>
+              <span class="chip" onclick="toggleChip(this)">Low-Carb</span>
+              <span class="chip" onclick="toggleChip(this)">Nut Allergy</span>
+              <span class="chip" onclick="toggleChip(this)">Shellfish Allergy</span>
+              <span class="chip" onclick="toggleChip(this)">Keto</span>
+              <span class="chip" onclick="toggleChip(this)">Halal</span>
+              <span class="chip" onclick="toggleChip(this)">Kosher</span>
+            </div>
+
+            <div class="label" style="margin-top:16px">Cooking Style</div>
+            <div class="chip-group">
+              <span class="chip selected" onclick="toggleChip(this)">Quick (under 30 min)</span>
+              <span class="chip" onclick="toggleChip(this)">One-pot meals</span>
+              <span class="chip" onclick="toggleChip(this)">Meal prep friendly</span>
+              <span class="chip" onclick="toggleChip(this)">Kid-friendly focus</span>
+              <span class="chip selected" onclick="toggleChip(this)">Budget-focused</span>
+            </div>
+
+            <div class="spacer"></div>
+            <div style="display:flex;gap:8px">
+              <button class="btn-secondary" style="flex:1" onclick="nextObStep()">Skip</button>
+              <button class="btn-primary" style="flex:2" onclick="nextObStep()">Continue</button>
+            </div>
+          </div>
+
+          <!-- Step 5: Favorites -->
+          <div class="ob-step" data-step="5">
+            <div class="progress-dots">
+              <div class="pdot done"></div><div class="pdot done"></div><div class="pdot done"></div>
+              <div class="pdot done"></div><div class="pdot active"></div>
+            </div>
+            <div class="ob-icon green-bg">❤️</div>
+            <div class="eyebrow">Step 5 of 5</div>
+            <div class="headline"><em>What does your family</em> <span class="g">love?</span></div>
+            <div class="subtitle">Tell Kin 2–3 foods you love and 1–2 you avoid. This makes meal plans feel personal, not generic.</div>
+
+            <div class="label">Foods We Love</div>
+            <input class="input-field mb-8" placeholder="e.g. pasta, chicken, tacos..." value="Pasta, chicken thighs, tacos">
+            <div class="food-tags mb-16">
+              <span class="food-tag love">🤍 Pasta</span>
+              <span class="food-tag love">🤍 Chicken thighs</span>
+              <span class="food-tag love">🤍 Tacos</span>
+            </div>
+
+            <div class="label">Foods We Avoid</div>
+            <input class="input-field mb-8" placeholder="e.g. fish, mushrooms..." value="Fish, mushrooms">
+            <div class="food-tags mb-16">
+              <span class="food-tag hate">✕ Fish</span>
+              <span class="food-tag hate">✕ Mushrooms</span>
+            </div>
+
+            <div class="spacer"></div>
+            <button class="btn-primary" onclick="showObLoading()" style="background:linear-gradient(135deg, var(--green), #5da85b);">
+              Build My Meal Plan →
+            </button>
+          </div>
+
+          <!-- Loading -->
+          <div class="ob-step" data-step="loading">
+            <div class="loading-screen">
+              <div class="loading-orb"></div>
+              <div class="headline" style="text-align:center;font-style:italic;font-size:22px">
+                Building your first week...
+              </div>
+              <div class="subtitle" style="text-align:center">
+                Kin is creating a personalized meal plan for the Johnson family within your $180 budget.
+              </div>
+              <div class="loading-steps">
+                <div class="loading-step active" id="ls1"><div class="ls-dot"></div>Analyzing family preferences</div>
+                <div class="loading-step" id="ls2"><div class="ls-dot"></div>Selecting budget-optimized recipes</div>
+                <div class="loading-step" id="ls3"><div class="ls-dot"></div>Building grocery list with store tips</div>
+                <div class="loading-step" id="ls4"><div class="ls-dot"></div>Finalizing your plan</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- SCREEN: DASHBOARD -->
+        <div id="dashboard" class="screen">
+          <div class="greeting-section">
+            <div class="greeting-time">Wednesday · April 2, 2026</div>
+            <div class="greeting-text">Good morning, <span class="g">Johnson family.</span></div>
+          </div>
+
+          <!-- Proactive insights -->
+          <div class="insight-card">
+            <div class="insight-header">
+              <div class="insight-dot" style="background:var(--green)"></div>
+              <div class="insight-label" style="color:var(--green)">Tonight's Dinner</div>
+            </div>
+            <div class="insight-body">
+              <strong>Sheet Pan Lemon Chicken</strong> — 25 min prep, $12.40 est. All ingredients on your grocery list.
+            </div>
+            <div class="insight-meta">Tap to view recipe →</div>
+          </div>
+
+          <div class="insight-card">
+            <div class="insight-header">
+              <div class="insight-dot" style="background:var(--gold)"></div>
+              <div class="insight-label" style="color:var(--gold)">Budget Alert</div>
+            </div>
+            <div class="insight-body">
+              $43 left in dining this month. You've got 4 dinners out remaining at your usual pace. Cook tonight?
+            </div>
+            <div class="insight-meta">$287 of $330 spent · 62% through month</div>
+          </div>
+
+          <div class="insight-card">
+            <div class="insight-header">
+              <div class="insight-dot" style="background:var(--purple)"></div>
+              <div class="insight-label" style="color:var(--purple)">Date Night</div>
+            </div>
+            <div class="insight-body">
+              You haven't had a night out in <strong>19 days</strong>. Saturday at 7pm you're both free. Want me to block it?
+            </div>
+            <div class="insight-meta">Both calendars checked →</div>
+          </div>
+
+          <div class="insight-card">
+            <div class="insight-header">
+              <div class="insight-dot" style="background:var(--rose)"></div>
+              <div class="insight-label" style="color:var(--rose)">Pet Reminder</div>
+            </div>
+            <div class="insight-body">
+              Buddy's vet checkup is <strong>Thursday at 2pm</strong>. Reminder set for both parents.
+            </div>
+          </div>
+
+          <div class="quick-actions">
+            <div class="quick-action" onclick="showScreen('chat')">
+              <div class="qa-icon">💬</div>
+              <div class="qa-label">Ask Kin</div>
+              <div class="qa-desc">Chat with your AI</div>
+            </div>
+            <div class="quick-action" onclick="showScreen('meals')">
+              <div class="qa-icon">🍽</div>
+              <div class="qa-label">This Week</div>
+              <div class="qa-desc">View meal plan</div>
+            </div>
+            <div class="quick-action" onclick="showScreen('budget')">
+              <div class="qa-icon">💰</div>
+              <div class="qa-label">Budget</div>
+              <div class="qa-desc">Track spending</div>
+            </div>
+            <div class="quick-action" onclick="showScreen('partner-invite')">
+              <div class="qa-icon">👫</div>
+              <div class="qa-label">Partner</div>
+              <div class="qa-desc">Invite to Kin</div>
+            </div>
+          </div>
+          <div style="height:20px"></div>
+        </div>
+
+        <!-- SCREEN: MEAL PLANNING -->
+        <div id="meals" class="screen">
+          <div class="eyebrow">Meal Plan</div>
+          <div class="headline" style="margin-bottom:4px"><em>This week's</em> <span class="g">meals</span></div>
+          <div class="subtitle">7 dinners · Johnson family · $180 budget</div>
+
+          <div class="budget-bar">
+            <div class="bb-top">
+              <div class="bb-spent">Est. total: <span>$143</span></div>
+              <div class="bb-budget">of $180 budget</div>
+            </div>
+            <div class="bb-track"><div class="bb-fill"></div></div>
+          </div>
+
+          <div class="meal-card">
+            <div class="mc-day today">Mon · Today</div>
+            <div class="mc-name">Sheet Pan Lemon Chicken</div>
+            <div class="mc-meta">
+              <span>⏱ 25 min</span><span class="cost">$12.40</span><span>4 servings</span>
+            </div>
+            <div class="mc-rating">
+              <span class="mc-star">☆</span><span class="mc-star">☆</span><span class="mc-star">☆</span>
+              <span class="mc-star">☆</span><span class="mc-star">☆</span>
+            </div>
+          </div>
+
+          <div class="meal-card">
+            <div class="mc-day future">Tue</div>
+            <div class="mc-name">One-Pot Chicken Taco Pasta</div>
+            <div class="mc-meta">
+              <span>⏱ 20 min</span><span class="cost">$9.80</span><span>4 servings</span>
+            </div>
+          </div>
+
+          <div class="meal-card">
+            <div class="mc-day future">Wed</div>
+            <div class="mc-name">Creamy Garlic Tuscan Chicken</div>
+            <div class="mc-meta">
+              <span>⏱ 30 min</span><span class="cost">$14.20</span><span>4 servings</span>
+            </div>
+          </div>
+
+          <div class="meal-card">
+            <div class="mc-day future">Thu</div>
+            <div class="mc-name">Beef Tacos with Cilantro Slaw</div>
+            <div class="mc-meta">
+              <span>⏱ 25 min</span><span class="cost">$11.60</span><span>4 servings</span>
+            </div>
+          </div>
+
+          <div class="meal-card">
+            <div class="mc-day future">Fri</div>
+            <div class="mc-name">Baked Penne with Italian Sausage</div>
+            <div class="mc-meta">
+              <span>⏱ 35 min</span><span class="cost">$13.50</span><span>4 servings</span>
+            </div>
+          </div>
+
+          <div class="meal-card">
+            <div class="mc-day future">Sat</div>
+            <div class="mc-name">Slow Cooker BBQ Pulled Chicken</div>
+            <div class="mc-meta">
+              <span>⏱ 15 min prep</span><span class="cost">$10.90</span><span>4 servings</span>
+            </div>
+          </div>
+
+          <div class="meal-card">
+            <div class="mc-day future">Sun</div>
+            <div class="mc-name">Homemade Pizza Night</div>
+            <div class="mc-meta">
+              <span>⏱ 40 min</span><span class="cost">$8.70</span><span>4 servings</span>
+            </div>
+          </div>
+
+          <div class="grocery-toggle" style="margin-bottom: 6px;">
+            <div class="gt-left">
+              <span class="gt-icon">🛒</span>
+              <div>
+                <div class="gt-label">Grocery List Ready</div>
+                <div class="gt-count">22 items · $143 estimated</div>
+              </div>
+            </div>
+            <span class="gt-arrow">→</span>
+          </div>
+
+          <div class="card" style="border-color:rgba(212,168,67,0.15);background:var(--adim);margin-top:4px;">
+            <div style="font-size:11px;color:var(--gold);margin-bottom:4px;font-family:'Geist Mono',monospace;letter-spacing:0.05em">💡 SAVINGS TIP</div>
+            <div style="font-size:12px;color:var(--text);line-height:1.5">Buy the chicken thighs at Aldi — typically 35–40% cheaper than grocery chains. Covers Mon, Tue, and Sat meals.</div>
+          </div>
+          <div style="height:16px"></div>
+        </div>
+
+        <!-- SCREEN: CHAT / AI -->
+        <div id="chat" class="screen" style="padding-bottom:16px;">
+          <div class="eyebrow" style="margin-bottom:14px">Chat with Kin</div>
+
+          <div class="chat-messages">
+            <div class="chat-bubble kin">
+              <div class="kin-label">kin</div>
+              Hey Johnson family! Both profiles are set up. Week 1 meals are planned within your $180 budget. Grocery list is ready. Buddy's vet reminder is set for Thursday.
+              <br><br>
+              Your partner's invite is on its way. Saturday at 7pm you're both free — want me to block it for date night?
+              <br><br>
+              <em style="color:var(--text2);font-size:13px">Let's run this household.</em>
+            </div>
+
+            <div class="chat-bubble user">
+              What's for dinner tonight?
+            </div>
+
+            <div class="chat-bubble kin">
+              <div class="kin-label">kin</div>
+              <strong>Sheet Pan Lemon Chicken</strong> — 25 min, $12.40.
+              <br><br>
+              You'll need: chicken thighs, lemon, garlic, rosemary, baby potatoes, cherry tomatoes, olive oil. Everything's on your grocery list already.
+              <br><br>
+              <span style="color:var(--gold);font-size:12px">💡 The chicken thighs are cheapest at Aldi — $4.99/lb vs $5.49 at Kroger.</span>
+            </div>
+
+            <div class="chat-bubble user">
+              Can we swap Thursday's dinner? Mia won't eat tacos.
+            </div>
+
+            <div class="chat-bubble kin">
+              <div class="kin-label">kin</div>
+              Got it — noted that Mia doesn't like tacos. I'll remember that.
+              <br><br>
+              How about <strong>Cheesy Chicken Quesadillas</strong> instead? Same budget ($11.60), kid-approved, 20 min. I've updated the grocery list.
+            </div>
+
+            <div class="chat-suggestion-row">
+              <span class="chat-suggestion">Show grocery list</span>
+              <span class="chat-suggestion">What's our budget status?</span>
+              <span class="chat-suggestion">Plan date night</span>
+            </div>
+          </div>
+
+          <div class="chat-input-bar">
+            <input class="chat-input" placeholder="Ask Kin anything...">
+            <button class="chat-send">↑</button>
+          </div>
+        </div>
+
+        <!-- SCREEN: BUDGET -->
+        <div id="budget" class="screen">
+          <div class="eyebrow gold">Budget</div>
+          <div class="headline"><em>April</em> <span class="a">spending</span></div>
+
+          <div class="budget-hero">
+            <div class="bh-amount">$2,847</div>
+            <div class="bh-label">of $4,600 monthly budget</div>
+            <div class="bh-bar"><div class="bh-fill"></div></div>
+            <div class="bh-meta">
+              <span>$2,847 spent</span>
+              <span>$1,753 remaining</span>
+            </div>
+          </div>
+
+          <div class="category-list">
+            <div class="cat-item">
+              <div class="cat-dot" style="background:var(--gold)"></div>
+              <div class="cat-info">
+                <div class="cat-name">Groceries</div>
+                <div class="cat-bar-wrap"><div class="cat-bar-fill" style="width:75%;background:var(--gold)"></div></div>
+              </div>
+              <div style="text-align:right">
+                <div class="cat-amount">$542</div>
+                <div class="cat-budget">of $720</div>
+              </div>
+            </div>
+
+            <div class="cat-item">
+              <div class="cat-dot" style="background:var(--coral)"></div>
+              <div class="cat-info">
+                <div class="cat-name">Dining Out</div>
+                <div class="cat-bar-wrap"><div class="cat-bar-fill" style="width:87%;background:var(--coral)"></div></div>
+              </div>
+              <div style="text-align:right">
+                <div class="cat-amount" style="color:var(--coral)">$287</div>
+                <div class="cat-budget">of $330</div>
+              </div>
+            </div>
+
+            <div class="cat-item">
+              <div class="cat-dot" style="background:var(--green)"></div>
+              <div class="cat-info">
+                <div class="cat-name">Housing</div>
+                <div class="cat-bar-wrap"><div class="cat-bar-fill" style="width:100%;background:var(--green)"></div></div>
+              </div>
+              <div style="text-align:right">
+                <div class="cat-amount">$1,400</div>
+                <div class="cat-budget">of $1,400</div>
+              </div>
+            </div>
+
+            <div class="cat-item">
+              <div class="cat-dot" style="background:var(--purple)"></div>
+              <div class="cat-info">
+                <div class="cat-name">Kids Activities</div>
+                <div class="cat-bar-wrap"><div class="cat-bar-fill" style="width:45%;background:var(--purple)"></div></div>
+              </div>
+              <div style="text-align:right">
+                <div class="cat-amount">$180</div>
+                <div class="cat-budget">of $400</div>
+              </div>
+            </div>
+
+            <div class="cat-item">
+              <div class="cat-dot" style="background:var(--blue)"></div>
+              <div class="cat-info">
+                <div class="cat-name">Subscriptions</div>
+                <div class="cat-bar-wrap"><div class="cat-bar-fill" style="width:93%;background:var(--blue)"></div></div>
+              </div>
+              <div style="text-align:right">
+                <div class="cat-amount" style="color:var(--blue)">$214</div>
+                <div class="cat-budget">of $230</div>
+              </div>
+            </div>
+
+            <div class="cat-item">
+              <div class="cat-dot" style="background:var(--rose)"></div>
+              <div class="cat-info">
+                <div class="cat-name">Pets</div>
+                <div class="cat-bar-wrap"><div class="cat-bar-fill" style="width:56%;background:var(--rose)"></div></div>
+              </div>
+              <div style="text-align:right">
+                <div class="cat-amount">$224</div>
+                <div class="cat-budget">of $400</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="add-expense-btn">+ Add Expense</div>
+
+          <div class="recent-transactions">
+            <div class="rt-header">Recent Transactions</div>
+            <div class="tx-item">
+              <div class="tx-icon" style="background:var(--adim)">🛒</div>
+              <div class="tx-info">
+                <div class="tx-name">Aldi</div>
+                <div class="tx-cat">Groceries · Today</div>
+              </div>
+              <div class="tx-amount" style="color:var(--gold)">-$47.82</div>
+            </div>
+            <div class="tx-item">
+              <div class="tx-icon" style="background:var(--cdim)">🍕</div>
+              <div class="tx-info">
+                <div class="tx-name">Chipotle</div>
+                <div class="tx-cat">Dining Out · Yesterday</div>
+              </div>
+              <div class="tx-amount" style="color:var(--coral)">-$34.50</div>
+            </div>
+            <div class="tx-item">
+              <div class="tx-icon" style="background:var(--pdim)">⚽</div>
+              <div class="tx-info">
+                <div class="tx-name">Mia's Soccer League</div>
+                <div class="tx-cat">Kids Activities · Mar 30</div>
+              </div>
+              <div class="tx-amount" style="color:var(--purple)">-$85.00</div>
+            </div>
+            <div class="tx-item">
+              <div class="tx-icon" style="background:var(--rdim)">🐕</div>
+              <div class="tx-info">
+                <div class="tx-name">PetSmart</div>
+                <div class="tx-cat">Pets · Mar 29</div>
+              </div>
+              <div class="tx-amount" style="color:var(--rose)">-$62.30</div>
+            </div>
+          </div>
+
+          <div class="card" style="margin-top:14px;border-color:rgba(122,173,206,0.15);background:var(--bdim)">
+            <div style="font-size:11px;color:var(--blue);margin-bottom:4px;font-family:'Geist Mono',monospace;letter-spacing:0.05em">🔍 KIN FOUND</div>
+            <div style="font-size:12px;color:var(--text);line-height:1.5">You're paying for 3 streaming services you haven't used in 60+ days. That's <strong style="color:var(--blue)">$42/month</strong> you could save. Want me to list them?</div>
+          </div>
+          <div style="height:16px"></div>
+        </div>
+
+        <!-- SCREEN: PARTNER INVITE -->
+        <div id="partner-invite" class="screen">
+          <div class="eyebrow purple">Partner Invite</div>
+          <div class="headline"><em>Better together.</em> <span class="p">Invite your partner.</span></div>
+          <div class="subtitle">Kin works best when both parents are connected. Two profiles, one household — fully in sync.</div>
+
+          <div class="invite-visual">
+            <div class="invite-avatar" style="background:var(--gdim);border:2px solid var(--green)">
+              <span style="font-size:20px">👤</span>
+            </div>
+            <div class="invite-connect">
+              <div class="invite-line"></div>
+              <div class="invite-line-label">HOUSEHOLD</div>
+              <div class="invite-line"></div>
+            </div>
+            <div class="invite-avatar" style="background:var(--pdim);border:2px dashed var(--purple)">
+              <span style="font-size:20px;opacity:0.5">👤</span>
+            </div>
+          </div>
+
+          <div class="card" style="border-color:rgba(160,126,200,0.2);background:var(--pdim);text-align:center;padding:18px">
+            <div style="font-family:'Instrument Serif',serif;font-size:18px;color:var(--text);margin-bottom:4px">
+              <span style="color:var(--green)">You</span> + <span style="color:var(--purple)">Partner</span>
+            </div>
+            <div style="font-size:12px;color:var(--text2)">
+              Dual calendars · Shared budget · Date night · Everything in sync
+            </div>
+          </div>
+
+          <div class="unlock-list">
+            <div class="unlock-item">
+              <div class="unlock-check">✓</div>
+              <div class="unlock-text">
+                Dual calendar sync
+                <span>Both schedules merged. Conflicts caught automatically.</span>
+              </div>
+            </div>
+            <div class="unlock-item">
+              <div class="unlock-check">✓</div>
+              <div class="unlock-text">
+                Shared household budget
+                <span>Both parents log spending. One unified view of family finances.</span>
+              </div>
+            </div>
+            <div class="unlock-item">
+              <div class="unlock-check">✓</div>
+              <div class="unlock-text">
+                Date night suggestions
+                <span>Kin finds windows when you're both free and budget allows.</span>
+              </div>
+            </div>
+            <div class="unlock-item">
+              <div class="unlock-check">✓</div>
+              <div class="unlock-text">
+                Private AI for each parent
+                <span>Your own Kin chat. Private goals. Private calendar. Shared household.</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="label" style="margin-top:12px">Partner's Email</div>
+          <input class="input-field mb-12" placeholder="partner@email.com">
+
+          <button class="btn-primary" style="background:var(--purple)">
+            Send Invite
+          </button>
+          <div style="text-align:center;margin-top:10px">
+            <span style="font-size:12px;color:var(--text3);cursor:pointer;">Maybe later — I'll set this up from the app</span>
+          </div>
+          <div style="height:16px"></div>
+        </div>
+
+      </div><!-- /screens -->
+
+      <!-- TAB BAR (visible on app screens) -->
+      <div class="tab-bar" id="tabBar" style="display:none">
+        <button class="tab-item" onclick="showScreen('chat')">
+          <span class="tab-icon">💬</span> Chat
+        </button>
+        <button class="tab-item" onclick="showScreen('meals')">
+          <span class="tab-icon">🍽</span> Meals
+        </button>
+        <button class="tab-item" onclick="showScreen('budget')">
+          <span class="tab-icon">💰</span> Budget
+        </button>
+        <button class="tab-item active" onclick="showScreen('dashboard')">
+          <span class="tab-icon">◉</span> Home
+        </button>
+      </div>
+
+    </div><!-- /phone -->
+  </div><!-- /phone-area -->
+</div><!-- /app-shell -->
+
+<script>
+// ═══════════════════════════════════════════
+// NAVIGATION
+// ═══════════════════════════════════════════
+const appScreens = ['dashboard', 'meals', 'chat', 'budget'];
+const tabBar = document.getElementById('tabBar');
+
+function showScreen(id) {
+  // Update nav buttons
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b => {
+    if (b.textContent.toLowerCase().includes(getNavLabel(id))) b.classList.add('active');
+  });
+
+  // Update screens
+  document.querySelectorAll('.screen').forEach(s => {
+    s.classList.remove('active');
+  });
+  document.getElementById(id).classList.add('active');
+
+  // Show/hide tab bar
+  tabBar.style.display = appScreens.includes(id) ? 'flex' : 'none';
+
+  // Update tab bar active state
+  if (appScreens.includes(id)) {
+    document.querySelectorAll('.tab-item').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.tab-item').forEach(t => {
+      const label = t.textContent.trim().toLowerCase();
+      const screenLabel = id === 'dashboard' ? 'home' : id;
+      if (label === screenLabel) t.classList.add('active');
+    });
+  }
+}
+
+function getNavLabel(id) {
+  const map = {
+    'onboarding': 'onboarding',
+    'dashboard': 'dashboard',
+    'meals': 'meal',
+    'chat': 'chat',
+    'budget': 'budget',
+    'partner-invite': 'partner'
+  };
+  return map[id] || id;
+}
+
+// ═══════════════════════════════════════════
+// ONBOARDING FLOW
+// ═══════════════════════════════════════════
+let currentObStep = 1;
+
+function nextObStep() {
+  const steps = document.querySelectorAll('#onboarding .ob-step');
+  steps.forEach(s => s.classList.remove('active'));
+  currentObStep++;
+  if (currentObStep <= 5) {
+    document.querySelector(`#onboarding .ob-step[data-step="${currentObStep}"]`).classList.add('active');
+  }
+}
+
+function showObLoading() {
+  const steps = document.querySelectorAll('#onboarding .ob-step');
+  steps.forEach(s => s.classList.remove('active'));
+  document.querySelector('#onboarding .ob-step[data-step="loading"]').classList.add('active');
+
+  // Animate loading steps
+  const loadingSteps = ['ls1', 'ls2', 'ls3', 'ls4'];
+  loadingSteps.forEach((id, i) => {
+    setTimeout(() => {
+      document.getElementById(id).classList.add('active');
+    }, (i + 1) * 800);
+  });
+
+  // After loading, go to meal plan
+  setTimeout(() => {
+    showScreen('meals');
+  }, 4500);
+}
+
+// ═══════════════════════════════════════════
+// INTERACTIVE ELEMENTS
+// ═══════════════════════════════════════════
+function selectHousehold(el) {
+  document.querySelectorAll('.household-option').forEach(o => o.classList.remove('selected'));
+  el.classList.add('selected');
+}
+
+function toggleChip(el) {
+  el.classList.toggle('selected');
+}
+
+// Star ratings
+document.querySelectorAll('.mc-rating').forEach(rating => {
+  const stars = rating.querySelectorAll('.mc-star');
+  stars.forEach((star, i) => {
+    star.addEventListener('click', () => {
+      stars.forEach((s, j) => {
+        s.classList.toggle('filled', j <= i);
+        s.textContent = j <= i ? '★' : '☆';
+      });
+    });
+  });
+});
+
+// Init: show onboarding
+showScreen('onboarding');
+</script>
+
+</body>
+</html>

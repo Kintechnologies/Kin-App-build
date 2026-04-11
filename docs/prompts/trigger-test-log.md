@@ -719,3 +719,142 @@ These scenarios mirror the personal-thread tests added in S14 but apply househol
 4. **first-use-prompt.md route must derive a confidence signal (S15).** The route needs to assess household data quality before calling this prompt and pass `confidence: HIGH | MEDIUM | LOW`. MEDIUM and LOW must both result in `is_fallback: true`. Without this signal the model may default to generating a hedged live insight on first use.
 5. **§3B, §3D, §3E, §3F not tested.** These trigger types (Schedule Compression, Responsibility Shift, Coverage Gap, Transition Risk) remain post-TestFlight scope.
 6. **Production qualifier drift.** As these prompts approach wiring, validate rendered strings for stacked qualifiers under unusual schedule patterns. Route-level validation (counting qualifier words per sentence) recommended before writing to `coordination_issues.content` or rendering to the Today screen.
+
+---
+
+## SESSION 16 — 2026-04-09T00:00 (route verification attempt; backend code not in workspace)
+
+**Context:** Session 15 locked all 7 prompts and closed out BACKLOG-013 at the documentation layer. IE focus has shifted to verifying that Lead Eng has wired the 3 confirmed route gaps into the backend. This session attempted that verification.
+
+### Git log check
+**Result: BLOCKED** — No git repository present in the mounted workspace (`/mnt/prompts/`). The workspace contains prompt documents only; the monorepo code (`apps/`, `supabase/`, `docs/ops/`) is not mounted. Cannot determine what Lead Eng has committed since S15.
+
+**Action required (Lead Eng / CoS):** Mount the repo root (the `kin/` monorepo) into the IE workspace so that `git log` and route file reads are possible. Alternatively, Lead Eng should post a commit-range summary (e.g. `git log --oneline a83a540..HEAD`) in the session channel before each IE run.
+
+---
+
+### BACKLOG-013 Wiring Verification
+
+All three items remain **⏳ UNVERIFIABLE** this session — backend route files not accessible.
+
+| Item | Expected wiring | Status |
+|------|----------------|--------|
+| **Checkin route** — `last_surfaced_at` + `checkins_generated_today` in payload | Route reads both fields and passes them to `checkin-prompt.md` before calling AI | ⏳ Cannot verify — no route file access |
+| **Alert route** — gate on `state = "OPEN"` before calling `alert-prompt.md` | Route checks `coordination_issues.state` first; skips AI call if `ACKNOWLEDGED` or `RESOLVED` | ⏳ Cannot verify — no route file access |
+| **Personal chat route** — `state` field included in `open_coordination_issues` items | Each item in the context array has `state: "OPEN" \| "ACKNOWLEDGED"` | ⏳ Cannot verify — no route file access |
+
+**What the IE can confirm from the prompt layer:**
+- All 3 route requirements are correctly specified in the prompt schemas (S14–S15 validated).
+- `checkin-prompt.md` INPUT FORMAT includes `last_surfaced_at` and `checkins_generated_today` ✅
+- `alert-prompt.md` ROUTING GATE section documents the `state = "OPEN"` gate requirement ✅
+- `chat-prompt.md` `open_coordination_issues` field description includes `state` ✅
+- If the route passes these fields correctly, the prompts will enforce the rules. The risk is entirely on the route side.
+
+---
+
+### morning_briefing_log regression check (a83a540)
+**Result: BLOCKED** — No route file access. Cannot verify read-before-call / write-after-call pattern has not regressed since the wiring commit at `a83a540`.
+
+---
+
+### rate-limit.ts coverage audit
+**Result: BLOCKED** — No route file access. `rate-limit.ts` not present in workspace. Cannot enumerate which AI-calling routes are covered or flag any gaps.
+
+---
+
+### §26 drift check
+**Result: SKIPPED (correct)** — No prompt files were changed since S15. All 7 prompts locked. Drift check is not warranted this session per standing IE protocol.
+
+---
+
+### Session 16 summary
+
+**What's wired (confirmed from prior sessions):** All 7 prompts are spec-complete and locked. 15/15 trigger tests passing. The prompt layer is ready for route wiring.
+
+**What's pending (BACKLOG-013):** All 3 route items remain unverified. The IE cannot close BACKLOG-013 without read access to the backend route files or a Lead Eng confirmation note.
+
+**What Lead Eng should action next:**
+1. Wire checkin route: pass `last_surfaced_at` (per-event, from DB) and `checkins_generated_today` (household aggregate for today) in the AI payload.
+2. Wire alert route: add `if (issue.state !== "OPEN") return;` gate before calling `alert-prompt.md`. Do not call for `ACKNOWLEDGED` or `RESOLVED` issues.
+3. Wire personal chat route: ensure each item in `open_coordination_issues` context array includes `state: "OPEN" | "ACKNOWLEDGED"`. Without this, ACKNOWLEDGED issues receive OPEN-urgency language.
+4. **Mount the monorepo into the IE workspace** (or share a commit log summary) so route verification can run automatically next session.
+
+---
+
+## SESSION 17 — 2026-04-11 (route verification attempt; backend code not in workspace — second consecutive blocked session)
+
+**Context:** Second consecutive IE session attempting BACKLOG-013 route verification. Situation is identical to S16: the IE workspace mounts only `docs/prompts/`; the monorepo root (`apps/`, `supabase/`, etc.) is not accessible. The S16 request to mount the repo or share a commit log was not actioned before this run.
+
+---
+
+### Git log check
+**Result: BLOCKED (2nd session)** — No git repository present in the mounted workspace. The `docs/prompts/` mount does not include `.git`. Cannot determine what Lead Eng has committed since S15.
+
+**Escalation note:** This is the second consecutive automated session that has been unable to run the git check. BACKLOG-013 cannot be closed and route regressions cannot be caught until this access problem is resolved. This must be actioned before the next IE run.
+
+---
+
+### Prompt file modification check
+All 7 prompt files last modified on or before 2026-04-08 (S15). No files changed since the last IE session. Consistent with "all 7 prompts are final and locked."
+
+| Prompt | Last modified | Status |
+|--------|--------------|--------|
+| `morning-briefing-prompt.md` | 2026-04-05 | ✅ Unchanged |
+| `household-chat-prompt.md` | 2026-04-06 | ✅ Unchanged |
+| `alert-prompt.md` | 2026-04-08 | ✅ Unchanged |
+| `chat-prompt.md` | 2026-04-08 | ✅ Unchanged |
+| `checkin-prompt.md` | 2026-04-08 | ✅ Unchanged |
+| `first-use-prompt.md` | 2026-04-08 | ✅ Unchanged |
+| `trigger-test-log.md` | 2026-04-09 (S16 write) | ✅ No rogue edits |
+
+---
+
+### BACKLOG-013 Wiring Verification
+
+All three items remain **⏳ UNVERIFIABLE** for a second consecutive session.
+
+| Item | Expected wiring | Status |
+|------|----------------|--------|
+| **Checkin route** — `last_surfaced_at` + `checkins_generated_today` in payload | Route reads both fields and passes them to `checkin-prompt.md` before calling AI | ⏳ Cannot verify — no route file access (2nd session) |
+| **Alert route** — gate on `state = "OPEN"` before calling `alert-prompt.md` | Route checks `coordination_issues.state` first; skips AI call if `ACKNOWLEDGED` or `RESOLVED` | ⏳ Cannot verify — no route file access (2nd session) |
+| **Personal chat route** — `state` field included in `open_coordination_issues` items | Each item in the context array has `state: "OPEN" \| "ACKNOWLEDGED"` | ⏳ Cannot verify — no route file access (2nd session) |
+
+**What the IE can confirm from the prompt layer (unchanged from S16):** All 3 requirements are correctly specified in the prompt schemas. If routes pass the fields, the prompts will enforce the rules. Risk is entirely on the route side.
+
+---
+
+### morning_briefing_log regression check (a83a540)
+**Result: BLOCKED** — No route file access. Cannot verify the read-before-call / write-after-call pattern has not regressed since `a83a540`.
+
+---
+
+### rate-limit.ts coverage audit
+**Result: BLOCKED** — No route file access. Cannot enumerate covered routes or flag gaps.
+
+---
+
+### §26 drift check
+**Result: SKIPPED (correct)** — No prompt files changed since S15. Per standing protocol, drift check is not run when no prompt files have been modified.
+
+---
+
+### Session 17 summary
+
+**What's wired (confirmed from prior sessions):** All 7 prompts spec-complete and locked. 15/15 tests passing. Prompt layer ready.
+
+**What's pending (BACKLOG-013):** All 3 route items remain unverified for the second consecutive session.
+
+**Escalation (CTO / Head of Ops):** Two consecutive IE sessions have been unable to perform any route verification. The IE is running correctly; the blocker is a workspace configuration issue. Until the monorepo is mounted or Lead Eng provides a written confirmation of wiring status, BACKLOG-013 will remain open indefinitely and the automated cadence produces no useful signal.
+
+**Recommended resolution (pick one):**
+1. **Mount the repo root** (`/Users/austin/Projects/kin`) into the IE workspace so `apps/api/` and `git log` are accessible. This enables fully automated verification.
+2. **Lead Eng writes a wiring note** to `docs/prompts/trigger-test-log.md` (or a `docs/ops/` file) before each IE run, confirming commit hash, route file paths checked, and wiring status for each BACKLOG-013 item. The IE will read and incorporate that note.
+3. **One-time manual hand-off:** Lead Eng pastes the 3 relevant route file excerpts (checkin, alert, chat) into the session channel. The IE will verify them directly and close BACKLOG-013 if they pass.
+
+**What Lead Eng should action next (unchanged from S16):**
+1. Wire checkin route: pass `last_surfaced_at` and `checkins_generated_today` in the AI payload.
+2. Wire alert route: gate on `state = "OPEN"` before calling `alert-prompt.md`.
+3. Wire personal chat route: include `state` in each `open_coordination_issues` item.
+4. **Resolve workspace access** using one of the three options above before the next IE run.
+
+**CTO / Head of Ops note:** BACKLOG-013 remains open. IE cannot confirm closure until route code is accessible. Once routes are wired and accessible, the IE will confirm all 3 items in a single session and reduce cadence to weekly drift checks.

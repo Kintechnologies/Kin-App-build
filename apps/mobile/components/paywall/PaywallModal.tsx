@@ -307,7 +307,7 @@ export default function PaywallModal({
                 <Text style={styles.planPeriod}>/mo</Text>
               </View>
               <Text style={styles.planDetail}>{getAnnualTotalPrice()}</Text>
-              <Text style={styles.planSavings}>Save $169 vs monthly</Text>
+              <Text style={styles.planSavings}>Save $119 vs monthly</Text>
               {selectedPlan === "annual" && (
                 <View style={[styles.planCheckmark, { backgroundColor: c.amberSubtle }]}>
                   <Check size={12} color={c.amber} strokeWidth={3} />

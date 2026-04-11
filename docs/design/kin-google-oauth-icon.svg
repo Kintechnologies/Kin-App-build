@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Kin — Google OAuth App Icon
+  ───────────────────────────
+  Size:   512×512px (Google requires square, ≥120px, max 1MB)
+  Format: Export as PNG at 512×512 for upload to Google Cloud Console
+  Usage:  OAuth consent screen · Google Workspace Marketplace (if applicable)
+
+  To export as PNG:
+    Option 1: Open in browser → right-click → "Save image as" (select PNG)
+    Option 2: Run: npx sharp-cli --input kin-google-oauth-icon.svg --output kin-google-oauth-icon.png --width 512 --height 512
+    Option 3: Open in Figma/Sketch → export at 512×512 PNG
+-->
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" fill="none">
+
+  <!-- Background: brand dark bg with rounded corners (Google shows as square, OS may clip) -->
+  <rect width="512" height="512" rx="115" fill="#0C0F0A"/>
+
+  <!-- Subtle noise texture overlay -->
+  <rect width="512" height="512" rx="115" fill="url(#noise)" opacity="0.025"/>
+
+  <!-- Radial glow behind the mark -->
+  <circle cx="256" cy="256" r="220" fill="url(#glow)"/>
+
+  <!-- ═══════════════════════════════════════════════
+       Family Constellation Mark
+       Three circles — equilateral triangle arrangement
+       Original viewBox 0 0 64 64, scaled to 512×512
+       Scale factor: ~8x (with ~20% padding = ~6.5x at 512)
+       Target mark width: ~310px, centered at (256,256)
+
+       Original positions (64×64 canvas):
+         Top:          cx=32,    cy=20,   r=8
+         Bottom-left:  cx=21.75, cy=37.9, r=9
+         Bottom-right: cx=42.25, cy=37.9, r=9
+
+       Scaled (×8.0), then offset to center:
+         Scale: 8.0
+         Mark center in orig: x=32, y=(20+37.9)/2=28.95
+         Mark center in scaled: x=256, y=231.6
+         Offset to center at 256,256: dy = 256-231.6 = 24.4 → cy += 24.4
+
+         Top:          cx=256,  cy=184.4, r=64
+         Bottom-left:  cx=174,  cy=327.6, r=72
+         Bottom-right: cx=338,  cy=327.6, r=72
+       ═══════════════════════════════════════════════ -->
+
+  <!-- Top circle — child (smaller) -->
+  <circle cx="256" cy="184" r="64" fill="#7CB87A"/>
+
+  <!-- Bottom-left circle — parent -->
+  <circle cx="174" cy="328" r="72" fill="#7CB87A"/>
+
+  <!-- Bottom-right circle — parent -->
+  <circle cx="338" cy="328" r="72" fill="#7CB87A"/>
+
+  <defs>
+    <radialGradient id="glow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#7CB87A" stop-opacity="0.07"/>
+      <stop offset="100%" stop-color="#7CB87A" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="noise">
+      <feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="4" stitchTiles="stitch"/>
+    </filter>
+  </defs>
+</svg>
