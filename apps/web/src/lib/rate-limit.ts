@@ -19,7 +19,7 @@ import { Ratelimit } from "@upstash/ratelimit";
 import { Redis } from "@upstash/redis";
 import { NextResponse } from "next/server";
 
-type RouteKey = "chat" | "morning-briefing" | "first-use";
+type RouteKey = "chat" | "morning-briefing" | "first-use" | "sms";
 
 // Lazily initialise Redis + limiters only when env vars are present.
 let redis: Redis | null = null;
@@ -51,6 +51,13 @@ function getLimiter(route: RouteKey): Ratelimit | null {
       redis: r,
       limiter: Ratelimit.slidingWindow(1, "1 d"),
       prefix: "rl:morning-briefing",
+    });
+  } else if (route === "sms") {
+    // 20 inbound SMS per hour per phone number — prevents API drain from a single number
+    limiter = new Ratelimit({
+      redis: r,
+      limiter: Ratelimit.slidingWindow(20, "1 h"),
+      prefix: "rl:sms",
     });
   } else {
     // first-use: 5 requests per 365 days (effectively lifetime)
