@@ -83,9 +83,20 @@ export async function GET(request: Request) {
     // Trigger initial sync
     await syncCalendarForConnection(connection.id);
 
-    return NextResponse.redirect(
-      `${process.env.NEXT_PUBLIC_APP_URL}/settings?calendar_connected=google`
-    );
+    // Route new users (onboarding not yet complete) to the done screen
+    const supabaseCheck = createClient();
+    const { data: profileCheck } = await supabaseCheck
+      .from("profiles")
+      .select("onboarding_completed")
+      .eq("id", state)
+      .single<{ onboarding_completed: boolean | null }>();
+
+    const redirectPath =
+      profileCheck?.onboarding_completed === true
+        ? "/settings?calendar_connected=google"
+        : "/onboarding/done";
+
+    return NextResponse.redirect(`${process.env.NEXT_PUBLIC_APP_URL}${redirectPath}`);
   } catch (err) {
     Sentry.captureException(err);
     return NextResponse.redirect(

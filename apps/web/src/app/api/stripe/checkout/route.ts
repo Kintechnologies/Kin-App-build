@@ -5,7 +5,7 @@ import * as Sentry from "@sentry/nextjs";
 
 export async function POST(request: Request) {
   try {
-    const { planId, billing = "monthly" } = await request.json();
+    const { planId, billing = "monthly", successPath = "/dashboard?subscribed=true" } = await request.json();
 
     if (!planId || !(planId in PLANS)) {
       return NextResponse.json({ error: "Invalid plan" }, { status: 400 });
@@ -66,7 +66,7 @@ export async function POST(request: Request) {
         trial_period_days: 7,
         metadata: { supabase_user_id: user.id, plan: planId, billing },
       },
-      success_url: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard?subscribed=true`,
+      success_url: `${process.env.NEXT_PUBLIC_APP_URL}${successPath}`,
       cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/pricing`,
       metadata: { supabase_user_id: user.id, plan: planId, billing },
     });
