@@ -187,7 +187,7 @@ function SignInForm() {
 
   return (
     <div style={{ width: "100%", maxWidth: 400, display: "flex", flexDirection: "column", gap: 24 }}>
-      <div>
+      <div style={{ textAlign: "center" }}>
         <div style={{ fontSize: 28, fontWeight: 500, letterSpacing: "-0.025em", marginBottom: 6, color: T.warm }}>
           {inviteCode ? "Join your household" : "Sign in"}
         </div>
@@ -204,7 +204,7 @@ function SignInForm() {
           {loading ? <Loader2 size={16} style={{ animation: "spin 1s linear infinite" }} /> : <GoogleGlyph />}
           <span>Continue with Google</span>
         </button>
-        <div style={{ fontFamily: T.mono, fontSize: 11, color: T.warm40, letterSpacing: "0.03em" }}>
+        <div style={{ fontFamily: T.mono, fontSize: 11, color: T.warm40, letterSpacing: "0.03em", textAlign: "center" }}>
           {"// creates your account · no calendar access yet"}
         </div>
       </div>
@@ -216,18 +216,28 @@ function SignInForm() {
         <div style={{ flex: 1, height: 1, background: T.hair }} />
       </div>
 
-      {/* Method toggle */}
-      <div style={{ display: "flex", gap: 8 }}>
+      {/* Method toggle — segmented control */}
+      <div style={{
+        display: "flex",
+        width: "100%",
+        padding: 3,
+        background: "rgba(240,237,230,0.04)",
+        border: `1px solid ${T.warm12}`,
+        borderRadius: 8,
+        boxSizing: "border-box",
+      }}>
         {(["phone", "email"] as const).map((m) => (
           <button
             key={m}
             type="button"
             onClick={() => { setMethod(m); setError(""); }}
             style={{
-              flex: 1, height: 36, border: `1px solid ${method === m ? T.sageBorder : T.warm12}`,
-              borderRadius: 8, background: method === m ? T.sage12 : "transparent",
+              flex: 1, height: 32, border: "none",
+              borderRadius: 6,
+              background: method === m ? T.sage12 : "transparent",
               color: method === m ? T.sage : T.warm40, fontFamily: "inherit",
               fontSize: 13, fontWeight: 500, cursor: "pointer",
+              transition: "background 0.15s ease, color 0.15s ease",
             }}
           >
             {m === "phone" ? "Text code" : "Email link"}
@@ -242,16 +252,16 @@ function SignInForm() {
             <label style={{ display: "block", fontSize: 11.5, color: T.warm56, letterSpacing: "0.04em", textTransform: "uppercase", fontWeight: 500, marginBottom: 8 }}>
               Mobile number
             </label>
-            <div style={{ display: "flex", alignItems: "center" }}>
+            <div style={{ display: "flex", alignItems: "center", width: "100%" }}>
               <div style={{
                 height: 44, padding: "0 12px", background: "rgba(240,237,230,0.04)",
                 border: `1px solid ${T.warm12}`, borderRight: "none", borderRadius: "8px 0 0 8px",
                 display: "flex", alignItems: "center", fontSize: 14, color: T.warm40,
-                fontFamily: T.mono, flexShrink: 0,
+                fontFamily: T.mono, flexShrink: 0, boxSizing: "border-box",
               }}>+1</div>
               <input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)}
                 placeholder="(415) 555-0117" autoFocus required
-                style={{ ...fieldStyle, borderRadius: "0 8px 8px 0" }} />
+                style={{ ...fieldStyle, borderRadius: "0 8px 8px 0", flex: 1, width: "auto", minWidth: 0 }} />
             </div>
             <div style={{ marginTop: 6, fontSize: 11, color: T.warm40, lineHeight: 1.6 }}>
               By verifying your number you agree to receive automated SMS from Kin (daily briefings, ~1/day). Msg &amp; data rates may apply.{" "}
@@ -277,7 +287,7 @@ function SignInForm() {
               value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))}
               placeholder="123456" autoFocus required
               style={{ ...fieldStyle, fontFamily: T.mono, letterSpacing: "0.15em", fontSize: 18, textAlign: "center" }} />
-            <div style={{ marginTop: 6, fontFamily: T.mono, fontSize: 11, color: T.warm40 }}>
+            <div style={{ marginTop: 6, fontFamily: T.mono, fontSize: 11, color: T.warm40, textAlign: "center" }}>
               {"// sent to +1 "}{phone}{" · "}
               <button type="button" onClick={() => { setPhoneStep("phone"); setCode(""); setError(""); }}
                 style={{ background: "none", border: "none", color: T.sage, cursor: "pointer", fontFamily: "inherit", fontSize: "inherit", padding: 0 }}>
@@ -303,7 +313,7 @@ function SignInForm() {
             </label>
             <input type="email" value={email} onChange={(e) => setEmail(e.target.value)}
               placeholder="you@example.com" autoFocus required style={fieldStyle} />
-            <div style={{ marginTop: 6, fontFamily: T.mono, fontSize: 11, color: T.warm40 }}>
+            <div style={{ marginTop: 6, fontFamily: T.mono, fontSize: 11, color: T.warm40, textAlign: "center" }}>
               {"// we'll email you a one-click sign-in link"}
             </div>
           </div>
