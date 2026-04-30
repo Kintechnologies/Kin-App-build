@@ -187,7 +187,7 @@ function SignInForm() {
           <span>Continue with Google</span>
         </button>
         <div style={{ fontFamily: T.mono, fontSize: 11, color: T.warm40, letterSpacing: "0.03em" }}>
-          // signs you in · connects your calendar · read-only
+          {"// signs you in · connects your calendar · read-only"}
         </div>
       </div>
 
@@ -227,7 +227,7 @@ function SignInForm() {
               />
             </div>
             <div style={{ marginTop: 6, fontFamily: T.mono, fontSize: 11, color: T.warm40, letterSpacing: "0.03em" }}>
-              // no password — we text you a 6-digit code
+              {"// no password — we text you a 6-digit code"}
             </div>
           </div>
           {error && <p style={{ color: "#D4748A", fontSize: 13, margin: 0 }} role="alert">{error}</p>}
@@ -255,7 +255,7 @@ function SignInForm() {
               style={{ ...fieldStyle, fontFamily: T.mono, letterSpacing: "0.15em", fontSize: 18, textAlign: "center" }}
             />
             <div style={{ marginTop: 6, fontFamily: T.mono, fontSize: 11, color: T.warm40, letterSpacing: "0.03em" }}>
-              // sent to +1 {phone} ·{" "}
+              {"// sent to +1 "}{phone}{" ·"}{" "}
               <button
                 type="button"
                 onClick={() => { setPhoneStep("phone"); setCode(""); setError(""); }}

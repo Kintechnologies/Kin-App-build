@@ -119,9 +119,9 @@ export async function GET(request: Request) {
 
         const first = response.content[0];
         if (first?.type === "text") briefing = first.text.trim().slice(0, 480);
-      } catch (claudeErr: any) {
+      } catch (claudeErr: unknown) {
         clearTimeout(timeout);
-        console.error(`morning-briefing: Claude failed for ${profile.id}`, claudeErr?.message);
+        console.error(`morning-briefing: Claude failed for ${profile.id}`, claudeErr instanceof Error ? claudeErr.message : claudeErr);
         // Send fallback with raw calendar lines so user still gets something useful
         const eventSummary =
           events && events.length > 0

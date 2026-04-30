@@ -73,7 +73,7 @@ vi.mock("@sentry/nextjs", () => ({
 // ── Supabase regular client mock ──────────────────────────────────────────────
 vi.mock("@/lib/supabase/server", () => {
   function makeChain(tableName: string) {
-    let _field = "";
+    const _field = "";
     const chain = {
       delete: () => {
         callLog.push(`regular.${tableName}.delete`);
@@ -174,7 +174,7 @@ describe("DELETE /api/account", () => {
     (createClient as ReturnType<typeof vi.fn>).mockReturnValue({
       from: vi.fn((tableName: string) => {
         const chain: Record<string, unknown> = {};
-        const noopChain = () => chain;
+        const _noopChain = () => chain;
         chain["delete"] = () => {
           callLog.push(`regular.${tableName}.delete`);
           mockRegularDelete(tableName);

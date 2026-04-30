@@ -1,7 +1,7 @@
 "use client";
 
 import { Suspense, useState, useEffect } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import KinWordmark from "@/components/KinWordmark";
 import { createClient } from "@/lib/supabase/client";
@@ -155,7 +155,7 @@ function PhoneStep({ onNext }: { onNext: () => void }) {
 
 // ─── Step 1: Trial ────────────────────────────────────────────────────────────
 
-function TrialStep({ onNext }: { onNext: () => void }) {
+function TrialStep({ onNext: _onNext }: { onNext: () => void }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -175,8 +175,8 @@ function TrialStep({ onNext }: { onNext: () => void }) {
       const data = await res.json() as { url?: string; error?: string };
       if (!res.ok || !data.url) throw new Error(data.error ?? "Failed to start checkout");
       window.location.href = data.url;
-    } catch (err: any) {
-      setError(err.message ?? "Something went wrong. Try again.");
+    } catch (err: unknown) {
+      setError((err as Error)?.message ??"Something went wrong. Try again.");
       setLoading(false);
     }
   }
@@ -245,8 +245,8 @@ function CalendarStep() {
       const data = await res.json() as { url?: string; error?: string };
       if (!res.ok || !data.url) throw new Error(data.error ?? "Failed to get Google OAuth URL");
       window.location.href = data.url;
-    } catch (err: any) {
-      setError(err.message ?? "Couldn't connect calendar. Try again.");
+    } catch (err: unknown) {
+      setError((err as Error)?.message ??"Couldn't connect calendar. Try again.");
       setLoading(false);
     }
   }

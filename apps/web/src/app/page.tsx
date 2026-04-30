@@ -821,7 +821,7 @@ export default function Home() {
           overflowX: "auto",
         }}
       >
-        <span style={{ color: T.sage, flexShrink: 0 }}>// kin watches</span>
+        <span style={{ color: T.sage, flexShrink: 0 }}>{"// kin watches"}</span>
         {watchItems.map((item, i) => (
           <span
             key={item}

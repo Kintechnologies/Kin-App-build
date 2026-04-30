@@ -78,7 +78,7 @@ async function buildCalendarContext(
       .lte("start_time", `${today}T23:59:59Z`)
       .is("deleted_at", null)
       .order("start_time", { ascending: true })
-      .limit(10) as any,
+      .limit(10) as unknown as Promise<{ data: CalendarEventRow[] | null }>,
   ];
 
   if (partnerProfileId) {
@@ -91,7 +91,7 @@ async function buildCalendarContext(
         .lte("start_time", `${today}T23:59:59Z`)
         .is("deleted_at", null)
         .order("start_time", { ascending: true })
-        .limit(10) as any
+        .limit(10) as unknown as Promise<{ data: CalendarEventRow[] | null }>
     );
   }
 
@@ -289,8 +289,9 @@ export async function POST(request: Request) {
 
     const first = response.content[0];
     if (first?.type === "text") reply = first.text.trim().slice(0, 480);
-  } catch (err: any) {
-    if (err?.name === "AbortError" || err?.message?.includes("abort")) {
+  } catch (err: unknown) {
+    const e = err as { name?: string; message?: string };
+    if (e?.name === "AbortError" || e?.message?.includes("abort")) {
       console.warn("Claude timeout for SMS inbound");
     } else {
       console.error("Claude error in SMS inbound:", err);
@@ -388,9 +389,9 @@ async function sendPartnerInvite(
       from_number: process.env.TWILIO_PHONE_NUMBER ?? "",
       to_number: partnerPhone,
     });
-  } catch (err: any) {
+  } catch (err: unknown) {
     // Error 21610 = recipient has opted out — expected, log but don't throw
-    const is21610 = String(err?.message ?? "").includes("21610");
+    const is21610 = String((err as { message?: string })?.message ?? "").includes("21610");
     await supabase.from("sms_conversations").insert({
       profile_id: profile.id,
       direction: "outbound_failed",
