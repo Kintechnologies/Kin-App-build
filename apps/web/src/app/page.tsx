@@ -5,6 +5,7 @@ import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import { CheckCircle2, ArrowRight, Loader2 } from "lucide-react";
 import KinWordmark from "@/components/KinWordmark";
+import { InteractiveDemo } from "@/components/InteractiveDemo";
 
 type SubmitState = "idle" | "loading" | "success" | "error";
 
@@ -955,6 +956,9 @@ export default function Home() {
           — Austin, Kin founder &amp; parent of a 2-year-old
         </p>
       </div>
+
+      {/* ── Interactive demo ─────────────────────────────────────────────── */}
+      <InteractiveDemo />
 
       {/* ── Pricing + waitlist ───────────────────────────────────────────── */}
       <section
