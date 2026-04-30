@@ -3,12 +3,13 @@
 import { useState, useEffect, useCallback, Suspense } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
+import KinWordmark from "@/components/KinWordmark";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
-  UtensilsCrossed,
-  Wallet,
+  MessageSquare,
   MessageCircle,
   Calendar,
+  Settings,
   Sparkles,
   ArrowRight,
   CheckCircle,
@@ -17,30 +18,10 @@ import { createClient } from "@/lib/supabase/client";
 
 const cards = [
   {
-    href: "/meals",
-    icon: UtensilsCrossed,
-    label: "Today's Meals",
-    desc: "View your meal picks and grocery list",
-    iconBg: "bg-amber/20",
-    iconColor: "text-amber",
-    borderHover: "hover:border-amber/25",
-    glowHover: "hover:shadow-amber/10",
-  },
-  {
-    href: "/budget",
-    icon: Wallet,
-    label: "Budget Snapshot",
-    desc: "Track spending across your household",
-    iconBg: "bg-blue/20",
-    iconColor: "text-blue",
-    borderHover: "hover:border-blue/25",
-    glowHover: "hover:shadow-blue/10",
-  },
-  {
     href: "/chat",
     icon: MessageCircle,
     label: "Ask Kin",
-    desc: "Get help with anything — meals, budget, schedule",
+    desc: "Text or type a question — pickups, schedules, anything family coordination",
     iconBg: "bg-primary/20",
     iconColor: "text-primary",
     borderHover: "hover:border-primary/25",
@@ -50,7 +31,27 @@ const cards = [
     href: "/calendar",
     icon: Calendar,
     label: "This Week",
-    desc: "Connect your calendar to see what's coming up",
+    desc: "Your calendar events — Kin reads these to build your 6am briefing",
+    iconBg: "bg-blue/20",
+    iconColor: "text-blue",
+    borderHover: "hover:border-blue/25",
+    glowHover: "hover:shadow-blue/10",
+  },
+  {
+    href: "/chat",
+    icon: MessageSquare,
+    label: "6am Briefing",
+    desc: "Kin texts you and your partner every morning with what's on the calendar",
+    iconBg: "bg-amber/20",
+    iconColor: "text-amber",
+    borderHover: "hover:border-amber/25",
+    glowHover: "hover:shadow-amber/10",
+  },
+  {
+    href: "/settings",
+    icon: Settings,
+    label: "Settings",
+    desc: "Manage your phone number, calendar connections, and subscription",
     iconBg: "bg-blue/20",
     iconColor: "text-blue",
     borderHover: "hover:border-blue/25",
@@ -89,9 +90,9 @@ function formatTrialEnd(trialEndMs?: number | null): string {
 }
 
 const WELCOME_CHECKLIST = [
-  "Your meal plan is ready",
-  "Your budget is tracking",
-  "Kin AI is listening",
+  "Your 6am briefings start tomorrow",
+  "Both calendars synced",
+  "Text Kin anytime with questions",
 ];
 
 // ── Welcome Modal ─────────────────────────────────────────────────────────────
@@ -135,19 +136,20 @@ function WelcomeModal({ firstName, trialEnd, onDismiss }: WelcomeModalProps) {
 
         {/* Logo mark */}
         <div className="relative flex flex-col items-center text-center gap-6">
-          <span className="font-serif italic text-5xl text-primary tracking-tight">Kin</span>
+          <KinWordmark size={40} tone="sage" />
 
           {/* Headline */}
           <div>
             <h2
               id="welcome-heading"
-              className="font-serif italic text-4xl text-warm-white leading-tight mb-2"
+              className="text-4xl font-medium text-warm-white leading-tight mb-2"
+              style={{ letterSpacing: "-0.03em" }}
             >
               You&apos;re in
               {firstName ? `, ${firstName}` : ""}.
             </h2>
-            <p className="font-serif italic text-lg text-warm-white/60">
-              Your family&apos;s week, handled.
+            <p className="text-lg text-warm-white/60">
+              Your 6am briefing starts tomorrow.
             </p>
           </div>
 
@@ -286,7 +288,7 @@ function DashboardContent() {
           transition={{ duration: 0.5 }}
           className="mb-8"
         >
-          <h1 className="font-serif italic text-3xl text-primary mb-1.5 tracking-tight">
+          <h1 className="text-3xl font-medium text-primary mb-1.5" style={{ letterSpacing: "-0.025em" }}>
             {greetingText}
           </h1>
           <p className="text-warm-white/40 text-sm tracking-wide">
@@ -340,8 +342,7 @@ function DashboardContent() {
         >
           <Sparkles size={16} className="text-primary mt-0.5 shrink-0 shimmer" />
           <p className="text-warm-white/50 text-sm leading-relaxed">
-            <span className="font-semibold text-primary">Tip:</span> Ask Kin to plan date night,
-            suggest a quick dinner, or check if you&apos;re on budget this month.
+            <span className="font-semibold text-primary">Tip:</span> Text Kin&apos;s number directly with questions like &ldquo;Who has pickup today?&rdquo; or &ldquo;What&apos;s on the calendar this week?&rdquo;
           </p>
         </motion.div>
       </div>

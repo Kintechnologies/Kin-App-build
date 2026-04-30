@@ -1,14 +1,15 @@
 import Link from "next/link";
+import KinWordmark from "@/components/KinWordmark";
 
 export default function TermsPage() {
   return (
     <main className="min-h-screen px-6 py-16">
       <div className="max-w-2xl mx-auto">
-        <Link href="/" className="font-serif italic text-2xl text-primary mb-8 inline-block">
-          Kin
+        <Link href="/" style={{ textDecoration: "none", marginBottom: 32, display: "inline-block" }}>
+          <KinWordmark size={20} tone="warm" />
         </Link>
 
-        <h1 className="font-serif italic text-3xl text-warm-white mb-2">Terms of Service</h1>
+        <h1 className="text-3xl font-medium text-warm-white mb-2" style={{ letterSpacing: "-0.025em" }}>Terms of Service</h1>
         <p className="text-warm-white/40 text-sm mb-2">Kin Technologies LLC</p>
         <p className="text-warm-white/40 text-sm mb-8">Last updated: March 2026</p>
 

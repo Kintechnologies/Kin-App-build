@@ -3,6 +3,7 @@
 import { Suspense, useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
+import KinWordmark from "@/components/KinWordmark";
 import { createClient } from "@/lib/supabase/client";
 import { motion, AnimatePresence } from "framer-motion";
 import { CheckCircle2, ArrowRight, Loader2, Phone, CreditCard, Calendar } from "lucide-react";
@@ -63,18 +64,18 @@ function PhoneStep({ onNext }: { onNext: () => void }) {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) { setError("Session expired. Please sign in again."); setLoading(false); return; }
 
+      const partnerE164 = partnerPhone ? toE164(partnerPhone) : null;
+
       const { error: updateErr } = await supabase
         .from("profiles")
-        .update({ phone_number: e164 })
+        .update({
+          phone_number: e164,
+          // Persist partner phone so server-side invite can be sent after OAuth
+          ...(partnerE164 ? { partner_phone_pending: partnerE164 } : {}),
+        })
         .eq("id", user.id);
 
       if (updateErr) throw updateErr;
-
-      // Store partner phone in sessionStorage for post-Stripe partner invite SMS
-      if (partnerPhone) {
-        const partnerE164 = toE164(partnerPhone);
-        if (partnerE164) sessionStorage.setItem("kin_partner_phone", partnerE164);
-      }
 
       onNext();
     } catch {
@@ -357,8 +358,8 @@ function SmsSetupInner() {
 export default function SmsSetupPage() {
   return (
     <main className="min-h-screen flex flex-col items-center justify-center px-6 py-12">
-      <Link href="/" className="font-serif italic text-4xl text-primary mb-10">
-        Kin
+      <Link href="/" style={{ textDecoration: "none", marginBottom: 40, display: "block" }}>
+        <KinWordmark size={28} tone="warm" />
       </Link>
       <Suspense fallback={
         <div className="w-full max-w-sm flex items-center justify-center py-20">

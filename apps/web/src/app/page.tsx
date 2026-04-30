@@ -4,145 +4,256 @@ import { useState } from "react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import { CheckCircle2, ArrowRight, Loader2 } from "lucide-react";
+import KinWordmark from "@/components/KinWordmark";
 
 type SubmitState = "idle" | "loading" | "success" | "error";
 
-// ─── SMS Demo ─────────────────────────────────────────────────────────────────
+// ─── Design tokens (inline — matches tokens.css) ─────────────────────────────
+const T = {
+  bg: "#0C0F0A",
+  bgCard: "#161A17",
+  bgElev: "#1B201C",
+  sage: "#7CB87A",
+  sageBorder: "rgba(124,184,122,0.28)",
+  sage12: "rgba(124,184,122,0.12)",
+  warm: "#F0EDE6",
+  warm72: "rgba(240,237,230,0.72)",
+  warm56: "rgba(240,237,230,0.56)",
+  warm40: "rgba(240,237,230,0.40)",
+  warm24: "rgba(240,237,230,0.24)",
+  warm12: "rgba(240,237,230,0.12)",
+  warm06: "rgba(240,237,230,0.06)",
+  hair: "rgba(240,237,230,0.08)",
+  mono: "'Geist Mono', 'JetBrains Mono', monospace",
+};
 
-function SmsDemo() {
+// ─── Phone frame + SMS demo ───────────────────────────────────────────────────
+
+function KinConversation() {
   return (
-    <div className="w-full max-w-sm mx-auto">
-      {/* Phone shell */}
-      <div className="relative bg-[#1a1a1a] rounded-[2.5rem] p-[3px] shadow-2xl shadow-black/60 ring-1 ring-white/10">
-        {/* Screen */}
-        <div className="bg-[#0c0c0c] rounded-[2.3rem] overflow-hidden">
-          {/* Status bar */}
-          <div className="flex items-center justify-between px-7 pt-4 pb-1">
-            <span className="text-white text-xs font-semibold">6:02</span>
-            <div className="w-20 h-4 bg-black rounded-full" />
-            <div className="flex gap-1 items-center">
-              <div className="w-3 h-1.5 rounded-sm bg-white/70" />
-              <div className="w-0.5 h-1 rounded-sm bg-white/40" />
-            </div>
-          </div>
-
-          {/* Message header */}
-          <div className="flex items-center gap-3 px-4 py-2 border-b border-white/5">
-            <div className="w-9 h-9 rounded-full bg-primary/20 flex items-center justify-center shrink-0">
-              <span className="font-serif italic text-primary text-sm font-bold">K</span>
-            </div>
-            <div>
-              <p className="text-white text-sm font-semibold">Kin</p>
-              <p className="text-white/40 text-xs">Family AI</p>
-            </div>
-          </div>
-
-          {/* Messages */}
-          <div className="px-4 py-4 space-y-3 min-h-[260px]">
-            {/* Kin message */}
-            <motion.div
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.3, duration: 0.5 }}
-              className="flex gap-2 items-end"
-            >
-              <div className="w-6 h-6 rounded-full bg-primary/20 flex items-center justify-center shrink-0 mb-0.5">
-                <span className="font-serif italic text-primary text-xs">K</span>
-              </div>
-              <div className="bg-[#1e2a1e] rounded-2xl rounded-bl-sm px-3.5 py-2.5 max-w-[80%]">
-                <p className="text-white/90 text-[13px] leading-relaxed">
-                  Jontae&apos;s 5pm standup typically runs late. Daycare closes
-                  at 5:45 — pickup is yours today. Jackson&apos;s 2-year
-                  checkup moved to this afternoon at 4pm (12 min from daycare).
-                  You&apos;re clear after 3:30.
-                </p>
-              </div>
-            </motion.div>
-
-            {/* User reply */}
-            <motion.div
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 1.0, duration: 0.5 }}
-              className="flex justify-end"
-            >
-              <div className="bg-[#2a5c2a] rounded-2xl rounded-br-sm px-3.5 py-2.5 max-w-[75%]">
-                <p className="text-white/90 text-[13px] leading-relaxed">
-                  Can she still do pickup if her meeting ends on time?
-                </p>
-              </div>
-            </motion.div>
-
-            {/* Kin follow-up */}
-            <motion.div
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 1.7, duration: 0.5 }}
-              className="flex gap-2 items-end"
-            >
-              <div className="w-6 h-6 rounded-full bg-primary/20 flex items-center justify-center shrink-0 mb-0.5">
-                <span className="font-serif italic text-primary text-xs">K</span>
-              </div>
-              <div className="bg-[#1e2a1e] rounded-2xl rounded-bl-sm px-3.5 py-2.5 max-w-[80%]">
-                <p className="text-white/90 text-[13px] leading-relaxed">
-                  I&apos;ll keep an eye on her 5pm and text you by 4:30. If it
-                  looks like it&apos;s running over, pickup is yours.
-                </p>
-              </div>
-            </motion.div>
-          </div>
-
-          {/* Input bar mock */}
-          <div className="px-4 pb-6 pt-2 flex items-center gap-2 border-t border-white/5">
-            <div className="flex-1 bg-white/5 rounded-full px-4 py-2">
-              <p className="text-white/20 text-[13px]">Message</p>
-            </div>
-            <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center">
-              <ArrowRight size={14} className="text-primary" />
-            </div>
-          </div>
-        </div>
+    <>
+      <div
+        style={{
+          textAlign: "center",
+          fontFamily: T.mono,
+          fontSize: 10.5,
+          color: T.warm40,
+          letterSpacing: "0.06em",
+          textTransform: "uppercase",
+          margin: "4px 0 8px",
+        }}
+      >
+        Today · 6:02 AM
       </div>
+      <SMSBubble from="kin" time="6:02 AM">
+        Jontae&apos;s 5pm standup typically runs late. Daycare closes at 5:45 —
+        pickup is yours today. Jackson&apos;s 2-year checkup moved to 4pm (12
+        min from daycare). You&apos;re clear after 3:30.
+      </SMSBubble>
+      <SMSBubble from="user" time="6:14 AM">
+        Can she still do pickup if her meeting ends on time?
+      </SMSBubble>
+      <SMSBubble from="kin" time="6:14 AM">
+        I&apos;ll keep an eye on her 5pm and text you by 4:30. If it looks like
+        it&apos;s running over, pickup is yours.
+      </SMSBubble>
+    </>
+  );
+}
 
-      <p className="text-center text-warm-white/25 text-xs mt-4">
-        Every morning. Both parents. One text.
-      </p>
+function SMSBubble({
+  from,
+  time,
+  children,
+}: {
+  from: "kin" | "user";
+  time?: string;
+  children: React.ReactNode;
+}) {
+  const isUser = from === "user";
+  return (
+    <div
+      style={{
+        display: "flex",
+        justifyContent: isUser ? "flex-end" : "flex-start",
+        marginBottom: 8,
+      }}
+    >
+      <div style={{ maxWidth: "82%" }}>
+        <div
+          style={{
+            padding: "9px 13px",
+            borderRadius: 14,
+            borderBottomRightRadius: isUser ? 4 : 14,
+            borderBottomLeftRadius: isUser ? 14 : 4,
+            background: isUser ? T.warm : "rgba(124,184,122,0.10)",
+            border: isUser ? "1px solid transparent" : `1px solid ${T.sageBorder}`,
+            color: isUser ? T.bg : T.warm,
+            fontSize: 13,
+            lineHeight: 1.42,
+            letterSpacing: "-0.005em",
+          }}
+        >
+          {children}
+        </div>
+        {time && (
+          <div
+            style={{
+              fontFamily: T.mono,
+              fontSize: 9.5,
+              color: T.warm40,
+              marginTop: 3,
+              padding: "0 4px",
+              textAlign: isUser ? "right" : "left",
+              letterSpacing: "0.04em",
+            }}
+          >
+            {time}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
 
-// ─── How it works ─────────────────────────────────────────────────────────────
+function PhoneDemo() {
+  return (
+    <div
+      style={{
+        width: 260,
+        height: 500,
+        borderRadius: 28,
+        background: T.bgElev,
+        border: `1px solid ${T.warm12}`,
+        padding: 8,
+        boxShadow: "0 24px 60px rgba(0,0,0,0.5)",
+        flexShrink: 0,
+      }}
+    >
+      <div
+        style={{
+          width: "100%",
+          height: "100%",
+          borderRadius: 22,
+          background: T.bg,
+          overflow: "hidden",
+          display: "flex",
+          flexDirection: "column",
+        }}
+      >
+        {/* status bar */}
+        <div
+          style={{
+            height: 28,
+            padding: "0 18px",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            fontFamily: T.mono,
+            fontSize: 10,
+            color: T.warm40,
+            letterSpacing: "0.04em",
+            flexShrink: 0,
+          }}
+        >
+          <span>9:41</span>
+          <span style={{ color: T.sage }}>kin</span>
+        </div>
+        {/* contact row */}
+        <div
+          style={{
+            padding: "4px 14px 10px",
+            borderBottom: `1px solid ${T.warm06}`,
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+            flexShrink: 0,
+          }}
+        >
+          <div
+            style={{
+              width: 22,
+              height: 22,
+              borderRadius: 11,
+              background: "rgba(124,184,122,0.18)",
+              border: `1px solid rgba(124,184,122,0.4)`,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              flexShrink: 0,
+            }}
+          >
+            <KinWordmark size={9} tone="sage" />
+          </div>
+          <div style={{ fontSize: 12.5, fontWeight: 500, color: T.warm }}>
+            Kin
+          </div>
+          <div
+            style={{
+              marginLeft: "auto",
+              fontFamily: T.mono,
+              fontSize: 9,
+              color: T.warm40,
+            }}
+          >
+            +1 (415) 555-0117
+          </div>
+        </div>
+        {/* messages */}
+        <div
+          style={{
+            flex: 1,
+            overflow: "hidden",
+            padding: "12px 12px 8px",
+            display: "flex",
+            flexDirection: "column",
+          }}
+        >
+          <KinConversation />
+        </div>
+        {/* compose bar */}
+        <div
+          style={{
+            padding: "8px 12px 12px",
+            flexShrink: 0,
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+          }}
+        >
+          <div
+            style={{
+              flex: 1,
+              height: 30,
+              borderRadius: 15,
+              background: T.warm06,
+              border: `1px solid ${T.warm12}`,
+              padding: "0 12px",
+              display: "flex",
+              alignItems: "center",
+              fontSize: 11.5,
+              color: T.warm40,
+            }}
+          >
+            iMessage
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
 
-const steps = [
-  {
-    n: "1",
-    title: "Connect both calendars",
-    body: "Each parent links their Google Calendar. Kin watches both.",
-  },
-  {
-    n: "2",
-    title: "Kin reads the day",
-    body: "Every night, Kin scans for conflicts, tight pickups, and decisions you'll need to make.",
-  },
-  {
-    n: "3",
-    title: "6am text to both parents",
-    body: "One SMS. No app to open. Reply anytime — Kin knows your whole family's schedule.",
-  },
-];
+// ─── Waitlist form ────────────────────────────────────────────────────────────
 
-// ─── Page ─────────────────────────────────────────────────────────────────────
-
-export default function Home() {
+function WaitlistForm() {
   const [email, setEmail] = useState("");
   const [submitState, setSubmitState] = useState<SubmitState>("idle");
   const [errorMessage, setErrorMessage] = useState("");
   const [alreadyOnList, setAlreadyOnList] = useState(false);
 
-  async function handleJoinWaitlist(e: React.FormEvent<HTMLFormElement>) {
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (!email.trim() || submitState === "loading") return;
-
     setSubmitState("loading");
     setErrorMessage("");
     setAlreadyOnList(false);
@@ -153,13 +264,11 @@ export default function Home() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: email.trim() }),
       });
-
       const data = (await res.json()) as {
         success?: boolean;
         existing?: boolean;
         error?: string;
       };
-
       if (res.ok && data.success) {
         setAlreadyOnList(data.existing === true);
         setSubmitState("success");
@@ -174,244 +283,806 @@ export default function Home() {
   }
 
   return (
-    <main className="min-h-screen flex flex-col items-center px-6 pb-20 relative overflow-hidden">
-      {/* Gradient mesh */}
-      <div className="absolute inset-0 pointer-events-none" aria-hidden>
-        <div className="absolute top-[10%] left-[15%] w-[500px] h-[500px] rounded-full bg-primary/7 blur-[180px] pulse-soft" />
-        <div
-          className="absolute top-[55%] right-[10%] w-[400px] h-[400px] rounded-full bg-blue/5 blur-[150px] pulse-soft"
-          style={{ animationDelay: "2s" }}
-        />
-        <div
-          className="absolute bottom-[15%] left-[35%] w-[350px] h-[350px] rounded-full bg-amber/4 blur-[140px] pulse-soft"
-          style={{ animationDelay: "4s" }}
-        />
-      </div>
-
-      <div className="relative z-10 flex flex-col items-center w-full max-w-md">
-
-        {/* ── Hero ── */}
-        <div className="flex flex-col items-center pt-20 pb-12 text-center">
-          <motion.h1
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8, ease: "easeOut" }}
-            className="font-serif italic text-7xl md:text-9xl text-primary mb-6"
-          >
-            Kin
-          </motion.h1>
-
-          <motion.h2
-            initial={{ opacity: 0, y: 14 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8, delay: 0.2, ease: "easeOut" }}
-            className="text-warm-white text-2xl md:text-3xl font-semibold leading-tight mb-4 max-w-sm"
-          >
-            Every morning at 6am, both parents know what the day looks like.
-          </motion.h2>
-
-          <motion.p
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.6, delay: 0.4 }}
-            className="text-warm-white/50 text-base mb-10"
-          >
-            One text. Two calendars. No app to open.
-          </motion.p>
-
-          {/* Waitlist form */}
-          <motion.div
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.55 }}
-            className="w-full"
-          >
-            <AnimatePresence mode="wait">
-              {submitState === "success" ? (
-                <motion.div
-                  key="success"
-                  initial={{ opacity: 0, scale: 0.95 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  className="flex flex-col items-center gap-3 glass rounded-2xl px-6 py-8 text-center"
-                  role="status"
-                >
-                  <CheckCircle2 className="text-primary" size={32} />
-                  <p className="text-warm-white font-semibold">
-                    {alreadyOnList ? "You're already on the list!" : "You're on the list."}
-                  </p>
-                  <p className="text-warm-white/40 text-sm max-w-xs">
-                    We&apos;re personally onboarding each beta family. We&apos;ll be in touch soon.
-                  </p>
-                  <Link href="/signup" className="mt-2 text-primary text-sm hover:underline">
-                    Ready to start? Create your account →
-                  </Link>
-                </motion.div>
-              ) : (
-                <motion.form
-                  key="form"
-                  onSubmit={handleJoinWaitlist}
-                  className="flex flex-col gap-3"
-                  noValidate
-                >
-                  <div className="flex gap-2">
-                    <label htmlFor="waitlist-email" className="sr-only">
-                      Email address
-                    </label>
-                    <input
-                      id="waitlist-email"
-                      type="email"
-                      value={email}
-                      onChange={(e) => {
-                        setEmail(e.target.value);
-                        if (submitState === "error") setSubmitState("idle");
-                      }}
-                      placeholder="your@email.com"
-                      required
-                      autoComplete="email"
-                      className="flex-1 glass rounded-2xl px-5 py-4 text-warm-white placeholder:text-warm-white/25 text-sm focus:outline-none focus:ring-1 focus:ring-primary/50 transition-all"
-                    />
-                    <button
-                      type="submit"
-                      disabled={submitState === "loading"}
-                      className="bg-primary text-background px-6 py-4 rounded-2xl font-semibold hover:shadow-xl hover:shadow-primary/30 hover:scale-105 active:scale-95 transition-all duration-300 disabled:opacity-60 disabled:scale-100 flex items-center gap-2 shrink-0"
-                    >
-                      {submitState === "loading" ? (
-                        <Loader2 size={16} className="animate-spin" />
-                      ) : (
-                        <ArrowRight size={16} />
-                      )}
-                      <span className="hidden sm:inline">
-                        {submitState === "loading" ? "Joining…" : "Join Waitlist"}
-                      </span>
-                    </button>
-                  </div>
-
-                  {submitState === "error" && errorMessage && (
-                    <motion.p
-                      initial={{ opacity: 0, y: -4 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      className="text-rose/80 text-sm text-center"
-                      role="alert"
-                    >
-                      {errorMessage}
-                    </motion.p>
-                  )}
-
-                  <p className="text-warm-white/20 text-xs text-center">
-                    $39/mo for your entire family — 7-day free trial, cancel anytime.
-                  </p>
-                </motion.form>
-              )}
-            </AnimatePresence>
-          </motion.div>
-
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.9 }}
-            className="mt-5 flex gap-4 text-sm"
-          >
-            <Link href="/signup" className="text-primary hover:underline">
-              Start free trial →
-            </Link>
-            <Link href="/signin" className="text-warm-white/30 hover:text-warm-white/60 transition-colors">
-              Sign in
-            </Link>
-          </motion.div>
-        </div>
-
-        {/* ── SMS Demo ── */}
+    <AnimatePresence mode="wait">
+      {submitState === "success" ? (
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.7, delay: 0.7 }}
-          className="w-full mb-16"
+          key="success"
+          initial={{ opacity: 0, scale: 0.96 }}
+          animate={{ opacity: 1, scale: 1 }}
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "flex-start",
+            gap: 10,
+            padding: "20px 24px",
+            background: T.bgCard,
+            border: `1px solid ${T.sageBorder}`,
+            borderRadius: 12,
+          }}
+          role="status"
         >
-          <SmsDemo />
-        </motion.div>
-
-        {/* ── Founder note ── */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          whileInView={{ opacity: 1 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.6 }}
-          className="glass rounded-2xl px-6 py-5 mb-12 text-center"
-        >
-          <p className="text-warm-white/70 text-sm leading-relaxed">
-            &ldquo;We don&apos;t know who&apos;s picking up our son from daycare until last minute.&rdquo;
+          <CheckCircle2 size={24} color={T.sage} />
+          <p style={{ color: T.warm, fontWeight: 500, margin: 0 }}>
+            {alreadyOnList ? "You're already on the list." : "You're on the list."}
           </p>
-          <p className="text-warm-white/35 text-xs mt-2">
-            — Austin, Kin founder & parent of a 2-year-old
-          </p>
-        </motion.div>
-
-        {/* ── How it works ── */}
-        <motion.div
-          initial={{ opacity: 0, y: 16 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.6 }}
-          className="w-full mb-14"
-        >
-          <h3 className="text-warm-white/40 text-xs font-semibold uppercase tracking-widest text-center mb-6">
-            How it works
-          </h3>
-          <div className="space-y-3">
-            {steps.map((s, i) => (
-              <motion.div
-                key={s.n}
-                initial={{ opacity: 0, x: -12 }}
-                whileInView={{ opacity: 1, x: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: i * 0.1, duration: 0.5 }}
-                className="glass rounded-2xl px-5 py-4 flex gap-4 items-start"
-              >
-                <div className="w-7 h-7 rounded-full bg-primary/20 flex items-center justify-center shrink-0 mt-0.5">
-                  <span className="text-primary text-xs font-bold">{s.n}</span>
-                </div>
-                <div>
-                  <p className="text-warm-white font-medium text-sm">{s.title}</p>
-                  <p className="text-warm-white/45 text-xs mt-0.5 leading-relaxed">{s.body}</p>
-                </div>
-              </motion.div>
-            ))}
-          </div>
-        </motion.div>
-
-        {/* ── Pricing CTA ── */}
-        <motion.div
-          initial={{ opacity: 0, y: 12 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.6 }}
-          className="w-full glass rounded-2xl px-6 py-7 flex flex-col items-center text-center gap-3"
-        >
-          <p className="text-warm-white font-semibold text-lg">
-            $39<span className="text-warm-white/40 font-normal text-base">/mo</span>
-          </p>
-          <p className="text-warm-white/50 text-sm">
-            For your entire family. 7-day free trial. Cancel anytime.
-          </p>
-          <p className="text-warm-white/30 text-xs">
-            We&apos;re personally onboarding each beta family — space is limited.
+          <p style={{ color: T.warm56, fontSize: 13, margin: 0 }}>
+            We&apos;re personally onboarding each beta family. We&apos;ll be in touch soon.
           </p>
           <Link
             href="/signup"
-            className="mt-1 w-full bg-primary text-background py-4 rounded-2xl font-semibold text-center hover:shadow-xl hover:shadow-primary/30 hover:scale-[1.02] active:scale-95 transition-all duration-300 flex items-center justify-center gap-2"
+            style={{ color: T.sage, fontSize: 13, textDecoration: "none" }}
           >
-            Start your free trial
-            <ArrowRight size={16} />
+            Ready to start? Create your account →
           </Link>
         </motion.div>
+      ) : (
+        <motion.form
+          key="form"
+          onSubmit={handleSubmit}
+          style={{ display: "flex", flexDirection: "column", gap: 10 }}
+          noValidate
+        >
+          <div style={{ display: "flex", gap: 8 }}>
+            <label htmlFor="waitlist-email" style={{ position: "absolute", width: 1, height: 1, overflow: "hidden", clip: "rect(0,0,0,0)" }}>
+              Email address
+            </label>
+            <input
+              id="waitlist-email"
+              type="email"
+              value={email}
+              onChange={(e) => {
+                setEmail(e.target.value);
+                if (submitState === "error") setSubmitState("idle");
+              }}
+              placeholder="your@email.com"
+              required
+              autoComplete="email"
+              style={{
+                flex: 1,
+                height: 44,
+                padding: "0 14px",
+                background: "rgba(240,237,230,0.04)",
+                border: `1px solid ${T.warm12}`,
+                borderRadius: 8,
+                color: T.warm,
+                fontSize: 14,
+                fontFamily: "inherit",
+                outline: "none",
+                letterSpacing: "-0.005em",
+              }}
+            />
+            <button
+              type="submit"
+              disabled={submitState === "loading"}
+              style={{
+                height: 44,
+                padding: "0 18px",
+                background: T.sage,
+                color: T.bg,
+                border: "none",
+                borderRadius: 8,
+                fontFamily: "inherit",
+                fontWeight: 500,
+                fontSize: 14,
+                cursor: submitState === "loading" ? "default" : "pointer",
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+                opacity: submitState === "loading" ? 0.6 : 1,
+                whiteSpace: "nowrap",
+                flexShrink: 0,
+              }}
+            >
+              {submitState === "loading" ? (
+                <Loader2 size={16} style={{ animation: "spin 1s linear infinite" }} />
+              ) : (
+                <ArrowRight size={16} />
+              )}
+              Join waitlist
+            </button>
+          </div>
 
-        {/* ── Footer ── */}
-        <div className="mt-10 flex gap-5 text-warm-white/20 text-xs">
-          <Link href="/privacy" className="hover:text-warm-white/40 transition-colors">Privacy</Link>
-          <Link href="/terms" className="hover:text-warm-white/40 transition-colors">Terms</Link>
-          <Link href="/pricing" className="hover:text-warm-white/40 transition-colors">Pricing</Link>
-        </div>
+          {submitState === "error" && errorMessage && (
+            <p style={{ color: "#D4748A", fontSize: 13, margin: 0 }} role="alert">
+              {errorMessage}
+            </p>
+          )}
+
+          <p style={{ color: T.warm40, fontSize: 12, margin: 0 }}>
+            $39/mo for your entire family — 7-day free trial, cancel anytime.
+          </p>
+        </motion.form>
+      )}
+    </AnimatePresence>
+  );
+}
+
+// ─── Page ─────────────────────────────────────────────────────────────────────
+
+const watchItems = [
+  "standups running long",
+  "daycare closing times",
+  "pediatrician reschedules",
+  "school early release",
+  "commute deltas",
+  "flight changes",
+  "team offsites",
+  "birthdays",
+];
+
+// ─── How it works illustrations ───────────────────────────────────────────────
+
+function CalendarTile({ label, day, color }: { label: string; day: string; color: string }) {
+  return (
+    <div style={{
+      width: 80, borderRadius: 8,
+      background: T.bgElev, border: `1px solid ${T.hair}`,
+      overflow: "hidden", flexShrink: 0,
+    }}>
+      <div style={{
+        background: color, height: 20,
+        display: "flex", alignItems: "center", justifyContent: "center",
+        fontSize: 9, fontFamily: T.mono, color: T.bg, letterSpacing: "0.06em",
+        textTransform: "uppercase", fontWeight: 600,
+      }}>{label}</div>
+      <div style={{
+        padding: "6px 0", textAlign: "center",
+        fontSize: 22, fontWeight: 600, color: T.warm, letterSpacing: "-0.02em",
+      }}>{day}</div>
+      <div style={{ padding: "0 6px 8px", display: "flex", flexDirection: "column", gap: 3 }}>
+        {[color, T.warm24, T.warm12].map((c, i) => (
+          <div key={i} style={{ height: 4, borderRadius: 2, background: c, width: i === 0 ? "100%" : i === 1 ? "70%" : "50%" }} />
+        ))}
       </div>
+    </div>
+  );
+}
+
+function StepCalendarIllustration() {
+  return (
+    <div style={{ padding: "20px 0 4px", display: "flex", alignItems: "center", justifyContent: "center", gap: 12 }}>
+      <CalendarTile label="Google" day="29" color={T.sage} />
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
+        <div style={{ width: 28, height: 1, background: T.sageBorder }} />
+        <div style={{
+          width: 20, height: 20, borderRadius: 10,
+          background: "rgba(124,184,122,0.12)", border: `1px solid ${T.sageBorder}`,
+          display: "flex", alignItems: "center", justifyContent: "center",
+          fontSize: 10, color: T.sage,
+        }}>✓</div>
+        <div style={{ width: 28, height: 1, background: T.sageBorder }} />
+      </div>
+      <CalendarTile label="iCloud" day="29" color="#5B9CF6" />
+    </div>
+  );
+}
+
+function StepConstraintsIllustration() {
+  const chips = [
+    { label: "Daycare closes 5:45pm", active: true },
+    { label: "Austin covers pickup Mon–Wed", active: true },
+    { label: "School: Tue early release", active: false },
+    { label: "Jontae: standup runs late", active: false },
+  ];
+  return (
+    <div style={{ padding: "20px 0 4px", display: "flex", flexDirection: "column", gap: 6 }}>
+      {chips.map((c, i) => (
+        <motion.div
+          key={c.label}
+          initial={{ opacity: 0, x: -8 }}
+          whileInView={{ opacity: 1, x: 0 }}
+          viewport={{ once: true }}
+          transition={{ delay: 0.3 + i * 0.08, duration: 0.35 }}
+          style={{
+            display: "flex", alignItems: "center", gap: 8,
+            padding: "6px 10px",
+            background: c.active ? "rgba(124,184,122,0.08)" : T.bgElev,
+            border: `1px solid ${c.active ? T.sageBorder : T.hair}`,
+            borderRadius: 6,
+          }}
+        >
+          <div style={{
+            width: 14, height: 14, borderRadius: 7, flexShrink: 0,
+            background: c.active ? T.sage : "transparent",
+            border: `1.5px solid ${c.active ? T.sage : T.warm40}`,
+            display: "flex", alignItems: "center", justifyContent: "center",
+            fontSize: 8, color: T.bg,
+          }}>{c.active ? "✓" : ""}</div>
+          <span style={{ fontSize: 11.5, color: c.active ? T.warm72 : T.warm40, letterSpacing: "-0.005em" }}>
+            {c.label}
+          </span>
+        </motion.div>
+      ))}
+    </div>
+  );
+}
+
+function StepBriefIllustration() {
+  return (
+    <div style={{ padding: "20px 0 4px", display: "flex", flexDirection: "column", gap: 6 }}>
+      <div style={{
+        fontFamily: T.mono, fontSize: 10, color: T.warm40,
+        letterSpacing: "0.06em", textTransform: "uppercase", textAlign: "center", marginBottom: 2,
+      }}>
+        Tue Apr 29 · 6:02 AM
+      </div>
+      <motion.div
+        initial={{ opacity: 0, y: 6 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true }}
+        transition={{ delay: 0.3, duration: 0.4 }}
+        style={{
+          padding: "9px 12px",
+          background: "rgba(124,184,122,0.08)",
+          border: `1px solid ${T.sageBorder}`,
+          borderRadius: "12px 12px 12px 3px",
+          fontSize: 12.5, lineHeight: 1.45, color: T.warm,
+        }}
+      >
+        Jontae&apos;s 5pm runs late. Daycare closes 5:45 — <span style={{ color: T.sage }}>pickup is yours</span>. Jackson&apos;s checkup moved to 4pm (12 min away). You&apos;re clear after 3:30.
+      </motion.div>
+      <motion.div
+        initial={{ opacity: 0, y: 4 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true }}
+        transition={{ delay: 0.55, duration: 0.35 }}
+        style={{
+          alignSelf: "flex-end",
+          padding: "7px 11px",
+          background: T.warm,
+          borderRadius: "12px 12px 3px 12px",
+          fontSize: 12.5, color: T.bg,
+        }}
+      >
+        Can she still do pickup if her meeting ends on time?
+      </motion.div>
+      <motion.div
+        initial={{ opacity: 0, y: 4 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true }}
+        transition={{ delay: 0.8, duration: 0.35 }}
+        style={{
+          padding: "7px 11px",
+          background: "rgba(124,184,122,0.08)",
+          border: `1px solid ${T.sageBorder}`,
+          borderRadius: "12px 12px 12px 3px",
+          fontSize: 12.5, lineHeight: 1.45, color: T.warm,
+        }}
+      >
+        I&apos;ll watch her 5pm and text you by 4:30.
+      </motion.div>
+    </div>
+  );
+}
+
+const HOW_STEPS = [
+  {
+    n: "01",
+    title: "Connect both calendars",
+    body: "Google, iCloud, Outlook. Read-only — kin never writes.",
+    Illustration: StepCalendarIllustration,
+  },
+  {
+    n: "02",
+    title: "Tell us what matters",
+    body: "Daycare hours, who covers what, recurring constraints.",
+    Illustration: StepConstraintsIllustration,
+  },
+  {
+    n: "03",
+    title: "Wake up to a brief",
+    body: "A single SMS at 6am. Conflicts already resolved.",
+    Illustration: StepBriefIllustration,
+  },
+];
+
+export default function Home() {
+  return (
+    <main
+      style={{
+        minHeight: "100vh",
+        background: T.bg,
+        color: T.warm,
+        fontFamily: "var(--font-geist-sans), Geist, system-ui, sans-serif",
+        WebkitFontSmoothing: "antialiased",
+        letterSpacing: "-0.005em",
+      }}
+    >
+      {/* ── Nav ──────────────────────────────────────────────────────────── */}
+      <nav
+        style={{
+          height: 64,
+          padding: "0 40px",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          borderBottom: `1px solid ${T.hair}`,
+          position: "sticky",
+          top: 0,
+          background: T.bg,
+          zIndex: 10,
+        }}
+      >
+        <KinWordmark size={22} tone="warm" />
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 24,
+            fontSize: 13.5,
+            color: T.warm72,
+          }}
+        >
+          <Link
+            href="#how-it-works"
+            style={{ color: "inherit", textDecoration: "none" }}
+          >
+            How it works
+          </Link>
+          <Link
+            href="#pricing"
+            style={{ color: "inherit", textDecoration: "none" }}
+          >
+            Pricing
+          </Link>
+          <Link
+            href="/signin"
+            style={{ color: "inherit", textDecoration: "none" }}
+          >
+            Sign in
+          </Link>
+          <Link
+            href="/signup"
+            style={{
+              height: 34,
+              padding: "0 14px",
+              background: T.sage,
+              color: T.bg,
+              borderRadius: 8,
+              fontWeight: 500,
+              fontSize: 13.5,
+              display: "flex",
+              alignItems: "center",
+              textDecoration: "none",
+            }}
+          >
+            Start trial
+          </Link>
+        </div>
+      </nav>
+
+      {/* ── Hero ─────────────────────────────────────────────────────────── */}
+      <section
+        style={{
+          padding: "80px 40px 60px",
+          display: "grid",
+          gridTemplateColumns: "1.45fr 1fr",
+          gap: 64,
+          alignItems: "center",
+          maxWidth: 1280,
+          margin: "0 auto",
+        }}
+      >
+        <motion.div
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6 }}
+          style={{ display: "flex", flexDirection: "column", gap: 24 }}
+        >
+          {/* eyebrow */}
+          <div
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 8,
+              padding: "5px 10px 5px 8px",
+              background: "rgba(124,184,122,0.08)",
+              border: `1px solid ${T.sageBorder}`,
+              borderRadius: 999,
+              fontSize: 11.5,
+              fontFamily: T.mono,
+              color: T.sage,
+              letterSpacing: "0.04em",
+              width: "fit-content",
+            }}
+          >
+            <span
+              style={{
+                width: 6,
+                height: 6,
+                borderRadius: 3,
+                background: T.sage,
+                boxShadow: "0 0 8px rgba(124,184,122,0.7)",
+                flexShrink: 0,
+              }}
+            />
+            SMS · NO APP TO OPEN
+          </div>
+
+          {/* headline */}
+          <h1
+            style={{
+              margin: 0,
+              fontWeight: 600,
+              fontSize: "clamp(42px, 5vw, 68px)",
+              lineHeight: 1.04,
+              letterSpacing: "-0.04em",
+              color: T.warm,
+            }}
+          >
+            Every morning at 6am,{" "}
+            <span style={{ color: T.warm56 }}>
+              both parents know what the day looks like.
+            </span>
+          </h1>
+
+          {/* sub */}
+          <p
+            style={{
+              margin: 0,
+              fontSize: 17,
+              lineHeight: 1.55,
+              color: T.warm56,
+              maxWidth: 520,
+            }}
+          >
+            One text. Two calendars. No app to open. Kin reads both your
+            schedules every night and sends a single morning brief — pickups,
+            conflicts, and what&apos;s actually yours today.
+          </p>
+
+          {/* CTAs */}
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <Link
+              href="/signup"
+              style={{
+                height: 44,
+                padding: "0 18px",
+                background: T.sage,
+                color: T.bg,
+                borderRadius: 8,
+                fontWeight: 500,
+                fontSize: 14.5,
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+                textDecoration: "none",
+              }}
+            >
+              Start 7-day trial
+            </Link>
+            <Link
+              href="#how-it-works"
+              style={{
+                height: 44,
+                padding: "0 18px",
+                background: "transparent",
+                color: T.warm72,
+                borderRadius: 8,
+                fontWeight: 500,
+                fontSize: 14.5,
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+                textDecoration: "none",
+                border: "none",
+              }}
+            >
+              See how it works
+              <ArrowRight size={14} />
+            </Link>
+          </div>
+
+          {/* pricing meta */}
+          <div
+            style={{
+              display: "flex",
+              gap: 20,
+              fontSize: 11.5,
+              fontFamily: T.mono,
+              color: T.warm40,
+              letterSpacing: "0.04em",
+              flexWrap: "wrap",
+            }}
+          >
+            <span>
+              <span style={{ color: T.sage }}>$1.30/day</span> · less than a
+              coffee
+            </span>
+            <span>$39/mo · per family</span>
+            <span>7-day trial · cancel any morning</span>
+          </div>
+        </motion.div>
+
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.7, delay: 0.2 }}
+          style={{ display: "flex", justifyContent: "flex-end" }}
+        >
+          <PhoneDemo />
+        </motion.div>
+      </section>
+
+      {/* ── // kin watches strip ──────────────────────────────────────────── */}
+      <div
+        style={{
+          borderTop: `1px solid ${T.hair}`,
+          borderBottom: `1px solid ${T.hair}`,
+          padding: "14px 40px",
+          display: "flex",
+          alignItems: "center",
+          gap: 20,
+          flexWrap: "wrap",
+          fontFamily: T.mono,
+          fontSize: 11.5,
+          color: T.warm40,
+          letterSpacing: "0.02em",
+          overflowX: "auto",
+        }}
+      >
+        <span style={{ color: T.sage, flexShrink: 0 }}>// kin watches</span>
+        {watchItems.map((item, i) => (
+          <span
+            key={item}
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 8,
+              whiteSpace: "nowrap",
+            }}
+          >
+            {item}
+            {i < watchItems.length - 1 && (
+              <span style={{ opacity: 0.3 }}>·</span>
+            )}
+          </span>
+        ))}
+      </div>
+
+      {/* ── How it works ─────────────────────────────────────────────────── */}
+      <section
+        id="how-it-works"
+        style={{
+          padding: "72px 40px",
+          maxWidth: 1280,
+          margin: "0 auto",
+          borderBottom: `1px solid ${T.hair}`,
+        }}
+      >
+        {/* section label */}
+        <div style={{
+          fontFamily: T.mono, fontSize: 11, color: T.warm40,
+          letterSpacing: "0.08em", textTransform: "uppercase",
+          marginBottom: 40,
+        }}>
+          How it works
+        </div>
+
+        <div style={{
+          display: "grid",
+          gridTemplateColumns: "1fr 1fr 1fr",
+          gap: 0,
+          position: "relative",
+        }}>
+          {/* connector line behind the cards */}
+          <div style={{
+            position: "absolute",
+            top: 52, left: "16.6%", right: "16.6%",
+            height: 1,
+            background: `linear-gradient(90deg, ${T.sageBorder}, rgba(124,184,122,0.1) 50%, ${T.sageBorder})`,
+            zIndex: 0,
+            pointerEvents: "none",
+          }} />
+
+          {HOW_STEPS.map((s, i) => (
+            <motion.div
+              key={s.n}
+              initial={{ opacity: 0, y: 16 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ delay: i * 0.12, duration: 0.5 }}
+              style={{
+                padding: "0 24px 0",
+                position: "relative", zIndex: 1,
+                borderRight: i < 2 ? `1px solid ${T.hair}` : "none",
+              }}
+            >
+              {/* step number bubble */}
+              <div style={{
+                width: 36, height: 36, borderRadius: 18,
+                background: T.bgCard,
+                border: `1px solid ${T.sageBorder}`,
+                display: "flex", alignItems: "center", justifyContent: "center",
+                fontFamily: T.mono, fontSize: 11, color: T.sage,
+                letterSpacing: "0.04em", fontWeight: 600,
+                marginBottom: 20,
+              }}>
+                {s.n}
+              </div>
+
+              {/* illustration */}
+              <div style={{
+                background: T.bgCard,
+                border: `1px solid ${T.hair}`,
+                borderRadius: 12,
+                padding: "4px 16px 16px",
+                marginBottom: 20,
+                minHeight: 160,
+              }}>
+                <s.Illustration />
+              </div>
+
+              {/* text */}
+              <div style={{
+                fontSize: 18, fontWeight: 500,
+                letterSpacing: "-0.02em", marginBottom: 6,
+              }}>
+                {s.title}
+              </div>
+              <div style={{ fontSize: 13.5, color: T.warm56, lineHeight: 1.55 }}>
+                {s.body}
+              </div>
+            </motion.div>
+          ))}
+        </div>
+      </section>
+
+      {/* ── Founder note ─────────────────────────────────────────────────── */}
+      <div
+        style={{
+          maxWidth: 680,
+          margin: "0 auto",
+          padding: "56px 40px",
+          textAlign: "center",
+        }}
+      >
+        <motion.p
+          initial={{ opacity: 0 }}
+          whileInView={{ opacity: 1 }}
+          viewport={{ once: true }}
+          style={{
+            fontSize: 18,
+            lineHeight: 1.55,
+            color: T.warm72,
+            fontStyle: "italic",
+            margin: "0 0 12px",
+          }}
+        >
+          &ldquo;We don&apos;t know who&apos;s picking up our son from daycare until last minute.&rdquo;
+        </motion.p>
+        <p style={{ fontSize: 13, color: T.warm40, margin: 0 }}>
+          — Austin, Kin founder &amp; parent of a 2-year-old
+        </p>
+      </div>
+
+      {/* ── Pricing + waitlist ───────────────────────────────────────────── */}
+      <section
+        id="pricing"
+        style={{
+          borderTop: `1px solid ${T.hair}`,
+          padding: "48px 40px",
+          maxWidth: 1280,
+          margin: "0 auto",
+          display: "grid",
+          gridTemplateColumns: "1fr 1fr",
+          gap: 64,
+          alignItems: "center",
+        }}
+      >
+        <div>
+          <div
+            style={{
+              fontSize: 32,
+              fontWeight: 500,
+              letterSpacing: "-0.025em",
+              marginBottom: 8,
+            }}
+          >
+            $1.30 a day.{" "}
+            <span style={{ color: T.warm56 }}>Less than a coffee.</span>
+          </div>
+          <div style={{ fontSize: 14, color: T.warm56, lineHeight: 1.5 }}>
+            $39/month per family · one number, both parents · 7-day trial, cancel any morning.
+          </div>
+          <div
+            style={{
+              marginTop: 24,
+              padding: "16px 0 0",
+              borderTop: `1px solid ${T.hair}`,
+              display: "flex",
+              gap: 28,
+            }}
+          >
+            {[
+              ["$1.30/day", "less than a coffee"],
+              ["$39/mo", "per family"],
+              ["7-day", "free trial"],
+            ].map(([k, v]) => (
+              <div key={k}>
+                <div
+                  style={{
+                    fontFamily: T.mono,
+                    fontSize: 18,
+                    color: T.warm,
+                    fontWeight: 500,
+                  }}
+                >
+                  {k}
+                </div>
+                <div
+                  style={{
+                    fontSize: 11,
+                    color: T.warm40,
+                    letterSpacing: "0.02em",
+                    marginTop: 2,
+                  }}
+                >
+                  {v}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+          <div style={{ fontSize: 14, color: T.warm56 }}>
+            We&apos;re personally onboarding each beta family — space is limited.
+          </div>
+          <WaitlistForm />
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 12,
+              fontSize: 13,
+              color: T.warm56,
+            }}
+          >
+            <span>or</span>
+            <Link
+              href="/signup"
+              style={{
+                color: T.sage,
+                textDecoration: "none",
+                fontWeight: 500,
+              }}
+            >
+              start your free trial now →
+            </Link>
+          </div>
+        </div>
+      </section>
+
+      {/* ── Footer ───────────────────────────────────────────────────────── */}
+      <footer
+        style={{
+          borderTop: `1px solid ${T.hair}`,
+          padding: "24px 40px",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          maxWidth: 1280,
+          margin: "0 auto",
+        }}
+      >
+        <KinWordmark size={16} tone="warm" />
+        <div style={{ display: "flex", gap: 20, fontSize: 12, color: T.warm40 }}>
+          <Link href="/privacy" style={{ color: "inherit", textDecoration: "none" }}>Privacy</Link>
+          <Link href="/terms" style={{ color: "inherit", textDecoration: "none" }}>Terms</Link>
+          <Link href="/pricing" style={{ color: "inherit", textDecoration: "none" }}>Pricing</Link>
+        </div>
+      </footer>
+
+      <style dangerouslySetInnerHTML={{ __html: `
+        @keyframes spin { to { transform: rotate(360deg); } }
+        @media (max-width: 768px) {
+          section { grid-template-columns: 1fr !important; }
+          section > div:last-child { display: none !important; }
+          nav > div { gap: 12px !important; }
+          nav > div > a:not(:last-child):not(:nth-last-child(2)) { display: none !important; }
+        }
+      ` }} />
     </main>
   );
 }

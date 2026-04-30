@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import KinWordmark from "@/components/KinWordmark";
 import { motion } from "framer-motion";
 import { CheckCircle2, MessageSquare, Calendar, Users } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
@@ -79,8 +80,8 @@ export default function OnboardingDonePage() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.3 }}
         >
-          <Link href="/" className="font-serif italic text-3xl text-primary mb-4 block">
-            Kin
+          <Link href="/" style={{ textDecoration: "none", marginBottom: 16, display: "block" }}>
+            <KinWordmark size={24} tone="warm" />
           </Link>
 
           <h1 className="text-warm-white font-semibold text-2xl mb-2">

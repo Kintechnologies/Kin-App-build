@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { ArrowRight } from "lucide-react";
+import KinWordmark from "@/components/KinWordmark";
 import { createClient } from "@/lib/supabase/client";
 
 // ── Dietary options (mirrored from StepDietary.tsx) ───────────────────────────
@@ -163,7 +164,7 @@ export default function PartnerOnboardingPage() {
   return (
     <main className="min-h-screen flex flex-col items-center justify-center px-6">
       {/* Logo */}
-      <span className="font-serif italic text-4xl text-primary mb-10">Kin</span>
+      <div style={{ marginBottom: 40 }}><KinWordmark size={28} tone="warm" /></div>
 
       <AnimatePresence mode="wait">
         <motion.div

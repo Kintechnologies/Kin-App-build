@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import KinWordmark from "@/components/KinWordmark";
 import { useParams, useRouter } from "next/navigation";
 import { Home, Loader2, AlertCircle, CheckCircle, Users } from "lucide-react";
 
@@ -237,8 +238,8 @@ function PageShell({ children }: { children: React.ReactNode }) {
       <div className="max-w-lg mx-auto relative">
         {/* Logo */}
         <div className="text-center mb-10">
-          <Link href="/" className="font-serif italic text-3xl text-primary inline-block">
-            Kin
+          <Link href="/" style={{ textDecoration: "none", display: "inline-block" }}>
+            <KinWordmark size={24} tone="warm" />
           </Link>
         </div>
 

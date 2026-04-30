@@ -160,7 +160,7 @@ export default function OnboardingPage() {
             <span className="text-4xl">🍽️</span>
           </motion.div>
 
-          <h1 className="font-serif italic text-3xl text-primary mb-3">
+          <h1 className="text-3xl font-medium text-primary mb-3" style={{ letterSpacing: "-0.025em" }}>
             Kin is curating your meal options...
           </h1>
           <p className="text-warm-white/50 text-sm mb-8">
@@ -209,7 +209,7 @@ export default function OnboardingPage() {
 
   return (
     <main className="min-h-screen flex flex-col items-center justify-center px-6 py-12">
-      <h1 className="font-serif italic text-3xl text-primary mb-2">
+      <h1 className="text-3xl font-medium text-primary mb-2" style={{ letterSpacing: "-0.025em" }}>
         Let&apos;s get to know your family
       </h1>
       <p className="text-warm-white/50 text-sm mb-8">

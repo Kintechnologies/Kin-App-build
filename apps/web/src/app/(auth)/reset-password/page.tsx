@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import KinWordmark from "@/components/KinWordmark";
 import { createClient } from "@/lib/supabase/client";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
@@ -38,12 +39,12 @@ export default function ResetPasswordPage() {
       <main className="min-h-screen flex flex-col items-center justify-center px-6">
         <Link
           href="/"
-          className="font-serif italic text-4xl text-primary mb-8"
+          style={{ textDecoration: "none", marginBottom: 32 }}
         >
-          Kin
+          <KinWordmark size={28} tone="warm" />
         </Link>
         <div className="w-full max-w-sm bg-surface rounded-xl p-6 border border-warm-white/10 text-center">
-          <h2 className="font-serif italic text-2xl text-warm-white mb-2">
+          <h2 className="text-2xl font-medium text-warm-white mb-2" style={{ letterSpacing: "-0.02em" }}>
             Check your email
           </h2>
           <p className="text-warm-white/60 text-sm mb-4">
@@ -60,10 +61,10 @@ export default function ResetPasswordPage() {
 
   return (
     <main className="min-h-screen flex flex-col items-center justify-center px-6">
-      <Link href="/" className="font-serif italic text-4xl text-primary mb-8">
-        Kin
+      <Link href="/" style={{ textDecoration: "none", marginBottom: 32 }}>
+        <KinWordmark size={28} tone="warm" />
       </Link>
-      <h1 className="font-serif italic text-3xl text-warm-white mb-2">
+      <h1 className="text-3xl font-medium text-warm-white mb-2" style={{ letterSpacing: "-0.025em" }}>
         Reset password
       </h1>
       <p className="text-warm-white/60 mb-8">

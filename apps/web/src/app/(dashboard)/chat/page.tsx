@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
+import KinWordmark from "@/components/KinWordmark";
 import { motion } from "framer-motion";
 import { Send, Sparkles, UtensilsCrossed, Wallet, Heart, Baby, Mic, MicOff, Volume2, VolumeX } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
@@ -336,7 +337,7 @@ export default function ChatPage() {
           <div className="w-8 h-8 rounded-2xl bg-primary/20 flex items-center justify-center">
             <Sparkles size={14} className="text-primary shimmer" />
           </div>
-          <h1 className="font-serif italic text-2xl text-primary">Kin</h1>
+          <KinWordmark size={20} tone="sage" />
         </div>
         <p className="text-warm-white/40 text-sm ml-10">
           Your family AI — always watching the full picture

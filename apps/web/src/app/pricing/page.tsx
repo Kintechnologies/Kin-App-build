@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import KinWordmark from "@/components/KinWordmark";
 import { Check, ArrowRight } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 
@@ -80,10 +81,10 @@ export default function PricingPage() {
       <div className="max-w-lg mx-auto relative">
         {/* Header */}
         <div className="text-center mb-10">
-          <Link href="/" className="font-serif italic text-3xl text-primary mb-6 inline-block">
-            Kin
+          <Link href="/" style={{ textDecoration: "none", marginBottom: 24, display: "inline-block" }}>
+            <KinWordmark size={24} tone="warm" />
           </Link>
-          <h1 className="font-serif italic text-4xl text-warm-white mb-3">
+          <h1 className="text-4xl font-medium text-warm-white mb-3" style={{ letterSpacing: "-0.03em" }}>
             Your family deserves a chief of staff
           </h1>
           <p className="text-warm-white/50 text-lg max-w-md mx-auto">

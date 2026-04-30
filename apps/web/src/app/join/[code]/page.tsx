@@ -1,4 +1,5 @@
 import Link from "next/link";
+import KinWordmark from "@/components/KinWordmark";
 import { createClient } from "@/lib/supabase/server";
 import { Sparkles, UtensilsCrossed, Wallet, Calendar, MessageCircle } from "lucide-react";
 
@@ -32,8 +33,8 @@ export default async function ReferralLandingPage({
       <div className="absolute bottom-1/4 right-1/4 w-[300px] h-[300px] rounded-full bg-amber/5 blur-[100px] pointer-events-none" />
 
       <div className="max-w-lg mx-auto text-center relative">
-        <Link href="/" className="font-serif italic text-3xl text-primary mb-8 inline-block">
-          Kin
+        <Link href="/" style={{ textDecoration: "none", marginBottom: 32, display: "inline-block" }}>
+          <KinWordmark size={24} tone="warm" />
         </Link>
 
         {/* Headline */}
