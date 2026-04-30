@@ -77,13 +77,13 @@ function leadLine(kid: Kid, p1: BusyLevel, p2: BusyLevel | null): string {
       return `${kid.name}'s daycare pickup is at 5:30. You're slammed all afternoon — ${P2_NAME}'s clear after 4, she's the one. I'll confirm with her.`;
     }
     if (p1 === "packed" && !isTwo) {
-      return `${kid.name}'s daycare pickup is at 5:30. You've got back-to-back until 5 — I've already moved your 5:15 call to 5:50 to buy you the runway.`;
+      return `${kid.name}'s daycare pickup is at 5:30. You've got back-to-back until 5 — pushing your 5:15 call to 5:50 would buy you runway. Want me to draft the reschedule note?`;
     }
     if (p1 === "packed" && isTwo && p2 === "packed") {
       return `${kid.name}'s daycare pickup is at 5:30. You're both buried — your 5pm wraps fastest, you've got the best shot. I'll flag at 5:10.`;
     }
     if (p1 === "moderate") {
-      return `${kid.name}'s daycare pickup is at 5:30. Your 4pm runs long sometimes — I'll watch it and bump your 5:15 if it slides past 5.`;
+      return `${kid.name}'s daycare pickup is at 5:30. Your 4pm runs long sometimes — I'll flag at 4:55 if it's still going so you can push your 5:15.`;
     }
     return `${kid.name}'s daycare pickup is at 5:30. Day's open — plenty of room. Nap window's 1–3 if you want quiet hours.`;
   }
@@ -92,7 +92,7 @@ function leadLine(kid: Kid, p1: BusyLevel, p2: BusyLevel | null): string {
     return `${kid.name}'s got lacrosse 4–6. You're booked through 5:30 — but ${P2_NAME}'s clear after 4, she could swing by and watch the back half.`;
   }
   if (p1 === "packed" && !isTwo) {
-    return `${kid.name}'s got lacrosse 4–6. You're booked through 5:30 — ${kid.name}'s old enough to ride home with Coach Devon, he offered last week. I can confirm.`;
+    return `${kid.name}'s got lacrosse 4–6. You're booked through 5:30 — ${kid.name}'s old enough to ride home with Coach Devon, he offered last week. Want me to text him?`;
   }
   if (p1 === "moderate") {
     return `${kid.name}'s got lacrosse 4–6. You've got a 5pm call — drop-off's clean, ${kid.name} can ride home with the Petersons.`;
@@ -111,7 +111,7 @@ function secondaryLine(
     if (slotIdx === 1) {
       return isTwo
         ? `${kid.name}'s got the dentist at 3:30. ${P2_NAME}'s planning to handle that one.`
-        : `${kid.name}'s got the dentist at 3:30. I've slid your 3pm to 3:15 so you've got a clean 30-min buffer.`;
+        : `${kid.name}'s got the dentist at 3:30. If you push your 3pm to 3:15 you'd have a clean 30-min buffer — easy reschedule.`;
     }
     return isTwo
       ? `${kid.name} has a playdate at the Kims' 5–7. ${P2_NAME}'ll do drop-off, you've got pickup.`
@@ -122,7 +122,7 @@ function secondaryLine(
     if (slotIdx === 1) {
       return isTwo
         ? `${kid.name}'s nap window is 1–3. ${P2_NAME}'s home — protected hours, no calls scheduled there.`
-        : `${kid.name}'s nap window is 1–3. I've blocked it on your calendar already — only your 2pm with Marcus is in there, want me to push it?`;
+        : `${kid.name}'s nap window is 1–3. Worth blocking that on your calendar — only your 2pm with Marcus is in the way. Want a draft note to push him?`;
     }
     return isTwo
       ? `${kid.name}'s got swim at 4. ${P2_NAME}'s on it, she's bringing snacks.`
@@ -204,7 +204,7 @@ function buildReplies(c: Config): { round1: Reply[]; round2: Reply[]; closer: Re
   } else if (isTwo && c.busy1 === "packed" && c.busy2 === "packed") {
     round1.push({
       prompt: `I'll grab ${k1.name}`,
-      kinReply: `Locked in. Telling ${P2_NAME} she's clear. I'll buffer your 3:30 to end at 3:50 so you've got runway.`,
+      kinReply: `Got it — I'll text ${P2_NAME} she's clear. Heads-up: you'll want your 3:30 to wrap by 3:50 to give yourself runway.`,
     });
   } else {
     round1.push({
@@ -221,13 +221,15 @@ function buildReplies(c: Config): { round1: Reply[]; round2: Reply[]; closer: Re
   // Round 1 option B: meeting management
   if (c.busy1 === "packed" || c.busy1 === "moderate") {
     round1.push({
-      prompt: `Move my 3pm meeting`,
-      kinReply: `Done — pushed to 3:30 with Marcus. He confirmed. That gives you a clean 45-min runway before pickup.`,
+      prompt: `What about my 3pm meeting?`,
+      kinReply: `Pushing it to 3:30 with Marcus would give you a clean 45-min runway before pickup. Want me to draft the reschedule note?`,
     });
   } else {
     round1.push({
-      prompt: `Add a coffee with ${isTwo ? P2_NAME : "Mom"} at 2`,
-      kinReply: `Booked. ${isTwo ? `Told ${P2_NAME} — she's in. Sent you both a calendar invite.` : `Texted her — she'll meet you at Mercato. Confirmed.`}`,
+      prompt: `Coffee with ${isTwo ? P2_NAME : "Mom"} at 2?`,
+      kinReply: isTwo
+        ? `Texted ${P2_NAME} — she said yes. Mercato at 2. Add it to your calendar when you get a sec.`
+        : `Texted her — she's in. Mercato at 2. Add it to your calendar when you get a sec.`,
     });
   }
 
@@ -250,10 +252,10 @@ function buildReplies(c: Config): { round1: Reply[]; round2: Reply[]; closer: Re
     });
   } else {
     round2.push({
-      prompt: anyPacked ? `Push everything tomorrow` : `Block 30 min for me to breathe`,
+      prompt: anyPacked ? `Anything I can punt to tomorrow?` : `Where's a good 30-min breather?`,
       kinReply: anyPacked
-        ? `Walked your calendar. Tomorrow's actually lighter — kept your 9am, slid the rest to Thursday. Three meetings cleared.`
-        : `Blocked 2:30–3:00, no notifications. Coffee, walk, whatever. I'll hold the line.`,
+        ? `Tomorrow's actually lighter. Your 9am is the only fixed thing — the other three could move to Thursday. I'll line up the messages if you want to send them.`
+        : `2:30–3:00 looks clean today — your call to block it. I'll quiet down then so you actually get the breather.`,
     });
   }
 
@@ -339,7 +341,7 @@ function ConfigStep({ onSubmit }: { onSubmit: (c: Config) => void }) {
         </SegRow>
       </ConfigGroup>
 
-      <ConfigGroup label={household === "two" ? "How busy are you today?" : "How busy is today?"}>
+      <ConfigGroup label={household === "two" ? "How busy is your typical day?" : "How busy is your typical day?"}>
         <SegRow>
           {(["light", "moderate", "packed"] as BusyLevel[]).map((lvl) => (
             <SegBtn key={lvl} active={busy1 === lvl} onClick={() => setBusy1(lvl)}>
@@ -358,7 +360,7 @@ function ConfigStep({ onSubmit }: { onSubmit: (c: Config) => void }) {
             transition={{ duration: 0.3 }}
             style={{ overflow: "hidden" }}
           >
-            <ConfigGroup label={`How busy is ${P2_NAME}?`}>
+            <ConfigGroup label={`How busy is ${P2_NAME}'s typical day?`}>
               <SegRow>
                 {(["light", "moderate", "packed"] as BusyLevel[]).map((lvl) => (
                   <SegBtn key={lvl} active={busy2 === lvl} onClick={() => setBusy2(lvl)}>
@@ -405,19 +407,19 @@ function ConfigStep({ onSubmit }: { onSubmit: (c: Config) => void }) {
         onClick={submit}
         style={{
           width: "100%",
-          fontSize: "15px",
-          fontWeight: 500,
+          fontSize: "15.5px",
+          fontWeight: 600,
           color: "#0C0F0A",
           background: ACCENT,
-          padding: "14px 28px",
+          padding: "15px 28px",
           borderRadius: "12px",
           letterSpacing: "-0.2px",
-          boxShadow: "0 0 24px rgba(124,184,122,0.28), 0 0 48px rgba(124,184,122,0.08)",
           cursor: "pointer",
           border: "none",
+          animation: "kinPulse 2.4s ease-in-out infinite",
         }}
       >
-        Try it
+        Try it →
       </motion.button>
     </motion.div>
   );
@@ -482,30 +484,32 @@ function SegBtn({
   children: React.ReactNode;
 }) {
   return (
-    <button
+    <motion.button
       onClick={onClick}
+      whileHover={{ y: -1 }}
+      whileTap={{ scale: 0.97 }}
       style={{
         flex: "1 1 0",
         minWidth: "60px",
-        background: active ? "rgba(124,184,122,0.12)" : "#1c211a",
+        background: active ? "rgba(124,184,122,0.16)" : "#1c211a",
         border: active
-          ? "1px solid rgba(124,184,122,0.5)"
-          : "1px solid rgba(255,255,255,0.07)",
+          ? "1px solid rgba(124,184,122,0.6)"
+          : "1px solid rgba(124,184,122,0.18)",
         borderRadius: "10px",
         padding: "10px 14px",
         fontSize: "13px",
         fontWeight: 500,
-        color: active ? ACCENT : "rgba(240,237,230,0.78)",
+        color: active ? ACCENT : "rgba(240,237,230,0.85)",
         cursor: "pointer",
         letterSpacing: "-0.1px",
-        transition: "all 180ms ease",
+        transition: "background 180ms ease, border-color 180ms ease, color 180ms ease",
         boxShadow: active
-          ? "inset 0 0 0 1px rgba(124,184,122,0.1), 0 0 18px rgba(124,184,122,0.08)"
+          ? "inset 0 0 0 1px rgba(124,184,122,0.12), 0 0 22px rgba(124,184,122,0.14)"
           : "inset -1px -1px 2px rgba(255,255,255,0.015), inset 1px 1px 2px rgba(0,0,0,0.3)",
       }}
     >
       {children}
-    </button>
+    </motion.button>
   );
 }
 
@@ -837,25 +841,50 @@ function PhoneMockup({
             {stage === "done" && (
               <motion.div
                 key="done"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
+                initial={{ opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.4 }}
                 style={{
                   display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  padding: "10px",
+                  flexDirection: "column",
+                  alignItems: "stretch",
+                  gap: "8px",
+                  padding: "4px 2px 2px",
                 }}
               >
                 <span
                   style={{
                     fontSize: "11px",
-                    color: "rgba(255,255,255,0.4)",
+                    color: "rgba(255,255,255,0.55)",
                     fontStyle: "italic",
                     letterSpacing: "-0.1px",
+                    textAlign: "center",
                   }}
                 >
                   That&apos;s a real morning with Kin.
                 </span>
+                <motion.a
+                  href="/signup"
+                  whileHover={{ scale: 1.015 }}
+                  whileTap={{ scale: 0.985 }}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: "6px",
+                    background: ACCENT,
+                    color: "#0C0F0A",
+                    padding: "11px 16px",
+                    borderRadius: "10px",
+                    fontSize: "13.5px",
+                    fontWeight: 600,
+                    letterSpacing: "-0.15px",
+                    textDecoration: "none",
+                    animation: "kinPulse 2.4s ease-in-out infinite",
+                  }}
+                >
+                  Start your free 7-day trial →
+                </motion.a>
               </motion.div>
             )}
           </div>
@@ -1092,16 +1121,32 @@ export function InteractiveDemo() {
           viewport={{ once: true }}
           transition={{ duration: 0.5 }}
           style={{
-            fontSize: "11px",
-            fontWeight: 500,
-            color: "rgba(240,237,230,0.35)",
+            display: "inline-flex",
+            alignItems: "center",
+            gap: "8px",
+            fontSize: "11.5px",
+            fontWeight: 600,
+            color: ACCENT,
             fontFamily: "var(--font-geist-mono), monospace",
             letterSpacing: "1.5px",
             textTransform: "uppercase",
             marginBottom: "20px",
+            padding: "5px 12px",
+            background: "rgba(124,184,122,0.1)",
+            border: "1px solid rgba(124,184,122,0.35)",
+            borderRadius: "999px",
           }}
         >
-          Try Kin — no signup
+          <span
+            style={{
+              width: 6,
+              height: 6,
+              borderRadius: 3,
+              background: ACCENT,
+              boxShadow: "0 0 8px rgba(124,184,122,0.7)",
+            }}
+          />
+          Interactive demo
         </motion.p>
 
         <motion.h2
@@ -1110,7 +1155,7 @@ export function InteractiveDemo() {
           viewport={{ once: true }}
           transition={{ duration: 0.65, delay: 0.1, ease: [0.22, 1, 0.36, 1] }}
           style={{
-            fontSize: "clamp(26px, 4vw, 36px)",
+            fontSize: "clamp(28px, 4vw, 38px)",
             fontWeight: 600,
             color: "#F0EDE6",
             letterSpacing: "-0.8px",
@@ -1120,8 +1165,8 @@ export function InteractiveDemo() {
             margin: "0 auto 16px",
           }}
         >
-          See your morning briefing.{" "}
-          <span style={{ color: ACCENT }}>Tell us about your house.</span>
+          Try it yourself.{" "}
+          <span style={{ color: ACCENT }}>See your real morning briefing.</span>
         </motion.h2>
 
         <motion.p
@@ -1131,14 +1176,15 @@ export function InteractiveDemo() {
           transition={{ duration: 0.6, delay: 0.2 }}
           style={{
             fontSize: "15px",
-            color: "rgba(240,237,230,0.5)",
+            color: "rgba(240,237,230,0.72)",
             lineHeight: 1.6,
-            fontStyle: "italic",
             maxWidth: "480px",
             margin: "0 auto",
           }}
         >
-          Pick a setup. We&apos;ll show you the 6am text Kin would actually send.
+          Customize your family below, then tap{" "}
+          <span style={{ color: ACCENT, fontWeight: 500 }}>Try it</span> — we&apos;ll
+          show you the 6am text Kin would actually send.
         </motion.p>
       </div>
 

@@ -654,6 +654,7 @@ export default function Home() {
 
       {/* ── Hero ─────────────────────────────────────────────────────────── */}
       <section
+        data-hero
         style={{
           padding: "80px 40px 60px",
           display: "grid",
@@ -781,7 +782,7 @@ export default function Home() {
               gap: 20,
               fontSize: 11.5,
               fontFamily: T.mono,
-              color: T.warm40,
+              color: T.warm72,
               letterSpacing: "0.04em",
               flexWrap: "wrap",
             }}
@@ -791,7 +792,7 @@ export default function Home() {
               family
             </span>
             <span>$39/mo · per family</span>
-            <span>7-day trial · cancel any morning</span>
+            <span>7-day trial · cancel anytime</span>
           </div>
         </motion.div>
 
@@ -807,6 +808,7 @@ export default function Home() {
 
       {/* ── // kin watches strip ──────────────────────────────────────────── */}
       <div
+        data-watches
         style={{
           borderTop: `1px solid ${T.hair}`,
           borderBottom: `1px solid ${T.hair}`,
@@ -817,12 +819,12 @@ export default function Home() {
           flexWrap: "wrap",
           fontFamily: T.mono,
           fontSize: 11.5,
-          color: T.warm40,
+          color: T.warm56,
           letterSpacing: "0.02em",
           overflowX: "auto",
         }}
       >
-        <span style={{ color: T.sage, flexShrink: 0 }}>{"// kin watches"}</span>
+        <span style={{ color: T.sage, flexShrink: 0, fontWeight: 500 }}>{"// kin watches"}</span>
         {watchItems.map((item, i) => (
           <span
             key={item}
@@ -844,6 +846,7 @@ export default function Home() {
       {/* ── How it works ─────────────────────────────────────────────────── */}
       <section
         id="how-it-works"
+        data-how-it-works
         style={{
           padding: "72px 40px",
           maxWidth: 1280,
@@ -853,21 +856,21 @@ export default function Home() {
       >
         {/* section label */}
         <div style={{
-          fontFamily: T.mono, fontSize: 11, color: T.warm40,
-          letterSpacing: "0.08em", textTransform: "uppercase",
-          marginBottom: 40,
+          fontFamily: T.mono, fontSize: 12, color: T.sage,
+          letterSpacing: "0.1em", textTransform: "uppercase",
+          marginBottom: 40, fontWeight: 600,
         }}>
           How it works
         </div>
 
-        <div style={{
+        <div data-steps style={{
           display: "grid",
           gridTemplateColumns: "1fr 1fr 1fr",
           gap: 0,
           position: "relative",
         }}>
           {/* connector line behind the cards */}
-          <div style={{
+          <div data-connector style={{
             position: "absolute",
             top: 52, left: "16.6%", right: "16.6%",
             height: 1,
@@ -921,7 +924,7 @@ export default function Home() {
               }}>
                 {s.title}
               </div>
-              <div style={{ fontSize: 13.5, color: T.warm56, lineHeight: 1.55 }}>
+              <div style={{ fontSize: 13.5, color: T.warm72, lineHeight: 1.55 }}>
                 {s.body}
               </div>
             </motion.div>
@@ -963,6 +966,7 @@ export default function Home() {
       {/* ── Pricing + waitlist ───────────────────────────────────────────── */}
       <section
         id="pricing"
+        data-pricing
         style={{
           borderTop: `1px solid ${T.hair}`,
           padding: "48px 40px",
@@ -987,7 +991,7 @@ export default function Home() {
             <span style={{ color: T.warm56 }}>Less than a coffee.</span>
           </div>
           <div style={{ fontSize: 14, color: T.warm56, lineHeight: 1.5 }}>
-            One subscription covers both parents. Your first 7 days are free — cancel any morning, no penalty.
+            One subscription covers both parents. Your first 7 days are free — cancel anytime, no penalty.
           </div>
           <div
             style={{
@@ -1017,7 +1021,7 @@ export default function Home() {
                 <div
                   style={{
                     fontSize: 11,
-                    color: T.warm40,
+                    color: T.warm72,
                     letterSpacing: "0.02em",
                     marginTop: 2,
                   }}
@@ -1080,11 +1084,24 @@ export default function Home() {
 
       <style dangerouslySetInnerHTML={{ __html: `
         @keyframes spin { to { transform: rotate(360deg); } }
+        @keyframes kinPulse {
+          0%, 100% { box-shadow: 0 0 22px rgba(124,184,122,0.32), 0 0 44px rgba(124,184,122,0.1); }
+          50% { box-shadow: 0 0 38px rgba(124,184,122,0.55), 0 0 76px rgba(124,184,122,0.22); }
+        }
         @media (max-width: 768px) {
-          section { grid-template-columns: 1fr !important; }
-          section > div:last-child { display: none !important; }
+          section { grid-template-columns: 1fr !important; gap: 32px !important; }
+          nav { padding: 0 20px !important; }
           nav > div { gap: 12px !important; }
           nav > div > a:not(:last-child):not(:nth-last-child(2)) { display: none !important; }
+          section[data-hero] { padding: 48px 20px 32px !important; }
+          section[data-hero] > div:last-child { justify-content: center !important; }
+          section[data-how-it-works] { padding: 56px 20px !important; }
+          section[data-how-it-works] > div[data-steps] { grid-template-columns: 1fr !important; gap: 32px !important; }
+          section[data-how-it-works] > div[data-steps] > div { border-right: none !important; padding: 0 !important; }
+          section[data-how-it-works] > div[data-steps] > div[data-connector] { display: none !important; }
+          section[data-pricing] { padding: 40px 20px !important; }
+          section[data-watches] { padding: 14px 20px !important; }
+          section[data-watches] > span:first-child { width: 100% !important; }
         }
       ` }} />
     </main>
