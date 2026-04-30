@@ -303,16 +303,16 @@ function WaitlistForm() {
         >
           <CheckCircle2 size={24} color={T.sage} />
           <p style={{ color: T.warm, fontWeight: 500, margin: 0 }}>
-            {alreadyOnList ? "You're already on the list." : "You're on the list."}
+            {alreadyOnList ? "You already have an account." : "You're in."}
           </p>
           <p style={{ color: T.warm56, fontSize: 13, margin: 0 }}>
-            We&apos;re personally onboarding each beta family. We&apos;ll be in touch soon.
+            Check your email — your trial is ready. Takes about 5 minutes to connect your calendars.
           </p>
           <Link
             href="/signup"
             style={{ color: T.sage, fontSize: 13, textDecoration: "none" }}
           >
-            Ready to start? Create your account →
+            Set up your account →
           </Link>
         </motion.div>
       ) : (
@@ -378,7 +378,7 @@ function WaitlistForm() {
               ) : (
                 <ArrowRight size={16} />
               )}
-              Join waitlist
+              Start free trial
             </button>
           </div>
 
@@ -389,7 +389,7 @@ function WaitlistForm() {
           )}
 
           <p style={{ color: T.warm40, fontSize: 12, margin: 0 }}>
-            $39/mo for your entire family — 7-day free trial, cancel anytime.
+            $39/mo for your whole family. Cancel anytime, no questions asked.
           </p>
         </motion.form>
       )}
@@ -558,20 +558,20 @@ function StepBriefIllustration() {
 const HOW_STEPS = [
   {
     n: "01",
-    title: "Connect both calendars",
-    body: "Google, iCloud, Outlook. Read-only — kin never writes.",
+    title: "We read both calendars, so you don't have to",
+    body: "Connect your Google Calendars once. Kin reads both and knows the full picture — no more \"wait, what's happening Tuesday?\"",
     Illustration: StepCalendarIllustration,
   },
   {
     n: "02",
-    title: "Tell us what matters",
-    body: "Daycare hours, who covers what, recurring constraints.",
+    title: "Tell Kin how your family works",
+    body: "A few quick questions: who handles pickup when it's unplanned? What time should the briefing hit? Kin learns your patterns so the briefing is actually useful.",
     Illustration: StepConstraintsIllustration,
   },
   {
     n: "03",
-    title: "Wake up to a brief",
-    body: "A single SMS at 6am. Conflicts already resolved.",
+    title: "Wake up already coordinated",
+    body: "6am. One text to each of you. Today's schedule, any conflicts, anything that needs a decision. No app to open, no calendar to check. Just a text.",
     Illustration: StepBriefIllustration,
   },
 ];
@@ -696,7 +696,7 @@ export default function Home() {
                 flexShrink: 0,
               }}
             />
-            SMS · NO APP TO OPEN
+            SMS · BOTH PARENTS · 6AM EVERY DAY
           </div>
 
           {/* headline */}
@@ -710,9 +710,9 @@ export default function Home() {
               color: T.warm,
             }}
           >
-            Every morning at 6am,{" "}
+            Both parents,{" "}
             <span style={{ color: T.warm56 }}>
-              both parents know what the day looks like.
+              same page, every morning.
             </span>
           </h1>
 
@@ -726,9 +726,9 @@ export default function Home() {
               maxWidth: 520,
             }}
           >
-            One text. Two calendars. No app to open. Kin reads both your
-            schedules every night and sends a single morning brief — pickups,
-            conflicts, and what&apos;s actually yours today.
+            Every morning at 6am, Kin texts you both what&apos;s happening
+            today — pickups, conflicts, who needs to be where. Text back any
+            question and get an answer in seconds.
           </p>
 
           {/* CTAs */}
@@ -786,8 +786,8 @@ export default function Home() {
             }}
           >
             <span>
-              <span style={{ color: T.sage }}>$1.30/day</span> · less than a
-              coffee
+              <span style={{ color: T.sage }}>$1.30/day</span> · for the whole
+              family
             </span>
             <span>$39/mo · per family</span>
             <span>7-day trial · cancel any morning</span>
@@ -949,7 +949,7 @@ export default function Home() {
             margin: "0 0 12px",
           }}
         >
-          &ldquo;We don&apos;t know who&apos;s picking up our son from daycare until last minute.&rdquo;
+          &ldquo;One parent always ends up being the air traffic controller — tracking everything, texting reminders, holding the whole schedule in their head. That&apos;s the thing we built Kin to fix.&rdquo;
         </motion.p>
         <p style={{ fontSize: 13, color: T.warm40, margin: 0 }}>
           — Austin, Kin founder &amp; parent of a 2-year-old
@@ -983,7 +983,7 @@ export default function Home() {
             <span style={{ color: T.warm56 }}>Less than a coffee.</span>
           </div>
           <div style={{ fontSize: 14, color: T.warm56, lineHeight: 1.5 }}>
-            $39/month per family · one number, both parents · 7-day trial, cancel any morning.
+            One subscription covers both parents. Your first 7 days are free — cancel any morning, no penalty.
           </div>
           <div
             style={{
@@ -1027,7 +1027,7 @@ export default function Home() {
 
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
           <div style={{ fontSize: 14, color: T.warm56 }}>
-            We&apos;re personally onboarding each beta family — space is limited.
+            Start your free trial today. Takes about 5 minutes to set up.
           </div>
           <WaitlistForm />
           <div
@@ -1048,7 +1048,7 @@ export default function Home() {
                 fontWeight: 500,
               }}
             >
-              start your free trial now →
+              create your account →
             </Link>
           </div>
         </div>

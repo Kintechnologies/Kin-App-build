@@ -32,6 +32,7 @@ function GoogleGlyph() {
 }
 
 type PhoneStep = "phone" | "code";
+type EmailStep = "email" | "sent";
 
 function SignUpForm() {
   const router = useRouter();
@@ -39,8 +40,11 @@ function SignUpForm() {
   const inviteCode = searchParams.get("invite");
 
   const [phoneStep, setPhoneStep] = useState<PhoneStep>("phone");
+  const [emailStep, setEmailStep] = useState<EmailStep>("email");
   const [phone, setPhone] = useState("");
   const [code, setCode] = useState("");
+  const [email, setEmail] = useState("");
+  const [method, setMethod] = useState<"phone" | "email">("phone");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -54,15 +58,30 @@ function SignUpForm() {
     const supabase = createClient();
     const { error: oauthError } = await supabase.auth.signInWithOAuth({
       provider: "google",
-      options: {
-        redirectTo: callbackUrl,
-        scopes: "https://www.googleapis.com/auth/calendar.readonly",
-      },
+      options: { redirectTo: callbackUrl },
     });
     if (oauthError) {
       setError(oauthError.message);
       setLoading(false);
     }
+  }
+
+  async function handleEmailLink(e: React.FormEvent) {
+    e.preventDefault();
+    setError("");
+    setLoading(true);
+    const supabase = createClient();
+    const { error: magicErr } = await supabase.auth.signInWithOtp({
+      email,
+      options: { emailRedirectTo: callbackUrl },
+    });
+    if (magicErr) {
+      setError(magicErr.message);
+      setLoading(false);
+      return;
+    }
+    setLoading(false);
+    setEmailStep("sent");
   }
 
   async function handleSendCode(e: React.FormEvent) {
@@ -179,7 +198,7 @@ function SignUpForm() {
           <span>Continue with Google</span>
         </button>
         <div style={{ fontFamily: T.mono, fontSize: 11, color: T.warm40, letterSpacing: "0.03em" }}>
-          {"// signs you in · connects your calendar · read-only"}
+          {"// creates your account · you'll connect calendar in the next step"}
         </div>
       </div>
 
@@ -190,8 +209,23 @@ function SignUpForm() {
         <div style={{ flex: 1, height: 1, background: T.hair }} />
       </div>
 
-      {/* Phone OTP — secondary */}
-      {phoneStep === "phone" ? (
+      {/* Method toggle */}
+      <div style={{ display: "flex", gap: 8 }}>
+        {(["phone", "email"] as const).map((m) => (
+          <button key={m} type="button" onClick={() => { setMethod(m); setError(""); }}
+            style={{
+              flex: 1, height: 36, border: `1px solid ${method === m ? "rgba(124,184,122,0.28)" : T.warm12}`,
+              borderRadius: 8, background: method === m ? "rgba(124,184,122,0.12)" : "transparent",
+              color: method === m ? T.sage : T.warm40, fontFamily: "inherit",
+              fontSize: 13, fontWeight: 500, cursor: "pointer",
+            }}>
+            {m === "phone" ? "Text code" : "Email link"}
+          </button>
+        ))}
+      </div>
+
+      {/* Phone OTP */}
+      {method === "phone" && (phoneStep === "phone" ? (
         <form onSubmit={handleSendCode} style={{ display: "flex", flexDirection: "column", gap: 12 }}>
           <div>
             <label style={{ display: "block", fontSize: 11.5, color: T.warm56, letterSpacing: "0.04em", textTransform: "uppercase", fontWeight: 500, marginBottom: 8 }}>
@@ -199,26 +233,16 @@ function SignUpForm() {
             </label>
             <div style={{ display: "flex", alignItems: "center" }}>
               <div style={{
-                height: 44, padding: "0 12px",
-                background: "rgba(240,237,230,0.04)",
-                border: `1px solid ${T.warm12}`,
-                borderRight: "none",
-                borderRadius: "8px 0 0 8px",
-                display: "flex", alignItems: "center",
-                fontSize: 14, color: T.warm40,
+                height: 44, padding: "0 12px", background: "rgba(240,237,230,0.04)",
+                border: `1px solid ${T.warm12}`, borderRight: "none", borderRadius: "8px 0 0 8px",
+                display: "flex", alignItems: "center", fontSize: 14, color: T.warm40,
                 fontFamily: T.mono, flexShrink: 0,
               }}>+1</div>
-              <input
-                type="tel"
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                placeholder="(415) 555-0117"
-                autoFocus
-                required
-                style={{ ...fieldStyle, borderRadius: "0 8px 8px 0" }}
-              />
+              <input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)}
+                placeholder="(415) 555-0117" autoFocus required
+                style={{ ...fieldStyle, borderRadius: "0 8px 8px 0" }} />
             </div>
-            <div style={{ marginTop: 6, fontFamily: T.mono, fontSize: 11, color: T.warm40, letterSpacing: "0.03em" }}>
+            <div style={{ marginTop: 6, fontFamily: T.mono, fontSize: 11, color: T.warm40 }}>
               {"// no password — we text you a 6-digit code"}
             </div>
           </div>
@@ -234,36 +258,57 @@ function SignUpForm() {
             <label style={{ display: "block", fontSize: 11.5, color: T.warm56, letterSpacing: "0.04em", textTransform: "uppercase", fontWeight: 500, marginBottom: 8 }}>
               6-digit code
             </label>
-            <input
-              type="text"
-              inputMode="numeric"
-              pattern="[0-9]{6}"
-              maxLength={6}
-              value={code}
-              onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))}
-              placeholder="123456"
-              autoFocus
-              required
-              style={{ ...fieldStyle, fontFamily: T.mono, letterSpacing: "0.15em", fontSize: 18, textAlign: "center" }}
-            />
-            <div style={{ marginTop: 6, fontFamily: T.mono, fontSize: 11, color: T.warm40, letterSpacing: "0.03em" }}>
-              {"// sent to +1 "}{phone}{" ·"}{" "}
-              <button
-                type="button"
-                onClick={() => { setPhoneStep("phone"); setCode(""); setError(""); }}
-                style={{ background: "none", border: "none", color: T.sage, cursor: "pointer", fontFamily: "inherit", fontSize: "inherit", padding: 0 }}
-              >
+            <input type="text" inputMode="numeric" pattern="[0-9]{6}" maxLength={6}
+              value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))}
+              placeholder="123456" autoFocus required
+              style={{ ...fieldStyle, fontFamily: T.mono, letterSpacing: "0.15em", fontSize: 18, textAlign: "center" }} />
+            <div style={{ marginTop: 6, fontFamily: T.mono, fontSize: 11, color: T.warm40 }}>
+              {"// sent to +1 "}{phone}{" · "}
+              <button type="button" onClick={() => { setPhoneStep("phone"); setCode(""); setError(""); }}
+                style={{ background: "none", border: "none", color: T.sage, cursor: "pointer", fontFamily: "inherit", fontSize: "inherit", padding: 0 }}>
                 change
               </button>
             </div>
           </div>
           {error && <p style={{ color: "#D4748A", fontSize: 13, margin: 0 }} role="alert">{error}</p>}
-          <button type="submit" disabled={loading || code.length < 6} style={{ ...secondaryBtnStyle, opacity: (loading || code.length < 6) ? 0.5 : 1 }}>
+          <button type="submit" disabled={loading || code.length < 6}
+            style={{ ...secondaryBtnStyle, opacity: (loading || code.length < 6) ? 0.5 : 1 }}>
             {loading ? <Loader2 size={16} style={{ animation: "spin 1s linear infinite" }} /> : <ArrowRight size={16} />}
             Verify &amp; continue
           </button>
         </form>
-      )}
+      ))}
+
+      {/* Email magic link */}
+      {method === "email" && (emailStep === "email" ? (
+        <form onSubmit={handleEmailLink} style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          <div>
+            <label style={{ display: "block", fontSize: 11.5, color: T.warm56, letterSpacing: "0.04em", textTransform: "uppercase", fontWeight: 500, marginBottom: 8 }}>
+              Email address
+            </label>
+            <input type="email" value={email} onChange={(e) => setEmail(e.target.value)}
+              placeholder="you@example.com" autoFocus required style={fieldStyle} />
+            <div style={{ marginTop: 6, fontFamily: T.mono, fontSize: 11, color: T.warm40 }}>
+              {"// we'll email you a one-click sign-in link"}
+            </div>
+          </div>
+          {error && <p style={{ color: "#D4748A", fontSize: 13, margin: 0 }} role="alert">{error}</p>}
+          <button type="submit" disabled={loading} style={secondaryBtnStyle}>
+            {loading ? <Loader2 size={16} style={{ animation: "spin 1s linear infinite" }} /> : null}
+            Send link
+          </button>
+        </form>
+      ) : (
+        <div style={{ textAlign: "center", padding: "12px 0" }}>
+          <div style={{ fontSize: 28, marginBottom: 12 }}>📬</div>
+          <div style={{ color: "rgba(240,237,230,0.72)", fontSize: 14, fontWeight: 500, marginBottom: 6 }}>Check your email</div>
+          <div style={{ color: T.warm40, fontSize: 13 }}>We sent a sign-in link to <span style={{ color: T.warm }}>{email}</span></div>
+          <button type="button" onClick={() => { setEmailStep("email"); setError(""); }}
+            style={{ background: "none", border: "none", color: T.sage, cursor: "pointer", fontSize: 12, marginTop: 12, fontFamily: "inherit" }}>
+            Use a different email
+          </button>
+        </div>
+      ))}
 
       {/* pricing spec */}
       <div style={{
