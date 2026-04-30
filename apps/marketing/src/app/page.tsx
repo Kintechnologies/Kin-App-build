@@ -1,6 +1,7 @@
 import { Nav } from "@/components/Nav";
 import { Hero } from "@/components/Hero";
 import { Relatability } from "@/components/Relatability";
+import { InteractiveDemo } from "@/components/InteractiveDemo";
 import { OutcomeCards } from "@/components/OutcomeCards";
 import { WhyDifferent } from "@/components/WhyDifferent";
 import { Pricing } from "@/components/Pricing";
@@ -14,6 +15,7 @@ export default function Home() {
       <Nav />
       <Hero />
       <Relatability />
+      <InteractiveDemo />
       <OutcomeCards />
       <WhyDifferent />
       <Pricing />
