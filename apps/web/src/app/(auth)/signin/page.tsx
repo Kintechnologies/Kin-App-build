@@ -253,8 +253,12 @@ function SignInForm() {
                 placeholder="(415) 555-0117" autoFocus required
                 style={{ ...fieldStyle, borderRadius: "0 8px 8px 0" }} />
             </div>
-            <div style={{ marginTop: 6, fontFamily: T.mono, fontSize: 11, color: T.warm40 }}>
-              {"// no password — we text you a 6-digit code"}
+            <div style={{ marginTop: 6, fontSize: 11, color: T.warm40, lineHeight: 1.6 }}>
+              By verifying your number you agree to receive automated SMS from Kin (daily briefings, ~1/day). Msg &amp; data rates may apply.{" "}
+              <Link href="/terms" style={{ color: T.sage, textDecoration: "none" }}>Terms</Link>
+              {" · "}
+              <Link href="/privacy" style={{ color: T.sage, textDecoration: "none" }}>Privacy</Link>
+              {" · Reply STOP to cancel"}
             </div>
           </div>
           {error && <p style={{ color: "#D4748A", fontSize: 13, margin: 0 }} role="alert">{error}</p>}
