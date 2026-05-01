@@ -1196,81 +1196,177 @@ export default function Home() {
       {/* ── Interactive demo ─────────────────────────────────────────────── */}
       <InteractiveDemo />
 
-      {/* ── Pricing + waitlist ───────────────────────────────────────────── */}
+      {/* ── Pricing ──────────────────────────────────────────────────────── */}
       <section
         id="pricing"
         data-pricing
         style={{
           borderTop: `1px solid ${T.hair}`,
-          padding: "48px 40px",
+          padding: "88px 40px",
           maxWidth: 1280,
           margin: "0 auto",
-          display: "grid",
-          gridTemplateColumns: "1fr 1fr",
-          gap: 64,
+          scrollMarginTop: 80,
+          display: "flex",
+          flexDirection: "column",
           alignItems: "center",
         }}
       >
-        <div>
+        {/* section label */}
+        <div
+          style={{
+            fontFamily: T.mono,
+            fontSize: 12,
+            color: T.sage,
+            letterSpacing: "0.1em",
+            textTransform: "uppercase",
+            fontWeight: 600,
+            marginBottom: 16,
+          }}
+        >
+          Pricing
+        </div>
+
+        {/* heading */}
+        <h2
+          style={{
+            margin: 0,
+            fontWeight: 600,
+            fontSize: "clamp(32px, 4vw, 48px)",
+            lineHeight: 1.1,
+            letterSpacing: "-0.03em",
+            color: T.warm,
+            textAlign: "center",
+            marginBottom: 12,
+          }}
+        >
+          One price.{" "}
+          <span style={{ color: T.warm56 }}>Both parents covered.</span>
+        </h2>
+
+        <p
+          style={{
+            margin: 0,
+            fontSize: 16,
+            lineHeight: 1.55,
+            color: T.warm56,
+            textAlign: "center",
+            maxWidth: 520,
+            marginBottom: 40,
+          }}
+        >
+          One subscription for the whole family — no per-seat math, no
+          add-ons, no surprises.
+        </p>
+
+        {/* hero price card */}
+        <motion.div
+          initial={{ opacity: 0, y: 16 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.5 }}
+          data-price-card
+          style={{
+            width: "100%",
+            maxWidth: 520,
+            background: T.bgCard,
+            border: `1px solid ${T.sageBorder}`,
+            borderRadius: 16,
+            padding: "40px 36px",
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            boxShadow: "0 24px 60px rgba(0,0,0,0.35)",
+          }}
+        >
+          {/* hero number */}
           <div
             style={{
-              fontSize: 32,
-              fontWeight: 500,
-              letterSpacing: "-0.025em",
-              marginBottom: 8,
+              display: "flex",
+              alignItems: "baseline",
+              gap: 8,
+              marginBottom: 6,
             }}
           >
-            $1.30 a day.{" "}
-            <span style={{ color: T.warm56 }}>Less than a coffee.</span>
+            <span
+              style={{
+                fontSize: "clamp(72px, 10vw, 104px)",
+                fontWeight: 600,
+                lineHeight: 1,
+                letterSpacing: "-0.045em",
+                color: T.sage,
+              }}
+            >
+              $39
+            </span>
+            <span
+              style={{
+                fontSize: 20,
+                color: T.warm72,
+                fontWeight: 500,
+                letterSpacing: "-0.01em",
+              }}
+            >
+              / month
+            </span>
           </div>
-          <div style={{ fontSize: 14, color: T.warm56, lineHeight: 1.5 }}>
-            One subscription covers both parents. Your first 7 days are free — cancel anytime, no penalty.
-          </div>
+
           <div
             style={{
-              marginTop: 24,
-              padding: "16px 0 0",
-              borderTop: `1px solid ${T.hair}`,
+              fontSize: 14,
+              color: T.warm56,
+              fontFamily: T.mono,
+              letterSpacing: "0.04em",
+              marginBottom: 28,
+            }}
+          >
+            per family ·{" "}
+            <span style={{ color: T.warm72 }}>$1.30/day</span>
+            <span style={{ color: T.warm40 }}> · less than a coffee</span>
+          </div>
+
+          {/* trust list */}
+          <div
+            style={{
+              width: "100%",
               display: "flex",
-              gap: 28,
+              flexDirection: "column",
+              gap: 10,
+              padding: "20px 0",
+              borderTop: `1px solid ${T.hair}`,
+              borderBottom: `1px solid ${T.hair}`,
+              marginBottom: 24,
             }}
           >
             {[
-              ["$1.30/day", "less than a coffee"],
-              ["$39/mo", "per family"],
-              ["7-day", "free trial"],
-            ].map(([k, v]) => (
-              <div key={k}>
-                <div
-                  style={{
-                    fontFamily: T.mono,
-                    fontSize: 18,
-                    color: T.warm,
-                    fontWeight: 500,
-                  }}
-                >
-                  {k}
-                </div>
-                <div
-                  style={{
-                    fontSize: 11,
-                    color: T.warm72,
-                    letterSpacing: "0.02em",
-                    marginTop: 2,
-                  }}
-                >
-                  {v}
-                </div>
+              "7-day free trial",
+              "No credit card required",
+              "Cancel anytime, no questions asked",
+            ].map((item) => (
+              <div
+                key={item}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 10,
+                  fontSize: 14.5,
+                  color: T.warm,
+                }}
+              >
+                <CheckCircle2
+                  size={16}
+                  color={T.sage}
+                  style={{ flexShrink: 0 }}
+                />
+                {item}
               </div>
             ))}
           </div>
-        </div>
 
-        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-          <div style={{ fontSize: 14, color: T.warm56 }}>
-            Start your free trial today. Takes about 5 minutes to set up.
+          {/* CTA */}
+          <div style={{ width: "100%" }}>
+            <WaitlistForm />
           </div>
-          <WaitlistForm />
+
           <div
             style={{
               display: "flex",
@@ -1278,6 +1374,7 @@ export default function Home() {
               gap: 12,
               fontSize: 13,
               color: T.warm56,
+              marginTop: 16,
             }}
           >
             <span>or</span>
@@ -1292,7 +1389,7 @@ export default function Home() {
               create your account →
             </Link>
           </div>
-        </div>
+        </motion.div>
       </section>
 
       {/* ── Footer ───────────────────────────────────────────────────────── */}
@@ -1336,7 +1433,8 @@ export default function Home() {
           section[data-personas] > div[data-personas-grid] { grid-template-columns: 1fr !important; gap: 12px !important; }
           section[data-comparison] { padding: 56px 20px !important; }
           section[data-comparison] > div[data-comparison-grid] { grid-template-columns: 1fr !important; gap: 12px !important; }
-          section[data-pricing] { padding: 40px 20px !important; }
+          section[data-pricing] { padding: 56px 20px !important; }
+          section[data-pricing] div[data-price-card] { padding: 32px 24px !important; }
           section[data-watches] { padding: 14px 20px !important; }
           section[data-watches] > span:first-child { width: 100% !important; }
         }
