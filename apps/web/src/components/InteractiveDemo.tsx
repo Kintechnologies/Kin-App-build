@@ -1,48 +1,56 @@
 "use client";
 
 import { motion, AnimatePresence } from "framer-motion";
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo, forwardRef } from "react";
 
+// ───────── Constants ─────────
+
+const ACCENT = "#7CB87A";
+
+const PARTNER_NAME = "Sarah";
+const COPARENT_NAME = "Marcus";
+const PARENT_NAME = "Mom";
+const AIDE_NAME = "Karen";
+const ROOMMATE_1 = "Maya";
+const ROOMMATE_2 = "Jamie";
+
+const KID_NAMES: Record<KidAge, string[]> = {
+  school: ["Emma", "Liam", "Mia"],
+  toddler: ["Ava", "Noah", "Wren"],
+  teen: ["Maya", "Jonah", "Theo"],
+};
+
+// ───────── Types ─────────
+
+type Persona = "two-parent" | "coparent" | "caregiver" | "roommates";
 type BusyLevel = "light" | "moderate" | "packed";
 type KidAge = "toddler" | "school" | "teen";
-type Household = "single" | "two";
-
-type KidConfig = { age: KidAge };
 
 type Config = {
-  household: Household;
-  busy1: BusyLevel;
-  busy2: BusyLevel;
-  kids: KidConfig[];
+  persona: Persona;
+  busyMine: BusyLevel;
+  busyOther: BusyLevel;
+  kids: { age: KidAge }[];
 };
 
-type Reply = {
-  prompt: string;
-  kinReply: string;
-};
+type Reply = { prompt: string; kinReply: string };
 
 type Scenario = {
   briefing: string;
   round1: Reply[];
   round2: Reply[];
-  closer: { prompt: string; kinReply: string };
+  closer: Reply;
 };
 
 type ChatItem =
   | { id: string; role: "kin" | "user"; text: string }
   | { id: string; role: "typing" };
 
-const ACCENT = "#7CB87A";
-const KID_NAMES: Record<KidAge, string[]> = {
-  school: ["Emma", "Liam", "Mia"],
-  toddler: ["Ava", "Noah", "Wren"],
-  teen: ["Maya", "Jonah", "Theo"],
-};
-const P2_NAME = "Sarah";
-
 type Kid = { age: KidAge; name: string };
 
-function assignNames(kids: KidConfig[]): Kid[] {
+// ───────── Helpers ─────────
+
+function assignKidNames(kids: { age: KidAge }[]): Kid[] {
   const counters = { school: 0, toddler: 0, teen: 0 };
   return kids.map((k) => {
     const idx = counters[k.age]++;
@@ -50,21 +58,20 @@ function assignNames(kids: KidConfig[]): Kid[] {
   });
 }
 
-function leadLine(kid: Kid, p1: BusyLevel, p2: BusyLevel | null): string {
-  const isTwo = p2 !== null;
+// ───────── Briefing builders ─────────
 
+// — TWO-PARENT —
+
+function twoParentLead(kid: Kid, p1: BusyLevel, p2: BusyLevel): string {
   if (kid.age === "school") {
-    if (p1 === "packed" && isTwo && p2 !== "packed") {
-      return `${kid.name}'s got soccer at 4. You're back-to-back until 4:30 — but ${P2_NAME}'s clear after 3, she could grab pickup. Say the word and I'll loop her in.`;
+    if (p1 === "packed" && p2 !== "packed") {
+      return `${kid.name}'s got soccer at 4. You're back-to-back until 4:30 — but ${PARTNER_NAME}'s clear after 3, she could grab pickup. Say the word and I'll loop her in.`;
     }
-    if (p1 === "packed" && isTwo && p2 === "packed") {
-      return `${kid.name}'s got soccer at 4. Both of you are slammed — your gap at 4:00 is the cleanest window, ${P2_NAME}'s free 4:15–4:45. One of you covers, I'll work the rest.`;
+    if (p1 === "packed" && p2 === "packed") {
+      return `${kid.name}'s got soccer at 4. Both of you are slammed — your gap at 4:00 is the cleanest window, ${PARTNER_NAME}'s free 4:15–4:45. One of you covers, I'll work the rest.`;
     }
-    if (p1 === "packed" && !isTwo) {
-      return `${kid.name}'s got soccer at 4. Your only window is between your 3pm call and 4:30 standup — I'll ping you 20 min before so you don't get caught.`;
-    }
-    if (p1 === "moderate" && isTwo && p2 === "packed") {
-      return `${kid.name}'s got soccer at 4. ${P2_NAME}'s wall-to-wall today, but you wrap your 2:30 by 3:45 — pickup's on you. I'll set the reminder.`;
+    if (p1 === "moderate" && p2 === "packed") {
+      return `${kid.name}'s got soccer at 4. ${PARTNER_NAME}'s wall-to-wall today, but you wrap your 2:30 by 3:45 — pickup's on you. I'll set the reminder.`;
     }
     if (p1 === "moderate") {
       return `${kid.name}'s got soccer at 4. You've got a 2:30 call but it should wrap clean — pickup's tight but workable.`;
@@ -73,13 +80,10 @@ function leadLine(kid: Kid, p1: BusyLevel, p2: BusyLevel | null): string {
   }
 
   if (kid.age === "toddler") {
-    if (p1 === "packed" && isTwo && p2 !== "packed") {
-      return `${kid.name}'s daycare pickup is at 5:30. You're slammed all afternoon — ${P2_NAME}'s clear after 4, she's the one. I'll confirm with her.`;
+    if (p1 === "packed" && p2 !== "packed") {
+      return `${kid.name}'s daycare pickup is at 5:30. You're slammed all afternoon — ${PARTNER_NAME}'s clear after 4, she's the one. I'll confirm with her.`;
     }
-    if (p1 === "packed" && !isTwo) {
-      return `${kid.name}'s daycare pickup is at 5:30. You've got back-to-back until 5 — pushing your 5:15 call to 5:50 would buy you runway. Want me to draft the reschedule note?`;
-    }
-    if (p1 === "packed" && isTwo && p2 === "packed") {
+    if (p1 === "packed" && p2 === "packed") {
       return `${kid.name}'s daycare pickup is at 5:30. You're both buried — your 5pm wraps fastest, you've got the best shot. I'll flag at 5:10.`;
     }
     if (p1 === "moderate") {
@@ -88,11 +92,9 @@ function leadLine(kid: Kid, p1: BusyLevel, p2: BusyLevel | null): string {
     return `${kid.name}'s daycare pickup is at 5:30. Day's open — plenty of room. Nap window's 1–3 if you want quiet hours.`;
   }
 
-  if (p1 === "packed" && isTwo && p2 !== "packed") {
-    return `${kid.name}'s got lacrosse 4–6. You're booked through 5:30 — but ${P2_NAME}'s clear after 4, she could swing by and watch the back half.`;
-  }
-  if (p1 === "packed" && !isTwo) {
-    return `${kid.name}'s got lacrosse 4–6. You're booked through 5:30 — ${kid.name}'s old enough to ride home with Coach Devon, he offered last week. Want me to text him?`;
+  // teen
+  if (p1 === "packed" && p2 !== "packed") {
+    return `${kid.name}'s got lacrosse 4–6. You're booked through 5:30 — but ${PARTNER_NAME}'s clear after 4, she could swing by and watch the back half.`;
   }
   if (p1 === "moderate") {
     return `${kid.name}'s got lacrosse 4–6. You've got a 5pm call — drop-off's clean, ${kid.name} can ride home with the Petersons.`;
@@ -100,111 +102,58 @@ function leadLine(kid: Kid, p1: BusyLevel, p2: BusyLevel | null): string {
   return `${kid.name}'s got lacrosse 4–6. Your day's clear — go watch the back half if you can, ${kid.name} mentioned wanting you there.`;
 }
 
-function secondaryLine(
-  kid: Kid,
-  slotIdx: number,
-  p2: BusyLevel | null,
-): string {
-  const isTwo = p2 !== null;
-
+function twoParentSecondary(kid: Kid, slotIdx: number): string {
   if (kid.age === "school") {
-    if (slotIdx === 1) {
-      return isTwo
-        ? `${kid.name}'s got the dentist at 3:30. ${P2_NAME}'s planning to handle that one.`
-        : `${kid.name}'s got the dentist at 3:30. If you push your 3pm to 3:15 you'd have a clean 30-min buffer — easy reschedule.`;
-    }
-    return isTwo
-      ? `${kid.name} has a playdate at the Kims' 5–7. ${P2_NAME}'ll do drop-off, you've got pickup.`
-      : `${kid.name}'s at the Kims' 5–7. Pickup's on you — I'll remind at 6:45.`;
+    return slotIdx === 1
+      ? `${kid.name}'s got the dentist at 3:30. ${PARTNER_NAME}'s planning to handle that one.`
+      : `${kid.name} has a playdate at the Kims' 5–7. ${PARTNER_NAME}'ll do drop-off, you've got pickup.`;
   }
-
   if (kid.age === "toddler") {
-    if (slotIdx === 1) {
-      return isTwo
-        ? `${kid.name}'s nap window is 1–3. ${P2_NAME}'s home — protected hours, no calls scheduled there.`
-        : `${kid.name}'s nap window is 1–3. Worth blocking that on your calendar — only your 2pm with Marcus is in the way. Want a draft note to push him?`;
-    }
-    return isTwo
-      ? `${kid.name}'s got swim at 4. ${P2_NAME}'s on it, she's bringing snacks.`
-      : `${kid.name}'s got swim at 4. I've laid out the gear bag in your reminders so you don't forget the goggles again.`;
+    return slotIdx === 1
+      ? `${kid.name}'s nap window is 1–3. ${PARTNER_NAME}'s home — protected hours, no calls scheduled there.`
+      : `${kid.name}'s got swim at 4. ${PARTNER_NAME}'s on it, she's bringing snacks.`;
   }
-
-  if (slotIdx === 1) {
-    return isTwo
-      ? `${kid.name}'s SAT prep is 6–8. ${P2_NAME}'s doing the drop, just keep dinner light.`
-      : `${kid.name}'s SAT prep is 6–8. Drop-off's on you — leave by 5:40, traffic's been ugly this week.`;
-  }
-  return isTwo
-    ? `${kid.name} has driver's ed at 5. ${P2_NAME}'ll handle it.`
-    : `${kid.name} has driver's ed at 5. You'll need to leave your 4:30 by 4:45 sharp.`;
+  return slotIdx === 1
+    ? `${kid.name}'s SAT prep is 6–8. ${PARTNER_NAME}'s doing the drop, just keep dinner light.`
+    : `${kid.name} has driver's ed at 5. ${PARTNER_NAME}'ll handle it.`;
 }
 
-function headsUp(c: Config, kids: Kid[]): string {
-  const isTwo = c.household === "two";
-  const anyPacked = c.busy1 === "packed" || (isTwo && c.busy2 === "packed");
-  const allLight = c.busy1 === "light" && (!isTwo || c.busy2 === "light");
-
+function twoParentHeadsUp(c: Config, kids: Kid[]): string {
+  const anyPacked = c.busyMine === "packed" || c.busyOther === "packed";
+  const allLight = c.busyMine === "light" && c.busyOther === "light";
   if (allLight) {
     return `Heads up: nothing on fire. Quiet day. Want me to slot in something nice — coffee, a walk, the thing you've been putting off?`;
   }
-
   if (anyPacked && kids.length >= 2) {
     return `Heads up: tight stretch 4–6. I'll watch the seams and flag if anything slides.`;
   }
-
   if (anyPacked) {
     return `Heads up: dinner's still TBD — you haven't decided since Tuesday. Want a few options?`;
   }
-
   if (kids.some((k) => k.age === "teen")) {
     return `Heads up: ${kids.find((k) => k.age === "teen")!.name}'s big game is Friday. Calendar's clear if you want to go.`;
   }
-
   return `Heads up: pickup's the only pressure point today. Otherwise smooth.`;
 }
 
-function buildBriefing(c: Config): string {
-  const kids = assignNames(c.kids);
-  const p2 = c.household === "two" ? c.busy2 : null;
+function buildTwoParent(c: Config): Scenario {
+  const kids = assignKidNames(c.kids);
+  const lines: string[] = [twoParentLead(kids[0], c.busyMine, c.busyOther)];
+  if (kids[1]) lines.push(twoParentSecondary(kids[1], 1));
+  if (kids[2]) lines.push(twoParentSecondary(kids[2], 2));
+  lines.push(twoParentHeadsUp(c, kids));
 
-  let out = "Morning. Here's today —\n\n";
-  out += leadLine(kids[0], c.busy1, p2);
-
-  if (kids.length >= 2) {
-    out += `\n\n${secondaryLine(kids[1], 1, p2)}`;
-  }
-  if (kids.length >= 3) {
-    out += `\n\n${secondaryLine(kids[2], 2, p2)}`;
-  }
-
-  out += `\n\n${headsUp(c, kids)}`;
-  return out;
-}
-
-function buildReplies(c: Config): { round1: Reply[]; round2: Reply[]; closer: Reply } {
-  const kids = assignNames(c.kids);
   const k1 = kids[0];
-  const isTwo = c.household === "two";
-  const anyPacked = c.busy1 === "packed" || (isTwo && c.busy2 === "packed");
-
   const round1: Reply[] = [];
-  const round2: Reply[] = [];
-
-  // Round 1 option A: handoff or coverage question
-  if (isTwo && c.busy1 === "packed" && c.busy2 !== "packed") {
+  if (c.busyMine === "packed" && c.busyOther !== "packed") {
     round1.push({
-      prompt: `Yes, ask ${P2_NAME} to grab ${k1.name}`,
-      kinReply: `On it. Just messaged ${P2_NAME} — she's locked in for 4. I'll send you both a heads-up at 3:45 so neither of you blanks on it.`,
+      prompt: `Yes, ask ${PARTNER_NAME} to grab ${k1.name}`,
+      kinReply: `On it. Just messaged ${PARTNER_NAME} — she's locked in for 4. I'll send you both a heads-up at 3:45 so neither of you blanks on it.`,
     });
-  } else if (!isTwo && c.busy1 === "packed") {
-    round1.push({
-      prompt: `Who can grab ${k1.name} if I'm late?`,
-      kinReply: `I've got Mike on speed-dial — he picked up last month, said anytime. Want me to text him a soft heads-up so he's around?`,
-    });
-  } else if (isTwo && c.busy1 === "packed" && c.busy2 === "packed") {
+  } else if (c.busyMine === "packed" && c.busyOther === "packed") {
     round1.push({
       prompt: `I'll grab ${k1.name}`,
-      kinReply: `Got it — I'll text ${P2_NAME} she's clear. Heads-up: you'll want your 3:30 to wrap by 3:50 to give yourself runway.`,
+      kinReply: `Got it — I'll text ${PARTNER_NAME} she's clear. Heads-up: you'll want your 3:30 to wrap by 3:50 to give yourself runway.`,
     });
   } else {
     round1.push({
@@ -218,210 +167,536 @@ function buildReplies(c: Config): { round1: Reply[]; round2: Reply[]; closer: Re
     });
   }
 
-  // Round 1 option B: meeting management
-  if (c.busy1 === "packed" || c.busy1 === "moderate") {
+  if (c.busyMine === "packed" || c.busyMine === "moderate") {
     round1.push({
       prompt: `What about my 3pm meeting?`,
       kinReply: `Pushing it to 3:30 with Marcus would give you a clean 45-min runway before pickup. Want me to draft the reschedule note?`,
     });
   } else {
     round1.push({
-      prompt: `Coffee with ${isTwo ? P2_NAME : "Mom"} at 2?`,
-      kinReply: isTwo
-        ? `Texted ${P2_NAME} — she said yes. Mercato at 2. Add it to your calendar when you get a sec.`
-        : `Texted her — she's in. Mercato at 2. Add it to your calendar when you get a sec.`,
+      prompt: `Coffee with ${PARTNER_NAME} at 2?`,
+      kinReply: `Texted ${PARTNER_NAME} — she said yes. Mercato at 2. Add it to your calendar when you get a sec.`,
     });
   }
 
-  // Round 1 option C: read the day / what am I forgetting
   round1.push({
     prompt: `Anything I'm forgetting?`,
-    kinReply:
-      kids.find((k) => k.age === "school")
-        ? `Permission slip for ${kids.find((k) => k.age === "school")!.name}'s field trip — due Friday. Reminder set for tonight after bedtime so you're not scrambling.`
-        : kids.find((k) => k.age === "toddler")
-          ? `${kids.find((k) => k.age === "toddler")!.name}'s diapers are running low — I added them to your grocery list and pushed it to ${isTwo ? P2_NAME : "Instacart"}.`
-          : `${kids[0].name}'s recommendation letter for the summer program — deadline's next Thursday. I drafted three teacher options if you want to look.`,
+    kinReply: kids.find((k) => k.age === "school")
+      ? `Permission slip for ${kids.find((k) => k.age === "school")!.name}'s field trip — due Friday. Reminder set for tonight after bedtime so you're not scrambling.`
+      : kids.find((k) => k.age === "toddler")
+        ? `${kids.find((k) => k.age === "toddler")!.name}'s diapers are running low — I added them to your grocery list and pushed it to ${PARTNER_NAME}.`
+        : `${kids[0].name}'s recommendation letter for the summer program — deadline's next Thursday. I drafted three teacher options if you want to look.`,
   });
 
-  // Round 2: follow-ups (always 2)
-  if (isTwo) {
-    round2.push({
-      prompt: `Tell ${P2_NAME} I owe her`,
+  const round2: Reply[] = [
+    {
+      prompt: `Tell ${PARTNER_NAME} I owe her`,
       kinReply: `Done — and she said "you owe me bedtime." I'm on the bedtime reminder for 7:45.`,
-    });
-  } else {
-    round2.push({
-      prompt: anyPacked ? `Anything I can punt to tomorrow?` : `Where's a good 30-min breather?`,
-      kinReply: anyPacked
-        ? `Tomorrow's actually lighter. Your 9am is the only fixed thing — the other three could move to Thursday. I'll line up the messages if you want to send them.`
-        : `2:30–3:00 looks clean today — your call to block it. I'll quiet down then so you actually get the breather.`,
-    });
-  }
-
-  round2.push({
-    prompt: `What's tomorrow look like?`,
-    kinReply: anyPacked
-      ? `Lighter — ${kids[0].name}'s free, you've got one 9am and a 2pm. ${isTwo ? `${P2_NAME}'s wall-to-wall but only morning. ` : ""}I'll send the full briefing at 6.`
-      : `Calm. ${kids[0].name}'s got ${kids[0].age === "toddler" ? "swim 9am" : "school as usual"}, you've got the afternoon open. Real shot at a slow morning.`,
-  });
+    },
+    {
+      prompt: `What's tomorrow look like?`,
+      kinReply:
+        c.busyMine === "packed" || c.busyOther === "packed"
+          ? `Lighter — ${kids[0].name}'s free, you've got one 9am and a 2pm. ${PARTNER_NAME}'s wall-to-wall but only morning. I'll send the full briefing at 6.`
+          : `Calm. ${kids[0].name}'s got ${kids[0].age === "toddler" ? "swim 9am" : "school as usual"}, you've got the afternoon open. Real shot at a slow morning.`,
+    },
+  ];
 
   return {
+    briefing: "Morning. Here's today —\n\n" + lines.join("\n\n"),
     round1,
     round2,
-    closer: {
-      prompt: `Sounds good`,
-      kinReply: `I'll keep watch. Talk in a bit.`,
+    closer: { prompt: "Sounds good", kinReply: "I'll keep watch. Talk in a bit." },
+  };
+}
+
+// — COPARENT —
+
+function buildCoparent(c: Config): Scenario {
+  const kids = assignKidNames(c.kids);
+  const k1 = kids[0];
+  const yours = c.busyMine;
+  const theirs = c.busyOther;
+
+  let lead = "";
+  if (k1.age === "school") {
+    lead = `${k1.name}'s with you this week. Soccer at 4 today — handoff to ${COPARENT_NAME} Friday at 5 still on.`;
+    if (yours === "packed" && theirs !== "packed") {
+      lead += ` You're slammed till 4:30 — ${COPARENT_NAME}'s clear after 3, he offered to grab pickup if it gets tight. Want me to confirm?`;
+    } else if (yours === "packed" && theirs === "packed") {
+      lead += ` You're both buried. Coach Devon does carpool drops if you ask by 2 — I can text him.`;
+    } else if (yours === "moderate") {
+      lead += ` Your 2:30 should wrap clean — pickup's tight but workable.`;
+    } else {
+      lead += ` Day's open — easy run.`;
+    }
+  } else if (k1.age === "toddler") {
+    lead = `${k1.name}'s with you this week. Daycare pickup at 5:30, handoff to ${COPARENT_NAME} Friday at 5.`;
+    if (yours === "packed" && theirs !== "packed") {
+      lead += ` ${COPARENT_NAME}'s free after 4 — he can grab pickup if your 5pm runs over. Say the word.`;
+    } else if (yours === "packed") {
+      lead += ` You're packed but daycare gives 15-min grace — push your 5:15 to 5:45 and you're fine.`;
+    } else if (yours === "moderate") {
+      lead += ` Manageable. I'll flag at 5:10 if the 4pm meeting is still going.`;
+    } else {
+      lead += ` Day's open. Nap window's 1–3 if you want quiet hours.`;
+    }
+  } else {
+    lead = `${k1.name}'s with you this week. Lacrosse 4–6, handoff to ${COPARENT_NAME} Friday at 5.`;
+    if (yours === "packed") {
+      lead += ` You're locked till 5:30 — ${k1.name} can ride home with the Petersons, they offered last week.`;
+    } else if (yours === "moderate") {
+      lead += ` 5pm call's the only conflict — drop's easy, ${k1.name} can ride home with friends.`;
+    } else {
+      lead += ` Open day. Worth catching the back half — ${k1.name} mentioned wanting you there.`;
+    }
+  }
+
+  const lines: string[] = [lead];
+
+  if (kids[1]) {
+    const k2 = kids[1];
+    if (k2.age === "school") {
+      lines.push(`${k2.name}'s got the dentist at 3:30. Already on your calendar, you've got it.`);
+    } else if (k2.age === "toddler") {
+      lines.push(`${k2.name}'s nap window is 1–3. ${COPARENT_NAME}'s mom's coming by 2 — she knows to keep it quiet.`);
+    } else {
+      lines.push(`${k2.name}'s SAT prep is 6–8. ${COPARENT_NAME}'s dropping (he picked the tutor).`);
+    }
+  }
+  if (kids[2]) {
+    lines.push(`${kids[2].name}'s got swim at 4 — gear bag's in your car already.`);
+  }
+
+  if (yours === "packed" || theirs === "packed") {
+    lines.push(
+      `Heads up: Friday handoff, ${COPARENT_NAME} asked about the soccer schedule. I'll send him the next two weeks tonight so it's not on you.`,
+    );
+  } else {
+    lines.push(
+      `Heads up: ${k1.name}'s parent-teacher conference Thursday at 6. ${COPARENT_NAME} confirmed he's coming. Want me to handle dinner logistics?`,
+    );
+  }
+
+  const round1: Reply[] = [
+    {
+      prompt:
+        yours === "packed" && theirs !== "packed"
+          ? `Yes, ask ${COPARENT_NAME} to grab pickup`
+          : `What's the handoff Friday?`,
+      kinReply:
+        yours === "packed" && theirs !== "packed"
+          ? `Texted him — locked for 4. I'll send you both a heads-up at 3:45 so neither of you blanks.`
+          : `Friday 5pm at his place. You drop ${k1.name}'s soccer bag + the inhaler. He's got dinner. Already on his calendar.`,
     },
+    {
+      prompt: `Coordinate weekend with ${COPARENT_NAME}`,
+      kinReply: `He's got a wedding Saturday, asked if you'd take ${k1.name} extra till Sunday noon. Want me to confirm?`,
+    },
+    {
+      prompt: `Anything I'm forgetting?`,
+      kinReply: kids.find((k) => k.age === "school")
+        ? `Permission slip for ${kids.find((k) => k.age === "school")!.name}'s field trip — due Friday. ${COPARENT_NAME} signed already, you're up.`
+        : `${k1.name}'s pediatrician appt is next Tuesday — both of you have it on calendar, ${COPARENT_NAME}'s taking lead.`,
+    },
+  ];
+
+  const round2: Reply[] = [
+    {
+      prompt: `Tell ${COPARENT_NAME} thanks`,
+      kinReply: `Sent — he said "anytime, this is what we agreed." Co-parenting energy intact.`,
+    },
+    {
+      prompt: `What's tomorrow look like?`,
+      kinReply: `Lighter. ${k1.name} has school as usual. ${COPARENT_NAME}'s taking ${k1.name} for dinner Wed (his idea). Your evening's open.`,
+    },
+  ];
+
+  return {
+    briefing: "Morning. Here's today —\n\n" + lines.join("\n\n"),
+    round1,
+    round2,
+    closer: { prompt: "Sounds good", kinReply: "I'll keep watch. Talk in a bit." },
+  };
+}
+
+// — CAREGIVER —
+
+function buildCaregiver(c: Config): Scenario {
+  const yours = c.busyMine;
+  const care = c.busyOther; // light/moderate/packed → Mom's care intensity
+
+  const lines: string[] = [];
+
+  if (care === "packed") {
+    lines.push(
+      `${PARENT_NAME}'s PT at 2pm — ${AIDE_NAME} is driving. Cardiology follow-up Thursday at 10, paperwork's in your inbox. 8am meds in (insulin, lisinopril, the Eliquis) — evening dose at 6, I'll remind ${AIDE_NAME}.`,
+    );
+    if (yours === "packed") {
+      lines.push(`You're back-to-back until 4 — ${AIDE_NAME}'s solid till 5, no decisions needed from you until tonight.`);
+    } else if (yours === "moderate") {
+      lines.push(`You've got the 11am with Marcus then a clear afternoon — good window to call Dr. Chen about the sleep changes.`);
+    } else {
+      lines.push(`Your day's open. Worth swinging by between PT and dinner if you can — she asked about you yesterday.`);
+    }
+    lines.push(`Heads up: pharmacy refill (Eliquis) needs to clear by Friday. I drafted the request — say the word and I'll send it.`);
+  } else if (care === "moderate") {
+    lines.push(
+      `${PARENT_NAME}'s 9am meds in (insulin, lisinopril). ${AIDE_NAME} arrives 11am, here till 4. Dentist at 1:30 — she's driving.`,
+    );
+    if (yours === "packed") {
+      lines.push(`You're packed today. ${AIDE_NAME} has it covered — only flag from her end is needing your call on the new aide schedule by Wednesday.`);
+    } else if (yours === "moderate") {
+      lines.push(`You've got room around 2 — good time to call her, she likes mid-afternoon.`);
+    } else {
+      lines.push(`Light day for you. Worth lunch — ${AIDE_NAME}'s there for the dentist, you'd be free company.`);
+    }
+    lines.push(`Heads up: she mentioned the stairs feeling harder. Worth a check-in this week before it slides.`);
+  } else {
+    lines.push(
+      `${PARENT_NAME}'s good — meds in, no appointments, ${AIDE_NAME}'s off today (Sunday rotation). She'll be on her own till tomorrow morning.`,
+    );
+    if (yours === "packed") {
+      lines.push(`You're slammed — quick check-in call after lunch is plenty. She's solid solo days.`);
+    } else if (yours === "moderate") {
+      lines.push(`You've got a clear afternoon — would mean a lot if you stopped by. She made apricot bars yesterday "in case Sarah comes."`);
+    } else {
+      lines.push(`Light day for both of you. Real shot at a slow afternoon together.`);
+    }
+    lines.push(`Heads up: pharmacy refills are clean through next week. Nothing on fire.`);
+  }
+
+  const round1: Reply[] = [
+    {
+      prompt: care === "packed" ? `Confirm Eliquis refill` : `Call her this afternoon`,
+      kinReply:
+        care === "packed"
+          ? `Sent — pharmacy will fax Dr. Chen by 11. I'll confirm pickup ready by Friday 4pm and ping you.`
+          : `Set for 2pm reminder. I'll pull her latest from ${AIDE_NAME}'s notes so you have something to lead with.`,
+    },
+    {
+      prompt: `What's ${AIDE_NAME}'s schedule this week?`,
+      kinReply: `Mon/Wed/Fri 11–4, Tue/Thu 9–2 for dentist + cardiology runs, off Sunday. She's flagged time off Aug 14–18 — we should plan a fill-in.`,
+    },
+    {
+      prompt: `Anything I'm forgetting?`,
+      kinReply: `Her birthday's three weeks out (Aug 22). You said you wanted to do something this year — want me to start a list?`,
+    },
+  ];
+
+  const round2: Reply[] = [
+    {
+      prompt: `Remind me to send the cardiology forms`,
+      kinReply: `Reminder set for tonight 8pm — that's after your meeting wraps. I have the forms saved, I'll surface them.`,
+    },
+    {
+      prompt: `What's tomorrow look like?`,
+      kinReply: `${AIDE_NAME} 11–4. No appts. ${PARENT_NAME}'s asked about a haircut — Maria has 2pm Thursday, want me to book?`,
+    },
+  ];
+
+  return {
+    briefing: "Morning. Here's today —\n\n" + lines.join("\n\n"),
+    round1,
+    round2,
+    closer: { prompt: "Sounds good", kinReply: "I'll keep watch. Talk in a bit." },
+  };
+}
+
+// — ROOMMATES —
+
+function buildRoommates(c: Config): Scenario {
+  const yours = c.busyMine;
+  const house = c.busyOther; // light=quiet, moderate=balanced, packed=hectic
+
+  const lines: string[] = [];
+
+  if (house === "packed") {
+    lines.push(
+      `${ROOMMATE_1}'s got people over Saturday 7pm — 8 confirmed. ${ROOMMATE_2}'s out Thu–Sun (work trip), trash rotation falls to you tonight.`,
+    );
+    lines.push(
+      `Gas bill due Friday — your $42 share, Venmo ${ROOMMATE_1}. Internet hit your card again, I'll split-charge them tonight.`,
+    );
+    if (yours === "packed") {
+      lines.push(`You're packed today — none of this needs you before evening. Just don't blank on trash.`);
+    } else if (yours === "moderate") {
+      lines.push(`You've got a clean afternoon — good time to confirm headcount with ${ROOMMATE_1} and figure out the snack situation.`);
+    } else {
+      lines.push(`Light day for you. ${ROOMMATE_1} mentioned wanting help prepping Saturday — worth offering, she'd remember it.`);
+    }
+    lines.push(`Heads up: dishwasher's been making the noise again. Three weeks now — worth flagging the landlord this week.`);
+  } else if (house === "moderate") {
+    lines.push(
+      `Trash night tonight — ${ROOMMATE_2}'s on rotation but they're traveling, so it's you. ${ROOMMATE_1}'s out for dinner with the work crew.`,
+    );
+    lines.push(`Gas bill due Friday — $42 your share. Internet split-charge going out tonight.`);
+    if (yours === "packed") {
+      lines.push(`You're slammed — set a 9pm phone reminder for trash, that's all you need to track.`);
+    } else if (yours === "moderate") {
+      lines.push(`Your evening's clear — quiet apartment night since ${ROOMMATE_1}'s out. Real shot at a slow one.`);
+    } else {
+      lines.push(`Light day all around. Place'll be empty tonight if you want a quiet evening.`);
+    }
+    lines.push(`Heads up: ${ROOMMATE_2} flagged the AC not cooling the back room. Worth mentioning to ${ROOMMATE_1} so it's on her radar too.`);
+  } else {
+    lines.push(
+      `Quiet day. No bills due, no events on the calendar, no chores on rotation tonight. ${ROOMMATE_1} and ${ROOMMATE_2} are both out till evening.`,
+    );
+    if (yours === "packed") {
+      lines.push(`You're packed — apartment will be empty when you get home, take the slow evening.`);
+    } else if (yours === "moderate") {
+      lines.push(`Good window for the things you've been putting off. The grocery run, the haircut, that book.`);
+    } else {
+      lines.push(`Nothing on fire anywhere. Want me to slot in something nice?`);
+    }
+    lines.push(`Heads up: lease renewal hits in 60 days. Want me to start the conversation with ${ROOMMATE_1} and ${ROOMMATE_2} this week?`);
+  }
+
+  const round1: Reply[] = [
+    {
+      prompt: house === "packed" ? `Help ${ROOMMATE_1} with Saturday prep` : `Remind me about trash at 9pm`,
+      kinReply:
+        house === "packed"
+          ? `Texted ${ROOMMATE_1} you're in — she said anything from grocery run to setup. I put 4pm Saturday on hold for you.`
+          : `Set. I'll buzz at 8:50 so you have a few minutes to roll out the cans before pickup at 7am.`,
+    },
+    {
+      prompt: `Send ${ROOMMATE_1} my Venmo for gas`,
+      kinReply: `Done — sent her $42 with the request note "gas, May share." She usually pays end of day.`,
+    },
+    {
+      prompt: `What did I miss this week?`,
+      kinReply: `${ROOMMATE_2} mentioned the cleaner asking about a raise. ${ROOMMATE_1} restocked everything except coffee. AC issue still open. Lease renewal coming.`,
+    },
+  ];
+
+  const round2: Reply[] = [
+    {
+      prompt: `Loop me in on the lease convo`,
+      kinReply: `Started a thread with ${ROOMMATE_1} and ${ROOMMATE_2} — I'll surface their replies and keep you out of the back-and-forth until decisions need you.`,
+    },
+    {
+      prompt: `What's tomorrow look like?`,
+      kinReply:
+        house === "packed"
+          ? `Quieter — ${ROOMMATE_1}'s in the office all day, ${ROOMMATE_2} still traveling. Apartment's yours.`
+          : `${ROOMMATE_1} working from home (she likes the kitchen quiet 9–12). Otherwise open.`,
+    },
+  ];
+
+  return {
+    briefing: "Morning. Here's today —\n\n" + lines.join("\n\n"),
+    round1,
+    round2,
+    closer: { prompt: "Sounds good", kinReply: "I'll keep watch. Talk in a bit." },
   };
 }
 
 function generateScenario(c: Config): Scenario {
-  const briefing = buildBriefing(c);
-  const { round1, round2, closer } = buildReplies(c);
-  return { briefing, round1, round2, closer };
+  switch (c.persona) {
+    case "two-parent":
+      return buildTwoParent(c);
+    case "coparent":
+      return buildCoparent(c);
+    case "caregiver":
+      return buildCaregiver(c);
+    case "roommates":
+      return buildRoommates(c);
+  }
 }
 
-// ---- UI components ----
+// ───────── Persona-specific labels ─────────
 
-function ConfigStep({ onSubmit }: { onSubmit: (c: Config) => void }) {
-  const [household, setHousehold] = useState<Household>("two");
-  const [busy1, setBusy1] = useState<BusyLevel>("packed");
-  const [busy2, setBusy2] = useState<BusyLevel>("moderate");
-  const [kids, setKids] = useState<KidConfig[]>([{ age: "school" }]);
+const PERSONA_OPTIONS: { value: Persona; label: string }[] = [
+  { value: "two-parent", label: "Two-parent household" },
+  { value: "coparent", label: "Co-parents" },
+  { value: "caregiver", label: "Caregiver for aging parent" },
+  { value: "roommates", label: "Roommates" },
+];
 
+function otherBusyLabel(persona: Persona): string {
+  switch (persona) {
+    case "two-parent":
+      return `How busy is ${PARTNER_NAME}'s typical day?`;
+    case "coparent":
+      return `How busy is ${COPARENT_NAME}'s typical day?`;
+    case "caregiver":
+      return `How much care does ${PARENT_NAME} need?`;
+    case "roommates":
+      return `How active is your household?`;
+  }
+}
+
+function otherBusyOptions(persona: Persona): { value: BusyLevel; label: string }[] {
+  if (persona === "caregiver") {
+    return [
+      { value: "light", label: "Light" },
+      { value: "moderate", label: "Moderate" },
+      { value: "packed", label: "Intensive" },
+    ];
+  }
+  if (persona === "roommates") {
+    return [
+      { value: "light", label: "Quiet" },
+      { value: "moderate", label: "Balanced" },
+      { value: "packed", label: "Hectic" },
+    ];
+  }
+  return [
+    { value: "light", label: "Light" },
+    { value: "moderate", label: "Moderate" },
+    { value: "packed", label: "Packed" },
+  ];
+}
+
+const showsKids = (p: Persona) => p === "two-parent" || p === "coparent";
+
+// ───────── Config panel ─────────
+
+function ConfigPanel({
+  config,
+  onChange,
+}: {
+  config: Config;
+  onChange: (c: Config) => void;
+}) {
   const setKidCount = (n: number) => {
-    setKids((prev) => {
-      if (n === prev.length) return prev;
-      if (n > prev.length) {
-        const additions: KidConfig[] = [];
-        for (let i = prev.length; i < n; i++) {
-          additions.push({ age: i === 1 ? "toddler" : "teen" });
-        }
-        return [...prev, ...additions];
+    const prev = config.kids;
+    let next: { age: KidAge }[];
+    if (n === prev.length) next = prev;
+    else if (n > prev.length) {
+      const additions: { age: KidAge }[] = [];
+      for (let i = prev.length; i < n; i++) {
+        additions.push({ age: i === 1 ? "toddler" : "teen" });
       }
-      return prev.slice(0, n);
-    });
+      next = [...prev, ...additions];
+    } else {
+      next = prev.slice(0, n);
+    }
+    onChange({ ...config, kids: next });
   };
 
   const setKidAge = (idx: number, age: KidAge) => {
-    setKids((prev) => prev.map((k, i) => (i === idx ? { age } : k)));
-  };
-
-  const submit = () => {
-    onSubmit({ household, busy1, busy2, kids });
+    onChange({
+      ...config,
+      kids: config.kids.map((k, i) => (i === idx ? { age } : k)),
+    });
   };
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 16 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: -10 }}
-      transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+    <div
       style={{
         width: "100%",
-        maxWidth: "560px",
-        margin: "0 auto",
         background: "#141810",
         border: "1px solid rgba(255,255,255,0.07)",
         borderRadius: "20px",
-        padding: "clamp(20px, 5vw, 32px)",
+        padding: "clamp(20px, 4vw, 28px)",
         boxShadow:
           "-3px -3px 8px rgba(255,255,255,0.025), 4px 4px 18px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.04)",
       }}
     >
       <ConfigGroup label="Your household">
         <SegRow>
-          <SegBtn active={household === "single"} onClick={() => setHousehold("single")}>
-            Single parent
-          </SegBtn>
-          <SegBtn active={household === "two"} onClick={() => setHousehold("two")}>
-            Two parents
-          </SegBtn>
+          {PERSONA_OPTIONS.map((p) => (
+            <SegBtn
+              key={p.value}
+              active={config.persona === p.value}
+              onClick={() => onChange({ ...config, persona: p.value })}
+              wide
+            >
+              {p.label}
+            </SegBtn>
+          ))}
         </SegRow>
       </ConfigGroup>
 
-      <ConfigGroup label={household === "two" ? "How busy is your typical day?" : "How busy is your typical day?"}>
+      <ConfigGroup label="How busy is your typical day?">
         <SegRow>
           {(["light", "moderate", "packed"] as BusyLevel[]).map((lvl) => (
-            <SegBtn key={lvl} active={busy1 === lvl} onClick={() => setBusy1(lvl)}>
+            <SegBtn
+              key={lvl}
+              active={config.busyMine === lvl}
+              onClick={() => onChange({ ...config, busyMine: lvl })}
+            >
               {lvl[0].toUpperCase() + lvl.slice(1)}
             </SegBtn>
           ))}
         </SegRow>
       </ConfigGroup>
 
-      <AnimatePresence>
-        {household === "two" && (
-          <motion.div
-            initial={{ opacity: 0, height: 0, marginBottom: 0 }}
-            animate={{ opacity: 1, height: "auto", marginBottom: 0 }}
-            exit={{ opacity: 0, height: 0, marginBottom: 0 }}
-            transition={{ duration: 0.3 }}
-            style={{ overflow: "hidden" }}
-          >
-            <ConfigGroup label={`How busy is ${P2_NAME}'s typical day?`}>
-              <SegRow>
-                {(["light", "moderate", "packed"] as BusyLevel[]).map((lvl) => (
-                  <SegBtn key={lvl} active={busy2 === lvl} onClick={() => setBusy2(lvl)}>
-                    {lvl[0].toUpperCase() + lvl.slice(1)}
-                  </SegBtn>
-                ))}
-              </SegRow>
-            </ConfigGroup>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      <ConfigGroup label="How many kids?">
+      <ConfigGroup label={otherBusyLabel(config.persona)}>
         <SegRow>
-          {[1, 2, 3].map((n) => (
-            <SegBtn key={n} active={kids.length === n} onClick={() => setKidCount(n)}>
-              {n}
+          {otherBusyOptions(config.persona).map((opt) => (
+            <SegBtn
+              key={opt.value}
+              active={config.busyOther === opt.value}
+              onClick={() => onChange({ ...config, busyOther: opt.value })}
+            >
+              {opt.label}
             </SegBtn>
           ))}
         </SegRow>
       </ConfigGroup>
 
-      <div style={{ display: "flex", flexDirection: "column", gap: "10px", marginBottom: "28px" }}>
-        {kids.map((k, i) => (
-          <ConfigGroup
-            key={i}
-            label={`Kid ${i + 1} age`}
-            inline
-          >
+      {showsKids(config.persona) && (
+        <motion.div
+          key={`kids-${config.persona}`}
+          initial={{ opacity: 0, y: -4 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.25 }}
+        >
+          <ConfigGroup label="How many kids?">
             <SegRow>
-              {(["toddler", "school", "teen"] as KidAge[]).map((age) => (
-                <SegBtn key={age} active={k.age === age} onClick={() => setKidAge(i, age)}>
-                  {age === "toddler" ? "Toddler" : age === "school" ? "School-age" : "Teen"}
+              {[1, 2, 3].map((n) => (
+                <SegBtn
+                  key={n}
+                  active={config.kids.length === n}
+                  onClick={() => setKidCount(n)}
+                >
+                  {n}
                 </SegBtn>
               ))}
             </SegRow>
           </ConfigGroup>
-        ))}
-      </div>
 
-      <motion.button
-        whileHover={{ scale: 1.015 }}
-        whileTap={{ scale: 0.985 }}
-        onClick={submit}
+          <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+            {config.kids.map((k, i) => (
+              <ConfigGroup key={i} label={`Kid ${i + 1} age`} inline>
+                <SegRow>
+                  {(["toddler", "school", "teen"] as KidAge[]).map((age) => (
+                    <SegBtn
+                      key={age}
+                      active={k.age === age}
+                      onClick={() => setKidAge(i, age)}
+                    >
+                      {age === "toddler" ? "Toddler" : age === "school" ? "School-age" : "Teen"}
+                    </SegBtn>
+                  ))}
+                </SegRow>
+              </ConfigGroup>
+            ))}
+          </div>
+        </motion.div>
+      )}
+
+      <div
         style={{
-          width: "100%",
-          fontSize: "15.5px",
-          fontWeight: 600,
-          color: "#0C0F0A",
-          background: ACCENT,
-          padding: "15px 28px",
-          borderRadius: "12px",
-          letterSpacing: "-0.2px",
-          cursor: "pointer",
-          border: "none",
-          animation: "kinPulse 2.4s ease-in-out infinite",
+          marginTop: showsKids(config.persona) ? 22 : 4,
+          padding: "12px 14px",
+          background: "rgba(124,184,122,0.06)",
+          border: "1px solid rgba(124,184,122,0.18)",
+          borderRadius: 10,
+          fontSize: 12,
+          color: "rgba(240,237,230,0.6)",
+          lineHeight: 1.5,
+          letterSpacing: "-0.1px",
         }}
       >
-        Try it →
-      </motion.button>
-    </motion.div>
+        <span style={{ color: ACCENT, fontWeight: 500 }}>← Live preview.</span>{" "}
+        The phone updates as you change anything. Tap a reply to keep going.
+      </div>
+    </div>
   );
 }
 
@@ -437,15 +712,15 @@ function ConfigGroup({
   return (
     <div
       style={{
-        marginBottom: inline ? 0 : "22px",
+        marginBottom: inline ? 0 : "20px",
         display: "flex",
         flexDirection: "column",
-        gap: "10px",
+        gap: "8px",
       }}
     >
       <span
         style={{
-          fontSize: "11px",
+          fontSize: "10.5px",
           fontWeight: 500,
           color: "rgba(240,237,230,0.45)",
           fontFamily: "var(--font-geist-mono), monospace",
@@ -462,13 +737,7 @@ function ConfigGroup({
 
 function SegRow({ children }: { children: React.ReactNode }) {
   return (
-    <div
-      style={{
-        display: "flex",
-        gap: "8px",
-        flexWrap: "wrap",
-      }}
-    >
+    <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
       {children}
     </div>
   );
@@ -478,10 +747,12 @@ function SegBtn({
   active,
   onClick,
   children,
+  wide,
 }: {
   active: boolean;
   onClick: () => void;
   children: React.ReactNode;
+  wide?: boolean;
 }) {
   return (
     <motion.button
@@ -489,19 +760,20 @@ function SegBtn({
       whileHover={{ y: -1 }}
       whileTap={{ scale: 0.97 }}
       style={{
-        flex: "1 1 0",
-        minWidth: "60px",
+        flex: wide ? "1 1 calc(50% - 6px)" : "1 1 0",
+        minWidth: wide ? "calc(50% - 6px)" : "60px",
         background: active ? "rgba(124,184,122,0.16)" : "#1c211a",
         border: active
           ? "1px solid rgba(124,184,122,0.6)"
           : "1px solid rgba(124,184,122,0.18)",
         borderRadius: "10px",
-        padding: "10px 14px",
-        fontSize: "13px",
+        padding: wide ? "11px 12px" : "10px 14px",
+        fontSize: wide ? "12.5px" : "13px",
         fontWeight: 500,
         color: active ? ACCENT : "rgba(240,237,230,0.85)",
         cursor: "pointer",
         letterSpacing: "-0.1px",
+        textAlign: "center" as const,
         transition: "background 180ms ease, border-color 180ms ease, color 180ms ease",
         boxShadow: active
           ? "inset 0 0 0 1px rgba(124,184,122,0.12), 0 0 22px rgba(124,184,122,0.14)"
@@ -513,16 +785,13 @@ function SegBtn({
   );
 }
 
-// ---- Phone mockup ----
+// ───────── Phone (live, reactive to config) ─────────
 
-function PhoneMockup({
-  config,
-  onReset,
-}: {
-  config: Config;
-  onReset: () => void;
-}) {
-  const scenario = useRef<Scenario>(generateScenario(config));
+const BRIEFING_KEY = "briefing-bubble";
+
+function LivePhone({ config }: { config: Config }) {
+  const scenario = useMemo(() => generateScenario(config), [config]);
+
   const [chat, setChat] = useState<ChatItem[]>([]);
   const [stage, setStage] = useState<
     "boot" | "round1" | "round2" | "closer" | "done"
@@ -530,45 +799,38 @@ function PhoneMockup({
   const [busy, setBusy] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const idCounter = useRef(0);
+  const isFirstRender = useRef(true);
+  const cancelRef = useRef<{ cancelled: boolean } | null>(null);
 
-  const nextId = () => `m${idCounter.current++}`;
+  const nextId = useCallback(() => `m${idCounter.current++}`, []);
 
-  const pushTyping = useCallback(() => {
-    const id = nextId();
-    setChat((prev) => [...prev, { id, role: "typing" }]);
-    return id;
-  }, []);
-
-  const replaceTyping = useCallback((typingId: string, role: "kin" | "user", text: string) => {
-    setChat((prev) =>
-      prev.map((m) => (m.id === typingId ? { id: typingId, role, text } : m)),
-    );
-  }, []);
-
-  const append = useCallback((role: "kin" | "user", text: string) => {
-    setChat((prev) => [...prev, { id: nextId(), role, text }]);
-  }, []);
-
-  // Boot sequence: typing → briefing
+  // Whenever the scenario changes (config changed), reset the chat.
+  // First render: typing → briefing animation. Subsequent: snap to briefing.
   useEffect(() => {
-    let cancelled = false;
-    const run = async () => {
-      setBusy(true);
-      const tid = pushTyping();
-      await wait(1200);
-      if (cancelled) return;
-      replaceTyping(tid, "kin", scenario.current.briefing);
-      await wait(700);
-      if (cancelled) return;
-      setStage("round1");
+    if (cancelRef.current) cancelRef.current.cancelled = true;
+    const ctx = { cancelled: false };
+    cancelRef.current = ctx;
+
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      (async () => {
+        setBusy(true);
+        const tid = nextId();
+        setChat([{ id: tid, role: "typing" }]);
+        await wait(1100);
+        if (ctx.cancelled) return;
+        setChat([{ id: BRIEFING_KEY, role: "kin", text: scenario.briefing }]);
+        await wait(450);
+        if (ctx.cancelled) return;
+        setStage("round1");
+        setBusy(false);
+      })();
+    } else {
       setBusy(false);
-    };
-    run();
-    return () => {
-      cancelled = true;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+      setChat([{ id: BRIEFING_KEY, role: "kin", text: scenario.briefing }]);
+      setStage("round1");
+    }
+  }, [scenario, nextId]);
 
   // Auto-scroll
   useEffect(() => {
@@ -577,26 +839,41 @@ function PhoneMockup({
     el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
   }, [chat]);
 
-  const onSelect = async (reply: Reply, nextStage: "round2" | "closer" | "done") => {
+  const append = useCallback(
+    (role: "kin" | "user", text: string) => {
+      setChat((prev) => [...prev, { id: nextId(), role, text }]);
+    },
+    [nextId],
+  );
+
+  const onSelect = async (
+    reply: Reply,
+    nextStage: "round2" | "closer" | "done",
+  ) => {
     if (busy) return;
     setBusy(true);
     append("user", reply.prompt);
+    await wait(400);
+    const tid = nextId();
+    setChat((prev) => [...prev, { id: tid, role: "typing" }]);
+    await wait(1000);
+    setChat((prev) =>
+      prev.map((m) =>
+        m.id === tid ? { id: tid, role: "kin", text: reply.kinReply } : m,
+      ),
+    );
     await wait(450);
-    const tid = pushTyping();
-    await wait(1100);
-    replaceTyping(tid, "kin", reply.kinReply);
-    await wait(500);
     setStage(nextStage);
     setBusy(false);
   };
 
   const currentOptions: Reply[] =
     stage === "round1"
-      ? scenario.current.round1
+      ? scenario.round1
       : stage === "round2"
-        ? scenario.current.round2
+        ? scenario.round2
         : stage === "closer"
-          ? [scenario.current.closer]
+          ? [scenario.closer]
           : [];
 
   const advanceTo: "round2" | "closer" | "done" =
@@ -605,15 +882,13 @@ function PhoneMockup({
   const isMobile = useIsMobile();
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
+    <div
       style={{
         display: "flex",
         flexDirection: "column",
         alignItems: "center",
-        gap: "20px",
+        gap: "16px",
+        width: "100%",
       }}
     >
       <div
@@ -621,68 +896,65 @@ function PhoneMockup({
           isMobile
             ? {
                 width: "100%",
-                maxWidth: "440px",
+                maxWidth: "420px",
                 background: "#0d0d0d",
                 borderRadius: "20px",
                 overflow: "hidden",
                 display: "flex",
                 flexDirection: "column",
-                height: "min(680px, 85vh)",
+                height: "min(640px, 78vh)",
                 boxShadow:
                   "0 0 0 1px rgba(255,255,255,0.06), 0 0 40px rgba(124,184,122,0.08), 0 16px 40px rgba(0,0,0,0.6)",
                 position: "relative",
               }
             : {
-                width: "360px",
+                width: "320px",
                 aspectRatio: "9 / 19",
                 background: "#0a0a0a",
-                borderRadius: "44px",
-                padding: "10px",
+                borderRadius: "40px",
+                padding: "9px",
                 boxShadow:
-                  "0 0 0 2px rgba(255,255,255,0.06), 0 0 60px rgba(124,184,122,0.1), 0 30px 80px rgba(0,0,0,0.7)",
+                  "0 0 0 2px rgba(255,255,255,0.06), 0 0 60px rgba(124,184,122,0.12), 0 30px 80px rgba(0,0,0,0.7)",
                 position: "relative",
               }
         }
       >
-        {/* Notch — desktop only */}
         {!isMobile && (
           <div
             style={{
               position: "absolute",
-              top: "18px",
+              top: "16px",
               left: "50%",
               transform: "translateX(-50%)",
-              width: "100px",
-              height: "26px",
+              width: "92px",
+              height: "24px",
               background: "#000",
-              borderRadius: "16px",
+              borderRadius: "14px",
               zIndex: 5,
             }}
           />
         )}
 
-        {/* Screen */}
         <div
           style={{
             width: "100%",
             height: "100%",
             background: "#0d0d0d",
-            borderRadius: isMobile ? "0" : "36px",
+            borderRadius: isMobile ? "0" : "32px",
             overflow: "hidden",
             display: "flex",
             flexDirection: "column",
             position: "relative",
           }}
         >
-          {/* Status bar — desktop only (drop on mobile so the chat owns vertical space) */}
           {!isMobile && (
             <div
               style={{
-                padding: "16px 28px 10px",
+                padding: "14px 24px 8px",
                 display: "flex",
                 justifyContent: "space-between",
                 alignItems: "center",
-                fontSize: "13px",
+                fontSize: "12.5px",
                 fontWeight: 600,
                 color: "#fff",
                 fontVariantNumeric: "tabular-nums",
@@ -700,7 +972,7 @@ function PhoneMockup({
           {/* Header */}
           <div
             style={{
-              padding: isMobile ? "14px 16px 12px" : "10px 16px 12px",
+              padding: isMobile ? "14px 16px 12px" : "8px 16px 12px",
               borderBottom: "1px solid rgba(255,255,255,0.06)",
               display: "flex",
               flexDirection: "column",
@@ -712,8 +984,8 @@ function PhoneMockup({
           >
             <div
               style={{
-                width: "36px",
-                height: "36px",
+                width: "34px",
+                height: "34px",
                 borderRadius: "50%",
                 background: "rgba(124,184,122,0.14)",
                 border: "1px solid rgba(124,184,122,0.3)",
@@ -722,7 +994,7 @@ function PhoneMockup({
                 justifyContent: "center",
               }}
             >
-              <svg width="18" height="18" viewBox="0 0 64 64" fill="none">
+              <svg width="17" height="17" viewBox="0 0 64 64" fill="none">
                 <circle cx="32" cy="20" r="8" fill={ACCENT} />
                 <circle cx="21.75" cy="37.9" r="9" fill={ACCENT} />
                 <circle cx="42.25" cy="37.9" r="9" fill={ACCENT} />
@@ -740,7 +1012,7 @@ function PhoneMockup({
             </span>
             <span
               style={{
-                fontSize: "10px",
+                fontSize: "9.5px",
                 color: "rgba(255,255,255,0.38)",
                 fontFamily: "var(--font-geist-mono), monospace",
                 letterSpacing: "0.5px",
@@ -756,7 +1028,7 @@ function PhoneMockup({
             style={{
               flex: 1,
               overflowY: "auto",
-              padding: "16px 12px",
+              padding: "14px 12px",
               display: "flex",
               flexDirection: "column",
               gap: "8px",
@@ -767,9 +1039,9 @@ function PhoneMockup({
             <div
               style={{
                 textAlign: "center",
-                fontSize: "10px",
+                fontSize: "9.5px",
                 color: "rgba(255,255,255,0.32)",
-                margin: "4px 0 12px",
+                margin: "2px 0 10px",
                 fontWeight: 500,
               }}
             >
@@ -783,13 +1055,13 @@ function PhoneMockup({
             </AnimatePresence>
           </div>
 
-          {/* Reply chips area */}
+          {/* Reply chips */}
           <div
             style={{
-              padding: "10px 12px 16px",
+              padding: "10px 12px 14px",
               borderTop: "1px solid rgba(255,255,255,0.05)",
               background: "rgba(15,15,17,0.7)",
-              minHeight: "62px",
+              minHeight: "60px",
               display: "flex",
               flexDirection: "column",
               gap: "6px",
@@ -797,15 +1069,11 @@ function PhoneMockup({
           >
             {!busy && currentOptions.length > 0 && stage !== "done" && (
               <motion.div
-                key={stage}
+                key={`${stage}-${scenario.briefing.slice(0, 16)}`}
                 initial={{ opacity: 0, y: 6 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.28 }}
-                style={{
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: "6px",
-                }}
+                style={{ display: "flex", flexDirection: "column", gap: "6px" }}
               >
                 <span
                   style={{
@@ -820,13 +1088,7 @@ function PhoneMockup({
                 >
                   Tap to reply
                 </span>
-                <div
-                  style={{
-                    display: "flex",
-                    gap: "6px",
-                    flexWrap: "wrap",
-                  }}
-                >
+                <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
                   {currentOptions.map((opt, i) => (
                     <ReplyChip
                       key={`${stage}-${i}`}
@@ -890,48 +1152,23 @@ function PhoneMockup({
           </div>
         </div>
       </div>
-
-      <button
-        onClick={onReset}
-        style={{
-          background: "transparent",
-          border: "1px solid rgba(255,255,255,0.1)",
-          borderRadius: "8px",
-          padding: "8px 16px",
-          fontSize: "12px",
-          color: "rgba(240,237,230,0.6)",
-          cursor: "pointer",
-          letterSpacing: "-0.1px",
-          transition: "all 180ms ease",
-        }}
-        onMouseEnter={(e) => {
-          e.currentTarget.style.borderColor = "rgba(124,184,122,0.4)";
-          e.currentTarget.style.color = ACCENT;
-        }}
-        onMouseLeave={(e) => {
-          e.currentTarget.style.borderColor = "rgba(255,255,255,0.1)";
-          e.currentTarget.style.color = "rgba(240,237,230,0.6)";
-        }}
-      >
-        ← Try a different setup
-      </button>
-    </motion.div>
+    </div>
   );
 }
 
-function Bubble({ item }: { item: ChatItem }) {
+const Bubble = forwardRef<HTMLDivElement, { item: ChatItem }>(function Bubble(
+  { item },
+  ref,
+) {
   if (item.role === "typing") {
     return (
       <motion.div
+        ref={ref}
         initial={{ opacity: 0, y: 6 }}
         animate={{ opacity: 1, y: 0 }}
         exit={{ opacity: 0 }}
         transition={{ duration: 0.25 }}
-        style={{
-          display: "flex",
-          justifyContent: "flex-start",
-          padding: "2px 0",
-        }}
+        style={{ display: "flex", justifyContent: "flex-start", padding: "2px 0" }}
       >
         <div
           style={{
@@ -946,11 +1183,7 @@ function Bubble({ item }: { item: ChatItem }) {
             <motion.div
               key={i}
               animate={{ opacity: [0.3, 0.85, 0.3], y: [0, -2, 0] }}
-              transition={{
-                duration: 1.2,
-                repeat: Infinity,
-                delay: i * 0.18,
-              }}
+              transition={{ duration: 1.2, repeat: Infinity, delay: i * 0.18 }}
               style={{
                 width: "6px",
                 height: "6px",
@@ -967,6 +1200,7 @@ function Bubble({ item }: { item: ChatItem }) {
   const isKin = item.role === "kin";
   return (
     <motion.div
+      ref={ref}
       initial={{ opacity: 0, y: 8, scale: 0.97 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
       exit={{ opacity: 0 }}
@@ -983,8 +1217,8 @@ function Bubble({ item }: { item: ChatItem }) {
           color: isKin ? "#F0EDE6" : "#0a1f0a",
           borderRadius: isKin ? "18px 18px 18px 4px" : "18px 18px 4px 18px",
           padding: "9px 14px",
-          maxWidth: "78%",
-          fontSize: "14px",
+          maxWidth: "82%",
+          fontSize: "13.5px",
           lineHeight: 1.42,
           letterSpacing: "-0.1px",
           whiteSpace: "pre-wrap",
@@ -999,7 +1233,7 @@ function Bubble({ item }: { item: ChatItem }) {
       </div>
     </motion.div>
   );
-}
+});
 
 function ReplyChip({
   text,
@@ -1037,7 +1271,7 @@ function ReplyChip({
   );
 }
 
-// ---- Status bar icons ----
+// ───────── Status bar icons ─────────
 
 function SignalIcon() {
   return (
@@ -1067,13 +1301,13 @@ function BatteryIcon() {
   );
 }
 
-// ---- Helpers ----
+// ───────── Helpers ─────────
 
 function wait(ms: number) {
   return new Promise<void>((r) => setTimeout(r, ms));
 }
 
-function useIsMobile(breakpoint = 640) {
+function useIsMobile(breakpoint = 900) {
   const [isMobile, setIsMobile] = useState(false);
   useEffect(() => {
     const mq = window.matchMedia(`(max-width: ${breakpoint}px)`);
@@ -1085,22 +1319,29 @@ function useIsMobile(breakpoint = 640) {
   return isMobile;
 }
 
-// ---- Main exported section ----
+// ───────── Main exported section ─────────
+
+const DEFAULT_CONFIG: Config = {
+  persona: "two-parent",
+  busyMine: "packed",
+  busyOther: "moderate",
+  kids: [{ age: "school" }],
+};
 
 export function InteractiveDemo() {
-  const [config, setConfig] = useState<Config | null>(null);
+  const [config, setConfig] = useState<Config>(DEFAULT_CONFIG);
+  const isMobile = useIsMobile();
 
   return (
     <section
       id="demo"
       style={{
-        padding: "clamp(64px, 10vw, 100px) clamp(16px, 4vw, 24px) 60px",
-        maxWidth: "920px",
+        padding: "clamp(64px, 10vw, 100px) clamp(16px, 4vw, 40px) 60px",
+        maxWidth: "1180px",
         margin: "0 auto",
         position: "relative",
       }}
     >
-      {/* Divider */}
       <motion.div
         initial={{ scaleX: 0 }}
         whileInView={{ scaleX: 1 }}
@@ -1108,8 +1349,9 @@ export function InteractiveDemo() {
         transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
         style={{
           height: "1px",
-          background: "linear-gradient(90deg, transparent, rgba(124,184,122,0.3), transparent)",
-          marginBottom: "64px",
+          background:
+            "linear-gradient(90deg, transparent, rgba(124,184,122,0.3), transparent)",
+          marginBottom: "56px",
           transformOrigin: "center",
         }}
       />
@@ -1146,7 +1388,7 @@ export function InteractiveDemo() {
               boxShadow: "0 0 8px rgba(124,184,122,0.7)",
             }}
           />
-          Interactive demo
+          Live demo
         </motion.p>
 
         <motion.h2
@@ -1165,8 +1407,8 @@ export function InteractiveDemo() {
             margin: "0 auto 16px",
           }}
         >
-          Try it yourself.{" "}
-          <span style={{ color: ACCENT }}>See your real morning briefing.</span>
+          See your real morning briefing —{" "}
+          <span style={{ color: ACCENT }}>watch the phone update as you pick.</span>
         </motion.h2>
 
         <motion.p
@@ -1178,21 +1420,38 @@ export function InteractiveDemo() {
             fontSize: "15px",
             color: "rgba(240,237,230,0.72)",
             lineHeight: 1.6,
-            maxWidth: "480px",
+            maxWidth: "520px",
             margin: "0 auto",
           }}
         >
-          Customize your family below, then tap{" "}
-          <span style={{ color: ACCENT, fontWeight: 500 }}>Try it</span> — we&apos;ll
-          show you the 6am text Kin would actually send.
+          Choose your household on the left. The 6am text Kin would actually send
+          rewrites itself in real time on the right.
         </motion.p>
       </div>
 
-      {config === null ? (
-        <ConfigStep onSubmit={setConfig} />
-      ) : (
-        <PhoneMockup config={config} onReset={() => setConfig(null)} />
-      )}
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: isMobile ? "1fr" : "minmax(0, 1.05fr) minmax(0, 0.95fr)",
+          gap: isMobile ? "32px" : "48px",
+          alignItems: "start",
+        }}
+      >
+        <div>
+          <ConfigPanel config={config} onChange={setConfig} />
+        </div>
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "center",
+            alignItems: "flex-start",
+            position: isMobile ? "relative" : "sticky",
+            top: isMobile ? undefined : "88px",
+          }}
+        >
+          <LivePhone config={config} />
+        </div>
+      </div>
     </section>
   );
 }
