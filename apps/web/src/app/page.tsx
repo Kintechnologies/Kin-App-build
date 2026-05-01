@@ -1163,40 +1163,6 @@ export default function Home() {
             </motion.div>
           ))}
         </div>
-
-        {/* Market validation callout */}
-        <div style={{
-          padding: "14px 18px",
-          background: T.bgCard,
-          border: `1px solid ${T.hair}`,
-          borderRadius: 10,
-          fontSize: 13.5,
-          color: T.warm72,
-          display: "flex",
-          alignItems: "center",
-          gap: 14,
-          flexWrap: "wrap",
-          lineHeight: 1.5,
-        }}>
-          <span style={{
-            color: T.sage,
-            fontFamily: T.mono,
-            fontSize: 12,
-            letterSpacing: "0.06em",
-            fontWeight: 600,
-            padding: "3px 8px",
-            background: "rgba(124,184,122,0.10)",
-            border: `1px solid ${T.sageBorder}`,
-            borderRadius: 6,
-            flexShrink: 0,
-          }}>
-            $100M+
-          </span>
-          <span>
-            AI assistants over text are a $100M+ category.{" "}
-            <span style={{ color: T.warm }}>Kin is the first one built for families.</span>
-          </span>
-        </div>
       </section>
 
       {/* ── Founder note ─────────────────────────────────────────────────── */}

@@ -561,6 +561,7 @@ function ConfigPanel({
   config: Config;
   onChange: (c: Config) => void;
 }) {
+  const isMobile = useIsMobile();
   const setKidCount = (n: number) => {
     const prev = config.kids;
     let next: { age: KidAge }[];
@@ -693,7 +694,9 @@ function ConfigPanel({
           letterSpacing: "-0.1px",
         }}
       >
-        <span style={{ color: ACCENT, fontWeight: 500 }}>← Live preview.</span>{" "}
+        <span style={{ color: ACCENT, fontWeight: 500 }}>
+          {isMobile ? "Live preview ↓" : "Live preview →"}
+        </span>{" "}
         The phone updates as you change anything. Tap a reply to keep going.
       </div>
     </div>
@@ -789,7 +792,13 @@ function SegBtn({
 
 const BRIEFING_KEY = "briefing-bubble";
 
-function LivePhone({ config }: { config: Config }) {
+function LivePhone({
+  config,
+  hasInteracted,
+}: {
+  config: Config;
+  hasInteracted: boolean;
+}) {
   const scenario = useMemo(() => generateScenario(config), [config]);
 
   const [chat, setChat] = useState<ChatItem[]>([]);
@@ -799,20 +808,27 @@ function LivePhone({ config }: { config: Config }) {
   const [busy, setBusy] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const idCounter = useRef(0);
-  const isFirstRender = useRef(true);
+  const bootedRef = useRef(false);
   const cancelRef = useRef<{ cancelled: boolean } | null>(null);
 
   const nextId = useCallback(() => `m${idCounter.current++}`, []);
 
-  // Whenever the scenario changes (config changed), reset the chat.
-  // First render: typing → briefing animation. Subsequent: snap to briefing.
+  // Empty until the user interacts. First interaction: typing → briefing
+  // animation. Subsequent config changes: snap to the new briefing.
   useEffect(() => {
     if (cancelRef.current) cancelRef.current.cancelled = true;
     const ctx = { cancelled: false };
     cancelRef.current = ctx;
 
-    if (isFirstRender.current) {
-      isFirstRender.current = false;
+    if (!hasInteracted) {
+      setChat([]);
+      setStage("boot");
+      setBusy(false);
+      return;
+    }
+
+    if (!bootedRef.current) {
+      bootedRef.current = true;
       (async () => {
         setBusy(true);
         const tid = nextId();
@@ -830,7 +846,7 @@ function LivePhone({ config }: { config: Config }) {
       setChat([{ id: BRIEFING_KEY, role: "kin", text: scenario.briefing }]);
       setStage("round1");
     }
-  }, [scenario, nextId]);
+  }, [scenario, hasInteracted, nextId]);
 
   // Auto-scroll
   useEffect(() => {
@@ -1036,23 +1052,43 @@ function LivePhone({ config }: { config: Config }) {
               minHeight: 0,
             }}
           >
-            <div
-              style={{
-                textAlign: "center",
-                fontSize: "9.5px",
-                color: "rgba(255,255,255,0.32)",
-                margin: "2px 0 10px",
-                fontWeight: 500,
-              }}
-            >
-              Today 6:02 AM
-            </div>
-
-            <AnimatePresence initial={false}>
-              {chat.map((item) => (
-                <Bubble key={item.id} item={item} />
-              ))}
-            </AnimatePresence>
+            {hasInteracted ? (
+              <>
+                <div
+                  style={{
+                    textAlign: "center",
+                    fontSize: "9.5px",
+                    color: "rgba(255,255,255,0.32)",
+                    margin: "2px 0 10px",
+                    fontWeight: 500,
+                  }}
+                >
+                  Today 6:02 AM
+                </div>
+                <AnimatePresence initial={false}>
+                  {chat.map((item) => (
+                    <Bubble key={item.id} item={item} />
+                  ))}
+                </AnimatePresence>
+              </>
+            ) : (
+              <div
+                style={{
+                  flex: 1,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  textAlign: "center",
+                  padding: "20px 16px",
+                  color: "rgba(255,255,255,0.32)",
+                  fontSize: "12.5px",
+                  lineHeight: 1.5,
+                  letterSpacing: "-0.1px",
+                }}
+              >
+                Pick your household above to see your briefing.
+              </div>
+            )}
           </div>
 
           {/* Reply chips */}
@@ -1330,7 +1366,13 @@ const DEFAULT_CONFIG: Config = {
 
 export function InteractiveDemo() {
   const [config, setConfig] = useState<Config>(DEFAULT_CONFIG);
+  const [hasInteracted, setHasInteracted] = useState(false);
   const isMobile = useIsMobile();
+
+  const handleConfigChange = (c: Config) => {
+    setConfig(c);
+    setHasInteracted(true);
+  };
 
   return (
     <section
@@ -1438,7 +1480,7 @@ export function InteractiveDemo() {
         }}
       >
         <div>
-          <ConfigPanel config={config} onChange={setConfig} />
+          <ConfigPanel config={config} onChange={handleConfigChange} />
         </div>
         <div
           style={{
@@ -1449,7 +1491,7 @@ export function InteractiveDemo() {
             top: isMobile ? undefined : "88px",
           }}
         >
-          <LivePhone config={config} />
+          <LivePhone config={config} hasInteracted={hasInteracted} />
         </div>
       </div>
     </section>
