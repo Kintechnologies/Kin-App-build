@@ -16,7 +16,7 @@ interface Profile {
 
 interface CalendarConnectionInfo {
   id: string;
-  provider: "google" | "apple";
+  provider: "google";
   sync_status: "idle" | "syncing" | "error";
   sync_error?: string;
   last_synced_at?: string;
@@ -34,11 +34,9 @@ export default function SettingsPage() {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [calendarConnections, setCalendarConnections] = useState<CalendarConnectionInfo[]>([]);
   const [connectingGoogle, setConnectingGoogle] = useState(false);
-  const [showAppleModal, setShowAppleModal] = useState(false);
-  const [appleId, setAppleId] = useState("");
-  const [applePassword, setApplePassword] = useState("");
-  const [connectingApple, setConnectingApple] = useState(false);
   const [syncing, setSyncing] = useState(false);
+  const [openingPortal, setOpeningPortal] = useState(false);
+  const [portalError, setPortalError] = useState<string | null>(null);
 
   useEffect(() => {
     async function load() {
@@ -63,7 +61,6 @@ export default function SettingsPage() {
   }, []);
 
   const googleConnected = calendarConnections.some((c) => c.provider === "google");
-  const appleConnected = calendarConnections.some((c) => c.provider === "apple");
 
   async function connectGoogle() {
     setConnectingGoogle(true);
@@ -76,34 +73,30 @@ export default function SettingsPage() {
     }
   }
 
-  async function disconnectCalendar(provider: "google" | "apple") {
-    const endpoint = provider === "google" ? "/api/calendar/google" : "/api/calendar/apple/connect";
-    await fetch(endpoint, { method: "DELETE" });
+  async function disconnectCalendar(provider: "google") {
+    await fetch("/api/calendar/google", { method: "DELETE" });
     setCalendarConnections((prev) => prev.filter((c) => c.provider !== provider));
   }
 
-  async function connectApple() {
-    if (!appleId || !applePassword) return;
-    setConnectingApple(true);
+  async function openBillingPortal() {
+    setOpeningPortal(true);
+    setPortalError(null);
     try {
-      const res = await fetch("/api/calendar/apple/connect", {
+      const res = await fetch("/api/stripe/portal", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ appleId, appPassword: applePassword }),
+        body: JSON.stringify({ returnPath: "/settings" }),
       });
-      if (res.ok) {
-        setShowAppleModal(false);
-        setAppleId("");
-        setApplePassword("");
-        // Reload connections
-        const syncRes = await fetch("/api/calendar/sync");
-        if (syncRes.ok) {
-          const { connections } = await syncRes.json();
-          setCalendarConnections(connections || []);
-        }
+      const data = (await res.json()) as { url?: string; error?: string };
+      if (res.ok && data.url) {
+        window.location.href = data.url;
+        return;
       }
+      setPortalError(data.error ?? "Could not open billing portal.");
+    } catch {
+      setPortalError("Network error. Please try again.");
     } finally {
-      setConnectingApple(false);
+      setOpeningPortal(false);
     }
   }
 
@@ -196,18 +189,30 @@ export default function SettingsPage() {
               <CreditCard size={16} /> Upgrade Plan
             </Link>
           ) : (
-            <div className="flex gap-2">
-              <Link
-                href="/pricing"
-                className="flex-1 flex items-center justify-center gap-2 py-3 rounded-2xl bg-surface text-warm-white/60 font-medium text-sm border border-warm-white/10 hover:border-warm-white/20 transition-all"
-              >
-                Change Plan
-              </Link>
-              <button
-                className="flex-1 flex items-center justify-center gap-2 py-3 rounded-2xl bg-surface text-warm-white/40 font-medium text-sm border border-warm-white/10 hover:border-rose/30 hover:text-rose transition-all"
-              >
-                Cancel
-              </button>
+            <div className="space-y-2">
+              <div className="flex gap-2">
+                <button
+                  onClick={openBillingPortal}
+                  disabled={openingPortal}
+                  className="flex-1 flex items-center justify-center gap-2 py-3 rounded-2xl bg-surface text-warm-white/60 font-medium text-sm border border-warm-white/10 hover:border-warm-white/20 transition-all disabled:opacity-50"
+                >
+                  {openingPortal ? <Loader2 size={14} className="animate-spin" /> : null}
+                  Change Plan
+                </button>
+                <button
+                  onClick={openBillingPortal}
+                  disabled={openingPortal}
+                  className="flex-1 flex items-center justify-center gap-2 py-3 rounded-2xl bg-surface text-warm-white/40 font-medium text-sm border border-warm-white/10 hover:border-rose/30 hover:text-rose transition-all disabled:opacity-50"
+                >
+                  {openingPortal ? <Loader2 size={14} className="animate-spin" /> : null}
+                  Cancel
+                </button>
+              </div>
+              {portalError && (
+                <p className="text-rose/70 text-xs px-1" role="alert">
+                  {portalError}
+                </p>
+              )}
             </div>
           )}
         </div>
@@ -283,7 +288,7 @@ export default function SettingsPage() {
               <div className="flex-1">
                 <div className="flex items-center gap-2">
                   <span className="text-warm-white/80 text-sm font-medium capitalize">
-                    {conn.provider === "google" ? "Google Calendar" : "Apple Calendar"}
+                    Google Calendar
                   </span>
                   {conn.sync_status === "idle" && (
                     <CheckCircle2 size={12} className="text-primary" />
@@ -313,13 +318,13 @@ export default function SettingsPage() {
             </div>
           ))}
 
-          {/* Connect buttons */}
-          <div className="flex gap-2 mt-3">
-            {!googleConnected && (
+          {/* Connect button */}
+          {!googleConnected && (
+            <div className="mt-3">
               <button
                 onClick={connectGoogle}
                 disabled={connectingGoogle}
-                className="flex-1 flex items-center justify-center gap-2 py-3 rounded-2xl bg-surface text-warm-white/60 font-medium text-sm border border-warm-white/10 hover:border-blue/30 hover:text-blue transition-all disabled:opacity-50"
+                className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl bg-surface text-warm-white/60 font-medium text-sm border border-warm-white/10 hover:border-blue/30 hover:text-blue transition-all disabled:opacity-50"
               >
                 {connectingGoogle ? (
                   <Loader2 size={14} className="animate-spin" />
@@ -331,75 +336,11 @@ export default function SettingsPage() {
                     <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
                   </svg>
                 )}
-                Google
+                Connect Google Calendar
               </button>
-            )}
-            {!appleConnected && (
-              <button
-                onClick={() => setShowAppleModal(true)}
-                className="flex-1 flex items-center justify-center gap-2 py-3 rounded-2xl bg-surface text-warm-white/60 font-medium text-sm border border-warm-white/10 hover:border-warm-white/30 hover:text-warm-white transition-all"
-              >
-                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.8-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z"/>
-                </svg>
-                Apple
-              </button>
-            )}
-          </div>
-        </div>
-
-        {/* Apple Calendar Modal */}
-        {showAppleModal && (
-          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-            <div className="bg-surface-raised rounded-2xl p-6 max-w-sm w-full border border-warm-white/10">
-              <h3 className="font-serif italic text-lg text-warm-white mb-1">Connect Apple Calendar</h3>
-              <p className="text-warm-white/40 text-xs mb-4">
-                Apple requires an app-specific password. Generate one at{" "}
-                <a href="https://appleid.apple.com/account/manage" target="_blank" rel="noopener noreferrer" className="text-blue underline">
-                  appleid.apple.com
-                </a>{" "}
-                under Sign-In and Security → App-Specific Passwords.
-              </p>
-              <div className="space-y-3">
-                <div>
-                  <label className="text-warm-white/50 text-xs block mb-1">Apple ID (email)</label>
-                  <input
-                    type="email"
-                    value={appleId}
-                    onChange={(e) => setAppleId(e.target.value)}
-                    placeholder="you@icloud.com"
-                    className="w-full bg-background border border-warm-white/10 rounded-xl px-3 py-2.5 text-sm text-warm-white placeholder:text-warm-white/20 focus:outline-none focus:border-blue/50"
-                  />
-                </div>
-                <div>
-                  <label className="text-warm-white/50 text-xs block mb-1">App-Specific Password</label>
-                  <input
-                    type="password"
-                    value={applePassword}
-                    onChange={(e) => setApplePassword(e.target.value)}
-                    placeholder="xxxx-xxxx-xxxx-xxxx"
-                    className="w-full bg-background border border-warm-white/10 rounded-xl px-3 py-2.5 text-sm text-warm-white placeholder:text-warm-white/20 focus:outline-none focus:border-blue/50"
-                  />
-                </div>
-                <div className="flex gap-2 pt-2">
-                  <button
-                    onClick={() => { setShowAppleModal(false); setAppleId(""); setApplePassword(""); }}
-                    className="flex-1 py-2.5 rounded-xl bg-surface text-warm-white/40 text-sm border border-warm-white/10 hover:border-warm-white/20 transition-all"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={connectApple}
-                    disabled={!appleId || !applePassword || connectingApple}
-                    className="flex-1 py-2.5 rounded-xl bg-primary text-background font-semibold text-sm hover:shadow-lg hover:shadow-primary/25 transition-all disabled:opacity-50"
-                  >
-                    {connectingApple ? "Connecting..." : "Connect"}
-                  </button>
-                </div>
-              </div>
             </div>
-          </div>
-        )}
+          )}
+        </div>
 
         {/* Referral card */}
         <Link

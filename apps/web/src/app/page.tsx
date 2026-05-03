@@ -246,7 +246,15 @@ function PhoneDemo() {
 
 // ─── Waitlist form ────────────────────────────────────────────────────────────
 
-function WaitlistForm() {
+function WaitlistForm({
+  source = "landing_page",
+  ctaLabel = "Join waitlist",
+  compact = false,
+}: {
+  source?: string;
+  ctaLabel?: string;
+  compact?: boolean;
+}) {
   const [email, setEmail] = useState("");
   const [submitState, setSubmitState] = useState<SubmitState>("idle");
   const [errorMessage, setErrorMessage] = useState("");
@@ -263,7 +271,7 @@ function WaitlistForm() {
       const res = await fetch("/api/waitlist", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: email.trim() }),
+        body: JSON.stringify({ email: email.trim(), source }),
       });
       const data = (await res.json()) as {
         success?: boolean;
@@ -283,6 +291,7 @@ function WaitlistForm() {
     }
   }
 
+  void compact;
   return (
     <AnimatePresence mode="wait">
       {submitState === "success" ? (
@@ -304,17 +313,11 @@ function WaitlistForm() {
         >
           <CheckCircle2 size={24} color={T.sage} />
           <p style={{ color: T.warm, fontWeight: 500, margin: 0 }}>
-            {alreadyOnList ? "You already have an account." : "You're in."}
+            {alreadyOnList ? "You're already on the list." : "You're on the list."}
           </p>
           <p style={{ color: T.warm56, fontSize: 13, margin: 0 }}>
-            Check your email — your trial is ready. Takes about 5 minutes to connect your calendars.
+            We&apos;ll email you the moment we open access. Founder-built, hand-onboarded — we&apos;re bringing families on a few at a time.
           </p>
-          <Link
-            href="/signup"
-            style={{ color: T.sage, fontSize: 13, textDecoration: "none" }}
-          >
-            Set up your account →
-          </Link>
         </motion.div>
       ) : (
         <motion.form
@@ -379,7 +382,7 @@ function WaitlistForm() {
               ) : (
                 <ArrowRight size={16} />
               )}
-              Start free trial
+              {ctaLabel}
             </button>
           </div>
 
@@ -390,7 +393,7 @@ function WaitlistForm() {
           )}
 
           <p style={{ color: T.warm40, fontSize: 12, margin: 0 }}>
-            $39/mo for your whole family. Cancel anytime, no questions asked.
+            We&apos;ll email you the moment access opens up. No spam, ever.
           </p>
         </motion.form>
       )}
@@ -442,7 +445,7 @@ function CalendarTile({ label, day, color }: { label: string; day: string; color
 function StepCalendarIllustration() {
   return (
     <div style={{ padding: "20px 0 4px", display: "flex", alignItems: "center", justifyContent: "center", gap: 12 }}>
-      <CalendarTile label="Google" day="29" color={T.sage} />
+      <CalendarTile label="Parent A" day="29" color={T.sage} />
       <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
         <div style={{ width: 28, height: 1, background: T.sageBorder }} />
         <div style={{
@@ -453,7 +456,7 @@ function StepCalendarIllustration() {
         }}>✓</div>
         <div style={{ width: 28, height: 1, background: T.sageBorder }} />
       </div>
-      <CalendarTile label="iCloud" day="29" color="#5B9CF6" />
+      <CalendarTile label="Parent B" day="29" color="#5B9CF6" />
     </div>
   );
 }
@@ -627,13 +630,7 @@ export default function Home() {
             Pricing
           </Link>
           <Link
-            href="/signin"
-            style={{ color: "inherit", textDecoration: "none" }}
-          >
-            Sign in
-          </Link>
-          <Link
-            href="/signup"
+            href="#waitlist-top"
             style={{
               height: 34,
               padding: "0 14px",
@@ -647,7 +644,7 @@ export default function Home() {
               textDecoration: "none",
             }}
           >
-            Start trial
+            Join waitlist
           </Link>
         </div>
       </nav>
@@ -733,47 +730,27 @@ export default function Home() {
             question and get an answer in seconds.
           </p>
 
-          {/* CTAs */}
-          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-            <Link
-              href="/signup"
-              style={{
-                height: 44,
-                padding: "0 18px",
-                background: T.sage,
-                color: T.bg,
-                borderRadius: 8,
-                fontWeight: 500,
-                fontSize: 14.5,
-                display: "flex",
-                alignItems: "center",
-                gap: 8,
-                textDecoration: "none",
-              }}
-            >
-              Start 7-day trial
-            </Link>
-            <Link
-              href="#how-it-works"
-              style={{
-                height: 44,
-                padding: "0 18px",
-                background: "transparent",
-                color: T.warm72,
-                borderRadius: 8,
-                fontWeight: 500,
-                fontSize: 14.5,
-                display: "flex",
-                alignItems: "center",
-                gap: 8,
-                textDecoration: "none",
-                border: "none",
-              }}
-            >
-              See how it works
-              <ArrowRight size={14} />
-            </Link>
+          {/* Hero waitlist CTA — spot 1 of 4 */}
+          <div id="waitlist-top" style={{ maxWidth: 480 }}>
+            <WaitlistForm source="landing_hero" ctaLabel="Join waitlist" />
           </div>
+
+          {/* secondary link */}
+          <Link
+            href="#how-it-works"
+            style={{
+              color: T.warm72,
+              fontSize: 13.5,
+              textDecoration: "none",
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 6,
+              marginTop: -8,
+            }}
+          >
+            See how it works
+            <ArrowRight size={13} />
+          </Link>
 
           {/* pricing meta */}
           <div
@@ -792,7 +769,7 @@ export default function Home() {
               family
             </span>
             <span>$39/mo · per family</span>
-            <span>7-day trial · cancel anytime</span>
+            <span>Founder-onboarded · invite only</span>
           </div>
         </motion.div>
 
@@ -937,7 +914,7 @@ export default function Home() {
         style={{
           maxWidth: 680,
           margin: "0 auto",
-          padding: "56px 40px",
+          padding: "56px 40px 32px",
           textAlign: "center",
         }}
       >
@@ -959,6 +936,40 @@ export default function Home() {
           — Austin, Kin founder &amp; parent of a 2-year-old
         </p>
       </div>
+
+      {/* ── Mid-page waitlist CTA — spot 2 of 4 ─────────────────────────── */}
+      <section
+        style={{
+          maxWidth: 560,
+          margin: "0 auto",
+          padding: "0 40px 72px",
+          textAlign: "center",
+        }}
+      >
+        <div
+          style={{
+            fontFamily: T.mono,
+            fontSize: 11.5,
+            color: T.sage,
+            letterSpacing: "0.1em",
+            textTransform: "uppercase",
+            marginBottom: 12,
+          }}
+        >
+          Get on the list
+        </div>
+        <p
+          style={{
+            fontSize: 16,
+            color: T.warm72,
+            margin: "0 0 18px",
+            lineHeight: 1.5,
+          }}
+        >
+          We&apos;re onboarding families a few at a time. Join the waitlist and we&apos;ll text you when it&apos;s your turn.
+        </p>
+        <WaitlistForm source="landing_midpage" ctaLabel="Save my spot" />
+      </section>
 
       {/* ── Interactive demo ─────────────────────────────────────────────── */}
       <InteractiveDemo />
@@ -1035,30 +1046,46 @@ export default function Home() {
 
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
           <div style={{ fontSize: 14, color: T.warm56 }}>
-            Start your free trial today. Takes about 5 minutes to set up.
+            Founder-onboarded. We&apos;ll reach out personally as we open access — your spot is reserved with one email.
           </div>
-          <WaitlistForm />
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 12,
-              fontSize: 13,
-              color: T.warm56,
-            }}
-          >
-            <span>or</span>
-            <Link
-              href="/signup"
-              style={{
-                color: T.sage,
-                textDecoration: "none",
-                fontWeight: 500,
-              }}
-            >
-              create your account →
-            </Link>
-          </div>
+          <WaitlistForm source="landing_pricing" ctaLabel="Reserve my spot" />
+        </div>
+      </section>
+
+      {/* ── Closing waitlist CTA — spot 4 of 4 ──────────────────────────── */}
+      <section
+        style={{
+          borderTop: `1px solid ${T.hair}`,
+          padding: "56px 40px",
+          textAlign: "center",
+          background: T.bgCard,
+        }}
+      >
+        <h2
+          style={{
+            margin: "0 0 12px",
+            fontSize: "clamp(28px, 3.5vw, 40px)",
+            fontWeight: 600,
+            letterSpacing: "-0.03em",
+            color: T.warm,
+          }}
+        >
+          Ready to drop the air traffic controller hat?
+        </h2>
+        <p
+          style={{
+            fontSize: 15,
+            color: T.warm56,
+            maxWidth: 520,
+            margin: "0 auto 24px",
+            lineHeight: 1.55,
+          }}
+        >
+          Both parents, same page, every morning. Get on the list and we&apos;ll
+          let you know the second a slot opens.
+        </p>
+        <div style={{ maxWidth: 480, margin: "0 auto" }}>
+          <WaitlistForm source="landing_footer" ctaLabel="Join waitlist" />
         </div>
       </section>
 

@@ -191,12 +191,19 @@ function WelcomeModal({ firstName, trialEnd, onDismiss }: WelcomeModalProps) {
 
 // ── Dashboard Page ────────────────────────────────────────────────────────────
 
+interface SetupStatus {
+  hasCalendar: boolean;
+  hasPartner: boolean;
+  upcomingCount: number;
+}
+
 function DashboardContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [firstName, setFirstName] = useState<string | null>(null);
   const [showWelcome, setShowWelcome] = useState(false);
   const [trialEnd, setTrialEnd] = useState(() => formatTrialEnd(null));
+  const [setup, setSetup] = useState<SetupStatus | null>(null);
 
   // Show welcome modal when ?subscribed=true is present
   useEffect(() => {
@@ -226,7 +233,7 @@ function DashboardContent() {
         // Load profile for trial date + display name fallback
         const { data: profile } = await supabase
           .from("profiles")
-          .select("display_name, trial_ends_at")
+          .select("display_name, trial_ends_at, household_id")
           .eq("id", user.id)
           .single();
 
@@ -248,14 +255,44 @@ function DashboardContent() {
 
         if (member?.name) {
           setFirstName(member.name.split(" ")[0]);
-          return;
-        }
-
-        if (profile?.display_name) {
+        } else if (profile?.display_name) {
           setFirstName(profile.display_name.split(" ")[0]);
         }
+
+        // ── Setup status: per-user, RLS-scoped queries ────────────────────
+        const today = new Date().toISOString();
+        const [
+          { count: connCount },
+          { count: eventCount },
+          { data: partner },
+        ] = await Promise.all([
+          supabase
+            .from("calendar_connections")
+            .select("id", { count: "exact", head: true })
+            .eq("profile_id", user.id),
+          supabase
+            .from("calendar_events")
+            .select("id", { count: "exact", head: true })
+            .eq("profile_id", user.id)
+            .gte("start_time", today)
+            .is("deleted_at", null),
+          supabase
+            .from("profiles")
+            .select("id")
+            .eq("household_id", profile?.household_id ?? user.id)
+            .neq("id", user.id)
+            .limit(1)
+            .maybeSingle(),
+        ]);
+
+        setSetup({
+          hasCalendar: (connCount ?? 0) > 0,
+          hasPartner: !!partner || !!profile?.household_id,
+          upcomingCount: eventCount ?? 0,
+        });
       } catch {
         // Non-fatal — greeting and trial date still show with fallback values
+        setSetup({ hasCalendar: false, hasPartner: false, upcomingCount: 0 });
       }
     }
     loadProfile();
@@ -295,6 +332,47 @@ function DashboardContent() {
             Here&apos;s what&apos;s happening with your family today
           </p>
         </motion.div>
+
+        {/* Setup banner — shown until the user has a calendar connected */}
+        {setup && !setup.hasCalendar && (
+          <motion.div
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4 }}
+            className="mb-6 glass-strong rounded-2xl p-5 border border-primary/20 bg-primary/[0.04]"
+          >
+            <div className="flex items-start gap-3">
+              <div className="w-10 h-10 rounded-2xl bg-primary/15 flex items-center justify-center shrink-0">
+                <Calendar size={18} className="text-primary" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-warm-white font-semibold text-sm mb-1">
+                  Let&apos;s get your briefing set up
+                </p>
+                <p className="text-warm-white/55 text-sm leading-relaxed mb-3">
+                  Connect a calendar so Kin can read your day. Read-only — no posting, no email access.
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  <Link
+                    href="/settings"
+                    className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-primary text-background text-xs font-semibold hover:shadow-md hover:shadow-primary/20 transition-all"
+                  >
+                    Connect calendar
+                    <ArrowRight size={12} />
+                  </Link>
+                  {!setup.hasPartner && (
+                    <Link
+                      href="/settings"
+                      className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-surface text-warm-white/60 text-xs font-medium border border-warm-white/10 hover:border-warm-white/25 transition-all"
+                    >
+                      Invite your partner
+                    </Link>
+                  )}
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        )}
 
         {/* Cards */}
         <motion.div

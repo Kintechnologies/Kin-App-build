@@ -3,13 +3,25 @@ Kin AI — Demo User Seed Script
 Creates two linked demo accounts with a full week of realistic family data.
   Parent A:  demo@kinai.family   / KinDemo2026!   (Jordan Mitchell)
   Partner:   partner@kinai.family / KinDemo2026!   (Sam Mitchell)
+
+Required env:
+  SUPABASE_URL              e.g. https://coxqdpcffmsncvisfyvj.supabase.co
+  SUPABASE_SERVICE_ROLE_KEY service-role key (NEVER commit this)
 """
 
-import requests, json, sys
+import os, requests, json, sys
 from datetime import datetime, timedelta, timezone
 
-SUPABASE_URL = "https://coxqdpcffmsncvisfyvj.supabase.co"
-KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNveHFkcGNmZm1zbmN2aXNmeXZqIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NDI3ODc1MCwiZXhwIjoyMDg5ODU0NzUwfQ.FrbCtBxkfq08K7LtzmxUK1qp2AnBnxz2fPw99yFNKjE"
+SUPABASE_URL = os.environ.get("SUPABASE_URL")
+KEY = os.environ.get("SUPABASE_SERVICE_ROLE_KEY")
+
+if not SUPABASE_URL or not KEY:
+    print(
+        "ERROR: SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must be set in env.\n"
+        "  export SUPABASE_URL=https://<project>.supabase.co\n"
+        "  export SUPABASE_SERVICE_ROLE_KEY=<service-role-key>"
+    )
+    sys.exit(1)
 
 H = {
     "Authorization": f"Bearer {KEY}",
