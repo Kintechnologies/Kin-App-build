@@ -245,16 +245,57 @@ function PhoneDemo() {
 }
 
 // ─── Waitlist form ────────────────────────────────────────────────────────────
+// Submissions land in Supabase `waitlist` table. To see signups, query:
+//   SELECT email, first_name, last_name, situation, created_at
+//   FROM waitlist ORDER BY created_at DESC;
+// (Studio: https://supabase.com/dashboard/project/coxqdpcffmsncvisfyvj/editor)
+
+type Situation = "co-parent" | "dual-parent" | "caregiver" | "other";
+
+const SITUATION_OPTIONS: ReadonlyArray<{ value: Situation; label: string; hint: string }> = [
+  { value: "co-parent",   label: "Co-parent",   hint: "Sharing kids across households" },
+  { value: "dual-parent", label: "Dual parent", hint: "Two parents, same household"    },
+  { value: "caregiver",   label: "Caregiver",   hint: "Caring for kids or family"      },
+  { value: "other",       label: "Other",       hint: "Tell us when we reach out"      },
+];
 
 function WaitlistForm() {
   const [email, setEmail] = useState("");
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [situation, setSituation] = useState<Situation | "">("");
   const [submitState, setSubmitState] = useState<SubmitState>("idle");
   const [errorMessage, setErrorMessage] = useState("");
   const [alreadyOnList, setAlreadyOnList] = useState(false);
 
+  // Expand the form once the email field has any content. The full form
+  // collapses back if the user empties the email — keeps things minimal at first.
+  const expanded = email.trim().length > 0;
+
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    if (!email.trim() || submitState === "loading") return;
+    if (submitState === "loading") return;
+
+    const trimmedEmail = email.trim();
+    const trimmedFirst = firstName.trim();
+    const trimmedLast = lastName.trim();
+
+    if (!trimmedEmail) {
+      setErrorMessage("Email is required.");
+      setSubmitState("error");
+      return;
+    }
+    if (!trimmedFirst || !trimmedLast) {
+      setErrorMessage("Please add your first and last name.");
+      setSubmitState("error");
+      return;
+    }
+    if (!situation) {
+      setErrorMessage("Pick the option that fits your situation.");
+      setSubmitState("error");
+      return;
+    }
+
     setSubmitState("loading");
     setErrorMessage("");
     setAlreadyOnList(false);
@@ -263,7 +304,12 @@ function WaitlistForm() {
       const res = await fetch("/api/waitlist", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: email.trim() }),
+        body: JSON.stringify({
+          email: trimmedEmail,
+          firstName: trimmedFirst,
+          lastName: trimmedLast,
+          situation,
+        }),
       });
       const data = (await res.json()) as {
         success?: boolean;
@@ -283,6 +329,21 @@ function WaitlistForm() {
     }
   }
 
+  const fieldStyle: React.CSSProperties = {
+    height: 44,
+    padding: "0 14px",
+    background: "rgba(240,237,230,0.04)",
+    border: `1px solid ${T.warm12}`,
+    borderRadius: 8,
+    color: T.warm,
+    fontSize: 14,
+    fontFamily: "inherit",
+    outline: "none",
+    letterSpacing: "-0.005em",
+    width: "100%",
+    boxSizing: "border-box",
+  };
+
   return (
     <AnimatePresence mode="wait">
       {submitState === "success" ? (
@@ -294,7 +355,7 @@ function WaitlistForm() {
             display: "flex",
             flexDirection: "column",
             alignItems: "flex-start",
-            gap: 10,
+            gap: 8,
             padding: "20px 24px",
             background: T.bgCard,
             border: `1px solid ${T.sageBorder}`,
@@ -304,17 +365,11 @@ function WaitlistForm() {
         >
           <CheckCircle2 size={24} color={T.sage} />
           <p style={{ color: T.warm, fontWeight: 500, margin: 0 }}>
-            {alreadyOnList ? "You already have an account." : "You're in."}
+            {alreadyOnList ? "You're already on the list." : "You're on the list."}
           </p>
           <p style={{ color: T.warm56, fontSize: 13, margin: 0 }}>
-            Check your email — your trial is ready. Takes about 5 minutes to connect your calendars.
+            We&apos;ll be in touch.
           </p>
-          <Link
-            href="/signup"
-            style={{ color: T.sage, fontSize: 13, textDecoration: "none" }}
-          >
-            Set up your account →
-          </Link>
         </motion.div>
       ) : (
         <motion.form
@@ -338,19 +393,7 @@ function WaitlistForm() {
               placeholder="your@email.com"
               required
               autoComplete="email"
-              style={{
-                flex: 1,
-                height: 44,
-                padding: "0 14px",
-                background: "rgba(240,237,230,0.04)",
-                border: `1px solid ${T.warm12}`,
-                borderRadius: 8,
-                color: T.warm,
-                fontSize: 14,
-                fontFamily: "inherit",
-                outline: "none",
-                letterSpacing: "-0.005em",
-              }}
+              style={{ ...fieldStyle, flex: 1, width: "auto" }}
             />
             <button
               type="submit"
@@ -379,9 +422,145 @@ function WaitlistForm() {
               ) : (
                 <ArrowRight size={16} />
               )}
-              Start free trial
+              {expanded ? "Join waitlist" : "Get on the list"}
             </button>
           </div>
+
+          <AnimatePresence initial={false}>
+            {expanded && (
+              <motion.div
+                key="expanded"
+                initial={{ opacity: 0, height: 0, marginTop: 0 }}
+                animate={{ opacity: 1, height: "auto", marginTop: 4 }}
+                exit={{ opacity: 0, height: 0, marginTop: 0 }}
+                transition={{ duration: 0.32, ease: [0.22, 0.61, 0.36, 1] }}
+                style={{ overflow: "hidden", display: "flex", flexDirection: "column", gap: 10 }}
+              >
+                <div style={{ display: "flex", gap: 8 }}>
+                  <label htmlFor="waitlist-first" style={{ position: "absolute", width: 1, height: 1, overflow: "hidden", clip: "rect(0,0,0,0)" }}>
+                    First name
+                  </label>
+                  <input
+                    id="waitlist-first"
+                    type="text"
+                    value={firstName}
+                    onChange={(e) => {
+                      setFirstName(e.target.value);
+                      if (submitState === "error") setSubmitState("idle");
+                    }}
+                    placeholder="First name"
+                    autoComplete="given-name"
+                    style={fieldStyle}
+                  />
+                  <label htmlFor="waitlist-last" style={{ position: "absolute", width: 1, height: 1, overflow: "hidden", clip: "rect(0,0,0,0)" }}>
+                    Last name
+                  </label>
+                  <input
+                    id="waitlist-last"
+                    type="text"
+                    value={lastName}
+                    onChange={(e) => {
+                      setLastName(e.target.value);
+                      if (submitState === "error") setSubmitState("idle");
+                    }}
+                    placeholder="Last name"
+                    autoComplete="family-name"
+                    style={fieldStyle}
+                  />
+                </div>
+
+                <fieldset
+                  style={{
+                    border: `1px solid ${T.warm12}`,
+                    borderRadius: 8,
+                    padding: "10px 12px 8px",
+                    background: "rgba(240,237,230,0.02)",
+                    margin: 0,
+                  }}
+                >
+                  <legend
+                    style={{
+                      padding: "0 6px",
+                      fontFamily: T.mono,
+                      fontSize: 10.5,
+                      color: T.warm56,
+                      letterSpacing: "0.06em",
+                      textTransform: "uppercase",
+                    }}
+                  >
+                    Your situation
+                  </legend>
+                  <div
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns: "repeat(2, 1fr)",
+                      gap: 6,
+                      marginTop: 4,
+                    }}
+                  >
+                    {SITUATION_OPTIONS.map((opt) => {
+                      const checked = situation === opt.value;
+                      return (
+                        <label
+                          key={opt.value}
+                          style={{
+                            display: "flex",
+                            alignItems: "flex-start",
+                            gap: 8,
+                            padding: "8px 10px",
+                            background: checked ? "rgba(124,184,122,0.10)" : "transparent",
+                            border: `1px solid ${checked ? T.sageBorder : T.hair}`,
+                            borderRadius: 6,
+                            cursor: "pointer",
+                            transition: "background 120ms ease, border-color 120ms ease",
+                          }}
+                        >
+                          <input
+                            type="radio"
+                            name="situation"
+                            value={opt.value}
+                            checked={checked}
+                            onChange={() => {
+                              setSituation(opt.value);
+                              if (submitState === "error") setSubmitState("idle");
+                            }}
+                            style={{
+                              appearance: "none",
+                              WebkitAppearance: "none",
+                              width: 14,
+                              height: 14,
+                              borderRadius: 7,
+                              border: `1.5px solid ${checked ? T.sage : T.warm40}`,
+                              background: checked ? T.sage : "transparent",
+                              flexShrink: 0,
+                              margin: "3px 0 0",
+                              cursor: "pointer",
+                              outline: "none",
+                            }}
+                          />
+                          <span style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                            <span
+                              style={{
+                                fontSize: 13,
+                                color: T.warm,
+                                fontWeight: 500,
+                                letterSpacing: "-0.005em",
+                              }}
+                            >
+                              {opt.label}
+                            </span>
+                            <span style={{ fontSize: 11.5, color: T.warm56, lineHeight: 1.35 }}>
+                              {opt.hint}
+                            </span>
+                          </span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                </fieldset>
+              </motion.div>
+            )}
+          </AnimatePresence>
 
           {submitState === "error" && errorMessage && (
             <p style={{ color: "#D4748A", fontSize: 13, margin: 0 }} role="alert">
@@ -390,7 +569,7 @@ function WaitlistForm() {
           )}
 
           <p style={{ color: T.warm40, fontSize: 12, margin: 0 }}>
-            $39/mo for your whole family. Cancel anytime, no questions asked.
+            We&apos;ll only email you when there&apos;s news worth your time.
           </p>
         </motion.form>
       )}
