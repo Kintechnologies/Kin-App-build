@@ -5,7 +5,6 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import {
   MessageSquare,
-  MessageCircle,
   CalendarDays,
   Settings as SettingsIcon,
   Menu,
@@ -27,7 +26,6 @@ type NavItem = {
 
 const NAV: NavItem[] = [
   { href: "/dashboard", label: "Morning briefing", icon: MessageSquare, enabled: true },
-  { href: "/chat", label: "Ask Kin", icon: MessageCircle, enabled: true },
   { href: "/calendar", label: "This week", icon: CalendarDays, enabled: true },
   { href: "/settings", label: "Settings", icon: SettingsIcon, enabled: true },
 ];
@@ -145,15 +143,13 @@ export default function SidebarNav() {
     <Link
       href="/dashboard"
       style={{
-        display: "inline-flex",
-        alignItems: "baseline",
-        gap: 1,
+        display: "inline-block",
         textDecoration: "none",
-        color: "var(--sage)",
-        fontFamily: "var(--font-geist-sans), system-ui, sans-serif",
+        color: "#7CB87A",
+        fontFamily: "var(--font-geist-sans), Geist, system-ui, sans-serif",
         fontWeight: 600,
         fontSize: 22,
-        letterSpacing: "-0.045em",
+        letterSpacing: "-0.04em",
         lineHeight: 1,
         padding: "2px 4px",
       }}

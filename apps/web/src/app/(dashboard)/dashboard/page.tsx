@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, Suspense } from "react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ArrowRight, CheckCircle2, MessageSquare, Sparkles } from "lucide-react";
+import { ArrowRight, CheckCircle2, MessageSquare } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import PhoneBrief from "@/components/dashboard/PhoneBrief";
 
@@ -132,25 +132,25 @@ const TIMELINE: TimelineRow[] = [
   {
     time: "06:02",
     tag: "brief",
-    text: "Sent morning brief to you and Sarah.",
+    text: "Sent morning brief to you and Sam — both opened it.",
     done: true,
   },
   {
-    time: "06:08",
+    time: "06:14",
     tag: "reply",
-    text: "Sarah replied: \"Got Jaxon at 4. You owe me bedtime.\"",
+    text: "Sam replied: \"I'll grab Nora at 5:45. You handle Emma's soccer.\"",
     done: true,
   },
   {
-    time: "07:14",
+    time: "07:31",
     tag: "sync",
-    text: "Pulled 3 new events from your work calendar.",
+    text: "Pulled 4 new work events — sprint planning landed on your 2pm.",
     done: true,
   },
   {
-    time: "08:30",
+    time: "08:42",
     tag: "alert",
-    text: "Pickup conflict resolved — Sarah confirmed Jaxon's 4pm soccer.",
+    text: "Pickup conflict resolved — Sam confirmed Nora's 5:45 daycare.",
     done: true,
   },
 ];
@@ -279,7 +279,7 @@ function BriefingCard() {
                 marginTop: 2,
               }}
             >
-              Delivered 6:02 AM · 2 replies
+              Delivered 6:02 AM · 1 conflict resolved
             </div>
           </div>
         </div>
@@ -350,8 +350,9 @@ function BriefingCard() {
                 letterSpacing: "-0.005em",
               }}
             >
-              Sarah&apos;s 4pm window covered Jaxon&apos;s soccer pickup. You
-              kept your back-to-back stretch — no reschedule needed.
+              Sam&apos;s 5pm wrap covered Nora&apos;s 5:45 daycare. You kept
+              your sprint planning + design review back-to-back — no reschedule
+              needed.
             </div>
           </div>
         </div>
@@ -379,24 +380,28 @@ const WEEK: Day[] = [
     date: "Fri",
     events: [
       { time: "9:30a", title: "Standup", who: "you" },
-      { time: "4:00p", title: "Jaxon · soccer pickup", who: "Sarah" },
-      { time: "6:00p", title: "Maya · SAT prep", who: "Sarah" },
-    ],
-  },
-  {
-    label: "Sat",
-    date: "May 3",
-    events: [
-      { time: "10:00a", title: "Farmers market", who: "family" },
-      { time: "2:00p", title: "Jaxon's friend birthday", who: "you" },
+      { time: "11:00a", title: "Sprint planning", who: "you" },
+      { time: "3:00p", title: "Emma · soccer practice", who: "you" },
+      { time: "5:45p", title: "Nora · daycare pickup", who: "Sam" },
     ],
   },
   {
     label: "Mon",
     date: "May 5",
     events: [
-      { time: "8:30a", title: "Both of you · 1:1 conflict", conflict: true },
-      { time: "5:30p", title: "Jaxon · daycare close" },
+      { time: "9:30a", title: "Standup", who: "you" },
+      { time: "10:00a", title: "Sam · 1:1 with manager", who: "Sam" },
+      { time: "2:00p", title: "Design review", who: "you" },
+      { time: "5:45p", title: "Nora · daycare pickup", who: "you" },
+    ],
+  },
+  {
+    label: "Tue",
+    date: "May 6",
+    events: [
+      { time: "9:00a", title: "Standup · both of you", conflict: true },
+      { time: "2:00p", title: "Nora · pediatrician (18-mo)", who: "you" },
+      { time: "7:00p", title: "Date night · Oleana", who: "shared" },
     ],
   },
 ];
@@ -526,14 +531,16 @@ function ThisWeekCard() {
   );
 }
 
-// ─── ask kin card ────────────────────────────────────────────────────────────
-function AskKinCard() {
-  const SUGGESTIONS = [
-    "Who's got Jaxon Friday?",
-    "Move my 3pm",
-    "What's for dinner tonight?",
-  ];
+// ─── coverage card ───────────────────────────────────────────────────────────
+type Coverage = { who: string; doing: string; window: string; tone: "you" | "partner" | "shared" };
 
+const COVERAGE: Coverage[] = [
+  { who: "You", doing: "Emma · soccer practice + drop-off", window: "3:00 – 4:30 PM", tone: "you" },
+  { who: "Sam", doing: "Nora · daycare pickup", window: "5:45 PM", tone: "partner" },
+  { who: "Together", doing: "Family dinner", window: "6:30 PM", tone: "shared" },
+];
+
+function CoverageCard() {
   return (
     <Card>
       <div
@@ -541,7 +548,7 @@ function AskKinCard() {
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
-          marginBottom: 12,
+          marginBottom: 14,
         }}
       >
         <div
@@ -550,62 +557,66 @@ function AskKinCard() {
             color: T.warm,
             fontWeight: 500,
             letterSpacing: "-0.005em",
-            display: "flex",
-            alignItems: "center",
-            gap: 8,
           }}
         >
-          <Sparkles size={13} style={{ color: T.sage }} />
-          Ask Kin
+          Today&apos;s coverage
         </div>
-        <PhaseTag label="V1" tone="muted" />
+        <PhaseTag label="Resolved" tone="sage" />
       </div>
-      <div
-        style={{
-          fontSize: 12.5,
-          color: T.warm56,
-          lineHeight: 1.55,
-          marginBottom: 12,
-          letterSpacing: "-0.005em",
-        }}
-      >
-        Text or type. Ask about pickups, scheduling, what&apos;s for dinner —
-        anything family coordination.
-      </div>
-      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-        {SUGGESTIONS.map((s) => (
-          <Link
-            key={s}
-            href={`/chat?q=${encodeURIComponent(s)}`}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              padding: "9px 12px",
-              borderRadius: 8,
-              border: `1px solid ${T.hair}`,
-              background: "rgba(240,237,230,0.02)",
-              color: T.warm72,
-              fontSize: 12.5,
-              textDecoration: "none",
-              letterSpacing: "-0.005em",
-              transition: "border-color 160ms ease, background 160ms ease, color 160ms ease",
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.borderColor = T.hairSage;
-              e.currentTarget.style.background = T.sage12;
-              e.currentTarget.style.color = T.sage;
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.borderColor = T.hair;
-              e.currentTarget.style.background = "rgba(240,237,230,0.02)";
-              e.currentTarget.style.color = T.warm72;
-            }}
-          >
-            <span>{s}</span>
-            <ArrowRight size={12} />
-          </Link>
-        ))}
+      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+        {COVERAGE.map((c, i) => {
+          const accent =
+            c.tone === "you" ? T.sage : c.tone === "partner" ? "#7AADCE" : T.warm72;
+          return (
+            <div
+              key={i}
+              style={{
+                display: "grid",
+                gridTemplateColumns: "70px 1fr auto",
+                gap: 10,
+                alignItems: "baseline",
+                padding: "10px 12px",
+                borderRadius: 8,
+                border: `1px solid ${T.hair}`,
+                background: "rgba(240,237,230,0.025)",
+              }}
+            >
+              <span
+                style={{
+                  fontFamily: T.mono,
+                  fontSize: 10.5,
+                  color: accent,
+                  letterSpacing: "0.06em",
+                  textTransform: "uppercase",
+                  fontWeight: 600,
+                }}
+              >
+                {c.who}
+              </span>
+              <span
+                style={{
+                  fontSize: 12.5,
+                  color: T.warm72,
+                  letterSpacing: "-0.005em",
+                  lineHeight: 1.4,
+                }}
+              >
+                {c.doing}
+              </span>
+              <span
+                style={{
+                  fontFamily: T.mono,
+                  fontSize: 10.5,
+                  color: T.warm40,
+                  letterSpacing: "0.04em",
+                  fontVariantNumeric: "tabular-nums",
+                }}
+              >
+                {c.window}
+              </span>
+            </div>
+          );
+        })}
       </div>
     </Card>
   );
@@ -852,7 +863,7 @@ function DashboardContent() {
   const greetingText = firstName ? `${greeting}, ${firstName}.` : `${greeting}.`;
   const subtitle = partnerName
     ? `Today's brief went out at 6:02. You and ${partnerName} both read it.`
-    : "Today's brief went out at 6:02. Tap into Ask Kin anytime.";
+    : "Today's brief went out at 6:02. Coverage is locked in.";
 
   return (
     <>
@@ -940,25 +951,6 @@ function DashboardContent() {
                 gap: 6,
                 padding: "9px 14px",
                 borderRadius: 8,
-                background: T.warm06,
-                border: `1px solid ${T.hair}`,
-                color: T.warm,
-                textDecoration: "none",
-                fontSize: 13,
-                fontWeight: 500,
-                letterSpacing: "-0.005em",
-              }}
-            >
-              View today&apos;s brief
-            </Link>
-            <Link
-              href="/chat"
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 6,
-                padding: "9px 14px",
-                borderRadius: 8,
                 background: T.sage,
                 color: "#0C0F0A",
                 textDecoration: "none",
@@ -967,7 +959,7 @@ function DashboardContent() {
                 letterSpacing: "-0.005em",
               }}
             >
-              Ask Kin
+              See the week
               <ArrowRight size={13} />
             </Link>
           </div>
@@ -986,7 +978,7 @@ function DashboardContent() {
           <BriefingCard />
           <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
             <ThisWeekCard />
-            <AskKinCard />
+            <CoverageCard />
           </div>
         </div>
 

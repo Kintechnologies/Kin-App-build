@@ -10,14 +10,14 @@ const SAMPLE_BUBBLES: Bubble[] = [
   {
     kind: "kin",
     text:
-      "Morning. Today's brief —\n\nJaxon's got soccer at 4. You're back-to-back until 4:30, but Sarah's clear after 3 — looped her in, she's confirmed.\n\nMaya's SAT prep is 6–8. Sarah's on drop-off, dinner can be light.\n\nHeads up: dentist for Jaxon Thursday 9am. Already on both your calendars.",
+      "Morning. Today's brief —\n\nYou: standup 9:30, sprint planning 11, design review 2. Tight, but no overlaps.\n\nEmma's soccer practice 3–4:30 — you've got the drop-off (gap between standup wrap and Sam's 1:1).\n\nNora's daycare closes 5:45. Sam's clear after 5 — looped him in, he's covering.\n\nDate night Tuesday at Oleana, 7pm. Your calendars are blocked.",
     time: "6:02 AM",
   },
-  { kind: "user", text: "Tell Sarah I owe her", time: "6:08 AM" },
+  { kind: "user", text: "Tell Sam I owe him", time: "6:14 AM" },
   {
     kind: "kin",
-    text: "Sent — she said \"you owe me bedtime.\" I'm on the 7:45 reminder.",
-    time: "6:08 AM",
+    text: "Sent — Sam says \"you owe me bedtime.\" I'm on the 7:45 reminder.",
+    time: "6:14 AM",
   },
 ];
 

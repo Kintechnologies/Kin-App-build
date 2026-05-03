@@ -122,24 +122,35 @@ else:
         "expires_at": ts(6, 23),
     })
 
-# ── 3b. Family members (Sam + kids) ───────────────────────────────────────────
+# ── 3b. Family members ────────────────────────────────────────────────────────
+# Both adults need their OWN row (where profile_id == their auth id) so the
+# dashboard's me = members.find(m => m.profile_id === user.id) lookup works
+# for both demo logins. The kids are duplicated under each adult so each side
+# of the household can read them via their own profile_id.
 print("Seeding family members...")
-def upsert_family_member(name, member_type, age=None):
+def upsert_family_member(profile_id, name, member_type, age=None):
     existing = get("family_members", "name", name)
-    existing = [e for e in existing if e.get("profile_id") == jordan_id]
+    existing = [e for e in existing if e.get("profile_id") == profile_id]
     if existing:
-        print(f"  · {name} already in family — skipping")
+        print(f"  · {name} already in family for {profile_id} — skipping")
         return
-    body = {"profile_id": jordan_id, "name": name, "member_type": member_type}
+    body = {"profile_id": profile_id, "name": name, "member_type": member_type}
     if age is not None:
         body["age"] = age
     insert("family_members", body)
-    print(f"  + {name} ({member_type})")
+    print(f"  + {name} ({member_type}) under {profile_id}")
 
-upsert_family_member("Jordan Mitchell", "adult", 38)
-upsert_family_member("Sam Mitchell",    "adult", 39)
-upsert_family_member("Emma Mitchell",   "child",  8)
-upsert_family_member("Nora Mitchell",   "child",  2)
+# Jordan's view of the household
+upsert_family_member(jordan_id, "Jordan Mitchell", "adult", 38)
+upsert_family_member(jordan_id, "Sam Mitchell",    "adult", 39)
+upsert_family_member(jordan_id, "Emma Mitchell",   "child",  8)
+upsert_family_member(jordan_id, "Nora Mitchell",   "child",  2)
+
+# Sam's view of the household (mirrored so partner@kinai.family also sees data)
+upsert_family_member(sam_id, "Sam Mitchell",    "adult", 39)
+upsert_family_member(sam_id, "Jordan Mitchell", "adult", 38)
+upsert_family_member(sam_id, "Emma Mitchell",   "child",  8)
+upsert_family_member(sam_id, "Nora Mitchell",   "child",  2)
 
 # ── 4. Calendar events ────────────────────────────────────────────────────────
 print("Seeding calendar events...")
@@ -164,55 +175,94 @@ def event(profile_id, title, day, start_h, end_h, start_m=0, end_m=0,
     if color:  e["color"] = color
     return e
 
-events = [
-    # ── Saturday Apr 4 (today) ──────────────────────────────────────────────
-    event(jordan_id, "Farmers Market",          0,  9, 10,    shared=True,  color="#7AADCE",
-          desc="Grand Ave. Bring bags."),
-    event(sam_id,    "Morning run",             0,  7,  8,                  color="#D4748A"),
-    event(jordan_id, "Emma's soccer practice",  0, 10, 12,    kid=True,  member="Emma", color="#7CB87A"),
-    event(jordan_id, "Dentist appointment",     0, 15, 16,                  color="#7AADCE",
-          desc="Dr. Patel — annual cleaning"),
-    event(sam_id,    "Q2 Finance review call",  0, 15, 16, end_m=30,        color="#D4748A",
-          desc="Zoom with Ryan and the team"),
-    event(jordan_id, "Nora's swim lesson",      0, 17, 18,    kid=True,  member="Nora", color="#7CB87A"),
+# Dual-income tech household: daily standups, sprint cadence, design reviews,
+# all-hands — layered against the family logistics that don't move (school
+# pickup, daycare close at 5:45, kids' activities). The whole point of the
+# product is making this overlay legible.
+#
+# Day offsets are relative to "today" — assumes Sat=today (offsets 0..6 cover
+# this weekend through next Friday).
+# Color legend — Jordan: #7AADCE blue, Sam: #D4748A rose, kid events: #7CB87A sage
+JORDAN_C = "#7AADCE"
+SAM_C    = "#D4748A"
+KID_C    = "#7CB87A"
 
-    # ── Sunday Apr 5 ────────────────────────────────────────────────────────
-    event(jordan_id, "Grocery run",             1,  8,  9,                  color="#7AADCE"),
-    event(jordan_id, "Emma's soccer game",      1, 10, 12,    kid=True,  member="Emma", color="#7CB87A",
-          desc="Away game — Riverside Park"),
-    event(sam_id,    "Brunch with Nadia",       1, 11, 13,                  color="#D4748A"),
-    event(sam_id,    "Dinner — Patel family",   1, 19, 21,   shared=True,   color="#D4748A",
+# Daycare closes 5:45 PM sharp. The 5:45 → 6:00 pickup is hard to miss
+# because both parents' afternoon meetings tend to run long.
+def standup(profile_id, day, color):
+    return event(profile_id, "Standup", day, 9, 9, start_m=30, end_m=45, color=color)
+
+def daycare_pickup(profile_id, day):
+    return event(profile_id, "Nora — daycare pickup", day, 17, 18,
+                 start_m=45, end_m=0, kid=True, member="Nora", color=KID_C,
+                 desc="Daycare closes 5:45 sharp")
+
+events = [
+    # ── Sat (today) — weekend, family-led ───────────────────────────────────
+    event(sam_id,    "Morning run",                0,  7,  8,                color=SAM_C),
+    event(jordan_id, "Farmers market",             0,  9, 10,    shared=True,  color=JORDAN_C,
+          desc="Grand Ave. Bring bags."),
+    event(jordan_id, "Emma's soccer game",         0, 10, 12,    kid=True, member="Emma", color=KID_C,
+          desc="Home — Riverside Park, field 3"),
+    event(sam_id,    "Birthday party — Olive's",   0, 14, 16,    kid=True, member="Emma", color=KID_C,
+          desc="Sam covers drop-off + pickup"),
+    event(sam_id,    "Movie night",                0, 19, 21,    shared=True,  color=JORDAN_C),
+
+    # ── Sun ─────────────────────────────────────────────────────────────────
+    event(jordan_id, "Grocery run",                1,  8,  9,                color=JORDAN_C),
+    event(jordan_id, "Emma's soccer practice",     1, 10, 11, end_m=30, kid=True, member="Emma", color=KID_C),
+    event(sam_id,    "Brunch with Nadia",          1, 11, 13,                color=SAM_C),
+    event(sam_id,    "Dinner — Patel family",      1, 19, 21,    shared=True,  color=SAM_C,
           desc="Their place — bring wine"),
 
-    # ── Monday Apr 6 ────────────────────────────────────────────────────────
-    event(jordan_id, "Team standup",            2,  9,  9, end_m=30,        color="#7AADCE"),
-    event(sam_id,    "1:1 with manager",        2, 11, 12,                  color="#D4748A"),
-    event(jordan_id, "School pickup — Emma & Nora", 2, 15, 15, end_m=30, kid=True, member="Emma", color="#7CB87A"),
-    event(sam_id,    "Book club",               2, 18, 30, 20, 0,           color="#D4748A",
+    # ── Mon — work week begins ─────────────────────────────────────────────
+    standup(jordan_id, 2, JORDAN_C),
+    standup(sam_id,    2, SAM_C),
+    event(sam_id,    "1:1 with manager",           2, 10, 11,                color=SAM_C),
+    event(jordan_id, "Design review",              2, 14, 15,                color=JORDAN_C,
+          desc="Q3 onboarding flow — 5 mocks to walk through"),
+    event(jordan_id, "Emma — school pickup",       2, 15, 15, end_m=30, kid=True, member="Emma", color=KID_C),
+    daycare_pickup(jordan_id, 2),
+    event(sam_id,    "Book club",                  2, 18, 20, start_m=30,    color=SAM_C,
           desc="At Julia's — 'The God of Small Things'"),
 
-    # ── Tuesday Apr 7 ───────────────────────────────────────────────────────
-    event(sam_id,    "Morning gym",             3,  7,  8,                  color="#D4748A"),
-    event(jordan_id, "Nora's pediatrician",     3, 14, 15,    kid=True,  member="Nora", color="#7CB87A",
-          desc="18-month checkup + vaccines"),
-    event(jordan_id, "Date night",              3, 19, 21,   shared=True,   color="#7AADCE",
-          desc="Reservation at Oleana, 7pm"),
+    # ── Tue ─────────────────────────────────────────────────────────────────
+    event(sam_id,    "Morning gym",                3,  7,  8,                color=SAM_C),
+    standup(jordan_id, 3, JORDAN_C),
+    standup(sam_id,    3, SAM_C),
+    event(jordan_id, "Sprint planning",            3, 11, 12,                color=JORDAN_C,
+          desc="2-week sprint kickoff"),
+    event(jordan_id, "Nora — pediatrician (18mo)", 3, 14, 15,    kid=True, member="Nora", color=KID_C,
+          desc="Dr. Patel — checkup + vaccines"),
+    daycare_pickup(sam_id, 3),
+    event(jordan_id, "Date night",                 3, 19, 21,    shared=True,  color=JORDAN_C,
+          desc="Oleana, 7pm reservation"),
 
-    # ── Wednesday Apr 8 ─────────────────────────────────────────────────────
-    event(jordan_id, "All-hands meeting",       4, 10, 11,                  color="#7AADCE"),
-    event(sam_id,    "Lunch with Sarah",        4, 12, 13,                  color="#D4748A"),
-    event(jordan_id, "Emma's soccer practice",  4, 16, 17,    kid=True,  member="Emma", color="#7CB87A"),
-    event(sam_id,    "Work late",               4, 17, 19,                  color="#D4748A"),
+    # ── Wed ─────────────────────────────────────────────────────────────────
+    standup(jordan_id, 4, JORDAN_C),
+    standup(sam_id,    4, SAM_C),
+    event(jordan_id, "All-hands",                  4, 10, 11,                color=JORDAN_C),
+    event(sam_id,    "Lunch with Sarah",           4, 12, 13,                color=SAM_C),
+    event(jordan_id, "Emma — soccer practice",     4, 16, 17,    kid=True, member="Emma", color=KID_C),
+    daycare_pickup(sam_id, 4),
 
-    # ── Thursday Apr 9 ──────────────────────────────────────────────────────
-    event(jordan_id, "School pickup",           5, 15, 15, end_m=30,  kid=True, member="Emma", color="#7CB87A"),
-    event(sam_id,    "Happy hour with team",    5, 17, 19,                  color="#D4748A"),
-    event(jordan_id, "Dinner — Grandma's",      5, 18, 20,   shared=True,   color="#7AADCE"),
+    # ── Thu ─────────────────────────────────────────────────────────────────
+    standup(jordan_id, 5, JORDAN_C),
+    standup(sam_id,    5, SAM_C),
+    event(jordan_id, "Quarterly planning",         5, 13, 15,                color=JORDAN_C,
+          desc="Cross-team — long one"),
+    event(jordan_id, "Emma — school pickup",       5, 15, 15, end_m=30, kid=True, member="Emma", color=KID_C),
+    event(sam_id,    "Happy hour — team",          5, 17, 19,                color=SAM_C),
+    daycare_pickup(jordan_id, 5),
+    event(jordan_id, "Dinner — Grandma's",         5, 18, 20,    shared=True,  color=JORDAN_C),
+
+    # ── Fri ─────────────────────────────────────────────────────────────────
+    standup(jordan_id, 6, JORDAN_C),
+    standup(sam_id,    6, SAM_C),
+    event(jordan_id, "Sprint demo",                6, 11, 12,                color=JORDAN_C),
+    event(jordan_id, "Emma — soccer practice",     6, 15, 16, end_m=30, kid=True, member="Emma", color=KID_C),
+    daycare_pickup(sam_id, 6),
 ]
-
-# Fix the book club event (Monday 6:30pm-8pm ET)
-events[14] = event(sam_id, "Book club", 2, 18, 20, start_m=30, end_m=0,
-                   color="#D4748A", desc="At Julia's — 'The God of Small Things'")
 
 # Idempotent: skip events that already exist for the household
 existing_event_titles = {
@@ -239,43 +289,45 @@ def upsert_issue(body):
         return
     insert("coordination_issues", body)
 
-# OPEN — RED pickup risk (today, 3pm conflict)
+# OPEN — RED standup conflict (Tuesday 9am — both parents in standup at the
+# same time, but Nora's 18-mo pediatrician is at 2pm and someone needs to
+# leave work early to make it)
 upsert_issue({
     "household_id": jordan_id,
-    "trigger_type": "pickup_risk",
+    "trigger_type": "schedule_conflict",
     "state": "OPEN",
     "severity": "RED",
-    "content": "Both parents are unavailable for Nora's 5pm swim lesson pickup. Jordan's dentist runs 3–4pm and Nora's lesson ends at 6pm — no confirmed coverage.",
-    "event_window_start": ts(0, 17, 0),
-    "event_window_end": ts(0, 18, 0),
+    "content": "Tuesday 2pm pediatrician for Nora — neither of you has it on the work calendar yet. Jordan's sprint planning ends at noon, so the cleanest cover is Jordan leaving by 1:30. Confirm before EOD Monday.",
+    "event_window_start": ts(3, 14, 0),
+    "event_window_end": ts(3, 15, 0),
     "surfaced_at": ts(0, 8, 30),
 })
 
-# ACKNOWLEDGED — late schedule change (Monday book club)
+# ACKNOWLEDGED — Monday book club lands during daycare pickup window
 upsert_issue({
     "household_id": jordan_id,
     "trigger_type": "late_schedule_change",
     "state": "ACKNOWLEDGED",
     "severity": "YELLOW",
-    "content": "Sam's book club moved to 6:30pm Monday — overlaps with the 6pm school pickup window. Jordan is the only available parent.",
-    "event_window_start": ts(2, 15, 0),
+    "content": "Sam's book club moved to 6:30pm Monday — that's after the 5:45 daycare pickup, but Sam was supposed to handle it. Jordan to cover Nora's pickup Monday; Sam clears straight to book club.",
+    "event_window_start": ts(2, 17, 45),
     "event_window_end": ts(2, 18, 30),
     "surfaced_at": ts(-1, 20, 0),
     "acknowledged_at": ts(-1, 21, 15),
 })
 
-# RESOLVED — yesterday's pickup risk (resolved with closure line)
+# RESOLVED — yesterday's pickup risk (closed by the family)
 upsert_issue({
     "household_id": jordan_id,
     "trigger_type": "pickup_risk",
     "state": "RESOLVED",
     "severity": "YELLOW",
-    "content": "Sam's afternoon meeting conflicted with Emma's 3:30pm school pickup. Jordan covered it.",
-    "event_window_start": ts(-1, 15, 30),
-    "event_window_end": ts(-1, 16, 0),
+    "content": "Sam's late afternoon meeting clipped Nora's 5:45 daycare pickup. Jordan stepped out of design review 15 minutes early to cover.",
+    "event_window_start": ts(-1, 17, 45),
+    "event_window_end": ts(-1, 18, 0),
     "surfaced_at": ts(-1, 10, 0),
     "acknowledged_at": ts(-1, 10, 45),
-    "resolved_at": ts(-1, 16, 15),
+    "resolved_at": ts(-1, 18, 15),
 })
 
 # ── 6. Chat threads + message history ─────────────────────────────────────────
@@ -300,22 +352,22 @@ household_id = get_or_create_thread("household", "Home", household_id_val=jordan
 
 # Personal thread messages (Jordan ↔ Kin)
 personal_msgs = [
-    ("user",      "Hey — can you remind me what's on my plate this week?",              ts(-2, 9,  0)),
-    ("assistant", "Three things worth staying ahead of: Nora's pediatrician Tuesday at 2pm, the team all-hands Wednesday morning, and date night Tuesday evening — reservation's at Oleana at 7pm. The week looks manageable.", ts(-2, 9,  1)),
-    ("user",      "What time does Oleana open? Should I confirm the reservation?",       ts(-2, 9,  5)),
-    ("assistant", "They open at 5:30pm for dinner. Your reservation's at 7pm — I'd confirm by tomorrow afternoon to be safe.",  ts(-2, 9,  6)),
-    ("user",      "Done. Also — Sam mentioned possibly adding a thing Monday evening. Will that conflict with pickup?", ts(-1, 14, 0)),
-    ("assistant", "It would. School pickup for Emma and Nora is at 3:30pm Monday. If Sam's tied up Monday evening, you'd be covering both pickup and dinner. I'll flag it when the calendar updates.",  ts(-1, 14, 1)),
-    ("user",      "Yeah, flag it. Thanks.",                                              ts(-1, 14, 3)),
+    ("user",      "Hey — what does my work week actually look like?",                    ts(-2, 9,  0)),
+    ("assistant", "Three load-bearing things: design review Monday 2pm (Q3 onboarding flow), sprint planning Tuesday at 11, all-hands Wednesday at 10. Quarterly planning Thursday 1–3pm is the long one. Standups every morning 9:30 — same as always.", ts(-2, 9,  1)),
+    ("user",      "Anything weird with Nora's pickup this week?",                        ts(-2, 9,  5)),
+    ("assistant", "Tuesday's the one to watch. Sam's covering daycare pickup at 5:45 and you've got date night at 7pm — tight but workable. The bigger pinch is Nora's 2pm pediatrician — neither of you has it on the work calendar yet. I'd confirm coverage tonight.",  ts(-2, 9,  6)),
+    ("user",      "I'll take pediatrician — sprint planning ends at noon, I can leave by 1:30.", ts(-1, 14, 0)),
+    ("assistant", "Logged. I'll block 1:30–3:30pm Tuesday on your calendar so nothing else slots in. Also — Sam's book club moved to Monday 6:30, so daycare pickup at 5:45 is on you Monday.",  ts(-1, 14, 1)),
+    ("user",      "Got it. Thanks.",                                                     ts(-1, 14, 3)),
     ("assistant", "I'll keep an eye on it.",                                             ts(-1, 14, 3)),
 ]
 
 # Household thread messages
 household_msgs = [
-    ("user",      "Sam added book club Monday at 6:30. That overlaps with my pickup window.", ts(-1, 19, 0)),
-    ("assistant", "Flagged it — you're the only available parent for the 3:30pm pickup if Sam's book club starts at 6:30pm. The window's tight but workable if you leave by 3:15pm.", ts(-1, 19, 1)),
-    ("user",      "What about Tuesday? Are we actually free for date night?",            ts(-1, 19, 10)),
-    ("assistant", "Tuesday evening is clear for both of you. Nora's pediatrician is at 2pm and should be done by 3pm. Nothing else until your 7pm reservation.",  ts(-1, 19, 11)),
+    ("user",      "Sam moved book club to Monday 6:30. Does that wreck pickup?",         ts(-1, 19, 0)),
+    ("assistant", "It moves it onto you. Nora's daycare pickup is 5:45 Monday — Sam was covering. If Sam's straight to book club at 6:30, you'd handle pickup and bedtime. Workable: Emma's school pickup is 3:30, Nora's at 5:45, design review wraps 3pm so you've got the window.", ts(-1, 19, 1)),
+    ("user",      "Tuesday — is date night still safe?",                                 ts(-1, 19, 10)),
+    ("assistant", "Tuesday evening is clear once Nora's pickup is handled. Sam's covering daycare at 5:45, which gets you both home by 6:15. Reservation's at Oleana 7pm — comfortable runway.",  ts(-1, 19, 11)),
     ("user",      "Perfect. Don't let anything get scheduled over it.",                  ts(-1, 19, 14)),
     ("assistant", "I'll flag anything that lands Tuesday evening.",                      ts(-1, 19, 15)),
 ]
@@ -348,18 +400,18 @@ else:
     insert("kin_check_ins", {
         "profile_id": jordan_id,
         "household_id": jordan_id,
-        "content": "Dinner's in about 3 hours — nothing on the calendar tonight.",
-        "prompt": "Want to flag what you're making so Sam knows?",
+        "content": "Emma's soccer game wraps noon — open afternoon until the birthday party at 2pm.",
+        "prompt": "Want me to suggest something quick for lunch?",
         "dismissed": False,
-        "check_in_date": "2026-04-04",
+        "check_in_date": datetime.now(timezone.utc).date().isoformat(),
     })
     insert("kin_check_ins", {
         "profile_id": jordan_id,
         "household_id": jordan_id,
-        "content": "Emma's soccer practice ends at noon — you've got a 3-hour window before your dentist.",
+        "content": "Tuesday's pediatrician is now on your calendar 1:30–3:30 — Sam confirmed.",
         "prompt": None,
         "dismissed": True,
-        "check_in_date": "2026-04-04",
+        "check_in_date": datetime.now(timezone.utc).date().isoformat(),
     })
     print("  2 check-ins seeded")
 
@@ -384,20 +436,29 @@ def upsert_briefing(profile_id, content):
     print(f"  + briefing for {profile_id} on {today_iso}")
 
 upsert_briefing(jordan_id, (
-    "Good morning, Jordan. Three things on the radar today:\n\n"
-    "1. Emma's soccer practice runs 10am–12pm. Plan to be back by noon.\n"
-    "2. Your dentist with Dr. Patel is 3–4pm — Sam's Q2 finance call ends at 4:30pm, "
-    "so neither of you is available for Nora's 5pm swim pickup. I flagged this RED — "
-    "confirm coverage when you can.\n"
-    "3. Farmers Market at Grand Ave 9–10am, weather looks clear.\n\n"
-    "I've got eyes on the rest of the week."
+    "Good morning, Jordan. Saturday — light day on paper, but the real one to "
+    "plan around is the week ahead.\n\n"
+    "Today: Farmers market 9am, Emma's home soccer game 10–12, then open until "
+    "Sam takes Olive's birthday party at 2pm. Movie night 7pm.\n\n"
+    "Heads up for the work week:\n"
+    "  · Mon: Sam's book club moved to 6:30 — Nora's daycare pickup at 5:45 is "
+    "now on you. Design review wraps 3pm so you've got the window.\n"
+    "  · Tue: pediatrician for Nora 2pm — you said you'd cover. I've blocked "
+    "1:30–3:30. Date night Oleana 7pm is locked.\n"
+    "  · Wed: all-hands 10am, soccer practice 4pm with Emma.\n\n"
+    "I've got eyes on the rest. Reply STOP to pause."
 ))
 upsert_briefing(sam_id, (
-    "Good morning, Sam. Today's lighter:\n\n"
-    "1. Morning run scheduled 7–8am.\n"
-    "2. Q2 Finance review call with Ryan at 3pm — should wrap by 4:30pm.\n"
-    "3. Heads up: Jordan's dentist (3–4pm) and Nora's swim pickup (5pm) overlap "
-    "with your call. I flagged it RED so you both know to coordinate before noon."
+    "Good morning, Sam. Saturday's calm — morning run 7am, then the rest is "
+    "Jordan's lead.\n\n"
+    "You've got Olive's birthday party with Emma 2–4pm (drop-off + pickup). "
+    "Movie night at 7.\n\n"
+    "Week ahead:\n"
+    "  · Mon: book club 6:30 at Julia's. Jordan covers Nora's 5:45 daycare.\n"
+    "  · Tue: 1:1 with manager 10am, daycare pickup 5:45 (you), then date "
+    "night with Jordan at 7.\n"
+    "  · Wed: lunch with Sarah 12pm, daycare pickup 5:45.\n\n"
+    "Standups every morning 9:30 — same cadence as Jordan's."
 ))
 
 # ── Done ──────────────────────────────────────────────────────────────────────

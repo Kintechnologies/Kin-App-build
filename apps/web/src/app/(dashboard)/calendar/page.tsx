@@ -92,33 +92,62 @@ function Card({
   );
 }
 
+// Sun → Sat. Two working parents (you = Jordan, Sam = partner), two kids
+// (Emma, 8; Nora, 18mo). Stacks tech-work meetings against family logistics
+// so the coordination value is visible at a glance.
 const PLACEHOLDER_WEEK: Record<number, { time: string; title: string; who?: string }[]> = {
-  0: [],
+  // Sun
+  0: [
+    { time: "9:00a", title: "Farmers market", who: "family" },
+    { time: "10:30a", title: "Emma · soccer game", who: "you" },
+    { time: "7:00p", title: "Dinner · Patel family", who: "shared" },
+  ],
+  // Mon
   1: [
-    { time: "8:30a", title: "Standup · both of you", who: "conflict" },
-    { time: "5:30p", title: "Jaxon · daycare close" },
+    { time: "9:30a", title: "Standup", who: "you" },
+    { time: "10:00a", title: "Sam · 1:1 with manager", who: "Sam" },
+    { time: "2:00p", title: "Design review", who: "you" },
+    { time: "3:30p", title: "Emma · school pickup", who: "you" },
+    { time: "5:45p", title: "Nora · daycare pickup", who: "you" },
+    { time: "6:30p", title: "Sam · book club", who: "Sam" },
   ],
+  // Tue
   2: [
-    { time: "10:00a", title: "1:1 with Marcus", who: "you" },
-    { time: "3:00p", title: "Jaxon · soccer practice", who: "Sarah" },
-    { time: "6:00p", title: "Maya · SAT prep", who: "Sarah" },
+    { time: "9:00a", title: "Standup · both of you", who: "conflict" },
+    { time: "11:00a", title: "Sprint planning", who: "you" },
+    { time: "2:00p", title: "Nora · pediatrician (18-mo)", who: "you" },
+    { time: "5:45p", title: "Nora · daycare pickup", who: "Sam" },
+    { time: "7:00p", title: "Date night · Oleana", who: "shared" },
   ],
+  // Wed
   3: [
-    { time: "9:00a", title: "Jaxon · dentist", who: "Sarah" },
-    { time: "2:00p", title: "Quarterly review", who: "you" },
+    { time: "9:30a", title: "Standup", who: "you" },
+    { time: "10:00a", title: "All-hands", who: "you" },
+    { time: "12:00p", title: "Sam · lunch with Sarah", who: "Sam" },
+    { time: "4:00p", title: "Emma · soccer practice", who: "you" },
+    { time: "5:45p", title: "Nora · daycare pickup", who: "Sam" },
   ],
+  // Thu
   4: [
-    { time: "8:30a", title: "Standup", who: "you" },
-    { time: "4:00p", title: "Maya · driving lesson", who: "you" },
+    { time: "9:30a", title: "Standup", who: "you" },
+    { time: "1:00p", title: "Quarterly planning", who: "you" },
+    { time: "3:30p", title: "Emma · school pickup", who: "you" },
+    { time: "5:00p", title: "Sam · happy hour with team", who: "Sam" },
+    { time: "5:45p", title: "Nora · daycare pickup", who: "you" },
+    { time: "6:30p", title: "Dinner · Grandma's", who: "shared" },
   ],
+  // Fri
   5: [
     { time: "9:30a", title: "Standup", who: "you" },
-    { time: "4:00p", title: "Jaxon · soccer pickup", who: "Sarah" },
-    { time: "6:00p", title: "Maya · SAT prep", who: "Sarah" },
+    { time: "11:00a", title: "Sprint demo", who: "you" },
+    { time: "3:00p", title: "Emma · soccer practice", who: "you" },
+    { time: "5:45p", title: "Nora · daycare pickup", who: "Sam" },
   ],
+  // Sat
   6: [
-    { time: "10:00a", title: "Farmers market", who: "family" },
-    { time: "2:00p", title: "Jaxon's friend birthday", who: "you" },
+    { time: "10:00a", title: "Emma · soccer game", who: "you" },
+    { time: "2:00p", title: "Birthday party · Olive's house", who: "Sam" },
+    { time: "7:00p", title: "Movie night", who: "family" },
   ],
 };
 
