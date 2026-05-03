@@ -11,8 +11,6 @@ const PARTNER_NAME = "Sarah";
 const COPARENT_NAME = "Marcus";
 const PARENT_NAME = "Mom";
 const AIDE_NAME = "Karen";
-const ROOMMATE_1 = "Maya";
-const ROOMMATE_2 = "Jamie";
 
 const KID_NAMES: Record<KidAge, string[]> = {
   school: ["Emma", "Liam", "Mia"],
@@ -22,7 +20,7 @@ const KID_NAMES: Record<KidAge, string[]> = {
 
 // ───────── Types ─────────
 
-type Persona = "two-parent" | "coparent" | "caregiver" | "roommates";
+type Persona = "two-parent" | "coparent" | "caregiver";
 type BusyLevel = "light" | "moderate" | "packed";
 type KidAge = "toddler" | "school" | "teen";
 
@@ -403,96 +401,6 @@ function buildCaregiver(c: Config): Scenario {
   };
 }
 
-// — ROOMMATES —
-
-function buildRoommates(c: Config): Scenario {
-  const yours = c.busyMine;
-  const house = c.busyOther; // light=quiet, moderate=balanced, packed=hectic
-
-  const lines: string[] = [];
-
-  if (house === "packed") {
-    lines.push(
-      `${ROOMMATE_1}'s got people over Saturday 7pm — 8 confirmed. ${ROOMMATE_2}'s out Thu–Sun (work trip), trash rotation falls to you tonight.`,
-    );
-    lines.push(
-      `Gas bill due Friday — your $42 share, Venmo ${ROOMMATE_1}. Internet hit your card again, I'll split-charge them tonight.`,
-    );
-    if (yours === "packed") {
-      lines.push(`You're packed today — none of this needs you before evening. Just don't blank on trash.`);
-    } else if (yours === "moderate") {
-      lines.push(`You've got a clean afternoon — good time to confirm headcount with ${ROOMMATE_1} and figure out the snack situation.`);
-    } else {
-      lines.push(`Light day for you. ${ROOMMATE_1} mentioned wanting help prepping Saturday — worth offering, she'd remember it.`);
-    }
-    lines.push(`Heads up: dishwasher's been making the noise again. Three weeks now — worth flagging the landlord this week.`);
-  } else if (house === "moderate") {
-    lines.push(
-      `Trash night tonight — ${ROOMMATE_2}'s on rotation but they're traveling, so it's you. ${ROOMMATE_1}'s out for dinner with the work crew.`,
-    );
-    lines.push(`Gas bill due Friday — $42 your share. Internet split-charge going out tonight.`);
-    if (yours === "packed") {
-      lines.push(`You're slammed — set a 9pm phone reminder for trash, that's all you need to track.`);
-    } else if (yours === "moderate") {
-      lines.push(`Your evening's clear — quiet apartment night since ${ROOMMATE_1}'s out. Real shot at a slow one.`);
-    } else {
-      lines.push(`Light day all around. Place'll be empty tonight if you want a quiet evening.`);
-    }
-    lines.push(`Heads up: ${ROOMMATE_2} flagged the AC not cooling the back room. Worth mentioning to ${ROOMMATE_1} so it's on her radar too.`);
-  } else {
-    lines.push(
-      `Quiet day. No bills due, no events on the calendar, no chores on rotation tonight. ${ROOMMATE_1} and ${ROOMMATE_2} are both out till evening.`,
-    );
-    if (yours === "packed") {
-      lines.push(`You're packed — apartment will be empty when you get home, take the slow evening.`);
-    } else if (yours === "moderate") {
-      lines.push(`Good window for the things you've been putting off. The grocery run, the haircut, that book.`);
-    } else {
-      lines.push(`Nothing on fire anywhere. Want me to slot in something nice?`);
-    }
-    lines.push(`Heads up: lease renewal hits in 60 days. Want me to start the conversation with ${ROOMMATE_1} and ${ROOMMATE_2} this week?`);
-  }
-
-  const round1: Reply[] = [
-    {
-      prompt: house === "packed" ? `Help ${ROOMMATE_1} with Saturday prep` : `Remind me about trash at 9pm`,
-      kinReply:
-        house === "packed"
-          ? `Texted ${ROOMMATE_1} you're in — she said anything from grocery run to setup. I put 4pm Saturday on hold for you.`
-          : `Set. I'll buzz at 8:50 so you have a few minutes to roll out the cans before pickup at 7am.`,
-    },
-    {
-      prompt: `Send ${ROOMMATE_1} my Venmo for gas`,
-      kinReply: `Done — sent her $42 with the request note "gas, May share." She usually pays end of day.`,
-    },
-    {
-      prompt: `What did I miss this week?`,
-      kinReply: `${ROOMMATE_2} mentioned the cleaner asking about a raise. ${ROOMMATE_1} restocked everything except coffee. AC issue still open. Lease renewal coming.`,
-    },
-  ];
-
-  const round2: Reply[] = [
-    {
-      prompt: `Loop me in on the lease convo`,
-      kinReply: `Started a thread with ${ROOMMATE_1} and ${ROOMMATE_2} — I'll surface their replies and keep you out of the back-and-forth until decisions need you.`,
-    },
-    {
-      prompt: `What's tomorrow look like?`,
-      kinReply:
-        house === "packed"
-          ? `Quieter — ${ROOMMATE_1}'s in the office all day, ${ROOMMATE_2} still traveling. Apartment's yours.`
-          : `${ROOMMATE_1} working from home (she likes the kitchen quiet 9–12). Otherwise open.`,
-    },
-  ];
-
-  return {
-    briefing: "Morning. Here's today —\n\n" + lines.join("\n\n"),
-    round1,
-    round2,
-    closer: { prompt: "Sounds good", kinReply: "I'll keep watch. Talk in a bit." },
-  };
-}
-
 function generateScenario(c: Config): Scenario {
   switch (c.persona) {
     case "two-parent":
@@ -501,8 +409,6 @@ function generateScenario(c: Config): Scenario {
       return buildCoparent(c);
     case "caregiver":
       return buildCaregiver(c);
-    case "roommates":
-      return buildRoommates(c);
   }
 }
 
@@ -512,7 +418,6 @@ const PERSONA_OPTIONS: { value: Persona; label: string }[] = [
   { value: "two-parent", label: "Two-parent household" },
   { value: "coparent", label: "Co-parents" },
   { value: "caregiver", label: "Caregiver for aging parent" },
-  { value: "roommates", label: "Roommates" },
 ];
 
 function otherBusyLabel(persona: Persona): string {
@@ -523,8 +428,6 @@ function otherBusyLabel(persona: Persona): string {
       return `How busy is ${COPARENT_NAME}'s typical day?`;
     case "caregiver":
       return `How much care does ${PARENT_NAME} need?`;
-    case "roommates":
-      return `How active is your household?`;
   }
 }
 
@@ -534,13 +437,6 @@ function otherBusyOptions(persona: Persona): { value: BusyLevel; label: string }
       { value: "light", label: "Light" },
       { value: "moderate", label: "Moderate" },
       { value: "packed", label: "Intensive" },
-    ];
-  }
-  if (persona === "roommates") {
-    return [
-      { value: "light", label: "Quiet" },
-      { value: "moderate", label: "Balanced" },
-      { value: "packed", label: "Hectic" },
     ];
   }
   return [

@@ -48,7 +48,7 @@ function KinConversation() {
       </div>
       <SMSBubble from="kin" time="6:02 AM">
         Jontae&apos;s 5pm standup typically runs late. Daycare closes at 5:45 —
-        pickup is yours today. Jackson&apos;s 2-year checkup moved to 4pm (12
+        pickup is yours today. Jaxon&apos;s 2-year checkup moved to 4pm (12
         min from daycare). You&apos;re clear after 3:30.
       </SMSBubble>
       <SMSBubble from="user" time="6:14 AM">
@@ -401,14 +401,16 @@ function WaitlistForm() {
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 const watchItems = [
-  "standups running long",
-  "daycare closing times",
-  "pediatrician reschedules",
+  "doctor appointments",
+  "dentist visits",
+  "field trips",
+  "soccer practice",
+  "birthday parties",
   "school early release",
-  "commute deltas",
-  "flight changes",
-  "team offsites",
-  "birthdays",
+  "daycare pickup",
+  "dinner plans",
+  "work meetings",
+  "weddings",
 ];
 
 // ─── How it works illustrations ───────────────────────────────────────────────
@@ -461,7 +463,7 @@ function StepCalendarIllustration() {
 function StepConstraintsIllustration() {
   const chips = [
     { label: "Daycare closes 5:45pm", active: true },
-    { label: "Austin covers pickup Mon–Wed", active: true },
+    { label: "You cover pickup Mon–Wed", active: true },
     { label: "School: Tue early release", active: false },
     { label: "Jontae: standup runs late", active: false },
   ];
@@ -520,7 +522,7 @@ function StepBriefIllustration() {
           fontSize: 12.5, lineHeight: 1.45, color: T.warm,
         }}
       >
-        Jontae&apos;s 5pm runs late. Daycare closes 5:45 — <span style={{ color: T.sage }}>pickup is yours</span>. Jackson&apos;s checkup moved to 4pm (12 min away). You&apos;re clear after 3:30.
+        Jontae&apos;s 5pm runs late. Daycare closes 5:45 — <span style={{ color: T.sage }}>pickup is yours</span>. Jaxon&apos;s checkup moved to 4pm (12 min away). You&apos;re clear after 3:30.
       </motion.div>
       <motion.div
         initial={{ opacity: 0, y: 4 }}
@@ -559,7 +561,7 @@ function StepBriefIllustration() {
 const HOW_STEPS = [
   {
     n: "01",
-    title: "We read both calendars, so you don't have to",
+    title: "We read both sets of calendars so you don't have to",
     body: "Connect your Google Calendars once. Kin reads both and knows the full picture — no more \"wait, what's happening Tuesday?\"",
     Illustration: StepCalendarIllustration,
   },
@@ -579,8 +581,8 @@ const HOW_STEPS = [
 
 const PERSONAS = [
   {
-    tag: "Two-parent",
-    title: "Busy households",
+    tag: "Parents",
+    title: "Two-parent households",
     body: "Dual incomes, two calendars, one shared life. Neither of you has to be the air traffic controller anymore.",
   },
   {
@@ -590,13 +592,8 @@ const PERSONAS = [
   },
   {
     tag: "Caregivers",
-    title: "Aging parents",
-    body: "Doctor visits, medication, who's checking in today. Kin coordinates the family without the constant \"did anyone call mom?\"",
-  },
-  {
-    tag: "Roommates",
-    title: "Shared households",
-    body: "Rent reminders, who's home tonight, who needs the car. The house calendar, simplified to a text.",
+    title: "Nannies, grandparents & sitters",
+    body: "Add anyone who helps with your kids. Kin loops the right people in for pickup, bedtime, or the unplanned half-day.",
   },
 ];
 
@@ -662,7 +659,13 @@ export default function Home() {
             href="#how-it-works"
             style={{ color: "inherit", textDecoration: "none" }}
           >
-            How it works
+            How Kin works
+          </Link>
+          <Link
+            href="#demo"
+            style={{ color: "inherit", textDecoration: "none" }}
+          >
+            Demo
           </Link>
           <Link
             href="#pricing"
@@ -756,7 +759,7 @@ export default function Home() {
               color: T.warm,
             }}
           >
-            Your family&apos;s morning game plan,{" "}
+            Your family&apos;s daily game plan,{" "}
             <span style={{ color: T.warm56 }}>
               delivered by text.
             </span>
@@ -904,7 +907,7 @@ export default function Home() {
           letterSpacing: "0.1em", textTransform: "uppercase",
           marginBottom: 40, fontWeight: 600,
         }}>
-          How it works
+          How Kin works
         </div>
 
         <div data-steps style={{
@@ -1013,12 +1016,13 @@ export default function Home() {
           lineHeight: 1.55,
         }}>
           If two or more people coordinate their day around each other, Kin
-          makes it less work.
+          makes it less work. Add nannies, grandparents, or anyone who helps
+          with your kids — everyone stays in the loop.
         </p>
 
         <div data-personas-grid style={{
           display: "grid",
-          gridTemplateColumns: "1fr 1fr 1fr 1fr",
+          gridTemplateColumns: "1fr 1fr 1fr",
           gap: 16,
         }}>
           {PERSONAS.map((p, i) => (
@@ -1059,6 +1063,9 @@ export default function Home() {
           ))}
         </div>
       </section>
+
+      {/* ── Interactive demo ─────────────────────────────────────────────── */}
+      <InteractiveDemo />
 
       {/* ── How is this different ────────────────────────────────────────── */}
       <section
@@ -1189,12 +1196,9 @@ export default function Home() {
           &ldquo;One parent always ends up being the air traffic controller — tracking everything, texting reminders, holding the whole schedule in their head. That&apos;s the thing we built Kin to fix.&rdquo;
         </motion.p>
         <p style={{ fontSize: 13, color: T.warm40, margin: 0 }}>
-          — Austin, Kin founder &amp; parent of a 2-year-old
+          — Jontae, Kin founder &amp; parent of a 2-year-old
         </p>
       </div>
-
-      {/* ── Interactive demo ─────────────────────────────────────────────── */}
-      <InteractiveDemo />
 
       {/* ── Pricing ──────────────────────────────────────────────────────── */}
       <section
@@ -1439,7 +1443,7 @@ export default function Home() {
           section[data-watches] > span:first-child { width: 100% !important; }
         }
         @media (min-width: 769px) and (max-width: 1024px) {
-          section[data-personas] > div[data-personas-grid] { grid-template-columns: 1fr 1fr !important; }
+          section[data-personas] > div[data-personas-grid] { grid-template-columns: 1fr 1fr 1fr !important; }
         }
       ` }} />
     </main>
