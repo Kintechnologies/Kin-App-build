@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { timingSafeEqual } from "crypto";
 import { createClient } from "@/lib/supabase/server";
 import { syncCalendarForConnection } from "@/lib/calendar/sync";
 import * as Sentry from "@sentry/nextjs";
@@ -26,8 +27,14 @@ export async function POST(request: Request) {
     }
     // In development, allow through with a warning so local testing isn't blocked.
     console.warn("GOOGLE_WEBHOOK_SECRET not set — skipping token verification (dev only)");
-  } else if (channelToken !== webhookSecret) {
-    return NextResponse.json({ error: "Invalid channel token" }, { status: 401 });
+  } else {
+    // timingSafeEqual requires equal-length buffers and throws otherwise; the
+    // length check both prevents the throw and itself runs in constant time.
+    const tokenBuf = Buffer.from(channelToken ?? "");
+    const secretBuf = Buffer.from(webhookSecret);
+    if (tokenBuf.length !== secretBuf.length || !timingSafeEqual(tokenBuf, secretBuf)) {
+      return NextResponse.json({ error: "Invalid channel token" }, { status: 401 });
+    }
   }
 
   // Ignore the initial sync confirmation

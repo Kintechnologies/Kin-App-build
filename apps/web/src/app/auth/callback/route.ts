@@ -26,16 +26,8 @@ export async function GET(request: Request) {
         return NextResponse.redirect(`${origin}/onboarding/partner`);
       }
 
-      // Check if onboarding is completed
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("onboarding_completed")
-        .single();
-
-      if (profile && !profile.onboarding_completed) {
-        return NextResponse.redirect(`${origin}/onboarding`);
-      }
-
+      // SMS-first product: skip the legacy 8-step Family-OS onboarding for
+      // every auth method (email, Google OAuth, etc.) and land on the dashboard.
       return NextResponse.redirect(`${origin}${next}`);
     }
   }
