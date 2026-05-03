@@ -48,7 +48,7 @@ function KinConversation() {
       </div>
       <SMSBubble from="kin" time="6:02 AM">
         Jontae&apos;s 5pm standup typically runs late. Daycare closes at 5:45 —
-        pickup is yours today. Jackson&apos;s 2-year checkup moved to 4pm (12
+        pickup is yours today. Jaxon&apos;s 2-year checkup moved to 4pm (12
         min from daycare). You&apos;re clear after 3:30.
       </SMSBubble>
       <SMSBubble from="user" time="6:14 AM">
@@ -401,14 +401,16 @@ function WaitlistForm() {
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 const watchItems = [
-  "standups running long",
-  "daycare closing times",
-  "pediatrician reschedules",
+  "doctor appointments",
+  "dentist visits",
+  "field trips",
+  "soccer practice",
+  "birthday parties",
   "school early release",
-  "commute deltas",
-  "flight changes",
-  "team offsites",
-  "birthdays",
+  "daycare pickup",
+  "dinner plans",
+  "work meetings",
+  "weddings",
 ];
 
 // ─── How it works illustrations ───────────────────────────────────────────────
@@ -461,7 +463,7 @@ function StepCalendarIllustration() {
 function StepConstraintsIllustration() {
   const chips = [
     { label: "Daycare closes 5:45pm", active: true },
-    { label: "Austin covers pickup Mon–Wed", active: true },
+    { label: "You cover pickup Mon–Wed", active: true },
     { label: "School: Tue early release", active: false },
     { label: "Jontae: standup runs late", active: false },
   ];
@@ -520,7 +522,7 @@ function StepBriefIllustration() {
           fontSize: 12.5, lineHeight: 1.45, color: T.warm,
         }}
       >
-        Jontae&apos;s 5pm runs late. Daycare closes 5:45 — <span style={{ color: T.sage }}>pickup is yours</span>. Jackson&apos;s checkup moved to 4pm (12 min away). You&apos;re clear after 3:30.
+        Jontae&apos;s 5pm runs late. Daycare closes 5:45 — <span style={{ color: T.sage }}>pickup is yours</span>. Jaxon&apos;s checkup moved to 4pm (12 min away). You&apos;re clear after 3:30.
       </motion.div>
       <motion.div
         initial={{ opacity: 0, y: 4 }}
@@ -559,7 +561,7 @@ function StepBriefIllustration() {
 const HOW_STEPS = [
   {
     n: "01",
-    title: "We read both calendars, so you don't have to",
+    title: "We read both sets of calendars so you don't have to",
     body: "Connect your Google Calendars once. Kin reads both and knows the full picture — no more \"wait, what's happening Tuesday?\"",
     Illustration: StepCalendarIllustration,
   },
@@ -574,6 +576,45 @@ const HOW_STEPS = [
     title: "Wake up already coordinated",
     body: "6am. One text to each of you. Today's schedule, any conflicts, anything that needs a decision. No app to open, no calendar to check. Just a text.",
     Illustration: StepBriefIllustration,
+  },
+];
+
+const PERSONAS = [
+  {
+    tag: "Parents",
+    title: "Two-parent households",
+    body: "Dual incomes, two calendars, one shared life. Neither of you has to be the air traffic controller anymore.",
+  },
+  {
+    tag: "Co-parents",
+    title: "Coordinating custody",
+    body: "Different homes, different schedules, same kid. Kin keeps both households aligned without group-chat drama.",
+  },
+  {
+    tag: "Caregivers",
+    title: "Nannies, grandparents & sitters",
+    body: "Add anyone who helps with your kids. Kin loops the right people in for pickup, bedtime, or the unplanned half-day.",
+  },
+];
+
+const COMPARISON = [
+  {
+    kind: "General AI assistants",
+    examples: "Poke, Airstitch",
+    body: "You text them, they do stuff. Useful — but only for one person at a time.",
+    highlight: false,
+  },
+  {
+    kind: "Family apps",
+    examples: "Cozi, FamCal",
+    body: "Download an app, hope your partner does too. Then update it. Forever.",
+    highlight: false,
+  },
+  {
+    kind: "Kin",
+    examples: "Built for groups",
+    body: "Kin texts you. Both parents coordinated. Nothing to download.",
+    highlight: true,
   },
 ];
 
@@ -618,7 +659,13 @@ export default function Home() {
             href="#how-it-works"
             style={{ color: "inherit", textDecoration: "none" }}
           >
-            How it works
+            How Kin works
+          </Link>
+          <Link
+            href="#demo"
+            style={{ color: "inherit", textDecoration: "none" }}
+          >
+            Demo
           </Link>
           <Link
             href="#pricing"
@@ -698,7 +745,7 @@ export default function Home() {
                 flexShrink: 0,
               }}
             />
-            SMS · BOTH PARENTS · 6AM EVERY DAY
+            SMS · COORDINATED · NOTHING TO DOWNLOAD
           </div>
 
           {/* headline */}
@@ -712,9 +759,9 @@ export default function Home() {
               color: T.warm,
             }}
           >
-            Both parents,{" "}
+            Your family&apos;s daily game plan,{" "}
             <span style={{ color: T.warm56 }}>
-              same page, every morning.
+              delivered by text.
             </span>
           </h1>
 
@@ -728,8 +775,8 @@ export default function Home() {
               maxWidth: 520,
             }}
           >
-            Every morning at 6am, Kin texts you both what&apos;s happening
-            today — pickups, conflicts, who needs to be where. Text back any
+            No app. No group chat chaos. Just one text that keeps everyone in
+            sync — pickups, conflicts, who needs to be where. Text back any
             question and get an answer in seconds.
           </p>
 
@@ -860,7 +907,7 @@ export default function Home() {
           letterSpacing: "0.1em", textTransform: "uppercase",
           marginBottom: 40, fontWeight: 600,
         }}>
-          How it works
+          How Kin works
         </div>
 
         <div data-steps style={{
@@ -932,6 +979,199 @@ export default function Home() {
         </div>
       </section>
 
+      {/* ── Who it's for ─────────────────────────────────────────────────── */}
+      <section
+        id="who-its-for"
+        data-personas
+        style={{
+          padding: "72px 40px",
+          maxWidth: 1280,
+          margin: "0 auto",
+          borderBottom: `1px solid ${T.hair}`,
+        }}
+      >
+        <div style={{
+          fontFamily: T.mono, fontSize: 12, color: T.sage,
+          letterSpacing: "0.1em", textTransform: "uppercase",
+          marginBottom: 12, fontWeight: 600,
+        }}>
+          Who it&apos;s for
+        </div>
+        <h2 style={{
+          margin: "0 0 10px",
+          fontSize: "clamp(28px, 3.2vw, 40px)",
+          letterSpacing: "-0.03em",
+          fontWeight: 500,
+          color: T.warm,
+          lineHeight: 1.1,
+        }}>
+          Built for families.{" "}
+          <span style={{ color: T.warm56 }}>Works for anyone who shares a life.</span>
+        </h2>
+        <p style={{
+          fontSize: 15,
+          color: T.warm56,
+          margin: "0 0 32px",
+          maxWidth: 600,
+          lineHeight: 1.55,
+        }}>
+          If two or more people coordinate their day around each other, Kin
+          makes it less work. Add nannies, grandparents, or anyone who helps
+          with your kids — everyone stays in the loop.
+        </p>
+
+        <div data-personas-grid style={{
+          display: "grid",
+          gridTemplateColumns: "1fr 1fr 1fr",
+          gap: 16,
+        }}>
+          {PERSONAS.map((p, i) => (
+            <motion.div
+              key={p.title}
+              initial={{ opacity: 0, y: 12 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ delay: i * 0.08, duration: 0.4 }}
+              style={{
+                padding: "20px",
+                background: T.bgCard,
+                border: `1px solid ${T.hair}`,
+                borderRadius: 12,
+                display: "flex",
+                flexDirection: "column",
+                gap: 10,
+              }}
+            >
+              <div style={{
+                fontFamily: T.mono, fontSize: 10, color: T.sage,
+                letterSpacing: "0.06em", textTransform: "uppercase",
+              }}>
+                {p.tag}
+              </div>
+              <div style={{
+                fontSize: 16,
+                fontWeight: 500,
+                letterSpacing: "-0.015em",
+                color: T.warm,
+              }}>
+                {p.title}
+              </div>
+              <div style={{ fontSize: 13, color: T.warm72, lineHeight: 1.5 }}>
+                {p.body}
+              </div>
+            </motion.div>
+          ))}
+        </div>
+      </section>
+
+      {/* ── Interactive demo ─────────────────────────────────────────────── */}
+      <InteractiveDemo />
+
+      {/* ── How is this different ────────────────────────────────────────── */}
+      <section
+        id="comparison"
+        data-comparison
+        style={{
+          padding: "72px 40px",
+          maxWidth: 1280,
+          margin: "0 auto",
+          borderBottom: `1px solid ${T.hair}`,
+        }}
+      >
+        <div style={{
+          fontFamily: T.mono, fontSize: 12, color: T.sage,
+          letterSpacing: "0.1em", textTransform: "uppercase",
+          marginBottom: 12, fontWeight: 600,
+        }}>
+          How is this different
+        </div>
+        <h2 style={{
+          margin: "0 0 32px",
+          fontSize: "clamp(28px, 3.2vw, 40px)",
+          letterSpacing: "-0.03em",
+          fontWeight: 500,
+          color: T.warm,
+          lineHeight: 1.1,
+        }}>
+          There are AI assistants. There are family apps.{" "}
+          <span style={{ color: T.warm56 }}>Kin is neither.</span>
+        </h2>
+
+        <div data-comparison-grid style={{
+          display: "grid",
+          gridTemplateColumns: "1fr 1fr 1fr",
+          gap: 16,
+          marginBottom: 20,
+        }}>
+          {COMPARISON.map((c, i) => (
+            <motion.div
+              key={c.kind}
+              initial={{ opacity: 0, y: 12 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ delay: i * 0.1, duration: 0.4 }}
+              style={{
+                padding: "24px 22px",
+                background: c.highlight ? "rgba(124,184,122,0.06)" : T.bgCard,
+                border: `1px solid ${c.highlight ? T.sageBorder : T.hair}`,
+                borderRadius: 12,
+                display: "flex",
+                flexDirection: "column",
+                gap: 14,
+                position: "relative",
+              }}
+            >
+              {c.highlight && (
+                <div style={{
+                  position: "absolute",
+                  top: 14,
+                  right: 14,
+                  fontFamily: T.mono,
+                  fontSize: 9,
+                  color: T.sage,
+                  letterSpacing: "0.08em",
+                  textTransform: "uppercase",
+                  padding: "2px 7px",
+                  background: "rgba(124,184,122,0.12)",
+                  border: `1px solid ${T.sageBorder}`,
+                  borderRadius: 999,
+                }}>
+                  Us
+                </div>
+              )}
+              <div>
+                <div style={{
+                  fontSize: 14,
+                  fontWeight: 500,
+                  color: c.highlight ? T.sage : T.warm,
+                  letterSpacing: "-0.01em",
+                  marginBottom: 4,
+                }}>
+                  {c.kind}
+                </div>
+                <div style={{
+                  fontFamily: T.mono,
+                  fontSize: 11,
+                  color: T.warm40,
+                  letterSpacing: "0.04em",
+                }}>
+                  {c.examples}
+                </div>
+              </div>
+              <div style={{
+                fontSize: 15,
+                color: c.highlight ? T.warm : T.warm72,
+                lineHeight: 1.5,
+                fontWeight: c.highlight ? 500 : 400,
+                letterSpacing: "-0.005em",
+              }}>
+                {c.body}
+              </div>
+            </motion.div>
+          ))}
+        </div>
+      </section>
+
       {/* ── Founder note ─────────────────────────────────────────────────── */}
       <div
         style={{
@@ -956,88 +1196,181 @@ export default function Home() {
           &ldquo;One parent always ends up being the air traffic controller — tracking everything, texting reminders, holding the whole schedule in their head. That&apos;s the thing we built Kin to fix.&rdquo;
         </motion.p>
         <p style={{ fontSize: 13, color: T.warm40, margin: 0 }}>
-          — Austin, Kin founder &amp; parent of a 2-year-old
+          — Jontae, Kin founder &amp; parent of a 2-year-old
         </p>
       </div>
 
-      {/* ── Interactive demo ─────────────────────────────────────────────── */}
-      <InteractiveDemo />
-
-      {/* ── Pricing + waitlist ───────────────────────────────────────────── */}
+      {/* ── Pricing ──────────────────────────────────────────────────────── */}
       <section
         id="pricing"
         data-pricing
         style={{
           borderTop: `1px solid ${T.hair}`,
-          padding: "48px 40px",
+          padding: "88px 40px",
           maxWidth: 1280,
           margin: "0 auto",
-          display: "grid",
-          gridTemplateColumns: "1fr 1fr",
-          gap: 64,
+          scrollMarginTop: 80,
+          display: "flex",
+          flexDirection: "column",
           alignItems: "center",
         }}
       >
-        <div>
+        {/* section label */}
+        <div
+          style={{
+            fontFamily: T.mono,
+            fontSize: 12,
+            color: T.sage,
+            letterSpacing: "0.1em",
+            textTransform: "uppercase",
+            fontWeight: 600,
+            marginBottom: 16,
+          }}
+        >
+          Pricing
+        </div>
+
+        {/* heading */}
+        <h2
+          style={{
+            margin: 0,
+            fontWeight: 600,
+            fontSize: "clamp(32px, 4vw, 48px)",
+            lineHeight: 1.1,
+            letterSpacing: "-0.03em",
+            color: T.warm,
+            textAlign: "center",
+            marginBottom: 12,
+          }}
+        >
+          One price.{" "}
+          <span style={{ color: T.warm56 }}>Both parents covered.</span>
+        </h2>
+
+        <p
+          style={{
+            margin: 0,
+            fontSize: 16,
+            lineHeight: 1.55,
+            color: T.warm56,
+            textAlign: "center",
+            maxWidth: 520,
+            marginBottom: 40,
+          }}
+        >
+          One subscription for the whole family — no per-seat math, no
+          add-ons, no surprises.
+        </p>
+
+        {/* hero price card */}
+        <motion.div
+          initial={{ opacity: 0, y: 16 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.5 }}
+          data-price-card
+          style={{
+            width: "100%",
+            maxWidth: 520,
+            background: T.bgCard,
+            border: `1px solid ${T.sageBorder}`,
+            borderRadius: 16,
+            padding: "40px 36px",
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            boxShadow: "0 24px 60px rgba(0,0,0,0.35)",
+          }}
+        >
+          {/* hero number */}
           <div
             style={{
-              fontSize: 32,
-              fontWeight: 500,
-              letterSpacing: "-0.025em",
-              marginBottom: 8,
+              display: "flex",
+              alignItems: "baseline",
+              gap: 8,
+              marginBottom: 6,
             }}
           >
-            $1.30 a day.{" "}
-            <span style={{ color: T.warm56 }}>Less than a coffee.</span>
+            <span
+              style={{
+                fontSize: "clamp(72px, 10vw, 104px)",
+                fontWeight: 600,
+                lineHeight: 1,
+                letterSpacing: "-0.045em",
+                color: T.sage,
+              }}
+            >
+              $39
+            </span>
+            <span
+              style={{
+                fontSize: 20,
+                color: T.warm72,
+                fontWeight: 500,
+                letterSpacing: "-0.01em",
+              }}
+            >
+              / month
+            </span>
           </div>
-          <div style={{ fontSize: 14, color: T.warm56, lineHeight: 1.5 }}>
-            One subscription covers both parents. Your first 7 days are free — cancel anytime, no penalty.
-          </div>
+
           <div
             style={{
-              marginTop: 24,
-              padding: "16px 0 0",
-              borderTop: `1px solid ${T.hair}`,
+              fontSize: 14,
+              color: T.warm56,
+              fontFamily: T.mono,
+              letterSpacing: "0.04em",
+              marginBottom: 28,
+            }}
+          >
+            per family ·{" "}
+            <span style={{ color: T.warm72 }}>$1.30/day</span>
+            <span style={{ color: T.warm40 }}> · less than a coffee</span>
+          </div>
+
+          {/* trust list */}
+          <div
+            style={{
+              width: "100%",
               display: "flex",
-              gap: 28,
+              flexDirection: "column",
+              gap: 10,
+              padding: "20px 0",
+              borderTop: `1px solid ${T.hair}`,
+              borderBottom: `1px solid ${T.hair}`,
+              marginBottom: 24,
             }}
           >
             {[
-              ["$1.30/day", "less than a coffee"],
-              ["$39/mo", "per family"],
-              ["7-day", "free trial"],
-            ].map(([k, v]) => (
-              <div key={k}>
-                <div
-                  style={{
-                    fontFamily: T.mono,
-                    fontSize: 18,
-                    color: T.warm,
-                    fontWeight: 500,
-                  }}
-                >
-                  {k}
-                </div>
-                <div
-                  style={{
-                    fontSize: 11,
-                    color: T.warm72,
-                    letterSpacing: "0.02em",
-                    marginTop: 2,
-                  }}
-                >
-                  {v}
-                </div>
+              "7-day free trial",
+              "No credit card required",
+              "Cancel anytime, no questions asked",
+            ].map((item) => (
+              <div
+                key={item}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 10,
+                  fontSize: 14.5,
+                  color: T.warm,
+                }}
+              >
+                <CheckCircle2
+                  size={16}
+                  color={T.sage}
+                  style={{ flexShrink: 0 }}
+                />
+                {item}
               </div>
             ))}
           </div>
-        </div>
 
-        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-          <div style={{ fontSize: 14, color: T.warm56 }}>
-            Start your free trial today. Takes about 5 minutes to set up.
+          {/* CTA */}
+          <div style={{ width: "100%" }}>
+            <WaitlistForm />
           </div>
-          <WaitlistForm />
+
           <div
             style={{
               display: "flex",
@@ -1045,6 +1378,7 @@ export default function Home() {
               gap: 12,
               fontSize: 13,
               color: T.warm56,
+              marginTop: 16,
             }}
           >
             <span>or</span>
@@ -1059,7 +1393,7 @@ export default function Home() {
               create your account →
             </Link>
           </div>
-        </div>
+        </motion.div>
       </section>
 
       {/* ── Footer ───────────────────────────────────────────────────────── */}
@@ -1099,9 +1433,17 @@ export default function Home() {
           section[data-how-it-works] > div[data-steps] { grid-template-columns: 1fr !important; gap: 32px !important; }
           section[data-how-it-works] > div[data-steps] > div { border-right: none !important; padding: 0 !important; }
           section[data-how-it-works] > div[data-steps] > div[data-connector] { display: none !important; }
-          section[data-pricing] { padding: 40px 20px !important; }
+          section[data-personas] { padding: 56px 20px !important; }
+          section[data-personas] > div[data-personas-grid] { grid-template-columns: 1fr !important; gap: 12px !important; }
+          section[data-comparison] { padding: 56px 20px !important; }
+          section[data-comparison] > div[data-comparison-grid] { grid-template-columns: 1fr !important; gap: 12px !important; }
+          section[data-pricing] { padding: 56px 20px !important; }
+          section[data-pricing] div[data-price-card] { padding: 32px 24px !important; }
           section[data-watches] { padding: 14px 20px !important; }
           section[data-watches] > span:first-child { width: 100% !important; }
+        }
+        @media (min-width: 769px) and (max-width: 1024px) {
+          section[data-personas] > div[data-personas-grid] { grid-template-columns: 1fr 1fr 1fr !important; }
         }
       ` }} />
     </main>
