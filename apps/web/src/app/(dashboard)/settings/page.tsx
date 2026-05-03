@@ -1001,7 +1001,7 @@ export default function SettingsPage() {
     <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
       {/* Page header */}
       <header style={{ marginBottom: "4px" }}>
-        <MonoLabel>// SETTINGS</MonoLabel>
+        <MonoLabel>{"// SETTINGS"}</MonoLabel>
         <h1
           style={{
             fontSize: "28px",
