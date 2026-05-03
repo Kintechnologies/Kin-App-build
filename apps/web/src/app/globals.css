@@ -5,8 +5,8 @@
 /* Dark mode (default) */
 :root, .dark {
   --background: #0C0F0A;
-  --surface: #1A1F16;
-  --surface-raised: #212820;
+  --surface: #14181A;
+  --surface-raised: #1B201C;
   --foreground: #F0EDE6;
   --primary: #7CB87A;
   --primary-soft: #3D5C3C;
@@ -15,6 +15,30 @@
   --purple: #A07EC8;
   --blue: #7AADCE;
   --rose: #D4748A;
+
+  /* Kin design system tokens */
+  --bg: #0C0F0A;
+  --bg-lift: #14181A;
+  --bg-card: #161A17;
+  --bg-elev: #1B201C;
+  --sage: #7CB87A;
+  --sage-mute: #6FA56D;
+  --sage-12: rgba(124, 184, 122, 0.12);
+  --sage-20: rgba(124, 184, 122, 0.20);
+  --sage-40: rgba(124, 184, 122, 0.40);
+  --warm: #F0EDE6;
+  --warm-72: rgba(240, 237, 230, 0.72);
+  --warm-56: rgba(240, 237, 230, 0.56);
+  --warm-40: rgba(240, 237, 230, 0.40);
+  --warm-24: rgba(240, 237, 230, 0.24);
+  --warm-12: rgba(240, 237, 230, 0.12);
+  --warm-06: rgba(240, 237, 230, 0.06);
+  --hair: rgba(240, 237, 230, 0.08);
+  --hair-strong: rgba(240, 237, 230, 0.14);
+  --hair-sage: rgba(124, 184, 122, 0.14);
+  --radius-sm: 6px;
+  --radius: 10px;
+  --radius-lg: 14px;
 }
 
 /* Light mode */

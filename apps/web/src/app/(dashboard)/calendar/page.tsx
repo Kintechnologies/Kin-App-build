@@ -1,181 +1,530 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
-import { motion } from "framer-motion";
-import { ArrowLeft, Calendar as CalendarIcon, Users, Baby, User } from "lucide-react";
-import { createClient } from "@/lib/supabase/client";
+import { CalendarDays, RefreshCw, ArrowRight } from "lucide-react";
 
-interface CalendarEvent {
+const T = {
+  warm: "var(--warm)",
+  warm72: "var(--warm-72)",
+  warm56: "var(--warm-56)",
+  warm40: "var(--warm-40)",
+  warm12: "var(--warm-12)",
+  warm06: "var(--warm-06)",
+  hair: "var(--hair)",
+  hairStrong: "var(--hair-strong)",
+  sage: "var(--sage)",
+  sage12: "var(--sage-12)",
+  hairSage: "var(--hair-sage)",
+  bgCard: "var(--bg-card)",
+  mono: "var(--font-geist-mono), 'Geist Mono', monospace",
+};
+
+type CalendarEvent = {
   id: string;
   title: string;
   start_time: string;
   end_time: string;
-  all_day: boolean;
-  is_shared: boolean;
-  is_kid_event: boolean;
-  assigned_member: string | null;
-  description: string | null;
-  color: string | null;
-  owner_parent_id: string;
+  location?: string | null;
+  is_kid_event?: boolean;
+  is_shared?: boolean;
+  assigned_member?: string | null;
+};
+
+function startOfWeek(d = new Date()): Date {
+  const out = new Date(d);
+  out.setHours(0, 0, 0, 0);
+  const dow = out.getDay();
+  out.setDate(out.getDate() - dow);
+  return out;
 }
 
-function formatTime(iso: string) {
-  return new Date(iso).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+function addDays(d: Date, n: number): Date {
+  const out = new Date(d);
+  out.setDate(out.getDate() + n);
+  return out;
 }
 
-function dayKey(iso: string) {
-  return new Date(iso).toISOString().slice(0, 10);
+function fmtTime(iso: string): string {
+  return new Date(iso).toLocaleTimeString("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  }).toLowerCase().replace(" ", "");
 }
 
-function dayLabel(d: Date) {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const dCopy = new Date(d);
-  dCopy.setHours(0, 0, 0, 0);
-  const diff = Math.round((dCopy.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-  if (diff === 0) return "Today";
-  if (diff === 1) return "Tomorrow";
-  if (diff === -1) return "Yesterday";
-  return d.toLocaleDateString("en-US", { weekday: "long", month: "short", day: "numeric" });
+function fmtDayLabel(d: Date): { dow: string; date: string; month: string } {
+  return {
+    dow: d.toLocaleDateString("en-US", { weekday: "short" }).toUpperCase(),
+    date: String(d.getDate()),
+    month: d.toLocaleDateString("en-US", { month: "short" }).toUpperCase(),
+  };
 }
+
+function isToday(d: Date): boolean {
+  const t = new Date();
+  return (
+    d.getFullYear() === t.getFullYear() &&
+    d.getMonth() === t.getMonth() &&
+    d.getDate() === t.getDate()
+  );
+}
+
+function Card({
+  children,
+  style,
+}: {
+  children: React.ReactNode;
+  style?: React.CSSProperties;
+}) {
+  return (
+    <div
+      style={{
+        background: "rgba(240,237,230,0.025)",
+        border: `1px solid ${T.warm06}`,
+        borderRadius: 12,
+        padding: 20,
+        ...style,
+      }}
+    >
+      {children}
+    </div>
+  );
+}
+
+const PLACEHOLDER_WEEK: Record<number, { time: string; title: string; who?: string }[]> = {
+  0: [],
+  1: [
+    { time: "8:30a", title: "Standup · both of you", who: "conflict" },
+    { time: "5:30p", title: "Jaxon · daycare close" },
+  ],
+  2: [
+    { time: "10:00a", title: "1:1 with Marcus", who: "you" },
+    { time: "3:00p", title: "Jaxon · soccer practice", who: "Sarah" },
+    { time: "6:00p", title: "Maya · SAT prep", who: "Sarah" },
+  ],
+  3: [
+    { time: "9:00a", title: "Jaxon · dentist", who: "Sarah" },
+    { time: "2:00p", title: "Quarterly review", who: "you" },
+  ],
+  4: [
+    { time: "8:30a", title: "Standup", who: "you" },
+    { time: "4:00p", title: "Maya · driving lesson", who: "you" },
+  ],
+  5: [
+    { time: "9:30a", title: "Standup", who: "you" },
+    { time: "4:00p", title: "Jaxon · soccer pickup", who: "Sarah" },
+    { time: "6:00p", title: "Maya · SAT prep", who: "Sarah" },
+  ],
+  6: [
+    { time: "10:00a", title: "Farmers market", who: "family" },
+    { time: "2:00p", title: "Jaxon's friend birthday", who: "you" },
+  ],
+};
 
 export default function CalendarPage() {
+  const [weekStart, setWeekStart] = useState(() => startOfWeek());
   const [events, setEvents] = useState<CalendarEvent[]>([]);
-  const [userId, setUserId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [usingPlaceholder, setUsingPlaceholder] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
     async function load() {
-      const supabase = createClient();
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user || cancelled) return;
-      setUserId(user.id);
-
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("household_id")
-        .eq("id", user.id)
-        .maybeSingle();
-      const householdId = profile?.household_id || user.id;
-
-      const start = new Date();
-      start.setHours(0, 0, 0, 0);
-      const end = new Date(start);
-      end.setDate(end.getDate() + 14);
-
-      const { data: rows } = await supabase
-        .from("calendar_events")
-        .select("id, title, start_time, end_time, all_day, is_shared, is_kid_event, assigned_member, description, color, owner_parent_id")
-        .eq("household_id", householdId)
-        .gte("start_time", start.toISOString())
-        .lt("start_time",  end.toISOString())
-        .order("start_time", { ascending: true });
-      if (!cancelled) {
-        setEvents((rows ?? []) as CalendarEvent[]);
-        setLoading(false);
+      setLoading(true);
+      try {
+        const start = weekStart.toISOString();
+        const end = addDays(weekStart, 7).toISOString();
+        const res = await fetch(
+          `/api/calendar/events?view=household&start=${encodeURIComponent(
+            start,
+          )}&end=${encodeURIComponent(end)}`,
+        );
+        if (!res.ok) throw new Error("fetch failed");
+        const json = await res.json();
+        if (cancelled) return;
+        const evs = (json.events as CalendarEvent[]) || [];
+        setEvents(evs);
+        setUsingPlaceholder(evs.length === 0);
+      } catch {
+        if (!cancelled) {
+          setEvents([]);
+          setUsingPlaceholder(true);
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
       }
     }
     load();
-    return () => { cancelled = true; };
-  }, []);
+    return () => {
+      cancelled = true;
+    };
+  }, [weekStart]);
 
-  const grouped = useMemo(() => {
-    const out = new Map<string, CalendarEvent[]>();
-    for (const e of events) {
-      const k = dayKey(e.start_time);
-      const arr = out.get(k) ?? [];
-      arr.push(e);
-      out.set(k, arr);
+  const days = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
+
+  const eventsByDay: Record<number, CalendarEvent[]> = {};
+  for (let i = 0; i < 7; i++) eventsByDay[i] = [];
+  for (const ev of events) {
+    const d = new Date(ev.start_time);
+    for (let i = 0; i < 7; i++) {
+      const day = addDays(weekStart, i);
+      if (
+        d.getFullYear() === day.getFullYear() &&
+        d.getMonth() === day.getMonth() &&
+        d.getDate() === day.getDate()
+      ) {
+        eventsByDay[i].push(ev);
+        break;
+      }
     }
-    return Array.from(out.entries()).map(([k, evs]) => ({
-      key: k,
-      date: new Date(k + "T00:00:00"),
-      events: evs,
-    }));
-  }, [events]);
+  }
 
   return (
-    <div className="relative">
-      <div className="absolute -top-20 -left-20 w-[280px] h-[280px] rounded-full bg-blue/5 blur-[120px] pointer-events-none" />
+    <div
+      style={{
+        maxWidth: 1180,
+        margin: "0 auto",
+        padding: "32px clamp(20px, 4vw, 40px) 60px",
+        display: "flex",
+        flexDirection: "column",
+        gap: 24,
+      }}
+    >
+      {/* header */}
+      <header
+        style={{
+          display: "flex",
+          alignItems: "flex-end",
+          justifyContent: "space-between",
+          gap: 24,
+          flexWrap: "wrap",
+        }}
+      >
+        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          <div
+            style={{
+              fontFamily: T.mono,
+              fontSize: 11,
+              color: T.warm40,
+              letterSpacing: "0.14em",
+              textTransform: "uppercase",
+            }}
+          >
+            {"// this week · household view"}
+          </div>
+          <h1
+            style={{
+              fontSize: "clamp(26px, 3vw, 32px)",
+              fontWeight: 500,
+              color: T.warm,
+              letterSpacing: "-0.025em",
+              lineHeight: 1.1,
+              margin: 0,
+            }}
+          >
+            {weekStart.toLocaleDateString("en-US", {
+              month: "long",
+              day: "numeric",
+            })}{" "}
+            —{" "}
+            {addDays(weekStart, 6).toLocaleDateString("en-US", {
+              month: "long",
+              day: "numeric",
+            })}
+          </h1>
+          <p style={{ fontSize: 13.5, color: T.warm56, margin: 0 }}>
+            What Kin&apos;s watching across both of your calendars.
+          </p>
+        </div>
 
-      <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }} className="mb-6 flex items-start justify-between gap-4">
-        <div>
-          <Link href="/dashboard" className="inline-flex items-center gap-1.5 text-warm-white/45 hover:text-warm-white/75 text-[12px] mb-2 transition-colors">
-            <ArrowLeft size={13} /> Back
-          </Link>
-          <h1 className="text-3xl font-medium text-primary mb-1.5" style={{ letterSpacing: "-0.025em" }}>Calendar</h1>
-          <p className="text-warm-white/40 text-sm">Next 14 days · everyone&apos;s events in one place</p>
+        <div style={{ display: "flex", gap: 8 }}>
+          <button
+            onClick={() => setWeekStart(addDays(weekStart, -7))}
+            style={btnSecondary}
+            aria-label="Previous week"
+          >
+            ← Prev
+          </button>
+          <button
+            onClick={() => setWeekStart(startOfWeek())}
+            style={btnSecondary}
+          >
+            This week
+          </button>
+          <button
+            onClick={() => setWeekStart(addDays(weekStart, 7))}
+            style={btnSecondary}
+            aria-label="Next week"
+          >
+            Next →
+          </button>
         </div>
-        <CalendarIcon size={28} className="text-primary/35 mt-2" />
-      </motion.div>
+      </header>
 
-      {loading ? (
-        <div className="space-y-3 animate-pulse">
-          {[0,1,2].map((i) => <div key={i} className="h-28 rounded-2xl bg-warm-white/5" />)}
-        </div>
-      ) : grouped.length === 0 ? (
-        <div className="glass-strong rounded-2xl p-8 text-center border border-warm-white/6">
-          <CalendarIcon size={28} className="text-warm-white/25 mx-auto mb-3" />
-          <p className="text-warm-white/65 text-[15px] font-medium mb-1">Nothing scheduled in the next two weeks</p>
-          <p className="text-warm-white/40 text-[13px]">Connect a calendar in <Link href="/settings" className="text-primary hover:underline">settings</Link> and Kin will pull it in.</p>
-        </div>
-      ) : (
-        <div className="flex flex-col gap-5">
-          {grouped.map(({ key, date, events: dayEvents }, idx) => (
-            <motion.section
-              key={key}
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.3, delay: idx * 0.04 }}
+      {usingPlaceholder && !loading && (
+        <Card
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 12,
+            background: T.sage12,
+            border: `1px solid ${T.hairSage}`,
+          }}
+        >
+          <CalendarDays size={16} style={{ color: T.sage, flexShrink: 0 }} />
+          <div style={{ flex: 1, fontSize: 13, color: T.warm72 }}>
+            <span style={{ color: T.sage, fontWeight: 500 }}>Demo view</span>
+            {" — "}
+            connect a calendar in{" "}
+            <Link
+              href="/settings"
+              style={{ color: T.sage, textDecoration: "underline" }}
             >
-              <div className="flex items-baseline justify-between mb-2 px-1">
-                <h2 className="text-warm-white/85 text-[15px] font-medium">
-                  {dayLabel(date)}
-                </h2>
-                <span className="text-warm-white/35 text-[11px] font-mono">
-                  {dayEvents.length} {dayEvents.length === 1 ? "event" : "events"}
-                </span>
+              Settings
+            </Link>{" "}
+            to see your real week here.
+          </div>
+        </Card>
+      )}
+
+      {/* week grid */}
+      <div
+        className="kin-week-grid"
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(7, minmax(0, 1fr))",
+          gap: 12,
+        }}
+      >
+        {days.map((d, i) => {
+          const today = isToday(d);
+          const labels = fmtDayLabel(d);
+          const liveEvents = eventsByDay[i];
+          const fallback = usingPlaceholder ? PLACEHOLDER_WEEK[i] || [] : [];
+          return (
+            <Card
+              key={i}
+              style={{
+                padding: 14,
+                minHeight: 220,
+                display: "flex",
+                flexDirection: "column",
+                gap: 10,
+                border: today
+                  ? `1px solid ${T.hairSage}`
+                  : `1px solid ${T.warm06}`,
+                background: today ? T.sage12 : "rgba(240,237,230,0.025)",
+              }}
+            >
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "baseline",
+                  justifyContent: "space-between",
+                }}
+              >
+                <div
+                  style={{
+                    fontFamily: T.mono,
+                    fontSize: 10,
+                    color: today ? T.sage : T.warm40,
+                    letterSpacing: "0.12em",
+                  }}
+                >
+                  {labels.dow}
+                </div>
+                <div
+                  style={{
+                    fontSize: 18,
+                    color: today ? T.sage : T.warm,
+                    fontWeight: 500,
+                    letterSpacing: "-0.02em",
+                    fontVariantNumeric: "tabular-nums",
+                  }}
+                >
+                  {labels.date}
+                </div>
               </div>
-              <div className="flex flex-col gap-2">
-                {dayEvents.map((e) => {
-                  const color = e.color || (e.is_kid_event ? "#7CB87A" : "#7AADCE");
-                  const ownerIsMe = userId === e.owner_parent_id;
-                  const Icon = e.is_kid_event ? Baby : e.is_shared ? Users : User;
-                  return (
-                    <div key={e.id} className="glass-strong rounded-2xl p-4 border border-warm-white/6 flex items-start gap-3 hover:border-warm-white/12 transition-colors">
-                      <div className="w-1 self-stretch rounded-full shrink-0" style={{ background: color, minHeight: 36 }} />
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                          <h3 className="text-warm-white/90 text-[15px] font-medium truncate">{e.title}</h3>
-                          {e.is_kid_event && (
-                            <span className="text-[10px] uppercase tracking-wider font-semibold text-primary bg-primary/15 border border-primary/25 px-1.5 py-0.5 rounded-md">kid</span>
-                          )}
-                          {e.is_shared && !e.is_kid_event && (
-                            <span className="text-[10px] uppercase tracking-wider font-semibold text-blue bg-blue/15 border border-blue/25 px-1.5 py-0.5 rounded-md">shared</span>
-                          )}
-                          {!e.is_shared && !e.is_kid_event && (
-                            <span className="text-[10px] uppercase tracking-wider font-medium text-warm-white/40">{ownerIsMe ? "you" : "partner"}</span>
-                          )}
+
+              <div
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 6,
+                  flex: 1,
+                }}
+              >
+                {liveEvents.length > 0
+                  ? liveEvents.map((ev) => (
+                      <div
+                        key={ev.id}
+                        style={{
+                          padding: "6px 8px",
+                          borderRadius: 6,
+                          background: ev.is_kid_event
+                            ? T.sage12
+                            : "rgba(240,237,230,0.04)",
+                          border: `1px solid ${
+                            ev.is_kid_event ? T.hairSage : T.hair
+                          }`,
+                          display: "flex",
+                          flexDirection: "column",
+                          gap: 1,
+                        }}
+                      >
+                        <div
+                          style={{
+                            fontFamily: T.mono,
+                            fontSize: 9.5,
+                            color: T.warm40,
+                            letterSpacing: "0.04em",
+                          }}
+                        >
+                          {fmtTime(ev.start_time)}
                         </div>
-                        <div className="text-warm-white/45 text-[12px] mt-1 font-mono">
-                          {formatTime(e.start_time)} – {formatTime(e.end_time)}
-                          {e.assigned_member ? ` · ${e.assigned_member}` : ""}
+                        <div
+                          style={{
+                            fontSize: 11.5,
+                            color: T.warm72,
+                            letterSpacing: "-0.005em",
+                            lineHeight: 1.3,
+                          }}
+                        >
+                          {ev.title}
                         </div>
-                        {e.description && (
-                          <p className="text-warm-white/55 text-[13px] mt-2 leading-relaxed">{e.description}</p>
+                      </div>
+                    ))
+                  : fallback.map((e, idx) => (
+                      <div
+                        key={idx}
+                        style={{
+                          padding: "6px 8px",
+                          borderRadius: 6,
+                          background: "rgba(240,237,230,0.03)",
+                          border: `1px solid ${T.hair}`,
+                          display: "flex",
+                          flexDirection: "column",
+                          gap: 1,
+                        }}
+                      >
+                        <div
+                          style={{
+                            fontFamily: T.mono,
+                            fontSize: 9.5,
+                            color:
+                              e.who === "conflict" ? "#D4A843" : T.warm40,
+                            letterSpacing: "0.04em",
+                          }}
+                        >
+                          {e.time}
+                        </div>
+                        <div
+                          style={{
+                            fontSize: 11.5,
+                            color: e.who === "conflict" ? "#D4A843" : T.warm72,
+                            letterSpacing: "-0.005em",
+                            lineHeight: 1.3,
+                          }}
+                        >
+                          {e.title}
+                        </div>
+                        {e.who && e.who !== "conflict" && (
+                          <div
+                            style={{
+                              fontFamily: T.mono,
+                              fontSize: 9,
+                              color: T.warm40,
+                              letterSpacing: "0.06em",
+                              textTransform: "uppercase",
+                            }}
+                          >
+                            {e.who}
+                          </div>
                         )}
                       </div>
-                      <Icon size={15} className="text-warm-white/25 mt-1 shrink-0" />
-                    </div>
-                  );
-                })}
+                    ))}
+
+                {liveEvents.length === 0 && fallback.length === 0 && (
+                  <div
+                    style={{
+                      fontFamily: T.mono,
+                      fontSize: 10,
+                      color: T.warm40,
+                      letterSpacing: "0.08em",
+                      textTransform: "uppercase",
+                      paddingTop: 10,
+                    }}
+                  >
+                    {loading ? "Loading…" : "No events"}
+                  </div>
+                )}
               </div>
-            </motion.section>
-          ))}
+            </Card>
+          );
+        })}
+      </div>
+
+      {/* footer */}
+      <Card
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 16,
+          flexWrap: "wrap",
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <RefreshCw size={14} style={{ color: T.sage }} />
+          <div style={{ fontSize: 13, color: T.warm72 }}>
+            Kin syncs both calendars every 5 minutes — and writes back conflicts
+            it solves over text.
+          </div>
         </div>
-      )}
+        <Link
+          href="/settings"
+          style={{
+            fontFamily: T.mono,
+            fontSize: 11,
+            color: T.sage,
+            letterSpacing: "0.06em",
+            textDecoration: "none",
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 4,
+          }}
+        >
+          MANAGE CALENDARS
+          <ArrowRight size={11} />
+        </Link>
+      </Card>
+
+      <style>{`
+        @media (max-width: 900px) {
+          .kin-week-grid {
+            grid-template-columns: 1fr 1fr !important;
+          }
+        }
+        @media (max-width: 540px) {
+          .kin-week-grid {
+            grid-template-columns: 1fr !important;
+          }
+        }
+      `}</style>
     </div>
   );
 }
+
+const btnSecondary: React.CSSProperties = {
+  padding: "8px 12px",
+  borderRadius: 8,
+  background: T.warm06,
+  border: `1px solid ${T.hair}`,
+  color: T.warm72,
+  fontSize: 12.5,
+  fontWeight: 500,
+  cursor: "pointer",
+  fontFamily: "inherit",
+  letterSpacing: "-0.005em",
+};
