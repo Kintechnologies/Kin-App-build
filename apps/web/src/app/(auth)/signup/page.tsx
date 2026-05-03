@@ -118,6 +118,8 @@ function SignUpForm() {
       setLoading(false);
       return;
     }
+    // Fire-and-forget founder alert (idempotent server-side)
+    fetch("/api/account/signup-notify", { method: "POST" }).catch(() => {});
     if (inviteCode) {
       try {
         const res = await fetch(`/api/invite/${inviteCode}/accept`, { method: "POST" });
@@ -187,7 +189,7 @@ function SignUpForm() {
         <div style={{ fontSize: 13.5, color: T.warm56 }}>
           {inviteCode
             ? "Create your account to connect with your partner on Kin."
-            : "7-day free trial · no credit card yet · ~90 seconds to set up."}
+            : "7-day free trial · ~90 seconds to set up."}
         </div>
       </div>
 

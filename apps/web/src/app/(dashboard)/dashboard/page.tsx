@@ -787,6 +787,118 @@ function WelcomeModal({
 }
 
 // ─── page ────────────────────────────────────────────────────────────────────
+const DEMO_EMAILS = new Set(["demo@kinai.family", "partner@kinai.family"]);
+
+type SetupStatus = {
+  hasCalendar: boolean;
+  hasPartner: boolean;
+};
+
+function EmptyState({ setup }: { setup: SetupStatus }) {
+  return (
+    <Card
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "flex-start",
+        gap: 16,
+        padding: "28px",
+      }}
+    >
+      <PhaseTag label="Setup · 1 step left" tone="sage" />
+      <div>
+        <h2
+          style={{
+            fontSize: 20,
+            fontWeight: 500,
+            color: T.warm,
+            letterSpacing: "-0.02em",
+            margin: "0 0 6px",
+          }}
+        >
+          {setup.hasCalendar
+            ? "You're all set."
+            : "Connect a calendar to start your briefings."}
+        </h2>
+        <p
+          style={{
+            fontSize: 13.5,
+            color: T.warm56,
+            margin: 0,
+            lineHeight: 1.55,
+            maxWidth: 520,
+          }}
+        >
+          {setup.hasCalendar
+            ? "Your first morning briefing will land at 6am. Until then, your calendar view shows what's on the books."
+            : "Read-only Google connection — Kin reads your day to write the brief, never posts back without your say-so."}
+        </p>
+      </div>
+      <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+        {!setup.hasCalendar && (
+          <Link
+            href="/settings"
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 6,
+              padding: "10px 16px",
+              borderRadius: 10,
+              background: T.sage,
+              color: "#0C0F0A",
+              textDecoration: "none",
+              fontSize: 13,
+              fontWeight: 600,
+            }}
+          >
+            Connect calendar
+            <ArrowRight size={13} />
+          </Link>
+        )}
+        <Link
+          href="/calendar"
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 6,
+            padding: "10px 16px",
+            borderRadius: 10,
+            background: "transparent",
+            color: T.warm72,
+            border: `1px solid ${T.hair}`,
+            textDecoration: "none",
+            fontSize: 13,
+            fontWeight: 500,
+          }}
+        >
+          {setup.hasCalendar ? "See the week" : "Open calendar view"}
+          <ArrowRight size={13} />
+        </Link>
+        {!setup.hasPartner && (
+          <Link
+            href="/settings"
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 6,
+              padding: "10px 16px",
+              borderRadius: 10,
+              background: "transparent",
+              color: T.warm56,
+              border: `1px solid ${T.hair}`,
+              textDecoration: "none",
+              fontSize: 13,
+              fontWeight: 500,
+            }}
+          >
+            Invite your partner
+          </Link>
+        )}
+      </div>
+    </Card>
+  );
+}
+
 function DashboardContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -795,6 +907,8 @@ function DashboardContent() {
   const [showWelcome, setShowWelcome] = useState(false);
   const [trialEnd, setTrialEnd] = useState(() => formatTrialEnd(null));
   const [now, setNow] = useState(() => new Date());
+  const [isDemoUser, setIsDemoUser] = useState<boolean | null>(null);
+  const [setup, setSetup] = useState<SetupStatus>({ hasCalendar: false, hasPartner: false });
 
   useEffect(() => {
     const t = setInterval(() => setNow(new Date()), 60_000);
@@ -823,9 +937,12 @@ function DashboardContent() {
         } = await supabase.auth.getUser();
         if (!user || cancelled) return;
 
+        const demo = !!user.email && DEMO_EMAILS.has(user.email.toLowerCase());
+        if (!cancelled) setIsDemoUser(demo);
+
         const { data: profile } = await supabase
           .from("profiles")
-          .select("display_name, trial_ends_at")
+          .select("display_name, trial_ends_at, household_id")
           .eq("id", user.id)
           .single();
 
@@ -850,6 +967,20 @@ function DashboardContent() {
           setFirstName(profile.display_name.split(" ")[0]);
 
         if (partner?.name) setPartnerName(partner.name.split(" ")[0]);
+
+        // Per-user setup status — only meaningful for non-demo users.
+        if (!demo) {
+          const { count: connCount } = await supabase
+            .from("calendar_connections")
+            .select("id", { count: "exact", head: true })
+            .eq("profile_id", user.id);
+          if (!cancelled) {
+            setSetup({
+              hasCalendar: (connCount ?? 0) > 0,
+              hasPartner: !!partner,
+            });
+          }
+        }
       } catch {
         /* non-fatal */
       }
@@ -861,9 +992,14 @@ function DashboardContent() {
 
   const greeting = getGreeting();
   const greetingText = firstName ? `${greeting}, ${firstName}.` : `${greeting}.`;
-  const subtitle = partnerName
-    ? `Today's brief went out at 6:02. You and ${partnerName} both read it.`
-    : "Today's brief went out at 6:02. Coverage is locked in.";
+  const showDemo = isDemoUser === true;
+  const subtitle = showDemo
+    ? partnerName
+      ? `Today's brief went out at 6:02. You and ${partnerName} both read it.`
+      : "Today's brief went out at 6:02. Coverage is locked in."
+    : setup.hasCalendar
+      ? "Your calendar is connected. Briefings start tomorrow at 6am."
+      : "One quick step: connect your calendar so Kin can build your morning briefing.";
 
   return (
     <>
@@ -930,7 +1066,7 @@ function DashboardContent() {
                 maxWidth: 520,
               }}
             >
-              {partnerName ? (
+              {showDemo && partnerName ? (
                 <>
                   Today&apos;s brief went out at{" "}
                   <span style={{ color: T.sage }}>6:02</span>. You and{" "}
@@ -942,45 +1078,51 @@ function DashboardContent() {
             </p>
           </div>
 
-          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-            <Link
-              href="/calendar"
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 6,
-                padding: "9px 14px",
-                borderRadius: 8,
-                background: T.sage,
-                color: "#0C0F0A",
-                textDecoration: "none",
-                fontSize: 13,
-                fontWeight: 600,
-                letterSpacing: "-0.005em",
-              }}
-            >
-              See the week
-              <ArrowRight size={13} />
-            </Link>
-          </div>
+          {showDemo && (
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              <Link
+                href="/calendar"
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 6,
+                  padding: "9px 14px",
+                  borderRadius: 8,
+                  background: T.sage,
+                  color: "#0C0F0A",
+                  textDecoration: "none",
+                  fontSize: 13,
+                  fontWeight: 600,
+                  letterSpacing: "-0.005em",
+                }}
+              >
+                See the week
+                <ArrowRight size={13} />
+              </Link>
+            </div>
+          )}
         </header>
 
-        {/* grid */}
-        <div
-          className="kin-dash-grid"
-          style={{
-            display: "grid",
-            gridTemplateColumns: "minmax(0, 1.5fr) minmax(0, 1fr)",
-            gap: 16,
-            alignItems: "stretch",
-          }}
-        >
-          <BriefingCard />
-          <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-            <ThisWeekCard />
-            <CoverageCard />
+        {showDemo ? (
+          /* grid — demo data only for demo@kinai.family / partner@kinai.family */
+          <div
+            className="kin-dash-grid"
+            style={{
+              display: "grid",
+              gridTemplateColumns: "minmax(0, 1.5fr) minmax(0, 1fr)",
+              gap: 16,
+              alignItems: "stretch",
+            }}
+          >
+            <BriefingCard />
+            <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+              <ThisWeekCard />
+              <CoverageCard />
+            </div>
           </div>
-        </div>
+        ) : (
+          <EmptyState setup={setup} />
+        )}
 
         <style>{`
           @media (max-width: 1100px) {

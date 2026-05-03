@@ -328,7 +328,7 @@ export async function POST(request: Request) {
       .finally(() => clearTimeout(timeout));
 
     const first = response.content[0];
-    if (first?.type === "text") reply = first.text.trim().slice(0, 480);
+    if (first?.type === "text") reply = first.text.trim().slice(0, 320);
   } catch (err: unknown) {
     const e = err as { name?: string; message?: string };
     if (e?.name === "AbortError" || e?.message?.includes("abort")) {

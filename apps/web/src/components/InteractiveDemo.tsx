@@ -1058,7 +1058,7 @@ function LivePhone({
                   That&apos;s a real morning with Kin.
                 </span>
                 <motion.a
-                  href="/signup"
+                  href="#waitlist-top"
                   whileHover={{ scale: 1.015 }}
                   whileTap={{ scale: 0.985 }}
                   style={{
@@ -1077,7 +1077,7 @@ function LivePhone({
                     animation: "kinPulse 2.4s ease-in-out infinite",
                   }}
                 >
-                  Start your free 7-day trial →
+                  Join the waitlist →
                 </motion.a>
               </motion.div>
             )}
