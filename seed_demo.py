@@ -1,15 +1,39 @@
 """
-Kin AI — Demo User Seed Script
-Creates two linked demo accounts with a full week of realistic family data.
-  Parent A:  demo@kinai.family   / KinDemo2026!   (Jordan Mitchell)
-  Partner:   partner@kinai.family / KinDemo2026!   (Sam Mitchell)
+Kin AI — Demo User Seed Script (idempotent)
+
+Wipes and reseeds two linked demo accounts with realistic dual-income tech-household data.
+Safe to re-run: looks up existing auth users by email, deletes their previous demo data,
+then re-inserts a fresh week.
+
+  Parent A:  demo@kinai.family    / KinDemo2026!  (Jordan Mitchell)
+  Partner:   partner@kinai.family / KinDemo2026!  (Sam Mitchell)
+
+Credentials are loaded from .env (repo root) or apps/web/.env.local.
+Required keys: SUPABASE_URL (or NEXT_PUBLIC_SUPABASE_URL), SUPABASE_SERVICE_ROLE_KEY.
 """
 
-import requests, json, sys
+import os
+import sys
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
 
-SUPABASE_URL = "https://coxqdpcffmsncvisfyvj.supabase.co"
-KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNveHFkcGNmZm1zbmN2aXNmeXZqIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NDI3ODc1MCwiZXhwIjoyMDg5ODU0NzUwfQ.FrbCtBxkfq08K7LtzmxUK1qp2AnBnxz2fPw99yFNKjE"
+import requests
+from dotenv import load_dotenv
+
+# ── env loading ───────────────────────────────────────────────────────────────
+ROOT = Path(__file__).resolve().parent
+for env_path in (ROOT / ".env", ROOT / "apps" / "web" / ".env.local"):
+    if env_path.exists():
+        load_dotenv(env_path, override=False)
+
+SUPABASE_URL = os.environ.get("SUPABASE_URL") or os.environ.get("NEXT_PUBLIC_SUPABASE_URL")
+KEY = os.environ.get("SUPABASE_SERVICE_ROLE_KEY")
+
+if not SUPABASE_URL or not KEY:
+    sys.exit(
+        "Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY.\n"
+        "Add them to .env at the repo root or apps/web/.env.local."
+    )
 
 H = {
     "Authorization": f"Bearer {KEY}",
@@ -18,58 +42,56 @@ H = {
     "Prefer": "return=representation",
 }
 
-def post(path, body):
-    r = requests.post(f"{SUPABASE_URL}{path}", headers=H, json=body)
+# ── HTTP helpers ──────────────────────────────────────────────────────────────
+def _check(r, op, path):
     if not r.ok:
-        print(f"ERROR {r.status_code} on POST {path}: {r.text}")
+        print(f"ERROR {r.status_code} on {op} {path}: {r.text}")
         sys.exit(1)
-    return r.json()
+    return r
+
+def post(path, body):
+    return _check(requests.post(f"{SUPABASE_URL}{path}", headers=H, json=body), "POST", path).json()
 
 def patch(table, match_col, match_val, body):
-    r = requests.patch(
-        f"{SUPABASE_URL}/rest/v1/{table}?{match_col}=eq.{match_val}",
-        headers=H, json=body
-    )
-    if not r.ok:
-        print(f"ERROR {r.status_code} on PATCH {table}: {r.text}")
-        sys.exit(1)
-    return r.json()
+    return _check(
+        requests.patch(
+            f"{SUPABASE_URL}/rest/v1/{table}?{match_col}=eq.{match_val}",
+            headers=H, json=body,
+        ),
+        "PATCH", table,
+    ).json()
 
 def insert(table, body):
     return post(f"/rest/v1/{table}", body)
 
-def get(table, match_col, match_val):
+def delete_where(table, query):
+    """DELETE rows from a PostgREST table matching the query string (e.g. profile_id=eq.<uuid>)."""
+    r = requests.delete(f"{SUPABASE_URL}/rest/v1/{table}?{query}", headers=H)
+    if not r.ok:
+        # 404 on missing tables is acceptable; surface anything else
+        print(f"WARN delete {table} ({query}): {r.status_code} {r.text}")
+    return r
+
+def get_admin_user_by_email(email):
+    """Look up an auth user by email via the admin API. Returns user dict or None."""
     r = requests.get(
-        f"{SUPABASE_URL}/rest/v1/{table}?{match_col}=eq.{match_val}",
-        headers=H
-    )
-    r.raise_for_status()
-    return r.json()
-
-# ── helpers ───────────────────────────────────────────────────────────────────
-def ts(day_offset, hour, minute=0):
-    """UTC timestamp: today + day_offset, at given hour:minute ET (UTC-4)."""
-    today = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
-    return (today + timedelta(days=day_offset, hours=hour + 4, minutes=minute)).isoformat()
-
-# ── 1. Create auth users (idempotent) ─────────────────────────────────────────
-print("Creating auth users...")
-
-def find_user_by_email(email):
-    r = requests.get(
-        f"{SUPABASE_URL}/auth/v1/admin/users?per_page=200",
+        f"{SUPABASE_URL}/auth/v1/admin/users",
         headers=H,
+        params={"per_page": 1000},
     )
-    r.raise_for_status()
-    for u in r.json().get("users", []):
+    _check(r, "GET", "/auth/v1/admin/users")
+    payload = r.json()
+    users = payload.get("users", payload) if isinstance(payload, dict) else payload
+    for u in users or []:
         if (u.get("email") or "").lower() == email.lower():
             return u
     return None
 
-def get_or_create_user(email, password, full_name):
-    existing = find_user_by_email(email)
+def upsert_auth_user(email, password, full_name):
+    """Create the auth user if missing, otherwise return the existing one."""
+    existing = get_admin_user_by_email(email)
     if existing:
-        print(f"  · {email} exists — reusing id {existing['id']}")
+        print(f"  reusing {email} ({existing['id']})")
         return existing["id"]
     created = post("/auth/v1/admin/users", {
         "email": email,
@@ -77,13 +99,50 @@ def get_or_create_user(email, password, full_name):
         "email_confirm": True,
         "user_metadata": {"full_name": full_name},
     })
-    print(f"  + created {email} -> {created['id']}")
+    print(f"  created {email} ({created['id']})")
     return created["id"]
 
-jordan_id = get_or_create_user("demo@kinai.family",    "KinDemo2026!", "Jordan Mitchell")
-sam_id    = get_or_create_user("partner@kinai.family", "KinDemo2026!", "Sam Mitchell")
+# ── time helpers ──────────────────────────────────────────────────────────────
+# Anchor = today 00:00 UTC; offsets/hours interpreted as ET (UTC-4) so 9am ET = 13:00 UTC.
+TODAY_UTC = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
 
-# ── 2. Update profiles (trigger already inserted bare rows) ───────────────────
+def ts(day_offset, hour, minute=0):
+    """ISO timestamp: today + day_offset, at hour:minute ET (UTC-4)."""
+    return (TODAY_UTC + timedelta(days=day_offset, hours=hour + 4, minutes=minute)).isoformat()
+
+def date_str(day_offset):
+    return (TODAY_UTC + timedelta(days=day_offset)).date().isoformat()
+
+# ── 1. Auth users (idempotent) ────────────────────────────────────────────────
+print("Resolving auth users...")
+jordan_id = upsert_auth_user("demo@kinai.family",    "KinDemo2026!", "Jordan Mitchell")
+sam_id    = upsert_auth_user("partner@kinai.family", "KinDemo2026!", "Sam Mitchell")
+
+USER_IDS = [jordan_id, sam_id]
+HOUSEHOLD_ID = jordan_id  # Jordan's profile id is the household anchor
+
+# ── 2. Wipe existing demo data ────────────────────────────────────────────────
+print("Wiping existing demo data...")
+
+ids_csv = ",".join(USER_IDS)
+
+# Per-profile tables (delete by profile_id)
+for table in (
+    "calendar_events",
+    "kin_check_ins",
+    "morning_briefings",
+    "family_members",
+    "conversations",
+    "chat_threads",
+    "sms_conversations",
+):
+    delete_where(table, f"profile_id=in.({ids_csv})")
+
+# Household-scoped tables
+delete_where("coordination_issues", f"household_id=eq.{HOUSEHOLD_ID}")
+delete_where("household_invites",   f"inviter_profile_id=eq.{HOUSEHOLD_ID}")
+
+# ── 3. Profiles ───────────────────────────────────────────────────────────────
 print("Updating profiles...")
 
 patch("profiles", "id", jordan_id, {
@@ -93,7 +152,7 @@ patch("profiles", "id", jordan_id, {
     "subscription_tier": "family",
     "onboarding_completed": True,
     "parent_role": "parent",
-    # Leave today_screen_first_opened NULL so first-use fires on first open
+    "household_id": None,  # primary parent — household anchor
 })
 
 patch("profiles", "id", sam_id, {
@@ -103,280 +162,240 @@ patch("profiles", "id", sam_id, {
     "subscription_tier": "family",
     "onboarding_completed": True,
     "parent_role": "parent",
-    "household_id": jordan_id,   # Sam is linked to Jordan's household
+    "household_id": jordan_id,
 })
 
-# ── 3. Mark household invite as accepted ──────────────────────────────────────
-print("Creating accepted household invite...")
-existing_invite = get("household_invites", "invite_code", "DEMO-SEED-2026")
-if existing_invite:
-    print("  · DEMO-SEED-2026 invite already exists — skipping")
-else:
-    insert("household_invites", {
-        "inviter_profile_id": jordan_id,
-        "invitee_email": "partner@kinai.family",
-        "invite_code": "DEMO-SEED-2026",
-        "accepted": True,
-        "accepted_by_profile_id": sam_id,
-        "accepted_at": ts(-1, 18),  # accepted yesterday evening
-        "expires_at": ts(6, 23),
-    })
-
-# ── 3b. Family members ────────────────────────────────────────────────────────
-# Both adults need their OWN row (where profile_id == their auth id) so the
-# dashboard's me = members.find(m => m.profile_id === user.id) lookup works
-# for both demo logins. The kids are duplicated under each adult so each side
-# of the household can read them via their own profile_id.
+# ── 4. Family members (kids) ──────────────────────────────────────────────────
 print("Seeding family members...")
-def upsert_family_member(profile_id, name, member_type, age=None):
-    existing = get("family_members", "name", name)
-    existing = [e for e in existing if e.get("profile_id") == profile_id]
-    if existing:
-        print(f"  · {name} already in family for {profile_id} — skipping")
-        return
-    body = {"profile_id": profile_id, "name": name, "member_type": member_type}
-    if age is not None:
-        body["age"] = age
-    insert("family_members", body)
-    print(f"  + {name} ({member_type}) under {profile_id}")
+for member in (
+    {"profile_id": jordan_id, "name": "Jaxon", "age": 3, "member_type": "child"},
+    {"profile_id": jordan_id, "name": "Ellie", "age": 6, "member_type": "child"},
+):
+    insert("family_members", member)
 
-# Jordan's view of the household
-upsert_family_member(jordan_id, "Jordan Mitchell", "adult", 38)
-upsert_family_member(jordan_id, "Sam Mitchell",    "adult", 39)
-upsert_family_member(jordan_id, "Emma Mitchell",   "child",  8)
-upsert_family_member(jordan_id, "Nora Mitchell",   "child",  2)
+# ── 5. Household invite (accepted) ────────────────────────────────────────────
+print("Creating accepted household invite...")
+insert("household_invites", {
+    "inviter_profile_id": jordan_id,
+    "invitee_email": "partner@kinai.family",
+    "invite_code": f"DEMO-SEED-{TODAY_UTC.date().isoformat()}",
+    "accepted": True,
+    "accepted_by_profile_id": sam_id,
+    "accepted_at": ts(-1, 18),
+    "expires_at": ts(6, 23),
+})
 
-# Sam's view of the household (mirrored so partner@kinai.family also sees data)
-upsert_family_member(sam_id, "Sam Mitchell",    "adult", 39)
-upsert_family_member(sam_id, "Jordan Mitchell", "adult", 38)
-upsert_family_member(sam_id, "Emma Mitchell",   "child",  8)
-upsert_family_member(sam_id, "Nora Mitchell",   "child",  2)
-
-# ── 4. Calendar events ────────────────────────────────────────────────────────
+# ── 6. Calendar events — dual-income tech household ───────────────────────────
+# Today (offset 0) in 2026-05-03 is a Sunday; offsets 1..7 are Mon..Sun.
+# Spread 7 days from today.
 print("Seeding calendar events...")
 
-def event(profile_id, title, day, start_h, end_h, start_m=0, end_m=0,
-          shared=False, kid=False, member=None, desc=None, color=None):
+JORDAN_COLOR = "#7AADCE"  # Jordan's work events
+SAM_COLOR    = "#D4748A"  # Sam's work events
+KID_COLOR    = "#7CB87A"  # kid events
+SHARED_COLOR = "#9B7EBD"  # shared family events
+
+def event(profile_id, title, day, start_h, end_h,
+          start_m=0, end_m=0,
+          shared=False, kid=False, member=None,
+          desc=None, location=None, color=None):
     e = {
         "profile_id": profile_id,
-        "household_id": jordan_id,
+        "household_id": HOUSEHOLD_ID,
         "owner_parent_id": profile_id,
         "title": title,
         "start_time": ts(day, start_h, start_m),
-        "end_time": ts(day, end_h, end_m),
+        "end_time":   ts(day, end_h,   end_m),
         "all_day": False,
         "is_shared": shared,
         "is_kid_event": kid,
         "external_source": "kin",
         "sync_status": "synced",
     }
-    if member: e["assigned_member"] = member
-    if desc:   e["description"] = desc
-    if color:  e["color"] = color
+    if member:   e["assigned_member"] = member
+    if desc:     e["description"] = desc
+    if location: e["location"] = location
+    if color:    e["color"] = color
     return e
 
-# Dual-income tech household: daily standups, sprint cadence, design reviews,
-# all-hands — layered against the family logistics that don't move (school
-# pickup, daycare close at 5:45, kids' activities). The whole point of the
-# product is making this overlay legible.
-#
-# Day offsets are relative to "today" — assumes Sat=today (offsets 0..6 cover
-# this weekend through next Friday).
-# Color legend — Jordan: #7AADCE blue, Sam: #D4748A rose, kid events: #7CB87A sage
-JORDAN_C = "#7AADCE"
-SAM_C    = "#D4748A"
-KID_C    = "#7CB87A"
+events = []
 
-# Daycare closes 5:45 PM sharp. The 5:45 → 6:00 pickup is hard to miss
-# because both parents' afternoon meetings tend to run long.
-def standup(profile_id, day, color):
-    return event(profile_id, "Standup", day, 9, 9, start_m=30, end_m=45, color=color)
+# Daily standups for both parents (weekdays = offsets 1..5 from Sunday today)
+for day in (1, 2, 3, 4, 5):
+    events.append(event(jordan_id, "Daily standup", day,  9, 9, end_m=15,
+                        color=JORDAN_COLOR, desc="Engineering team — Zoom"))
+    events.append(event(sam_id,    "Daily standup", day,  9, 9, end_m=30,
+                        start_m=30,
+                        color=SAM_COLOR,   desc="Product team — Zoom"))
 
-def daycare_pickup(profile_id, day):
-    return event(profile_id, "Nora — daycare pickup", day, 17, 18,
-                 start_m=45, end_m=0, kid=True, member="Nora", color=KID_C,
-                 desc="Daycare closes 5:45 sharp")
+# Daycare pickup every weekday (Jaxon)
+for day in (1, 2, 3, 4, 5):
+    events.append(event(jordan_id, "Jaxon daycare pickup", day, 17, 18,
+                        start_m=45, end_m=15,
+                        kid=True, member="Jaxon", color=KID_COLOR,
+                        location="Bright Horizons", desc="Hard stop — they charge after 6:15pm"))
 
-events = [
-    # ── Sat (today) — weekend, family-led ───────────────────────────────────
-    event(sam_id,    "Morning run",                0,  7,  8,                color=SAM_C),
-    event(jordan_id, "Farmers market",             0,  9, 10,    shared=True,  color=JORDAN_C,
-          desc="Grand Ave. Bring bags."),
-    event(jordan_id, "Emma's soccer game",         0, 10, 12,    kid=True, member="Emma", color=KID_C,
-          desc="Home — Riverside Park, field 3"),
-    event(sam_id,    "Birthday party — Olive's",   0, 14, 16,    kid=True, member="Emma", color=KID_C,
-          desc="Sam covers drop-off + pickup"),
-    event(sam_id,    "Movie night",                0, 19, 21,    shared=True,  color=JORDAN_C),
+# Monday — All-hands + sprint planning context
+events.append(event(jordan_id, "Weekly all-hands",     1, 14, 15,
+                    color=JORDAN_COLOR, desc="Company-wide — Zoom"))
+events.append(event(sam_id,    "Weekly all-hands",     1, 14, 15,
+                    color=SAM_COLOR,   desc="Company-wide — Zoom"))
+events.append(event(sam_id,    "Roadmap review",       1, 16, 17,
+                    color=SAM_COLOR,   desc="With VP Product"))
 
-    # ── Sun ─────────────────────────────────────────────────────────────────
-    event(jordan_id, "Grocery run",                1,  8,  9,                color=JORDAN_C),
-    event(jordan_id, "Emma's soccer practice",     1, 10, 11, end_m=30, kid=True, member="Emma", color=KID_C),
-    event(sam_id,    "Brunch with Nadia",          1, 11, 13,                color=SAM_C),
-    event(sam_id,    "Dinner — Patel family",      1, 19, 21,    shared=True,  color=SAM_C,
-          desc="Their place — bring wine"),
+# Tuesday — Sprint planning
+events.append(event(jordan_id, "Sprint planning",      2, 10, 11, end_m=30,
+                    color=JORDAN_COLOR, desc="2-week sprint kickoff"))
+events.append(event(sam_id,    "User research review", 2, 13, 14,
+                    color=SAM_COLOR,   desc="Q2 interviews — synthesis"))
+events.append(event(jordan_id, "Ellie soccer practice", 2, 17, 18, end_m=30,
+                    kid=True, member="Ellie", color=KID_COLOR,
+                    location="Riverside Field 3"))
 
-    # ── Mon — work week begins ─────────────────────────────────────────────
-    standup(jordan_id, 2, JORDAN_C),
-    standup(sam_id,    2, SAM_C),
-    event(sam_id,    "1:1 with manager",           2, 10, 11,                color=SAM_C),
-    event(jordan_id, "Design review",              2, 14, 15,                color=JORDAN_C,
-          desc="Q3 onboarding flow — 5 mocks to walk through"),
-    event(jordan_id, "Emma — school pickup",       2, 15, 15, end_m=30, kid=True, member="Emma", color=KID_C),
-    daycare_pickup(jordan_id, 2),
-    event(sam_id,    "Book club",                  2, 18, 20, start_m=30,    color=SAM_C,
-          desc="At Julia's — 'The God of Small Things'"),
+# Wednesday — 1:1s + pediatrician
+events.append(event(jordan_id, "1:1 with manager",     3, 11, 11, end_m=30,
+                    color=JORDAN_COLOR))
+events.append(event(sam_id,    "1:1 with manager",     3, 13, 14,
+                    color=SAM_COLOR))
+events.append(event(jordan_id, "Jaxon pediatrician",   3, 15, 16,
+                    kid=True, member="Jaxon", color=KID_COLOR,
+                    location="Children's Health, 2nd Ave",
+                    desc="3-year well visit + vaccines"))
 
-    # ── Tue ─────────────────────────────────────────────────────────────────
-    event(sam_id,    "Morning gym",                3,  7,  8,                color=SAM_C),
-    standup(jordan_id, 3, JORDAN_C),
-    standup(sam_id,    3, SAM_C),
-    event(jordan_id, "Sprint planning",            3, 11, 12,                color=JORDAN_C,
-          desc="2-week sprint kickoff"),
-    event(jordan_id, "Nora — pediatrician (18mo)", 3, 14, 15,    kid=True, member="Nora", color=KID_C,
-          desc="Dr. Patel — checkup + vaccines"),
-    daycare_pickup(sam_id, 3),
-    event(jordan_id, "Date night",                 3, 19, 21,    shared=True,  color=JORDAN_C,
-          desc="Oleana, 7pm reservation"),
+# Thursday — Design review + dentist
+events.append(event(jordan_id, "Design review",        4, 15, 16,
+                    color=JORDAN_COLOR, desc="Q2 redesign critique"))
+events.append(event(sam_id,    "Customer call — Acme", 4, 11, 12,
+                    color=SAM_COLOR))
+events.append(event(jordan_id, "Dentist appointment",  4, 16, 17, end_m=30,
+                    color=JORDAN_COLOR, desc="Dr. Patel — annual cleaning",
+                    location="Smile Dental, Brookline"))
 
-    # ── Wed ─────────────────────────────────────────────────────────────────
-    standup(jordan_id, 4, JORDAN_C),
-    standup(sam_id,    4, SAM_C),
-    event(jordan_id, "All-hands",                  4, 10, 11,                color=JORDAN_C),
-    event(sam_id,    "Lunch with Sarah",           4, 12, 13,                color=SAM_C),
-    event(jordan_id, "Emma — soccer practice",     4, 16, 17,    kid=True, member="Emma", color=KID_C),
-    daycare_pickup(sam_id, 4),
+# Friday — wind-down
+events.append(event(sam_id,    "Eng/Product sync",     5, 10, 11,
+                    color=SAM_COLOR))
+events.append(event(jordan_id, "Demo Friday",          5, 15, 16,
+                    color=JORDAN_COLOR, desc="Team demos — bring the prototype"))
 
-    # ── Thu ─────────────────────────────────────────────────────────────────
-    standup(jordan_id, 5, JORDAN_C),
-    standup(sam_id,    5, SAM_C),
-    event(jordan_id, "Quarterly planning",         5, 13, 15,                color=JORDAN_C,
-          desc="Cross-team — long one"),
-    event(jordan_id, "Emma — school pickup",       5, 15, 15, end_m=30, kid=True, member="Emma", color=KID_C),
-    event(sam_id,    "Happy hour — team",          5, 17, 19,                color=SAM_C),
-    daycare_pickup(jordan_id, 5),
-    event(jordan_id, "Dinner — Grandma's",         5, 18, 20,    shared=True,  color=JORDAN_C),
+# Saturday family time (offset 6)
+events.append(event(jordan_id, "Ellie soccer game",    6,  9, 11,
+                    kid=True, member="Ellie", color=KID_COLOR,
+                    location="Riverside Park", desc="Home game vs. Newton"))
+events.append(event(sam_id,    "Morning run",          6,  7, 8,
+                    color=SAM_COLOR))
+events.append(event(jordan_id, "Farmers market",       6, 11, 12,
+                    shared=True, color=SHARED_COLOR,
+                    location="Grand Ave", desc="Bring tote bags"))
+events.append(event(jordan_id, "Date night",           6, 19, 21,
+                    shared=True, color=SHARED_COLOR,
+                    location="Oleana", desc="7pm reservation — sitter confirmed"))
 
-    # ── Fri ─────────────────────────────────────────────────────────────────
-    standup(jordan_id, 6, JORDAN_C),
-    standup(sam_id,    6, SAM_C),
-    event(jordan_id, "Sprint demo",                6, 11, 12,                color=JORDAN_C),
-    event(jordan_id, "Emma — soccer practice",     6, 15, 16, end_m=30, kid=True, member="Emma", color=KID_C),
-    daycare_pickup(sam_id, 6),
-]
+# Sunday again (offset 7)
+events.append(event(jordan_id, "Family brunch",        7, 10, 11, end_m=30,
+                    shared=True, color=SHARED_COLOR,
+                    desc="Grandma's — bring the kids' overnight bag"))
 
-# Idempotent: skip events that already exist for the household
-existing_event_titles = {
-    (e.get("title"), e.get("start_time"))
-    for e in get("calendar_events", "household_id", jordan_id)
-}
-inserted_count = 0
 for e in events:
-    if (e["title"], e["start_time"]) in existing_event_titles:
-        continue
     insert("calendar_events", e)
-    inserted_count += 1
-print(f"  {inserted_count} events seeded ({len(events) - inserted_count} skipped as duplicates)")
+print(f"  {len(events)} events seeded")
 
-# ── 5. Coordination issues ────────────────────────────────────────────────────
+# ── 7. Coordination issues ────────────────────────────────────────────────────
 print("Seeding coordination issues...")
-existing_issues = get("coordination_issues", "household_id", jordan_id)
-existing_issue_keys = {(i.get("trigger_type"), i.get("state")) for i in existing_issues}
 
-def upsert_issue(body):
-    key = (body["trigger_type"], body["state"])
-    if key in existing_issue_keys:
-        print(f"  · {key} already exists — skipping")
-        return
-    insert("coordination_issues", body)
-
-# OPEN — RED standup conflict (Tuesday 9am — both parents in standup at the
-# same time, but Nora's 18-mo pediatrician is at 2pm and someone needs to
-# leave work early to make it)
-upsert_issue({
-    "household_id": jordan_id,
-    "trigger_type": "schedule_conflict",
+# OPEN — RED daycare pickup conflict tomorrow (Monday)
+insert("coordination_issues", {
+    "household_id": HOUSEHOLD_ID,
+    "trigger_type": "pickup_risk",
     "state": "OPEN",
     "severity": "RED",
-    "content": "Tuesday 2pm pediatrician for Nora — neither of you has it on the work calendar yet. Jordan's sprint planning ends at noon, so the cleanest cover is Jordan leaving by 1:30. Confirm before EOD Monday.",
-    "event_window_start": ts(3, 14, 0),
-    "event_window_end": ts(3, 15, 0),
-    "surfaced_at": ts(0, 8, 30),
+    "content": (
+        "Both parents have late-running meetings tomorrow that overlap Jaxon's 5:45pm "
+        "daycare pickup. Jordan's 1:1 ends at 5pm and Sam's roadmap review runs to 5pm — "
+        "tight margin and Bright Horizons charges after 6:15pm."
+    ),
+    "event_window_start": ts(1, 17, 0),
+    "event_window_end":   ts(1, 18, 15),
+    "surfaced_at":        ts(0, 8, 30),
 })
 
-# ACKNOWLEDGED — Monday book club lands during daycare pickup window
-upsert_issue({
-    "household_id": jordan_id,
-    "trigger_type": "late_schedule_change",
+# ACKNOWLEDGED — YELLOW Wednesday pediatrician + design review collision
+insert("coordination_issues", {
+    "household_id": HOUSEHOLD_ID,
+    "trigger_type": "schedule_compression",
     "state": "ACKNOWLEDGED",
     "severity": "YELLOW",
-    "content": "Sam's book club moved to 6:30pm Monday — that's after the 5:45 daycare pickup, but Sam was supposed to handle it. Jordan to cover Nora's pickup Monday; Sam clears straight to book club.",
-    "event_window_start": ts(2, 17, 45),
-    "event_window_end": ts(2, 18, 30),
-    "surfaced_at": ts(-1, 20, 0),
-    "acknowledged_at": ts(-1, 21, 15),
+    "content": (
+        "Wednesday is compressed: Jaxon's pediatrician is at 3pm and Jordan has a "
+        "design review at 3pm. Sam has back-to-back calls until 4pm. Jordan needs "
+        "to move the design review or Sam needs to swap a call."
+    ),
+    "event_window_start": ts(3, 14, 0),
+    "event_window_end":   ts(3, 16, 30),
+    "surfaced_at":        ts(-1, 20, 0),
+    "acknowledged_at":    ts(-1, 21, 15),
 })
 
-# RESOLVED — yesterday's pickup risk (closed by the family)
-upsert_issue({
-    "household_id": jordan_id,
+# RESOLVED — last week's pickup risk
+insert("coordination_issues", {
+    "household_id": HOUSEHOLD_ID,
     "trigger_type": "pickup_risk",
     "state": "RESOLVED",
     "severity": "YELLOW",
-    "content": "Sam's late afternoon meeting clipped Nora's 5:45 daycare pickup. Jordan stepped out of design review 15 minutes early to cover.",
-    "event_window_start": ts(-1, 17, 45),
-    "event_window_end": ts(-1, 18, 0),
-    "surfaced_at": ts(-1, 10, 0),
-    "acknowledged_at": ts(-1, 10, 45),
-    "resolved_at": ts(-1, 18, 15),
+    "content": "Jordan's sprint planning ran long Friday — Sam covered Jaxon's pickup.",
+    "event_window_start": ts(-2, 17, 30),
+    "event_window_end":   ts(-2, 18, 0),
+    "surfaced_at":        ts(-2, 10, 0),
+    "acknowledged_at":    ts(-2, 10, 45),
+    "resolved_at":        ts(-2, 18, 15),
 })
 
-# ── 6. Chat threads + message history ─────────────────────────────────────────
+# ── 8. Chat threads + messages ────────────────────────────────────────────────
 print("Seeding chat threads and messages...")
 
-def get_or_create_thread(thread_type, title, household_id_val=None):
-    threads = get("chat_threads", "profile_id", jordan_id)
-    for t in threads:
-        if t.get("thread_type") == thread_type:
-            print(f"  · {thread_type} thread exists ({t['id']}) — reusing")
-            return t["id"]
-    body = {"profile_id": jordan_id, "thread_type": thread_type, "title": title}
-    if household_id_val:
-        body["household_id"] = household_id_val
-    res = insert("chat_threads", body)
-    new_id = res[0]["id"] if isinstance(res, list) else res["id"]
-    print(f"  + {thread_type} thread created ({new_id})")
-    return new_id
+personal_thread = insert("chat_threads", {
+    "profile_id": jordan_id,
+    "thread_type": "personal",
+    "title": "Kin",
+})
+personal_id = personal_thread[0]["id"] if isinstance(personal_thread, list) else personal_thread["id"]
 
-personal_id  = get_or_create_thread("personal",  "Kin")
-household_id = get_or_create_thread("household", "Home", household_id_val=jordan_id)
+household_thread = insert("chat_threads", {
+    "profile_id": jordan_id,
+    "thread_type": "household",
+    "household_id": HOUSEHOLD_ID,
+    "title": "Home",
+})
+household_id_thread = household_thread[0]["id"] if isinstance(household_thread, list) else household_thread["id"]
 
-# Personal thread messages (Jordan ↔ Kin)
 personal_msgs = [
-    ("user",      "Hey — what does my work week actually look like?",                    ts(-2, 9,  0)),
-    ("assistant", "Three load-bearing things: design review Monday 2pm (Q3 onboarding flow), sprint planning Tuesday at 11, all-hands Wednesday at 10. Quarterly planning Thursday 1–3pm is the long one. Standups every morning 9:30 — same as always.", ts(-2, 9,  1)),
-    ("user",      "Anything weird with Nora's pickup this week?",                        ts(-2, 9,  5)),
-    ("assistant", "Tuesday's the one to watch. Sam's covering daycare pickup at 5:45 and you've got date night at 7pm — tight but workable. The bigger pinch is Nora's 2pm pediatrician — neither of you has it on the work calendar yet. I'd confirm coverage tonight.",  ts(-2, 9,  6)),
-    ("user",      "I'll take pediatrician — sprint planning ends at noon, I can leave by 1:30.", ts(-1, 14, 0)),
-    ("assistant", "Logged. I'll block 1:30–3:30pm Tuesday on your calendar so nothing else slots in. Also — Sam's book club moved to Monday 6:30, so daycare pickup at 5:45 is on you Monday.",  ts(-1, 14, 1)),
-    ("user",      "Got it. Thanks.",                                                     ts(-1, 14, 3)),
-    ("assistant", "I'll keep an eye on it.",                                             ts(-1, 14, 3)),
+    ("user",      "What's actually on my plate this week?",                                                      ts(-2, 9, 0)),
+    ("assistant", "Three things to stay ahead of: Jaxon's pediatrician Wednesday at 3pm (you'll need to move "
+                  "the design review), date night Saturday at 7pm at Oleana, and demo Friday — your prototype's "
+                  "on the agenda. Sam covered Jaxon's pickup on Friday so you're square there.",                  ts(-2, 9, 1)),
+    ("user",      "Right — design review conflict. Can I push it?",                                              ts(-2, 9, 4)),
+    ("assistant", "Probably. The design review is a Q2 redesign critique with the team — your call to reschedule. "
+                  "Thursday 4pm is open if you want me to draft a Slack to the design lead.",                     ts(-2, 9, 5)),
+    ("user",      "Yeah draft it. Also — confirm the Oleana reservation?",                                       ts(-1, 14, 0)),
+    ("assistant", "Drafted. Oleana confirms 7pm for two on Saturday — confirmation in your inbox. Sitter is "
+                  "booked from 6:30 to 10:30pm.",                                                                  ts(-1, 14, 1)),
+    ("user",      "Perfect. Thanks.",                                                                            ts(-1, 14, 3)),
+    ("assistant", "I'll keep an eye on Wednesday — if Sam's calls shift I'll flag the pickup window again.",     ts(-1, 14, 3)),
 ]
 
-# Household thread messages
 household_msgs = [
-    ("user",      "Sam moved book club to Monday 6:30. Does that wreck pickup?",         ts(-1, 19, 0)),
-    ("assistant", "It moves it onto you. Nora's daycare pickup is 5:45 Monday — Sam was covering. If Sam's straight to book club at 6:30, you'd handle pickup and bedtime. Workable: Emma's school pickup is 3:30, Nora's at 5:45, design review wraps 3pm so you've got the window.", ts(-1, 19, 1)),
-    ("user",      "Tuesday — is date night still safe?",                                 ts(-1, 19, 10)),
-    ("assistant", "Tuesday evening is clear once Nora's pickup is handled. Sam's covering daycare at 5:45, which gets you both home by 6:15. Reservation's at Oleana 7pm — comfortable runway.",  ts(-1, 19, 11)),
-    ("user",      "Perfect. Don't let anything get scheduled over it.",                  ts(-1, 19, 14)),
-    ("assistant", "I'll flag anything that lands Tuesday evening.",                      ts(-1, 19, 15)),
+    ("user",      "Tomorrow's pickup is going to be tight — both of us have late meetings.",                     ts(-1, 19, 0)),
+    ("assistant", "Yeah — Jordan's 1:1 ends at 5pm, Sam's roadmap review runs to 5pm, daycare closes at 6:15pm. "
+                  "Whoever finishes first should head straight to Bright Horizons. Want me to set a 4:55pm "
+                  "departure ping for both of you?",                                                              ts(-1, 19, 1)),
+    ("user",      "Yes. And Wednesday?",                                                                         ts(-1, 19, 8)),
+    ("assistant", "Wednesday's the bigger one. Jaxon's pediatrician is 3pm, Jordan's design review is 3pm. "
+                  "I'd suggest Jordan moves the design review to Thursday 4pm — it's open. Sam's back-to-back "
+                  "until 4pm so can't take the appointment.",                                                      ts(-1, 19, 9)),
+    ("user",      "Agreed. Move it.",                                                                            ts(-1, 19, 12)),
+    ("assistant", "On it — drafted a note to the design lead in Jordan's personal thread.",                       ts(-1, 19, 13)),
 ]
 
 def seed_messages(msgs, thread_id, profile_id):
-    existing = get("conversations", "thread_id", thread_id)
-    if existing:
-        print(f"  · {len(existing)} messages already in thread — skipping")
-        return
     for role, content, created_at in msgs:
         insert("conversations", {
             "profile_id": profile_id,
@@ -386,89 +405,125 @@ def seed_messages(msgs, thread_id, profile_id):
             "created_at": created_at,
         })
 
-seed_messages(personal_msgs, personal_id, jordan_id)
-seed_messages(household_msgs, household_id, jordan_id)
-print(f"  {len(personal_msgs)} personal messages, {len(household_msgs)} household messages (or skipped)")
+seed_messages(personal_msgs,  personal_id,         jordan_id)
+seed_messages(household_msgs, household_id_thread, jordan_id)
+print(f"  {len(personal_msgs)} personal messages, {len(household_msgs)} household messages")
 
-# ── 7. Check-ins ──────────────────────────────────────────────────────────────
+# ── 9. SMS conversations (recent inbound/outbound) ────────────────────────────
+print("Seeding SMS conversations...")
+
+sms_log = [
+    (jordan_id, "outbound",
+     "Morning Jordan — Jaxon's pickup tomorrow is the tight spot. Sam has roadmap review until 5pm. "
+     "I'll ping whoever's free at 4:55pm.",
+     ts(0, 7, 30)),
+    (jordan_id, "inbound",
+     "ok. I can probably duck out by 4:50.",
+     ts(0, 7, 32)),
+    (jordan_id, "outbound",
+     "Got it — I'll send Sam a heads-up so they don't double-book.",
+     ts(0, 7, 33)),
+    (sam_id, "outbound",
+     "Heads up Sam — Jordan's covering Jaxon's pickup tomorrow. Your roadmap review is on.",
+     ts(0, 7, 34)),
+    (sam_id, "inbound",
+     "thx 🙏",
+     ts(0, 7, 36)),
+]
+for profile_id, direction, body, sent_at in sms_log:
+    insert("sms_conversations", {
+        "profile_id": profile_id,
+        "direction": direction,
+        "body": body,
+        "from_number": "+15555550100" if direction == "outbound" else "+15555550199",
+        "to_number":   "+15555550199" if direction == "outbound" else "+15555550100",
+        "sent_at": sent_at,
+    })
+print(f"  {len(sms_log)} SMS messages seeded")
+
+# ── 10. Morning briefings ─────────────────────────────────────────────────────
+print("Seeding morning briefings...")
+
+today_briefing = (
+    "Sunday — light day on paper but tomorrow's the squeeze.\n\n"
+    "Today: Ellie's soccer game at 9am (Riverside Park, home vs. Newton), farmers market at 11am, "
+    "date night at Oleana at 7pm — sitter confirmed 6:30–10:30pm.\n\n"
+    "Tomorrow: Jaxon daycare pickup is 5:45pm and both of you run late — Jordan's 1:1 ends at 5pm, "
+    "Sam's roadmap review runs to 5pm. I'll ping whoever's free at 4:55pm.\n\n"
+    "Wednesday heads-up: pediatrician + design review collide at 3pm. Suggesting Jordan moves the design "
+    "review to Thursday 4pm."
+)
+insert("morning_briefings", {
+    "profile_id": jordan_id,
+    "briefing_date": date_str(0),
+    "content": today_briefing,
+    "delivery_status": "sent",
+    "sent_at": ts(0, 6, 30),
+})
+insert("morning_briefings", {
+    "profile_id": sam_id,
+    "briefing_date": date_str(0),
+    "content": today_briefing,
+    "delivery_status": "sent",
+    "sent_at": ts(0, 6, 30),
+})
+
+# Yesterday's briefing for both — historical context
+yesterday_briefing = (
+    "Saturday — slow start. Sam's morning run at 7am, then nothing until evening. "
+    "Use the morning to clear weekday prep: Jaxon's daycare bag, Ellie's cleats. "
+    "Jordan: design review prep is still open for Thursday."
+)
+insert("morning_briefings", {
+    "profile_id": jordan_id,
+    "briefing_date": date_str(-1),
+    "content": yesterday_briefing,
+    "delivery_status": "sent",
+    "sent_at": ts(-1, 6, 30),
+})
+print("  4 morning briefings seeded")
+
+# ── 11. Check-ins ─────────────────────────────────────────────────────────────
 print("Seeding check-ins...")
 
-existing_checkins = get("kin_check_ins", "profile_id", jordan_id)
-if existing_checkins:
-    print(f"  · {len(existing_checkins)} check-ins already exist — skipping")
-else:
-    insert("kin_check_ins", {
-        "profile_id": jordan_id,
-        "household_id": jordan_id,
-        "content": "Emma's soccer game wraps noon — open afternoon until the birthday party at 2pm.",
-        "prompt": "Want me to suggest something quick for lunch?",
-        "dismissed": False,
-        "check_in_date": datetime.now(timezone.utc).date().isoformat(),
-    })
-    insert("kin_check_ins", {
-        "profile_id": jordan_id,
-        "household_id": jordan_id,
-        "content": "Tuesday's pediatrician is now on your calendar 1:30–3:30 — Sam confirmed.",
-        "prompt": None,
-        "dismissed": True,
-        "check_in_date": datetime.now(timezone.utc).date().isoformat(),
-    })
-    print("  2 check-ins seeded")
+insert("kin_check_ins", {
+    "profile_id": jordan_id,
+    "household_id": HOUSEHOLD_ID,
+    "content": "Date night's in 4 hours — sitter arrives at 6:30. Want a quick reminder at 6:15?",
+    "prompt": "Set a 6:15pm reminder?",
+    "dismissed": False,
+    "check_in_date": date_str(0),
+})
 
-# ── 8. Morning briefings (today, for the dashboard) ──────────────────────────
-print("Seeding today's morning briefings...")
-from datetime import date as _date
-today_iso = _date.today().isoformat()
+insert("kin_check_ins", {
+    "profile_id": jordan_id,
+    "household_id": HOUSEHOLD_ID,
+    "content": "Ellie's soccer game ended at 11 — you've got a clear stretch until 7pm.",
+    "prompt": None,
+    "dismissed": True,
+    "check_in_date": date_str(0),
+})
 
-def upsert_briefing(profile_id, content):
-    rows = get("morning_briefings", "profile_id", profile_id)
-    for r in rows:
-        if r.get("briefing_date") == today_iso:
-            print(f"  · briefing for {profile_id} on {today_iso} exists — skipping")
-            return
-    insert("morning_briefings", {
-        "profile_id": profile_id,
-        "briefing_date": today_iso,
-        "content": content,
-        "delivery_status": "sent",
-        "sent_at": datetime.now(timezone.utc).isoformat(),
-    })
-    print(f"  + briefing for {profile_id} on {today_iso}")
-
-upsert_briefing(jordan_id, (
-    "Good morning, Jordan. Saturday — light day on paper, but the real one to "
-    "plan around is the week ahead.\n\n"
-    "Today: Farmers market 9am, Emma's home soccer game 10–12, then open until "
-    "Sam takes Olive's birthday party at 2pm. Movie night 7pm.\n\n"
-    "Heads up for the work week:\n"
-    "  · Mon: Sam's book club moved to 6:30 — Nora's daycare pickup at 5:45 is "
-    "now on you. Design review wraps 3pm so you've got the window.\n"
-    "  · Tue: pediatrician for Nora 2pm — you said you'd cover. I've blocked "
-    "1:30–3:30. Date night Oleana 7pm is locked.\n"
-    "  · Wed: all-hands 10am, soccer practice 4pm with Emma.\n\n"
-    "I've got eyes on the rest. Reply STOP to pause."
-))
-upsert_briefing(sam_id, (
-    "Good morning, Sam. Saturday's calm — morning run 7am, then the rest is "
-    "Jordan's lead.\n\n"
-    "You've got Olive's birthday party with Emma 2–4pm (drop-off + pickup). "
-    "Movie night at 7.\n\n"
-    "Week ahead:\n"
-    "  · Mon: book club 6:30 at Julia's. Jordan covers Nora's 5:45 daycare.\n"
-    "  · Tue: 1:1 with manager 10am, daycare pickup 5:45 (you), then date "
-    "night with Jordan at 7.\n"
-    "  · Wed: lunch with Sarah 12pm, daycare pickup 5:45.\n\n"
-    "Standups every morning 9:30 — same cadence as Jordan's."
-))
+insert("kin_check_ins", {
+    "profile_id": sam_id,
+    "household_id": HOUSEHOLD_ID,
+    "content": "Tomorrow you've got back-to-back from 9 to 5 — daycare pickup is on Jordan.",
+    "prompt": None,
+    "dismissed": False,
+    "check_in_date": date_str(0),
+})
+print("  3 check-ins seeded")
 
 # ── Done ──────────────────────────────────────────────────────────────────────
 print("\n✅ Demo seed complete!")
-print("─" * 40)
-print("  Login A:  demo@kinai.family     / KinDemo2026!")
-print("  Login B:  partner@kinai.family  / KinDemo2026!")
+print("─" * 56)
+print(f"  Login A: demo@kinai.family     / KinDemo2026!")
+print(f"  Login B: partner@kinai.family  / KinDemo2026!")
 print(f"  Jordan ID: {jordan_id}")
 print(f"  Sam ID:    {sam_id}")
-print("─" * 40)
-print("  Jordan sees: OPEN alert + ACKNOWLEDGED alert + RESOLVED alert")
-print("  Today screen: 4 events, 1 active check-in, full week in briefing")
-print("  Conversations: personal thread (8 msgs) + household thread (6 msgs)")
+print("─" * 56)
+print(f"  {len(events)} calendar events across the next 7 days")
+print(f"  3 coordination issues (1 OPEN/RED, 1 ACK/YELLOW, 1 RESOLVED)")
+print(f"  2 chat threads with {len(personal_msgs) + len(household_msgs)} messages")
+print(f"  {len(sms_log)} SMS messages")
+print(f"  3 morning briefings, 3 check-ins, 2 kids in family_members")
