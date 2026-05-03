@@ -114,7 +114,6 @@ export default function PrivacyPage() {
                 { name: "Anthropic", desc: "AI responses are generated via Anthropic API. Your family context is sent to generate responses. Anthropic does not use your data to train their models without consent." },
                 { name: "Supabase", desc: "Your family data, conversation history, and account information is stored in Supabase with encrypted infrastructure in the United States." },
                 { name: "Stripe", desc: "Subscription payments are processed by Stripe. We never store your full payment card details." },
-                { name: "RevenueCat", desc: "If you subscribe through the App Store or Google Play, RevenueCat manages your subscription status." },
               ].map((s) => (
                 <div key={s.name} className="bg-surface-raised rounded-xl p-3">
                   <p className="text-warm-white/80 text-xs font-semibold mb-1">{s.name}</p>
