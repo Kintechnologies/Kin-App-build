@@ -330,7 +330,7 @@ export default function ChatPage() {
   const hasMessages = messages.length > 0;
 
   return (
-    <div className="flex flex-col h-[calc(100vh-12rem)]">
+    <div className="flex flex-col h-screen max-w-3xl mx-auto px-5 sm:px-8 pt-6 pb-6">
       {/* Header */}
       <div className="mb-4">
         <div className="flex items-center gap-2 mb-1">

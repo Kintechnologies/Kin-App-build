@@ -136,7 +136,7 @@ export default function SettingsPage() {
     : 0;
 
   return (
-    <div>
+    <div className="max-w-3xl mx-auto px-5 sm:px-8 pt-8 pb-16">
       <div className="flex items-center gap-2 mb-1">
         <div className="w-8 h-8 rounded-2xl bg-warm-white/10 flex items-center justify-center">
           <SettingsIcon size={16} className="text-warm-white/60" />

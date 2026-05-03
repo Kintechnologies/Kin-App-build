@@ -1,20 +1,23 @@
 "use client";
 
-import { Suspense, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
-import { Loader2, ArrowRight } from "lucide-react";
+import { Loader2, ArrowRight, Lock } from "lucide-react";
 import KinWordmark from "@/components/KinWordmark";
 
-// ─── Design tokens ────────────────────────────────────────────────────────────
+// ─── tokens ───────────────────────────────────────────────────────────────────
 const T = {
   bg: "#0C0F0A",
+  bgLift: "#14181A",
   bgCard: "#161A17",
   bgElev: "#1B201C",
   sage: "#7CB87A",
   sageBorder: "rgba(124,184,122,0.28)",
   sage12: "rgba(124,184,122,0.12)",
+  sage20: "rgba(124,184,122,0.20)",
+  hairSage: "rgba(124,184,122,0.14)",
   warm: "#F0EDE6",
   warm72: "rgba(240,237,230,0.72)",
   warm56: "rgba(240,237,230,0.56)",
@@ -23,7 +26,10 @@ const T = {
   warm12: "rgba(240,237,230,0.12)",
   warm06: "rgba(240,237,230,0.06)",
   hair: "rgba(240,237,230,0.08)",
-  mono: "'Geist Mono', 'JetBrains Mono', monospace",
+  hairStrong: "rgba(240,237,230,0.14)",
+  rose: "#D4748A",
+  mono: "var(--font-geist-mono), 'Geist Mono', 'JetBrains Mono', monospace",
+  sans: "var(--font-geist-sans), 'Geist', system-ui, sans-serif",
 };
 
 function GoogleGlyph() {
@@ -37,9 +43,9 @@ function GoogleGlyph() {
   );
 }
 
+type Method = "phone" | "email" | "password";
 type PhoneStep = "phone" | "code";
 type EmailStep = "email" | "sent";
-type Method = "phone" | "email" | "password";
 
 function SignInForm() {
   const router = useRouter();
@@ -47,19 +53,30 @@ function SignInForm() {
   const inviteCode = searchParams.get("invite");
   const demoMode = searchParams.get("demo") === "true";
 
+  const [method, setMethod] = useState<Method>(demoMode ? "password" : "phone");
   const [phoneStep, setPhoneStep] = useState<PhoneStep>("phone");
   const [emailStep, setEmailStep] = useState<EmailStep>("email");
   const [phone, setPhone] = useState("");
   const [code, setCode] = useState("");
   const [email, setEmail] = useState(demoMode ? "demo@kinai.family" : "");
-  const [password, setPassword] = useState("");
-  const [method, setMethod] = useState<Method>(demoMode ? "password" : "phone");
+  const [password, setPassword] = useState(demoMode ? "KinDemo2026!" : "");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const callbackUrl = typeof window !== "undefined"
-    ? `${window.location.origin}/auth/callback${inviteCode ? `?invite=${inviteCode}` : ""}`
-    : "/auth/callback";
+  // Keep method in sync with ?demo=true if it changes (e.g. SPA nav)
+  useEffect(() => {
+    if (demoMode) {
+      setMethod("password");
+      setEmail((e) => e || "demo@kinai.family");
+      setPassword((p) => p || "KinDemo2026!");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [demoMode]);
+
+  const callbackUrl =
+    typeof window !== "undefined"
+      ? `${window.location.origin}/auth/callback${inviteCode ? `?invite=${inviteCode}` : ""}`
+      : "/auth/callback";
 
   async function handleGoogle() {
     setError("");
@@ -91,30 +108,6 @@ function SignInForm() {
     }
     setLoading(false);
     setEmailStep("sent");
-  }
-
-  async function handlePassword(e: React.FormEvent) {
-    e.preventDefault();
-    setError("");
-    setLoading(true);
-    const supabase = createClient();
-    const { error: pwErr } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
-    if (pwErr) {
-      setError(pwErr.message);
-      setLoading(false);
-      return;
-    }
-    if (inviteCode) {
-      try {
-        const res = await fetch(`/api/invite/${inviteCode}/accept`, { method: "POST" });
-        if (res.ok) { router.push("/dashboard"); return; }
-      } catch { /* non-fatal */ }
-    }
-    const { data: profile } = await supabase.from("profiles").select("onboarding_completed").single();
-    router.push(profile?.onboarding_completed ? "/dashboard" : "/onboarding");
   }
 
   async function handleSendCode(e: React.FormEvent) {
@@ -151,23 +144,49 @@ function SignInForm() {
       setLoading(false);
       return;
     }
+    await routeAfterAuth();
+  }
+
+  async function handlePassword(e: React.FormEvent) {
+    e.preventDefault();
+    setError("");
+    setLoading(true);
+    const supabase = createClient();
+    const { error: pwErr } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+    if (pwErr) {
+      setError(pwErr.message);
+      setLoading(false);
+      return;
+    }
+    await routeAfterAuth();
+  }
+
+  async function routeAfterAuth() {
+    const supabase = createClient();
     if (inviteCode) {
       try {
         const res = await fetch(`/api/invite/${inviteCode}/accept`, { method: "POST" });
         if (res.ok) { router.push("/dashboard"); return; }
       } catch { /* non-fatal */ }
     }
-    const { data: profile } = await supabase.from("profiles").select("onboarding_completed").single();
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("onboarding_completed")
+      .single();
     router.push(profile?.onboarding_completed ? "/dashboard" : "/onboarding");
   }
 
+  // ── styles ───────────────────────────────────────────────────────────────
   const fieldStyle: React.CSSProperties = {
     width: "100%",
     height: 44,
     padding: "0 14px",
     background: "rgba(240,237,230,0.04)",
     border: `1px solid ${T.warm12}`,
-    borderRadius: 8,
+    borderRadius: 10,
     color: T.warm,
     fontSize: 14,
     fontFamily: "inherit",
@@ -182,16 +201,17 @@ function SignInForm() {
     background: T.sage,
     color: T.bg,
     border: "none",
-    borderRadius: 8,
+    borderRadius: 10,
     fontFamily: "inherit",
-    fontWeight: 500,
-    fontSize: 14.5,
+    fontWeight: 600,
+    fontSize: 14,
     cursor: loading ? "default" : "pointer",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
     gap: 8,
     opacity: loading ? 0.6 : 1,
+    letterSpacing: "-0.005em",
   };
 
   const secondaryBtnStyle: React.CSSProperties = {
@@ -200,10 +220,10 @@ function SignInForm() {
     background: "rgba(240,237,230,0.06)",
     color: T.warm,
     border: `1px solid ${T.warm12}`,
-    borderRadius: 8,
+    borderRadius: 10,
     fontFamily: "inherit",
     fontWeight: 500,
-    fontSize: 14.5,
+    fontSize: 14,
     cursor: loading ? "default" : "pointer",
     display: "flex",
     alignItems: "center",
@@ -213,190 +233,528 @@ function SignInForm() {
   };
 
   return (
-    <div style={{ width: "100%", maxWidth: 400, display: "flex", flexDirection: "column", gap: 24 }}>
-      <div style={{ textAlign: "center" }}>
-        <div style={{ fontSize: 28, fontWeight: 500, letterSpacing: "-0.025em", marginBottom: 6, color: T.warm }}>
+    <div style={{ width: "100%", maxWidth: 380, display: "flex", flexDirection: "column", gap: 22 }}>
+      <div>
+        <div
+          style={{
+            fontSize: 28,
+            fontWeight: 500,
+            letterSpacing: "-0.025em",
+            marginBottom: 6,
+            color: T.warm,
+            lineHeight: 1.1,
+          }}
+        >
           {inviteCode ? "Join your household" : "Sign in"}
         </div>
-        <div style={{ fontSize: 13.5, color: T.warm56 }}>
+        <div style={{ fontSize: 13.5, color: T.warm56, lineHeight: 1.5 }}>
           {inviteCode
             ? "Sign in to connect with your partner on Kin"
-            : "No password. Continue with Google, or get a code by text."}
+            : "Continue with Google, get a code by text, or use the demo login."}
         </div>
       </div>
 
-      {/* Google — primary */}
-      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+      {/* Google primary */}
+      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
         <button onClick={handleGoogle} disabled={loading} style={primaryBtnStyle}>
-          {loading ? <Loader2 size={16} style={{ animation: "spin 1s linear infinite" }} /> : <GoogleGlyph />}
+          {loading && method !== "password" ? (
+            <Loader2 size={16} style={{ animation: "spin 1s linear infinite" }} />
+          ) : (
+            <GoogleGlyph />
+          )}
           <span>Continue with Google</span>
         </button>
-        <div style={{ fontFamily: T.mono, fontSize: 11, color: T.warm40, letterSpacing: "0.03em", textAlign: "center" }}>
+        <div style={{ fontFamily: T.mono, fontSize: 10.5, color: T.warm40, letterSpacing: "0.04em" }}>
           {"// creates your account · no calendar access yet"}
         </div>
       </div>
 
       {/* divider */}
-      <div style={{ display: "flex", alignItems: "center", gap: 12, color: T.warm40, fontSize: 11.5, fontFamily: T.mono, letterSpacing: "0.04em" }}>
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 12,
+          color: T.warm40,
+          fontSize: 11,
+          fontFamily: T.mono,
+          letterSpacing: "0.06em",
+        }}
+      >
         <div style={{ flex: 1, height: 1, background: T.hair }} />
         <span>OR</span>
         <div style={{ flex: 1, height: 1, background: T.hair }} />
       </div>
 
-      {/* Method toggle — segmented control */}
-      <div style={{
-        display: "flex",
-        width: "100%",
-        padding: 3,
-        background: "rgba(240,237,230,0.04)",
-        border: `1px solid ${T.warm12}`,
-        borderRadius: 8,
-        boxSizing: "border-box",
-      }}>
-        {(demoMode ? (["password", "email", "phone"] as const) : (["phone", "email", "password"] as const)).map((m) => (
-          <button
-            key={m}
-            type="button"
-            onClick={() => { setMethod(m); setError(""); }}
-            style={{
-              flex: 1, height: 32, border: "none",
-              borderRadius: 6,
-              background: method === m ? T.sage12 : "transparent",
-              color: method === m ? T.sage : T.warm40, fontFamily: "inherit",
-              fontSize: 13, fontWeight: 500, cursor: "pointer",
-              transition: "background 0.15s ease, color 0.15s ease",
-            }}
-          >
-            {m === "phone" ? "Text code" : m === "email" ? "Email link" : "Password"}
-          </button>
-        ))}
+      {/* Method tabs */}
+      <div
+        style={{
+          display: "flex",
+          gap: 4,
+          padding: 4,
+          background: "rgba(240,237,230,0.03)",
+          border: `1px solid ${T.hair}`,
+          borderRadius: 10,
+        }}
+      >
+        {(["phone", "email", "password"] as Method[]).map((m) => {
+          const active = method === m;
+          const label =
+            m === "phone" ? "Text code" : m === "email" ? "Email link" : "Demo login";
+          return (
+            <button
+              key={m}
+              type="button"
+              onClick={() => {
+                setMethod(m);
+                setError("");
+              }}
+              style={{
+                flex: 1,
+                height: 32,
+                border: "none",
+                borderRadius: 7,
+                background: active ? T.sage12 : "transparent",
+                color: active ? T.sage : T.warm56,
+                fontFamily: "inherit",
+                fontSize: 12.5,
+                fontWeight: active ? 500 : 400,
+                cursor: "pointer",
+                letterSpacing: "-0.005em",
+                transition: "background 160ms ease, color 160ms ease",
+              }}
+            >
+              {label}
+            </button>
+          );
+        })}
       </div>
 
       {/* Phone OTP */}
       {method === "phone" && (phoneStep === "phone" ? (
         <form onSubmit={handleSendCode} style={{ display: "flex", flexDirection: "column", gap: 12 }}>
           <div>
-            <label style={{ display: "block", fontSize: 11.5, color: T.warm56, letterSpacing: "0.04em", textTransform: "uppercase", fontWeight: 500, marginBottom: 8 }}>
-              Mobile number
-            </label>
-            <div style={{ display: "flex", alignItems: "center", width: "100%" }}>
-              <div style={{
-                height: 44, padding: "0 12px", background: "rgba(240,237,230,0.04)",
-                border: `1px solid ${T.warm12}`, borderRight: "none", borderRadius: "8px 0 0 8px",
-                display: "flex", alignItems: "center", fontSize: 14, color: T.warm40,
-                fontFamily: T.mono, flexShrink: 0, boxSizing: "border-box",
-              }}>+1</div>
-              <input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)}
-                placeholder="(415) 555-0117" autoFocus required
-                style={{ ...fieldStyle, borderRadius: "0 8px 8px 0", flex: 1, width: "auto", minWidth: 0 }} />
+            <label style={labelStyle}>Mobile number</label>
+            <div style={{ display: "flex", alignItems: "center" }}>
+              <div
+                style={{
+                  height: 44,
+                  padding: "0 12px",
+                  background: "rgba(240,237,230,0.04)",
+                  border: `1px solid ${T.warm12}`,
+                  borderRight: "none",
+                  borderRadius: "10px 0 0 10px",
+                  display: "flex",
+                  alignItems: "center",
+                  fontSize: 14,
+                  color: T.warm40,
+                  fontFamily: T.mono,
+                  flexShrink: 0,
+                }}
+              >
+                +1
+              </div>
+              <input
+                type="tel"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                placeholder="(415) 555-0117"
+                autoFocus
+                required
+                style={{ ...fieldStyle, borderRadius: "0 10px 10px 0" }}
+              />
             </div>
-            <div style={{ marginTop: 6, fontSize: 11, color: T.warm40, lineHeight: 1.6 }}>
-              By verifying your number you agree to receive automated SMS from Kin (daily briefings, ~1/day). Msg &amp; data rates may apply.{" "}
+            <div style={fineprintStyle}>
+              By verifying your number you agree to receive automated SMS from Kin (daily briefings,
+              ~1/day). Msg &amp; data rates may apply.{" "}
               <Link href="/terms" style={{ color: T.sage, textDecoration: "none" }}>Terms</Link>
               {" · "}
               <Link href="/privacy" style={{ color: T.sage, textDecoration: "none" }}>Privacy</Link>
               {" · Reply STOP to cancel"}
             </div>
           </div>
-          {error && <p style={{ color: "#D4748A", fontSize: 13, margin: 0 }} role="alert">{error}</p>}
+          {error && <ErrorText>{error}</ErrorText>}
           <button type="submit" disabled={loading} style={secondaryBtnStyle}>
-            {loading ? <Loader2 size={16} style={{ animation: "spin 1s linear infinite" }} /> : null}
+            {loading && <Loader2 size={16} style={{ animation: "spin 1s linear infinite" }} />}
             Text me a code
           </button>
         </form>
       ) : (
         <form onSubmit={handleVerifyCode} style={{ display: "flex", flexDirection: "column", gap: 12 }}>
           <div>
-            <label style={{ display: "block", fontSize: 11.5, color: T.warm56, letterSpacing: "0.04em", textTransform: "uppercase", fontWeight: 500, marginBottom: 8 }}>
-              6-digit code
-            </label>
-            <input type="text" inputMode="numeric" pattern="[0-9]{6}" maxLength={6}
-              value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))}
-              placeholder="123456" autoFocus required
-              style={{ ...fieldStyle, fontFamily: T.mono, letterSpacing: "0.15em", fontSize: 18, textAlign: "center" }} />
-            <div style={{ marginTop: 6, fontFamily: T.mono, fontSize: 11, color: T.warm40, textAlign: "center" }}>
-              {"// sent to +1 "}{phone}{" · "}
-              <button type="button" onClick={() => { setPhoneStep("phone"); setCode(""); setError(""); }}
-                style={{ background: "none", border: "none", color: T.sage, cursor: "pointer", fontFamily: "inherit", fontSize: "inherit", padding: 0 }}>
+            <label style={labelStyle}>6-digit code</label>
+            <input
+              type="text"
+              inputMode="numeric"
+              pattern="[0-9]{6}"
+              maxLength={6}
+              value={code}
+              onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))}
+              placeholder="123456"
+              autoFocus
+              required
+              style={{
+                ...fieldStyle,
+                fontFamily: T.mono,
+                letterSpacing: "0.15em",
+                fontSize: 18,
+                textAlign: "center",
+              }}
+            />
+            <div style={{ marginTop: 6, fontFamily: T.mono, fontSize: 11, color: T.warm40 }}>
+              {"// sent to +1 "}
+              {phone}
+              {" · "}
+              <button
+                type="button"
+                onClick={() => {
+                  setPhoneStep("phone");
+                  setCode("");
+                  setError("");
+                }}
+                style={{
+                  background: "none",
+                  border: "none",
+                  color: T.sage,
+                  cursor: "pointer",
+                  fontFamily: "inherit",
+                  fontSize: "inherit",
+                  padding: 0,
+                }}
+              >
                 change
               </button>
             </div>
           </div>
-          {error && <p style={{ color: "#D4748A", fontSize: 13, margin: 0 }} role="alert">{error}</p>}
-          <button type="submit" disabled={loading || code.length < 6}
-            style={{ ...secondaryBtnStyle, opacity: (loading || code.length < 6) ? 0.5 : 1 }}>
-            {loading ? <Loader2 size={16} style={{ animation: "spin 1s linear infinite" }} /> : <ArrowRight size={16} />}
+          {error && <ErrorText>{error}</ErrorText>}
+          <button
+            type="submit"
+            disabled={loading || code.length < 6}
+            style={{ ...secondaryBtnStyle, opacity: loading || code.length < 6 ? 0.5 : 1 }}
+          >
+            {loading ? (
+              <Loader2 size={16} style={{ animation: "spin 1s linear infinite" }} />
+            ) : (
+              <ArrowRight size={16} />
+            )}
             Verify code
           </button>
         </form>
       ))}
 
-      {/* Password */}
-      {method === "password" && (
-        <form onSubmit={handlePassword} style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-          <div>
-            <label style={{ display: "block", fontSize: 11.5, color: T.warm56, letterSpacing: "0.04em", textTransform: "uppercase", fontWeight: 500, marginBottom: 8 }}>
-              Email address
-            </label>
-            <input type="email" value={email} onChange={(e) => setEmail(e.target.value)}
-              placeholder="you@example.com" autoFocus required style={fieldStyle} />
-          </div>
-          <div>
-            <label style={{ display: "block", fontSize: 11.5, color: T.warm56, letterSpacing: "0.04em", textTransform: "uppercase", fontWeight: 500, marginBottom: 8 }}>
-              Password
-            </label>
-            <input type="password" value={password} onChange={(e) => setPassword(e.target.value)}
-              placeholder="••••••••" required style={fieldStyle} />
-            {demoMode && (
-              <div style={{ marginTop: 6, fontFamily: T.mono, fontSize: 11, color: T.warm40 }}>
-                {"// demo mode · password is KinDemo2026!"}
-              </div>
-            )}
-          </div>
-          {error && <p style={{ color: "#D4748A", fontSize: 13, margin: 0 }} role="alert">{error}</p>}
-          <button type="submit" disabled={loading || !email || !password} style={{ ...secondaryBtnStyle, opacity: (loading || !email || !password) ? 0.5 : 1 }}>
-            {loading ? <Loader2 size={16} style={{ animation: "spin 1s linear infinite" }} /> : <ArrowRight size={16} />}
-            Sign in
-          </button>
-        </form>
-      )}
-
       {/* Email magic link */}
       {method === "email" && (emailStep === "email" ? (
         <form onSubmit={handleEmailLink} style={{ display: "flex", flexDirection: "column", gap: 12 }}>
           <div>
-            <label style={{ display: "block", fontSize: 11.5, color: T.warm56, letterSpacing: "0.04em", textTransform: "uppercase", fontWeight: 500, marginBottom: 8 }}>
-              Email address
-            </label>
-            <input type="email" value={email} onChange={(e) => setEmail(e.target.value)}
-              placeholder="you@example.com" autoFocus required style={fieldStyle} />
-            <div style={{ marginTop: 6, fontFamily: T.mono, fontSize: 11, color: T.warm40, textAlign: "center" }}>
+            <label style={labelStyle}>Email address</label>
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="you@example.com"
+              autoFocus
+              required
+              style={fieldStyle}
+            />
+            <div style={{ marginTop: 6, fontFamily: T.mono, fontSize: 11, color: T.warm40 }}>
               {"// we'll email you a one-click sign-in link"}
             </div>
           </div>
-          {error && <p style={{ color: "#D4748A", fontSize: 13, margin: 0 }} role="alert">{error}</p>}
+          {error && <ErrorText>{error}</ErrorText>}
           <button type="submit" disabled={loading} style={secondaryBtnStyle}>
-            {loading ? <Loader2 size={16} style={{ animation: "spin 1s linear infinite" }} /> : null}
+            {loading && <Loader2 size={16} style={{ animation: "spin 1s linear infinite" }} />}
             Send link
           </button>
         </form>
       ) : (
         <div style={{ textAlign: "center", padding: "12px 0" }}>
           <div style={{ fontSize: 28, marginBottom: 12 }}>📬</div>
-          <div style={{ color: T.warm72, fontSize: 14, fontWeight: 500, marginBottom: 6 }}>Check your email</div>
-          <div style={{ color: T.warm40, fontSize: 13 }}>We sent a sign-in link to <span style={{ color: T.warm }}>{email}</span></div>
-          <button type="button" onClick={() => { setEmailStep("email"); setError(""); }}
-            style={{ background: "none", border: "none", color: T.sage, cursor: "pointer", fontSize: 12, marginTop: 12, fontFamily: "inherit" }}>
+          <div style={{ color: T.warm72, fontSize: 14, fontWeight: 500, marginBottom: 6 }}>
+            Check your email
+          </div>
+          <div style={{ color: T.warm40, fontSize: 13 }}>
+            We sent a sign-in link to <span style={{ color: T.warm }}>{email}</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => { setEmailStep("email"); setError(""); }}
+            style={{
+              background: "none",
+              border: "none",
+              color: T.sage,
+              cursor: "pointer",
+              fontSize: 12,
+              marginTop: 12,
+              fontFamily: "inherit",
+            }}
+          >
             Use a different email
           </button>
         </div>
       ))}
 
+      {/* Password (demo) */}
+      {method === "password" && (
+        <form onSubmit={handlePassword} style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          {demoMode && (
+            <div
+              style={{
+                padding: "10px 12px",
+                background: T.sage12,
+                border: `1px solid ${T.hairSage}`,
+                borderRadius: 10,
+                display: "flex",
+                gap: 10,
+                alignItems: "flex-start",
+              }}
+            >
+              <Lock size={14} style={{ color: T.sage, marginTop: 2, flexShrink: 0 }} />
+              <div style={{ fontSize: 12, color: T.warm72, lineHeight: 1.5 }}>
+                <div style={{ color: T.sage, fontWeight: 500, marginBottom: 2 }}>
+                  Demo account prefilled
+                </div>
+                Click <span style={{ color: T.warm }}>Sign in</span> to walk
+                through Kin&apos;s full dashboard with sample data.
+              </div>
+            </div>
+          )}
+          <div>
+            <label style={labelStyle}>Email</label>
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="you@example.com"
+              autoFocus={!demoMode}
+              required
+              style={fieldStyle}
+            />
+          </div>
+          <div>
+            <label style={labelStyle}>Password</label>
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="Your password"
+              required
+              style={fieldStyle}
+            />
+            <div style={{ marginTop: 6, fontFamily: T.mono, fontSize: 11, color: T.warm40 }}>
+              {"// for the demo account or invited reviewers"}
+            </div>
+          </div>
+          {error && <ErrorText>{error}</ErrorText>}
+          <button type="submit" disabled={loading || !email || !password} style={secondaryBtnStyle}>
+            {loading ? (
+              <Loader2 size={16} style={{ animation: "spin 1s linear infinite" }} />
+            ) : (
+              <Lock size={14} />
+            )}
+            Sign in
+          </button>
+        </form>
+      )}
+
       <div style={{ textAlign: "center", fontSize: 13, color: T.warm56 }}>
         New here?{" "}
-        <Link href={inviteCode ? `/signup?invite=${inviteCode}` : "/signup"} style={{ color: T.sage, textDecoration: "none" }}>
+        <Link
+          href={inviteCode ? `/signup?invite=${inviteCode}` : "/signup"}
+          style={{ color: T.sage, textDecoration: "none" }}
+        >
           Start a 7-day trial
         </Link>
+      </div>
+    </div>
+  );
+}
+
+const labelStyle: React.CSSProperties = {
+  display: "block",
+  fontSize: 11,
+  color: T.warm56,
+  letterSpacing: "0.06em",
+  textTransform: "uppercase",
+  fontWeight: 500,
+  marginBottom: 8,
+  fontFamily: T.mono,
+};
+
+const fineprintStyle: React.CSSProperties = {
+  marginTop: 6,
+  fontSize: 11,
+  color: T.warm40,
+  lineHeight: 1.55,
+};
+
+function ErrorText({ children }: { children: React.ReactNode }) {
+  return (
+    <p
+      style={{
+        color: T.rose,
+        fontSize: 13,
+        margin: 0,
+        padding: "8px 12px",
+        background: "rgba(212,116,138,0.08)",
+        border: "1px solid rgba(212,116,138,0.2)",
+        borderRadius: 8,
+      }}
+      role="alert"
+    >
+      {children}
+    </p>
+  );
+}
+
+// ─── Decorative left rail ─────────────────────────────────────────────────────
+function LeftRail() {
+  return (
+    <div
+      className="kin-signin-rail"
+      style={{
+        width: 480,
+        flexShrink: 0,
+        height: "100vh",
+        position: "sticky",
+        top: 0,
+        background: T.bgLift,
+        borderRight: `1px solid ${T.hair}`,
+        padding: "44px 48px",
+        display: "flex",
+        flexDirection: "column",
+        gap: 32,
+        overflow: "hidden",
+      }}
+    >
+      {/* ambient glow */}
+      <div
+        style={{
+          position: "absolute",
+          top: -120,
+          right: -120,
+          width: 380,
+          height: 380,
+          borderRadius: "50%",
+          background:
+            "radial-gradient(circle, rgba(124,184,122,0.18), rgba(124,184,122,0) 60%)",
+          pointerEvents: "none",
+        }}
+      />
+
+      <Link
+        href="/"
+        style={{
+          textDecoration: "none",
+          alignSelf: "flex-start",
+          position: "relative",
+        }}
+      >
+        <KinWordmark size={28} tone="sage" />
+      </Link>
+
+      <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "center", gap: 20, position: "relative" }}>
+        <div
+          style={{
+            fontFamily: T.mono,
+            fontSize: 11,
+            color: T.sage,
+            letterSpacing: "0.16em",
+            textTransform: "uppercase",
+          }}
+        >
+          {"// family AI"}
+        </div>
+        <div
+          style={{
+            fontSize: 38,
+            fontWeight: 500,
+            color: T.warm,
+            letterSpacing: "-0.03em",
+            lineHeight: 1.1,
+          }}
+        >
+          Both calendars.
+          <br />
+          <span style={{ color: T.sage }}>One number.</span>
+        </div>
+        <p
+          style={{
+            fontSize: 15,
+            color: T.warm72,
+            lineHeight: 1.55,
+            maxWidth: 360,
+            margin: 0,
+          }}
+        >
+          Kin reads your week, texts a 6 AM brief that names the conflicts and
+          who&apos;s covering — and quietly handles the seams in between.
+        </p>
+
+        {/* spec rows */}
+        <div
+          style={{
+            marginTop: 8,
+            display: "flex",
+            flexDirection: "column",
+            gap: 1,
+            border: `1px solid ${T.hair}`,
+            borderRadius: 10,
+            background: T.bgCard,
+            overflow: "hidden",
+            maxWidth: 360,
+          }}
+        >
+          {[
+            { k: "Cost", v: "$1.30 / day" },
+            { k: "Plan", v: "$39 / month" },
+            { k: "Trial", v: "7-day free" },
+          ].map((row, i) => (
+            <div
+              key={row.k}
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                padding: "11px 14px",
+                borderTop: i === 0 ? "none" : `1px solid ${T.hair}`,
+                fontSize: 13,
+              }}
+            >
+              <span
+                style={{
+                  fontFamily: T.mono,
+                  color: T.warm40,
+                  letterSpacing: "0.06em",
+                  textTransform: "uppercase",
+                  fontSize: 10.5,
+                }}
+              >
+                {row.k}
+              </span>
+              <span
+                style={{
+                  color: T.warm,
+                  fontFamily: T.mono,
+                  fontSize: 12,
+                  letterSpacing: "0.02em",
+                }}
+              >
+                {row.v}
+              </span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div
+        style={{
+          fontFamily: T.mono,
+          fontSize: 10.5,
+          color: T.warm40,
+          letterSpacing: "0.06em",
+          position: "relative",
+        }}
+      >
+        {"// kinai.family · v1"}
       </div>
     </div>
   );
@@ -405,27 +763,56 @@ function SignInForm() {
 export default function SignInPage() {
   return (
     <main
+      className="kin-signin-shell"
       style={{
         minHeight: "100vh",
-        background: "#0C0F0A",
-        color: "#F0EDE6",
-        fontFamily: "var(--font-geist-sans), Geist, system-ui, sans-serif",
+        background: T.bg,
+        color: T.warm,
+        fontFamily: T.sans,
         WebkitFontSmoothing: "antialiased",
         display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        justifyContent: "center",
-        padding: "40px 24px",
-        gap: 40,
+        flexDirection: "row",
       }}
     >
-      <Link href="/" style={{ textDecoration: "none" }}>
-        <KinWordmark size={28} tone="warm" />
-      </Link>
-      <Suspense fallback={null}>
-        <SignInForm />
-      </Suspense>
-      <style dangerouslySetInnerHTML={{ __html: `@keyframes spin { to { transform: rotate(360deg); } }` }} />
+      <LeftRail />
+      <div
+        style={{
+          flex: 1,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          padding: "40px 24px",
+          minHeight: "100vh",
+        }}
+      >
+        {/* mobile wordmark — shown above the form when the rail is hidden */}
+        <div className="kin-signin-mobile-wordmark" style={{ display: "none" }}>
+          <Link href="/" style={{ textDecoration: "none" }}>
+            <KinWordmark size={26} tone="sage" />
+          </Link>
+        </div>
+        <Suspense fallback={null}>
+          <SignInForm />
+        </Suspense>
+      </div>
+      <style
+        dangerouslySetInnerHTML={{
+          __html: `
+            @keyframes spin { to { transform: rotate(360deg); } }
+            @media (max-width: 900px) {
+              .kin-signin-rail { display: none !important; }
+              .kin-signin-shell { flex-direction: column !important; }
+              .kin-signin-mobile-wordmark {
+                display: block !important;
+                position: absolute;
+                top: 28px;
+                left: 50%;
+                transform: translateX(-50%);
+              }
+            }
+          `,
+        }}
+      />
     </main>
   );
 }
