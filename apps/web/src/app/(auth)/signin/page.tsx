@@ -39,18 +39,21 @@ function GoogleGlyph() {
 
 type PhoneStep = "phone" | "code";
 type EmailStep = "email" | "sent";
+type Method = "phone" | "email" | "password";
 
 function SignInForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const inviteCode = searchParams.get("invite");
+  const demoMode = searchParams.get("demo") === "true";
 
   const [phoneStep, setPhoneStep] = useState<PhoneStep>("phone");
   const [emailStep, setEmailStep] = useState<EmailStep>("email");
   const [phone, setPhone] = useState("");
   const [code, setCode] = useState("");
-  const [email, setEmail] = useState("");
-  const [method, setMethod] = useState<"phone" | "email">("phone");
+  const [email, setEmail] = useState(demoMode ? "demo@kinai.family" : "");
+  const [password, setPassword] = useState("");
+  const [method, setMethod] = useState<Method>(demoMode ? "password" : "phone");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -88,6 +91,30 @@ function SignInForm() {
     }
     setLoading(false);
     setEmailStep("sent");
+  }
+
+  async function handlePassword(e: React.FormEvent) {
+    e.preventDefault();
+    setError("");
+    setLoading(true);
+    const supabase = createClient();
+    const { error: pwErr } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+    if (pwErr) {
+      setError(pwErr.message);
+      setLoading(false);
+      return;
+    }
+    if (inviteCode) {
+      try {
+        const res = await fetch(`/api/invite/${inviteCode}/accept`, { method: "POST" });
+        if (res.ok) { router.push("/dashboard"); return; }
+      } catch { /* non-fatal */ }
+    }
+    const { data: profile } = await supabase.from("profiles").select("onboarding_completed").single();
+    router.push(profile?.onboarding_completed ? "/dashboard" : "/onboarding");
   }
 
   async function handleSendCode(e: React.FormEvent) {
@@ -218,7 +245,7 @@ function SignInForm() {
 
       {/* Method toggle */}
       <div style={{ display: "flex", gap: 8 }}>
-        {(["phone", "email"] as const).map((m) => (
+        {(demoMode ? (["password", "email", "phone"] as const) : (["phone", "email", "password"] as const)).map((m) => (
           <button
             key={m}
             type="button"
@@ -230,7 +257,7 @@ function SignInForm() {
               fontSize: 13, fontWeight: 500, cursor: "pointer",
             }}
           >
-            {m === "phone" ? "Text code" : "Email link"}
+            {m === "phone" ? "Text code" : m === "email" ? "Email link" : "Password"}
           </button>
         ))}
       </div>
@@ -293,6 +320,36 @@ function SignInForm() {
           </button>
         </form>
       ))}
+
+      {/* Password */}
+      {method === "password" && (
+        <form onSubmit={handlePassword} style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          <div>
+            <label style={{ display: "block", fontSize: 11.5, color: T.warm56, letterSpacing: "0.04em", textTransform: "uppercase", fontWeight: 500, marginBottom: 8 }}>
+              Email address
+            </label>
+            <input type="email" value={email} onChange={(e) => setEmail(e.target.value)}
+              placeholder="you@example.com" autoFocus required style={fieldStyle} />
+          </div>
+          <div>
+            <label style={{ display: "block", fontSize: 11.5, color: T.warm56, letterSpacing: "0.04em", textTransform: "uppercase", fontWeight: 500, marginBottom: 8 }}>
+              Password
+            </label>
+            <input type="password" value={password} onChange={(e) => setPassword(e.target.value)}
+              placeholder="••••••••" required style={fieldStyle} />
+            {demoMode && (
+              <div style={{ marginTop: 6, fontFamily: T.mono, fontSize: 11, color: T.warm40 }}>
+                {"// demo mode · password is KinDemo2026!"}
+              </div>
+            )}
+          </div>
+          {error && <p style={{ color: "#D4748A", fontSize: 13, margin: 0 }} role="alert">{error}</p>}
+          <button type="submit" disabled={loading || !email || !password} style={{ ...secondaryBtnStyle, opacity: (loading || !email || !password) ? 0.5 : 1 }}>
+            {loading ? <Loader2 size={16} style={{ animation: "spin 1s linear infinite" }} /> : <ArrowRight size={16} />}
+            Sign in
+          </button>
+        </form>
+      )}
 
       {/* Email magic link */}
       {method === "email" && (emailStep === "email" ? (

@@ -49,29 +49,39 @@ def get(table, match_col, match_val):
 # ── helpers ───────────────────────────────────────────────────────────────────
 def ts(day_offset, hour, minute=0):
     """UTC timestamp: today + day_offset, at given hour:minute ET (UTC-4)."""
-    base = datetime(2026, 4, 4, tzinfo=timezone.utc)
-    return (base + timedelta(days=day_offset, hours=hour + 4, minutes=minute)).isoformat()
+    today = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
+    return (today + timedelta(days=day_offset, hours=hour + 4, minutes=minute)).isoformat()
 
-# ── 1. Create auth users ──────────────────────────────────────────────────────
+# ── 1. Create auth users (idempotent) ─────────────────────────────────────────
 print("Creating auth users...")
 
-jordan_auth = post("/auth/v1/admin/users", {
-    "email": "demo@kinai.family",
-    "password": "KinDemo2026!",
-    "email_confirm": True,
-    "user_metadata": {"full_name": "Jordan Mitchell"}
-})
-jordan_id = jordan_auth["id"]
-print(f"  Jordan ID: {jordan_id}")
+def find_user_by_email(email):
+    r = requests.get(
+        f"{SUPABASE_URL}/auth/v1/admin/users?per_page=200",
+        headers=H,
+    )
+    r.raise_for_status()
+    for u in r.json().get("users", []):
+        if (u.get("email") or "").lower() == email.lower():
+            return u
+    return None
 
-sam_auth = post("/auth/v1/admin/users", {
-    "email": "partner@kinai.family",
-    "password": "KinDemo2026!",
-    "email_confirm": True,
-    "user_metadata": {"full_name": "Sam Mitchell"}
-})
-sam_id = sam_auth["id"]
-print(f"  Sam ID:    {sam_id}")
+def get_or_create_user(email, password, full_name):
+    existing = find_user_by_email(email)
+    if existing:
+        print(f"  · {email} exists — reusing id {existing['id']}")
+        return existing["id"]
+    created = post("/auth/v1/admin/users", {
+        "email": email,
+        "password": password,
+        "email_confirm": True,
+        "user_metadata": {"full_name": full_name},
+    })
+    print(f"  + created {email} -> {created['id']}")
+    return created["id"]
+
+jordan_id = get_or_create_user("demo@kinai.family",    "KinDemo2026!", "Jordan Mitchell")
+sam_id    = get_or_create_user("partner@kinai.family", "KinDemo2026!", "Sam Mitchell")
 
 # ── 2. Update profiles (trigger already inserted bare rows) ───────────────────
 print("Updating profiles...")
@@ -98,15 +108,38 @@ patch("profiles", "id", sam_id, {
 
 # ── 3. Mark household invite as accepted ──────────────────────────────────────
 print("Creating accepted household invite...")
-insert("household_invites", {
-    "inviter_profile_id": jordan_id,
-    "invitee_email": "partner@kinai.family",
-    "invite_code": "DEMO-SEED-2026",
-    "accepted": True,
-    "accepted_by_profile_id": sam_id,
-    "accepted_at": ts(-1, 18),  # accepted yesterday evening
-    "expires_at": ts(6, 23),
-})
+existing_invite = get("household_invites", "invite_code", "DEMO-SEED-2026")
+if existing_invite:
+    print("  · DEMO-SEED-2026 invite already exists — skipping")
+else:
+    insert("household_invites", {
+        "inviter_profile_id": jordan_id,
+        "invitee_email": "partner@kinai.family",
+        "invite_code": "DEMO-SEED-2026",
+        "accepted": True,
+        "accepted_by_profile_id": sam_id,
+        "accepted_at": ts(-1, 18),  # accepted yesterday evening
+        "expires_at": ts(6, 23),
+    })
+
+# ── 3b. Family members (Sam + kids) ───────────────────────────────────────────
+print("Seeding family members...")
+def upsert_family_member(name, member_type, age=None):
+    existing = get("family_members", "name", name)
+    existing = [e for e in existing if e.get("profile_id") == jordan_id]
+    if existing:
+        print(f"  · {name} already in family — skipping")
+        return
+    body = {"profile_id": jordan_id, "name": name, "member_type": member_type}
+    if age is not None:
+        body["age"] = age
+    insert("family_members", body)
+    print(f"  + {name} ({member_type})")
+
+upsert_family_member("Jordan Mitchell", "adult", 38)
+upsert_family_member("Sam Mitchell",    "adult", 39)
+upsert_family_member("Emma Mitchell",   "child",  8)
+upsert_family_member("Nora Mitchell",   "child",  2)
 
 # ── 4. Calendar events ────────────────────────────────────────────────────────
 print("Seeding calendar events...")
@@ -181,15 +214,33 @@ events = [
 events[14] = event(sam_id, "Book club", 2, 18, 20, start_m=30, end_m=0,
                    color="#D4748A", desc="At Julia's — 'The God of Small Things'")
 
+# Idempotent: skip events that already exist for the household
+existing_event_titles = {
+    (e.get("title"), e.get("start_time"))
+    for e in get("calendar_events", "household_id", jordan_id)
+}
+inserted_count = 0
 for e in events:
+    if (e["title"], e["start_time"]) in existing_event_titles:
+        continue
     insert("calendar_events", e)
-print(f"  {len(events)} events seeded")
+    inserted_count += 1
+print(f"  {inserted_count} events seeded ({len(events) - inserted_count} skipped as duplicates)")
 
 # ── 5. Coordination issues ────────────────────────────────────────────────────
 print("Seeding coordination issues...")
+existing_issues = get("coordination_issues", "household_id", jordan_id)
+existing_issue_keys = {(i.get("trigger_type"), i.get("state")) for i in existing_issues}
+
+def upsert_issue(body):
+    key = (body["trigger_type"], body["state"])
+    if key in existing_issue_keys:
+        print(f"  · {key} already exists — skipping")
+        return
+    insert("coordination_issues", body)
 
 # OPEN — RED pickup risk (today, 3pm conflict)
-insert("coordination_issues", {
+upsert_issue({
     "household_id": jordan_id,
     "trigger_type": "pickup_risk",
     "state": "OPEN",
@@ -201,7 +252,7 @@ insert("coordination_issues", {
 })
 
 # ACKNOWLEDGED — late schedule change (Monday book club)
-insert("coordination_issues", {
+upsert_issue({
     "household_id": jordan_id,
     "trigger_type": "late_schedule_change",
     "state": "ACKNOWLEDGED",
@@ -214,7 +265,7 @@ insert("coordination_issues", {
 })
 
 # RESOLVED — yesterday's pickup risk (resolved with closure line)
-insert("coordination_issues", {
+upsert_issue({
     "household_id": jordan_id,
     "trigger_type": "pickup_risk",
     "state": "RESOLVED",
@@ -230,22 +281,22 @@ insert("coordination_issues", {
 # ── 6. Chat threads + message history ─────────────────────────────────────────
 print("Seeding chat threads and messages...")
 
-# Jordan's personal thread
-personal_thread = insert("chat_threads", {
-    "profile_id": jordan_id,
-    "thread_type": "personal",
-    "title": "Kin",
-})
-personal_id = personal_thread[0]["id"] if isinstance(personal_thread, list) else personal_thread["id"]
+def get_or_create_thread(thread_type, title, household_id_val=None):
+    threads = get("chat_threads", "profile_id", jordan_id)
+    for t in threads:
+        if t.get("thread_type") == thread_type:
+            print(f"  · {thread_type} thread exists ({t['id']}) — reusing")
+            return t["id"]
+    body = {"profile_id": jordan_id, "thread_type": thread_type, "title": title}
+    if household_id_val:
+        body["household_id"] = household_id_val
+    res = insert("chat_threads", body)
+    new_id = res[0]["id"] if isinstance(res, list) else res["id"]
+    print(f"  + {thread_type} thread created ({new_id})")
+    return new_id
 
-# Household thread (both parents see this)
-household_thread = insert("chat_threads", {
-    "profile_id": jordan_id,
-    "thread_type": "household",
-    "household_id": jordan_id,
-    "title": "Home",
-})
-household_id = household_thread[0]["id"] if isinstance(household_thread, list) else household_thread["id"]
+personal_id  = get_or_create_thread("personal",  "Kin")
+household_id = get_or_create_thread("household", "Home", household_id_val=jordan_id)
 
 # Personal thread messages (Jordan ↔ Kin)
 personal_msgs = [
@@ -270,6 +321,10 @@ household_msgs = [
 ]
 
 def seed_messages(msgs, thread_id, profile_id):
+    existing = get("conversations", "thread_id", thread_id)
+    if existing:
+        print(f"  · {len(existing)} messages already in thread — skipping")
+        return
     for role, content, created_at in msgs:
         insert("conversations", {
             "profile_id": profile_id,
@@ -281,30 +336,69 @@ def seed_messages(msgs, thread_id, profile_id):
 
 seed_messages(personal_msgs, personal_id, jordan_id)
 seed_messages(household_msgs, household_id, jordan_id)
-print(f"  {len(personal_msgs)} personal messages, {len(household_msgs)} household messages")
+print(f"  {len(personal_msgs)} personal messages, {len(household_msgs)} household messages (or skipped)")
 
 # ── 7. Check-ins ──────────────────────────────────────────────────────────────
 print("Seeding check-ins...")
 
-insert("kin_check_ins", {
-    "profile_id": jordan_id,
-    "household_id": jordan_id,
-    "content": "Dinner's in about 3 hours — nothing on the calendar tonight.",
-    "prompt": "Want to flag what you're making so Sam knows?",
-    "dismissed": False,
-    "check_in_date": "2026-04-04",
-})
+existing_checkins = get("kin_check_ins", "profile_id", jordan_id)
+if existing_checkins:
+    print(f"  · {len(existing_checkins)} check-ins already exist — skipping")
+else:
+    insert("kin_check_ins", {
+        "profile_id": jordan_id,
+        "household_id": jordan_id,
+        "content": "Dinner's in about 3 hours — nothing on the calendar tonight.",
+        "prompt": "Want to flag what you're making so Sam knows?",
+        "dismissed": False,
+        "check_in_date": "2026-04-04",
+    })
+    insert("kin_check_ins", {
+        "profile_id": jordan_id,
+        "household_id": jordan_id,
+        "content": "Emma's soccer practice ends at noon — you've got a 3-hour window before your dentist.",
+        "prompt": None,
+        "dismissed": True,
+        "check_in_date": "2026-04-04",
+    })
+    print("  2 check-ins seeded")
 
-insert("kin_check_ins", {
-    "profile_id": jordan_id,
-    "household_id": jordan_id,
-    "content": "Emma's soccer practice ends at noon — you've got a 3-hour window before your dentist.",
-    "prompt": None,
-    "dismissed": True,   # already dismissed, shows realistic usage
-    "check_in_date": "2026-04-04",
-})
+# ── 8. Morning briefings (today, for the dashboard) ──────────────────────────
+print("Seeding today's morning briefings...")
+from datetime import date as _date
+today_iso = _date.today().isoformat()
 
-print("  2 check-ins seeded")
+def upsert_briefing(profile_id, content):
+    rows = get("morning_briefings", "profile_id", profile_id)
+    for r in rows:
+        if r.get("briefing_date") == today_iso:
+            print(f"  · briefing for {profile_id} on {today_iso} exists — skipping")
+            return
+    insert("morning_briefings", {
+        "profile_id": profile_id,
+        "briefing_date": today_iso,
+        "content": content,
+        "delivery_status": "sent",
+        "sent_at": datetime.now(timezone.utc).isoformat(),
+    })
+    print(f"  + briefing for {profile_id} on {today_iso}")
+
+upsert_briefing(jordan_id, (
+    "Good morning, Jordan. Three things on the radar today:\n\n"
+    "1. Emma's soccer practice runs 10am–12pm. Plan to be back by noon.\n"
+    "2. Your dentist with Dr. Patel is 3–4pm — Sam's Q2 finance call ends at 4:30pm, "
+    "so neither of you is available for Nora's 5pm swim pickup. I flagged this RED — "
+    "confirm coverage when you can.\n"
+    "3. Farmers Market at Grand Ave 9–10am, weather looks clear.\n\n"
+    "I've got eyes on the rest of the week."
+))
+upsert_briefing(sam_id, (
+    "Good morning, Sam. Today's lighter:\n\n"
+    "1. Morning run scheduled 7–8am.\n"
+    "2. Q2 Finance review call with Ryan at 3pm — should wrap by 4:30pm.\n"
+    "3. Heads up: Jordan's dentist (3–4pm) and Nora's swim pickup (5pm) overlap "
+    "with your call. I flagged it RED so you both know to coordinate before noon."
+))
 
 # ── Done ──────────────────────────────────────────────────────────────────────
 print("\n✅ Demo seed complete!")
