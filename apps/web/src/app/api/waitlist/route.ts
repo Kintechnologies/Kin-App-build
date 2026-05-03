@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { logActivity } from "@/lib/activity-log";
 import * as Sentry from "@sentry/nextjs";
 
 /**
@@ -104,11 +105,22 @@ export async function POST(request: Request) {
 
     if (error) {
       if (error.code === "23505") {
+        await logActivity({
+          eventType: "waitlist_existing",
+          email,
+          metadata: { source },
+        });
         return NextResponse.json({ success: true, existing: true }, { status: 200 });
       }
       Sentry.captureException(error);
       return NextResponse.json({ error: "Could not save your email" }, { status: 500 });
     }
+
+    await logActivity({
+      eventType: "waitlist_join",
+      email,
+      metadata: { source },
+    });
 
     return NextResponse.json({ success: true }, { status: 201 });
   } catch (err) {

@@ -602,6 +602,30 @@ function PlanSection({ profile }: { profile: Profile | null }) {
         Math.ceil((new Date(profile!.trial_ends_at!).getTime() - Date.now()) / (1000 * 60 * 60 * 24)),
       )
     : 0;
+  const [openingPortal, setOpeningPortal] = useState(false);
+  const [portalError, setPortalError] = useState<string | null>(null);
+
+  async function openBillingPortal() {
+    setOpeningPortal(true);
+    setPortalError(null);
+    try {
+      const res = await fetch("/api/stripe/portal", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ returnPath: "/settings" }),
+      });
+      const data = (await res.json()) as { url?: string; error?: string };
+      if (res.ok && data.url) {
+        window.location.href = data.url;
+        return;
+      }
+      setPortalError(data.error ?? "Could not open billing portal.");
+    } catch {
+      setPortalError("Network error. Please try again.");
+    } finally {
+      setOpeningPortal(false);
+    }
+  }
 
   const planLabel =
     tier === "family" ? "Kin Family" : tier === "starter" ? "Kin Starter" : "Kin Family";
@@ -738,40 +762,71 @@ function PlanSection({ profile }: { profile: Profile | null }) {
         </div>
 
         <div style={{ display: "flex", gap: "10px", flexWrap: "wrap", alignItems: "center" }}>
-          <Link
-            href="/pricing"
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: "6px",
-              background: "#7CB87A",
-              color: "#0C0F0A",
-              border: "none",
-              borderRadius: "10px",
-              padding: "10px 16px",
-              fontSize: "13.5px",
-              fontWeight: 600,
-              letterSpacing: "-0.15px",
-              textDecoration: "none",
-            }}
-          >
-            Change plan
-          </Link>
+          {tier === "free" ? (
+            <Link
+              href="/pricing"
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: "6px",
+                background: "#7CB87A",
+                color: "#0C0F0A",
+                border: "none",
+                borderRadius: "10px",
+                padding: "10px 16px",
+                fontSize: "13.5px",
+                fontWeight: 600,
+                letterSpacing: "-0.15px",
+                textDecoration: "none",
+              }}
+            >
+              Choose plan
+            </Link>
+          ) : (
+            <button
+              onClick={openBillingPortal}
+              disabled={openingPortal}
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: "6px",
+                background: "#7CB87A",
+                color: "#0C0F0A",
+                border: "none",
+                borderRadius: "10px",
+                padding: "10px 16px",
+                fontSize: "13.5px",
+                fontWeight: 600,
+                letterSpacing: "-0.15px",
+                cursor: openingPortal ? "wait" : "pointer",
+                opacity: openingPortal ? 0.6 : 1,
+              }}
+            >
+              {openingPortal && <Loader2 size={13} className="animate-spin" />}
+              Change plan
+            </button>
+          )}
           <button
+            onClick={openBillingPortal}
+            disabled={openingPortal || tier === "free"}
             style={{
               background: "transparent",
               border: "none",
               color: "rgba(240,237,230,0.4)",
               fontSize: "12.5px",
-              cursor: "pointer",
+              cursor: openingPortal ? "wait" : tier === "free" ? "not-allowed" : "pointer",
               textDecoration: "underline",
               textUnderlineOffset: "3px",
               padding: "6px 0",
               transition: "color 180ms ease",
+              opacity: tier === "free" ? 0.4 : 1,
             }}
             onMouseEnter={(e) => {
-              e.currentTarget.style.color = "rgba(212,116,138,0.85)";
+              if (tier !== "free" && !openingPortal) {
+                e.currentTarget.style.color = "rgba(212,116,138,0.85)";
+              }
             }}
             onMouseLeave={(e) => {
               e.currentTarget.style.color = "rgba(240,237,230,0.4)";
@@ -780,6 +835,18 @@ function PlanSection({ profile }: { profile: Profile | null }) {
             Cancel subscription
           </button>
         </div>
+        {portalError && (
+          <p
+            role="alert"
+            style={{
+              marginTop: "10px",
+              fontSize: "12px",
+              color: "rgba(212,116,138,0.85)",
+            }}
+          >
+            {portalError}
+          </p>
+        )}
       </div>
     </SectionCard>
   );

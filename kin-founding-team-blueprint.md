@@ -2,15 +2,73 @@
 
 **Kin Technologies LLC · kinai.family · Confidential**
 
-Version 1.0 · April 2026
+Version 2.0 · April 2026
 
 ---
 
 ## Purpose
 
-Austin Ford is a solo founder building Kin AI while working a full-time 9-to-5. This document defines the operating structure of a founding team composed primarily of AI agents, with Austin as the sole decision-maker and human operator. The goal is to run a tighter, faster, more disciplined operation than most 10-person startups — by being explicit about who does what, what requires human judgment, and where agents can operate autonomously.
+Kin AI is co-founded by **Austin Ford** (technical, product, growth) and **Jontae Ford** (operations, strategy, business). They are married, are their own first users, and live the family coordination problem the product solves every morning with their 2-year-old.
 
-This is not a hypothetical org chart. It is a working blueprint. Every role has a mandate, a daily rhythm, defined decision authority, and clear boundaries between what agents handle and what Austin must do himself.
+Both founders are working day jobs while building Kin — Austin full-time at Healia Health (a YC-backed healthcare benefits platform, where he is the Founding CSM), Jontae on a Strategy & Operations contract at DoorDash. This document defines the operating structure of a two-person founding team augmented by AI agents. The agents are not co-founders. They are leverage. Austin and Jontae are the decision-makers; the agents execute, draft, and surface decisions. The goal is to run a tighter, faster, more disciplined operation than most 10-person startups — by being explicit about who decides what, where the founders divide responsibility, and where agents can operate autonomously.
+
+This is not a hypothetical org chart. It is a working blueprint. Every role has a mandate, a daily rhythm, defined decision authority, and clear boundaries between what agents handle, what Austin owns, and what Jontae owns.
+
+---
+
+## The Co-Founders
+
+### Austin Ford — Technical Co-Founder
+
+**Background:** Two-time Founding Customer Success Manager with 8 years building post-sale functions from zero at seed and Series A startups.
+
+- **Currently:** Founding CSM at **Healia Health** (YC-backed healthcare benefits platform, pre-Series A), June 2025 – Present. Owns a $4M ARR portfolio across 35+ employer and broker accounts as the sole CS hire. Drove 150% NRR on renewing accounts in 2025 ($500K → $750K). Deploys AI tooling (custom GPTs, Claude-based account health summaries) to scale CS coverage as a solo function.
+- **Previously:** Founding CSM at **Burq Inc.** (last-mile delivery SaaS, Seed → Series A, 30 → 70 employees), June 2023 – June 2025. Built and scaled the CS org from zero — recruited, hired, and managed a team of 3 CSMs collectively owning ~150 SMB merchants and ~$1M in ARR. Drove 15% QoQ portfolio growth. Cut onboarding time-to-value by 30%.
+- **Before Burq:** Strategic Partner Manager at **DoorDash** (Aug 2021 – June 2023). Generated $3M in incremental revenue across 27 strategic partnerships. Same company Jontae works at today.
+- **Before DoorDash:** Senior Program Manager, Enterprise Success at **Upwork** (Apr 2019 – July 2021). Managed 25+ Fortune 500 accounts representing $10M+ in contract value.
+- **Earlier:** Account Manager & Market Lead at **Uber Eats** (Nov 2016 – Mar 2019). Early Uber Eats employee in Columbus and Chicago market launches. Same company Jontae was at simultaneously — they came up through the same operating system.
+
+**Stack:** Gainsight, Salesforce, HubSpot, Gong, Tableau, Snowflake, JIRA. Production AI tooling (Claude for ticket triage and feedback synthesis; custom GPTs for QBR prep, renewal forecasting, account planning). Built the entire Kin technical stack (Next.js, Supabase, Twilio, Anthropic API, Stripe) in 48 hours of focused engineering.
+
+**Why this matters for Kin:** Eight years of building post-sale operations at marketplace and SaaS companies — including DoorDash and Uber Eats, the same operating environments Jontae came from. Already inside the YC network as Founding CSM at a YC-backed company (Healia Health). Already a production AI tooling operator. The combination of marketplace operations DNA, customer-facing instinct, and shipped-AI engineering is the exact founder profile this product needs on the technical side.
+
+**Domain of responsibility:**
+- Engineering and product architecture (built the entire Kin system)
+- Brand voice and growth content (his sales/CS background is Kin's unfair advantage on the storytelling side)
+- Technical decisions and infrastructure
+- Customer-facing motion: onboarding, retention, expansion playbooks
+- Investor conversations on product, technical depth, and roadmap
+
+**Decision authority:** Final call on engineering, architecture, brand voice, technical hires, and product scope.
+
+### Jontae Ford — Co-Founder, Operations & Strategy
+
+**Background:** SMB & Marketplace Operations Leader with 8+ years at Uber and DoorDash. Currently Strategy & Operations (Contract) at DoorDash, where she owns SMB alcohol enablement operations as DRI and architected an AI-driven data pipeline (Granola.ai + Google Gemini) that turns unstructured call transcripts into structured metrics — the same kind of intelligence-layer engineering Kin applies to family coordination.
+
+Prior to DoorDash: Senior Program Manager at Uber (US&C Merchant Scaled Acquisitions), where she drove a 60% conversion lift and +14% CSAT through a Growth Consultation Pilot, cut lead qualification costs ~50% across a 1,000+ agent BPO program and a multi-million-dollar SMB acquisition budget, and founded Uber's first Sales QA program and Closed Lost taxonomy. Earlier at Uber: Supervisor of Product & Policy Program Escalations (20-person team), Safety Incident Response, Greenlight Hub. Award history: Global Support Superstar of the Year (Uber, 2018), Top Performing Team Lead (Uber, 2019), Culture Committee representative.
+
+Independent RevOps consulting (Mar 2023 – Aug 2025): 5+ concurrent B2B SaaS / e-commerce engagements building KPI dashboards, data models, and VoC programs.
+
+**Stack:** SQL, Salesforce, Mode, Sigma, Tableau. Google Advanced Data Analytics certified. Ohio State Business Administration. Based in Columbus, OH (where Kin Technologies LLC is incorporated).
+
+**Why this matters for Kin:** Marketplace operations at scale is the closest analog there is to family coordination — high-frequency, two-sided, intolerant of delay, dependent on trust. Jontae has spent 8+ years building the systems that make those marketplaces work. She's also the rare operations leader who has shipped AI-augmented operational systems in production, not as a side experiment.
+
+**Domain of responsibility:**
+- Operations: keeping the team coordinated, surfacing decisions, running the cadence
+- Business operations: revenue tracking, financial reporting, accelerator and grant applications, legal compliance
+- User research and product strategy: who is this for, what do they actually need, how does it onboard
+- Funnel mechanics, KPI design, and conversion analysis (her core technical domain)
+- Community engagement in working-parent communities (Reddit, Facebook groups)
+- Investor conversations on market, business model, ops, and customer narrative
+
+**Decision authority:** Final call on operations, financials, business model, user research, conversion funnel, and operational hires.
+
+### Shared decisions (require both founders to agree)
+
+- Strategic direction and pivots
+- Pricing changes
+- Equity grants or major equity decisions
+- Anything that affects the marriage as much as the company (this is real; ignore it at your peril)
 
 ---
 
@@ -18,27 +76,29 @@ This is not a hypothetical org chart. It is a working blueprint. Every role has 
 
 Three principles govern this team:
 
-**1. Apple-level quality bar, everywhere.** Every screen, every email, every social post, every document. If it wouldn't pass review at a company obsessed with craft, it doesn't ship. Agents are held to this standard. Austin is held to this standard.
+**1. Apple-level quality bar, everywhere.** Every screen, every email, every social post, every document. If it wouldn't pass review at a company obsessed with craft, it doesn't ship. Agents are held to this standard. Both founders are held to this standard.
 
 **2. Question everything, ship fast.** The Lead Engineer and Chief of Staff have standing authority to challenge any feature, any process, any assumption. The default question is always: "Do we actually need this, or are we building it because it feels productive?" Complexity is the enemy. Simplicity ships.
 
-**3. No money moves without Austin.** Period. Every dollar spent — tools, services, ads, contractors — requires explicit founder approval. Agents surface spending recommendations. Austin approves or kills them.
+**3. No money moves without founder approval.** Period. Every dollar spent — tools, services, ads, contractors — requires explicit approval. For technical and product spending, Austin approves. For operations, marketing, and contractor spending, Jontae approves. Anything over $200/month or any annual commitment requires both founders. Agents surface spending recommendations. Founders approve or kill them.
 
 ---
 
-## The Founding Team
+## The Operating Roles
 
-Seven roles. Each maps to a critical function. In a traditional startup these would be seven hires. Here, they are a combination of AI agent workflows and focused human time from Austin (and eventually contracted specialists).
+Seven roles. Each maps to a critical function. In a traditional startup these would be seven hires. Here, they are a combination of AI agent workflows and focused human time from Austin and Jontae (and eventually contracted specialists).
 
-| # | Role | Primary Operator |
-|---|------|-----------------|
-| 1 | Chief of Staff / Operations | Agent + Austin review |
-| 2 | Lead Engineer | Agent (Claude Code) + Austin review |
-| 3 | Brand & Growth Lead | Human (Austin) + Agent assist |
-| 4 | Product & Design Lead | Agent + Austin approval |
-| 5 | Business Operations Lead | Agent + Austin approval |
-| 6 | QA & Standards Lead | Agent + Austin review |
-| 7 | Intelligence Engineer | Agent + Austin approval |
+The "Founder Owner" column shows which co-founder reviews and approves work in this domain. When a role is split, both founders touch it.
+
+| # | Role | Primary Operator | Founder Owner |
+|---|------|-----------------|---------------|
+| 1 | Chief of Staff / Operations | Agent + founder review | **Jontae** |
+| 2 | Lead Engineer | Agent (Claude Code) + founder review | **Austin** |
+| 3 | Brand & Growth Lead | Human + Agent assist | **Austin** (voice, content) + Jontae (community ops, list growth) |
+| 4 | Product & Design Lead | Agent + founder approval | **Jontae** (user research, flows) + Austin (technical product) |
+| 5 | Business Operations Lead | Agent + founder approval | **Jontae** |
+| 6 | QA & Standards Lead | Agent + founder review | **Austin** (engineering QA) + Jontae (UX/copy QA) |
+| 7 | Intelligence Engineer | Agent + founder approval | **Austin** (system prompts, validation logic) |
 
 ---
 
@@ -46,7 +106,7 @@ Seven roles. Each maps to a critical function. In a traditional startup these wo
 
 ### Mandate
 
-The operational brain of Kin. Responsible for keeping every other role coordinated, surfacing decisions that need Austin's attention, maintaining the project timeline, and ensuring nothing falls through the cracks. This role is the connective tissue — it sees across all functions and flags conflicts, delays, and misaligned priorities before they become problems.
+The operational brain of Kin. Responsible for keeping every other role coordinated, surfacing decisions that need founder attention (routed to Austin, Jontae, or both), maintaining the project timeline, and ensuring nothing falls through the cracks. This role is the connective tissue — it sees across all functions and flags conflicts, delays, and misaligned priorities before they become problems.
 
 **Built-in mandate: Challenge assumptions.** The Chief of Staff has standing authority to question whether any task, feature, or initiative is actually necessary. If something can be cut to ship faster with higher quality, the CoS is expected to recommend the cut.
 
@@ -54,29 +114,29 @@ The operational brain of Kin. Responsible for keeping every other role coordinat
 
 | Task | Assignment | Time Est. | Notes |
 |------|-----------|-----------|-------|
-| Generate daily briefing for Austin | AGENT | — | Summary of: yesterday's progress, today's priorities, blockers, decisions needed. Delivered by 7am. |
+| Generate daily briefing for the founders | AGENT | — | Summary of: yesterday's progress, today's priorities, blockers, decisions needed. Delivered by 7am. |
 | Review all role outputs from prior day | AGENT | — | Check that deliverables from Engineering, Growth, Product, and Business Ops meet quality bar. Flag anything substandard. |
 | Prioritize and sequence today's work across roles | AGENT | — | Ensure no role is blocked waiting on another. Reorder if dependencies shift. |
-| Surface 1–3 decisions requiring Austin's input | AGENT | — | Clear framing: what's the decision, what are the options, what does CoS recommend, what's the deadline. |
-| Austin reviews briefing and makes decisions | HUMAN (Austin) | 15 min | Morning check-in. Read briefing, approve/reject/redirect. This is the single most important 15 minutes of the day. |
+| Surface 1–3 decisions requiring founder input | AGENT | — | Clear framing: what's the decision, who owns it (Austin / Jontae / both), what are the options, what does CoS recommend, what's the deadline. |
+| Founders review briefing and make decisions | HUMAN (Jontae primary, Austin on tech items) | 15 min | Morning check-in. Read briefing, approve/reject/redirect. Jontae owns operational decisions; Austin owns technical decisions; shared items get both. |
 
 ### Weekly Tasks
 
 | Task | Assignment | Time Est. | Notes |
 |------|-----------|-----------|-------|
 | Weekly progress report | AGENT | — | Metrics vs. targets, completed milestones, upcoming blockers, updated timeline. |
-| Run the "Kill List" review | AGENT + APPROVAL | 20 min | Identify features, tasks, or processes that should be cut, simplified, or deferred. Austin approves cuts. |
+| Run the "Kill List" review | AGENT + APPROVAL | 20 min | Identify features, tasks, or processes that should be cut, simplified, or deferred. Jontae approves operational cuts; Austin approves technical/scope cuts. Both approve strategic cuts. |
 | Update project timeline and phase tracking | AGENT | — | Adjust dates based on actual velocity. Flag any phase that's falling behind. |
 | Coordination sync across all roles | AGENT | — | Ensure Engineering knows what Product needs, Growth knows what's shipping, Business Ops has current numbers. |
-| Austin weekly strategy review | HUMAN (Austin) | 30 min | Review weekly report, adjust priorities, make strategic calls. Sunday evening or Monday morning. |
+| Founders weekly strategy review | HUMAN (Austin + Jontae together) | 45 min | Review weekly report, adjust priorities, make strategic calls together. Sunday evening. This is a sit-down, not async — the most important 45 minutes of the week. |
 
 ### Monthly Tasks
 
 | Task | Assignment | Time Est. | Notes |
 |------|-----------|-----------|-------|
-| Monthly operating review | AGENT + APPROVAL | 45 min | Full assessment: what shipped, what didn't, what changed, what we learned. Austin reviews and sets next month's direction. |
+| Monthly operating review | AGENT + APPROVAL | 45 min | Full assessment: what shipped, what didn't, what changed, what we learned. Both founders review and set next month's direction together. |
 | Process optimization | AGENT | — | Identify bottlenecks in the operating model. Recommend changes to workflows, cadences, or role responsibilities. |
-| Investor-ready update draft | AGENT + APPROVAL | 30 min | Even before raising, maintain a monthly update in investor-update format. Builds the habit and the data trail. |
+| Investor-ready update draft | AGENT + APPROVAL | 30 min | Even before raising, maintain a monthly update in investor-update format. Jontae owns the financial/ops sections; Austin owns the product/engineering sections. |
 
 ### Key Deliverables
 
@@ -97,7 +157,7 @@ The operational brain of Kin. Responsible for keeping every other role coordinat
 
 ### Quality Bar
 
-The daily briefing must be actionable in under 5 minutes. No filler. No "everything is on track" when it isn't. If something is behind, say it's behind and say why. The weekly report should be something Austin could forward to an investor without editing.
+The daily briefing must be actionable in under 5 minutes. No filler. No "everything is on track" when it isn't. If something is behind, say it's behind and say why. The weekly report should be something either founder could forward to an investor without editing.
 
 ---
 
@@ -105,7 +165,7 @@ The daily briefing must be actionable in under 5 minutes. No filler. No "everyth
 
 ### Mandate
 
-Build and maintain the Kin product. Responsible for all code — web app (Next.js), mobile app (React Native), backend (Supabase), AI integration (Anthropic API), payments (Stripe/RevenueCat), and infrastructure (Vercel). The Lead Engineer operates primarily through Claude Code, with Austin reviewing pull requests and approving architectural decisions.
+Build and maintain the Kin product. Responsible for all code — web app (Next.js), backend (Supabase), AI integration (Anthropic API), payments (Stripe), SMS (Twilio), and infrastructure (Vercel). The Lead Engineer operates primarily through Claude Code, with **Austin** reviewing pull requests and approving architectural decisions. Jontae is consulted on flows that affect user experience and onboarding logic.
 
 **Built-in mandate: Fight for simplicity.** The Lead Engineer has standing authority to push back on any feature request that adds complexity without proportional user value. The question is always: "Can we ship this simpler?" If a feature can be cut to a simpler version that delivers 80% of the value, the Lead Engineer is expected to recommend that path.
 
@@ -115,12 +175,12 @@ The Lead Engineer coordinates specialized sub-agents for distinct feature domain
 
 | Sub-Agent | Domain | Scope |
 |-----------|--------|-------|
-| Auth & Onboarding Agent | Authentication, onboarding flow, partner invite | Supabase Auth, 5-question onboarding, dual profile setup |
-| AI Chat Agent | Kin AI conversation engine | Anthropic API integration, context management, system prompt, conversation memory |
-| Meals Agent | Meal planning + grocery intelligence | Meal plan generation, grocery list builder, store recommendations, rating loop |
-| Budget Agent | Financial tracking | Manual entry, category management, subscription audit, spending alerts |
-| Calendar Agent | Schedule coordination | Google Calendar API, Apple CalDAV, dual-parent merge, conflict detection |
-| Infrastructure Agent | DevOps, deployment, monitoring | Vercel deployment, Supabase config, error tracking, performance |
+| Auth & Onboarding Agent | Authentication, SMS onboarding bot, partner invite | Supabase Auth, phone OTP, 4-step SMS state machine, dual profile setup |
+| SMS Routing Agent | Inbound/outbound SMS pipeline | Twilio webhook, signature validation, parent lookup, sms_conversations logging |
+| AI Conversation Agent | Kin AI conversation engine | Anthropic API integration, context assembly, conversation memory, briefing generation |
+| Calendar Agent | Schedule coordination | Google Calendar OAuth, dual-parent merge, conflict detection, briefing inputs |
+| Billing Agent | Stripe integration | Checkout, trial mechanics, subscription state, webhook handling |
+| Infrastructure Agent | DevOps, deployment, monitoring | Vercel deployment, Supabase config, A2P/10DLC compliance, error tracking |
 
 ### Daily Tasks
 
@@ -130,17 +190,17 @@ The Lead Engineer coordinates specialized sub-agents for distinct feature domain
 | Run automated test suite | AGENT | — | All tests must pass before any deploy. No exceptions. |
 | Code quality review (self-review) | AGENT | — | Check for: unused code, console.logs, hardcoded values, missing error handling, accessibility gaps. |
 | Deploy to staging for review | AGENT | — | Every meaningful change goes to staging first. Never direct to production. |
-| Austin reviews staging + approves deploy | HUMAN (Austin) | 15–30 min | Test the actual app. Click through flows. Approve production deploy or flag issues. |
+| Austin reviews staging + approves deploy | HUMAN (Austin) | 15–30 min | Test the actual app. Click through flows. Approve production deploy or flag issues. Jontae reviews any change that touches onboarding, copy, or core user-facing flows before production. |
 
 ### Weekly Tasks
 
 | Task | Assignment | Time Est. | Notes |
 |------|-----------|-----------|-------|
-| Sprint planning (next week's priorities) | AGENT + APPROVAL | 20 min | Agent proposes sprint based on phase goals. Austin approves or adjusts. |
+| Sprint planning (next week's priorities) | AGENT + APPROVAL | 20 min | Agent proposes sprint based on phase goals. Austin approves the engineering sequence; Jontae approves the user-facing scope. |
 | Technical debt review | AGENT | — | Identify and document tech debt. Recommend what to address now vs. defer. |
 | Dependency and security audit | AGENT | — | Check for outdated packages, known vulnerabilities, breaking changes in dependencies. |
 | Performance check | AGENT | — | Page load times, API response times, Anthropic API costs per conversation. Flag anything degrading. |
-| Architecture review for upcoming features | AGENT + APPROVAL | 15 min | Before building any new feature, review the proposed approach with Austin. Prevent over-engineering. |
+| Architecture review for upcoming features | AGENT + APPROVAL | 15 min | Before building any new feature, review the proposed approach with Austin. Prevent over-engineering. Jontae looped in if the feature changes the user's experience meaningfully. |
 
 ### Monthly Tasks
 
@@ -148,7 +208,7 @@ The Lead Engineer coordinates specialized sub-agents for distinct feature domain
 |------|-----------|-----------|-------|
 | Full codebase health assessment | AGENT | — | Test coverage, bundle size, database query performance, API cost trends. |
 | Supabase usage and cost review | AGENT | — | Monitor database size, auth usage, storage. Flag if approaching paid tier thresholds. |
-| Infrastructure cost report | AGENT + APPROVAL | 15 min | Total hosting/API/infra costs. Projections based on user growth. Austin reviews. |
+| Infrastructure cost report | AGENT + APPROVAL | 15 min | Total hosting/API/infra costs. Projections based on user growth. Austin reviews technical costs; Jontae reviews against the financial model. |
 
 ### Key Deliverables
 
@@ -186,25 +246,25 @@ Every screen must match the brand guide. Dark theme (#0C0F0A background), correc
 
 Own the Kin brand voice, content strategy, and user acquisition funnel. This is the most human-intensive role because authentic content creation, community engagement, and brand judgment require a human touch that agents cannot fully replicate today.
 
-Austin's sales and marketing background is Kin's unfair advantage. This role leverages it.
+**Split between founders:** Austin owns brand voice and content creation (his sales and marketing background is Kin's unfair advantage on the storytelling side). Jontae owns community operations, list growth, and user research conversations (her ops background runs the systematic side of acquisition — the funnel mechanics, the cohort tracking, the conversion data).
 
 ### Daily Tasks
 
 | Task | Assignment | Time Est. | Notes |
 |------|-----------|-----------|-------|
-| Create and post 1 short-form video (TikTok/Reels/Shorts) | HUMAN (Austin) + AGENT ASSIST | 30–45 min | Austin records screen + voiceover. Agent can draft scripts, suggest hooks, edit captions. But the voice and judgment must be Austin's. |
-| Engage in 2–3 Reddit/Facebook communities | HUMAN (Austin) | 15–20 min | Genuine answers to real questions. Mention Kin only when naturally relevant. Agent can surface relevant threads; Austin writes the replies. |
-| Draft and schedule social captions | AGENT + APPROVAL | 5 min | Agent drafts captions following brand voice guide. Austin approves or edits before posting. |
-| Monitor and respond to comments/DMs | HUMAN (Austin) | 10 min | Early-stage community building requires the founder's voice. Can be partially delegated after 500+ followers. |
+| Create and post 1 short-form video (TikTok/Reels/Shorts) | HUMAN (Austin) + AGENT ASSIST | 30–45 min | Austin records screen + voiceover. Agent can draft scripts, suggest hooks, edit captions. But the voice and judgment must be Austin's. Jontae appears in mental-load and dual-parent content — that's the most authentic visual we can show. |
+| Engage in 2–3 Reddit/Facebook communities | HUMAN (Jontae primary) | 15–20 min | Genuine answers to real questions in r/workingmoms, r/beyondthebump, dual-income parent groups. Jontae's voice lands harder in these communities than Austin's. Agent surfaces relevant threads; Jontae writes the replies. |
+| Draft and schedule social captions | AGENT + APPROVAL | 5 min | Agent drafts captions following brand voice guide. Austin approves voice; Jontae approves community-facing copy. |
+| Monitor and respond to comments/DMs | HUMAN (split) | 10 min | Austin handles content-thread comments (his videos). Jontae handles community DMs and waitlist replies. Founders' voices, not agents'. |
 
 ### Weekly Tasks
 
 | Task | Assignment | Time Est. | Notes |
 |------|-----------|-----------|-------|
-| Plan next week's content calendar | AGENT + APPROVAL | 15 min | Agent proposes 5–6 videos mapped to value props (Monday=Meals, Tuesday=Budget, etc.). Austin approves themes and hooks. |
-| Write 1 email to the waitlist/subscriber list | HUMAN (Austin) + AGENT ASSIST | 20 min | Agent drafts; Austin rewrites in his voice. These emails must feel personal, not automated. |
-| Review growth metrics | AGENT | — | Waitlist signups, video views, engagement rates, trial starts by source. Surfaced in weekly report. |
-| Identify and reach out to 2–3 micro-influencers | HUMAN (Austin) + AGENT ASSIST | 15 min | Agent can research and shortlist. Austin sends the DM. Authenticity matters — this cannot be automated. |
+| Plan next week's content calendar | AGENT + APPROVAL | 15 min | Agent proposes 5–6 videos mapped to value props. Austin approves themes and hooks; Jontae cross-checks against community signals. |
+| Write 1 email to the waitlist/subscriber list | HUMAN (Austin or Jontae) + AGENT ASSIST | 20 min | Agent drafts; founder rewrites in their voice. Alternate: Austin writes the product-update emails, Jontae writes the community/founder-story emails. These emails must feel personal, not automated. |
+| Review growth metrics | AGENT | — | Waitlist signups, video views, engagement rates, trial starts by source. Jontae owns the conversion analysis (her data background); surfaced in weekly report. |
+| Identify and reach out to 2–3 micro-influencers | HUMAN (Austin or Jontae) + AGENT ASSIST | 15 min | Agent researches and shortlists. Outreach sent from the founder whose voice fits the influencer's audience (parenting accounts → Jontae; tech/founder accounts → Austin). |
 
 ### Monthly Tasks
 
@@ -213,7 +273,7 @@ Austin's sales and marketing background is Kin's unfair advantage. This role lev
 | Content performance review | AGENT | — | Which videos performed, which hooks worked, which platforms drove trials. Data-driven recommendations for next month. |
 | Brand consistency audit | AGENT | — | Review all published content against brand guide. Flag any drift in voice, visuals, or messaging. |
 | Competitive content scan | AGENT | — | What are Cozi, Monarch, YNAB, Mealime doing in content? Any trends to adopt or avoid? |
-| Newsletter partnership outreach | HUMAN (Austin) | 30 min | After real member results exist: pitch 3–5 parenting newsletters. Agent researches targets; Austin writes pitches. |
+| Newsletter partnership outreach | HUMAN (Jontae) | 30 min | After real member results exist: pitch 3–5 parenting newsletters. Agent researches targets; Jontae writes pitches — these land harder coming from a working-mom co-founder than from Austin. |
 
 ### Key Deliverables
 
@@ -254,7 +314,7 @@ This role has two equally weighted functions: **product specification** (feature
 | Task | Assignment | Time Est. | Notes |
 |------|-----------|-----------|-------|
 | Review staging builds against design specs | AGENT | — | Compare what was built to what was specified. Flag deviations in layout, spacing, typography, color, component state rendering, and motion behavior. |
-| Write feature specs for upcoming sprint items | AGENT + APPROVAL | 10 min | Detailed specs: what the user sees, what happens on tap, edge cases, error states. Austin reviews for alignment with vision. |
+| Write feature specs for upcoming sprint items | AGENT + APPROVAL | 10 min | Detailed specs: what the user sees, what happens on tap, edge cases, error states. Jontae reviews user-facing logic; Austin reviews technical scope. |
 | Prioritize bug reports by user impact | AGENT | — | Categorize: blocks core flow (P0), degrades experience (P1), cosmetic (P2). P0s go to Lead Engineer immediately. |
 
 ### Weekly Tasks
@@ -262,9 +322,9 @@ This role has two equally weighted functions: **product specification** (feature
 | Task | Assignment | Time Est. | Notes |
 |------|-----------|-----------|-------|
 | User flow audit | AGENT | — | Walk through every core flow as a new user. Document friction points. For v0: onboarding → Today screen → alert interaction → Conversations → Settings. |
-| Component spec delivery | AGENT + APPROVAL | 20 min | Before Lead Eng builds any new screen or component: produce a full visual spec. Spec must include: layout, color tokens, typography scale, spacing, all component states (default, loading, empty, error, interactive), and motion behavior (static vs. fluid, easing, duration). Austin approves before build begins. |
+| Component spec delivery | AGENT + APPROVAL | 20 min | Before Lead Eng builds any new screen or component: produce a full visual spec. Spec must include: layout, color tokens, typography scale, spacing, all component states (default, loading, empty, error, interactive), and motion behavior (static vs. fluid, easing, duration). Austin approves visual/technical spec; Jontae approves the user-flow logic before build begins. |
 | Competitive UX + visual review | AGENT | — | Screenshot and analyze one competitor's UX and visual design each week. What do they do well? What's broken? What can Kin learn? |
-| Feature prioritization for next sprint | AGENT + APPROVAL | 15 min | Recommend what to build next based on: phase goals, user feedback (once live), and complexity. Austin approves. |
+| Feature prioritization for next sprint | AGENT + APPROVAL | 15 min | Recommend what to build next based on: phase goals, user feedback (once live), and complexity. Both founders approve — Jontae weights user pain; Austin weights build cost. |
 | Design system maintenance | AGENT | — | Ensure all components follow brand guide. Document any new patterns that emerge from new screens. |
 
 ### Monthly Tasks
@@ -272,9 +332,9 @@ This role has two equally weighted functions: **product specification** (feature
 | Task | Assignment | Time Est. | Notes |
 |------|-----------|-----------|-------|
 | Full UX + visual audit against brand guide | AGENT | — | Every screen checked against typography, color, spacing, interaction standards, and motion behavior. Includes checking for visual regressions introduced by engineering sessions. |
-| User feedback synthesis (post-launch) | AGENT + APPROVAL | 20 min | Aggregate all user feedback. Identify top 3 pain points and top 3 loved features. Austin reviews and sets direction. |
-| Feature roadmap update | AGENT + APPROVAL | 20 min | Revise the roadmap based on what's shipped, what's changed, and what users are asking for. |
-| App Store visual asset planning | AGENT + APPROVAL | 30 min | Beginning 3–4 weeks before App Store submission: produce specs for screenshots (5 required), app preview video storyboard, and icon refinement. These are purpose-built marketing artifacts, not app screenshots — they must sell Kin in 3 seconds to a stranger. Austin approves direction before production. |
+| User feedback synthesis (post-launch) | AGENT + APPROVAL | 20 min | Aggregate all user feedback. Identify top 3 pain points and top 3 loved features. **Jontae owns this** — her data analyst background is the right lens. Both founders review and set direction. |
+| Feature roadmap update | AGENT + APPROVAL | 20 min | Revise the roadmap based on what's shipped, what's changed, and what users are asking for. Both founders approve. |
+| Marketing asset planning | AGENT + APPROVAL | 30 min | Specs for landing page hero, demo screens, social cards. Austin approves visual direction; Jontae approves the messaging hierarchy and conversion logic. |
 
 ### Key Deliverables
 
@@ -315,13 +375,15 @@ If a screen looks like it could belong to any app, it's not done. If a component
 
 Own the financial, legal, and administrative infrastructure of Kin. Responsible for tracking revenue, managing subscriptions, monitoring costs, maintaining legal compliance, and preparing the business for investor conversations and accelerator applications.
 
+**Founder owner: Jontae.** Her data analyst and operations background at a high-volume marketplace makes this her domain. She owns the numbers, the reports, and the compliance calendar. Austin is a reviewer, not the operator.
+
 ### Daily Tasks
 
 | Task | Assignment | Time Est. | Notes |
 |------|-----------|-----------|-------|
 | Monitor Stripe dashboard (post-launch) | AGENT | — | New subscribers, churns, failed payments, MRR. Surfaced in daily briefing. |
 | Track trial-to-paid conversion metrics | AGENT | — | Who started trials, who's on day 3, who's on day 6, who converted. |
-| Flag any failed payments or billing issues | AGENT | — | Immediate alert to Austin for anything that needs manual intervention. |
+| Flag any failed payments or billing issues | AGENT | — | Immediate alert to Jontae (and Austin if technical) for anything that needs manual intervention. |
 
 ### Weekly Tasks
 
@@ -335,10 +397,10 @@ Own the financial, legal, and administrative infrastructure of Kin. Responsible 
 
 | Task | Assignment | Time Est. | Notes |
 |------|-----------|-----------|-------|
-| Full P&L report | AGENT + APPROVAL | 15 min | Revenue, costs, margin. Austin reviews. |
-| Legal compliance check | AGENT + APPROVAL | 15 min | Privacy policy up to date? Terms of service current? Ohio LLC annual requirements? Apple/Google compliance? |
-| Tax and accounting prep | HUMAN + AGENT ASSIST | 30 min | Agent organizes transactions and receipts. Austin (or accountant) reviews for quarterly estimates. |
-| Accelerator application drafts | AGENT + APPROVAL | 30 min | When metrics hit thresholds: draft applications for Google for Startups, Microsoft for Startups, The Brandery, YC. Austin reviews and submits. |
+| Full P&L report | AGENT + APPROVAL | 15 min | Revenue, costs, margin. Jontae reviews and signs off. |
+| Legal compliance check | AGENT + APPROVAL | 15 min | Privacy policy up to date? Terms of service current? LLC annual requirements? A2P/10DLC standing? Jontae owns the compliance calendar. |
+| Tax and accounting prep | HUMAN (Jontae) + AGENT ASSIST | 30 min | Agent organizes transactions and receipts. Jontae (or accountant) reviews for quarterly estimates. |
+| Accelerator application drafts | AGENT + APPROVAL | 30 min | When metrics hit thresholds: draft applications for YC, Google for Startups, Microsoft for Startups. Jontae owns the financial/ops sections; Austin owns the product/team sections. Both founders sign off before submission. |
 
 ### Key Deliverables
 
@@ -360,7 +422,7 @@ Own the financial, legal, and administrative infrastructure of Kin. Responsible 
 
 ### Quality Bar
 
-Financial numbers must be exact — no rounding, no estimates where actuals exist. Reports should be investor-presentable at all times. Legal documents must be reviewed by Austin before any external use. Cost projections must include both current state and projected state at 100, 500, and 1,000 members.
+Financial numbers must be exact — no rounding, no estimates where actuals exist. Reports should be investor-presentable at all times. Legal documents must be reviewed by Jontae (and an attorney for anything material) before any external use. Cost projections must include both current state and projected state at 100, 500, and 1,000 members.
 
 ---
 
@@ -369,6 +431,8 @@ Financial numbers must be exact — no rounding, no estimates where actuals exis
 ### Mandate
 
 Own quality assurance across the entire operation — not just code, but content, documents, communications, and process. This role exists because maintaining Apple-level quality requires dedicated attention. The QA Lead is the last line of defense before anything reaches a user, an investor, or the public.
+
+**Split between founders:** Austin owns engineering QA (code, deploys, infrastructure, security). Jontae owns experience QA (copy, onboarding flow, briefing tone, anything a user reads). The agents do the work; the founders gate the standard.
 
 ### Daily Tasks
 
@@ -423,7 +487,9 @@ The QA Lead holds everyone else to the quality bar. If the QA Lead wouldn't use 
 
 Own the AI behavior layer. Translate the coordination intelligence engine spec (`kin-v0-intelligence-engine.md`) into working system prompts and validate that Kin's actual outputs conform to the spec before they reach users. This role sits between Product & Design (what Kin should say) and Lead Engineering (how Kin is built) — it owns the quality of what the model actually produces.
 
-Without this role, the intelligence engine spec is a document. With it, the spec is enforced in every briefing, alert, and check-in card that surfaces to a real user.
+Without this role, the intelligence engine spec is a document. With it, the spec is enforced in every briefing and SMS reply that surfaces to a real user.
+
+**Founder owner: Austin** owns the system prompts, the validation logic, and the model-side quality bar. Jontae reviews any output sample where the question is "does this sound like a real person who understands a working parent's morning?" — the tone gate is hers; the prompt mechanics are his.
 
 **Built-in mandate: Zero tolerance for soft drift.** Every output template — briefing copy, alert text, check-in card, closure line — must pass the §26 validation test before it ships. "Good enough for now" on tone is never acceptable. Tone debt compounds faster than technical debt.
 
@@ -494,8 +560,10 @@ The Intelligence Engineer holds the model to the same standard the QA Lead holds
 ### Assignment Categories
 
 - **AGENT**: Fully autonomous. No human input needed. Agent executes and reports results.
-- **AGENT + APPROVAL**: Agent does the work. Austin reviews and approves before it goes live or takes effect.
+- **AGENT + APPROVAL**: Agent does the work. The owning founder reviews and approves before it goes live or takes effect.
 - **HUMAN (Austin)**: Must be done by Austin personally. Cannot be delegated to an agent or contractor today.
+- **HUMAN (Jontae)**: Must be done by Jontae personally. Cannot be delegated to an agent or contractor today.
+- **HUMAN (founders)**: Must be done jointly by both founders. Strategic, equity, or marriage-level decisions live here.
 - **HUMAN + AGENT ASSIST**: Human leads the task. Agent supports with research, drafts, analysis, or tooling.
 
 ### What Agents Do Well Today
@@ -504,23 +572,51 @@ Agents excel at: code generation and testing, data analysis and reporting, docum
 
 ### What Agents Cannot Do Well Today
 
-Agents struggle with: authentic community engagement (Reddit, Facebook groups), creative brand judgment (does this *feel* right?), founder-voice content (emails, DMs, pitches that must sound like Austin), relationship building (influencer outreach, investor conversations), strategic pivots (when the data says one thing but instinct says another), and anything requiring real-time human interaction (user interviews, demo calls).
+Agents struggle with: authentic community engagement (Reddit, Facebook groups — Jontae's domain), creative brand judgment (does this *feel* right?), founder-voice content (emails, DMs, pitches that must sound like Austin or Jontae depending on the audience), relationship building (influencer outreach, investor conversations), strategic pivots (when the data says one thing but instinct says another), and anything requiring real-time human interaction (user interviews, demo calls).
 
-### Austin's Daily Time Budget
+### Founder Time Budgets
 
-Target: 2–3 hours per day, executed in focused blocks around the 9-to-5.
+Both founders are working day jobs while building Kin (Austin: full-time at Healia; Jontae: Strategy & Ops contract at DoorDash). Time is the binding constraint. The budgets below are designed to fit around those roles and the realities of parenting a 2-year-old.
+
+#### Austin's Daily Time Budget
+
+Target: 2–3 hours per day, focused on engineering, content creation, and technical decisions.
 
 | Block | Time | Tasks |
 |-------|------|-------|
-| Morning (7:00–7:30am) | 30 min | Review daily briefing. Make decisions. Approve/reject. Review staging. |
-| Lunch (12:00–12:30pm) | 30 min | Community engagement (Reddit/Facebook). Respond to DMs/comments. |
-| Evening (7:00–9:00pm) | 90–120 min | Record video content. Write/approve emails. Review weekly reports. Sprint planning. Strategic thinking. |
+| Morning (7:00–7:30am) | 30 min | Review daily briefing. Make technical decisions. Approve staging deploys. Read any escalations. |
+| Lunch (12:00–12:30pm) | 30 min | Engineering review. Code review. Respond to product-thread comments on his videos. |
+| Evening (7:00–9:00pm) | 90–120 min | Engineering work, video recording, sprint planning, strategic thinking. |
 
 **Total: ~2.5 hours/day, 7 days/week during pre-launch and launch phases.**
 
+#### Jontae's Daily Time Budget
+
+Target: 1.5–2 hours per day, focused on operations, user research, community, and business.
+
+| Block | Time | Tasks |
+|-------|------|-------|
+| Morning (7:00–7:15am) | 15 min | Review daily briefing. Approve operational decisions. Flag anything for the joint sit-down. |
+| Lunch (12:00–12:30pm) | 30 min | Reddit/Facebook community engagement. Respond to waitlist DMs. Read user feedback. |
+| Evening (8:00–9:00pm) | 60 min | User research conversations (when scheduled), financial review, community ops, newsletter outreach, write founder emails. |
+
+**Total: ~1.75 hours/day, 7 days/week during pre-launch and launch phases.**
+
+#### Joint Founder Time
+
+| Block | Time | Cadence |
+|-------|------|---------|
+| Sunday strategy review | 45 min | Weekly. Sit-down, not async. Review weekly report, set priorities, approve the Kill List together. |
+| Monthly operating review | 2 hours | First weekend of each month. Joint review of P&L, roadmap, what shipped, what didn't, what changes. |
+| Investor / accelerator prep | 60–90 min, as needed | When YC, Google for Startups, etc. need a coordinated answer. |
+
+**Combined founder bandwidth: ~30 hours/week of human-focused work, plus joint review time.**
+
+This is not a lot. It's barely enough. The AI agent layer exists because it has to — without leverage, this product doesn't ship.
+
 ### Tasks That Can Be Contracted Out (Post-Revenue)
 
-Once Kin generates revenue, these tasks can move from Austin to a contracted specialist:
+Once Kin generates revenue, these tasks can move from the founders to a contracted specialist:
 
 | Task | When to Contract | Est. Cost | Role |
 |------|-----------------|-----------|------|
@@ -561,7 +657,7 @@ These are the specific moments where pushback is expected and welcomed:
 
 ### The Kill List Framework
 
-Every week, the Chief of Staff generates a "Kill List" — a recommendation of things to cut, simplify, or defer. Austin reviews and approves.
+Every week, the Chief of Staff generates a "Kill List" — a recommendation of things to cut, simplify, or defer. Both founders review and approve at the Sunday sit-down.
 
 **Kill List criteria — a feature or task goes on the Kill List if:**
 
@@ -578,7 +674,7 @@ Every week, the Chief of Staff generates a "Kill List" — a recommendation of t
 |------|---------------------|----------------|-------------------|
 | [Feature/task] | [Reason] | Cut / Simplify / Defer to Phase X | [What we gain: time, focus, simplicity] |
 
-Austin reviews weekly. Approved cuts are permanent unless explicitly reversed.
+Founders review weekly together. Approved cuts are permanent unless both founders explicitly reverse the decision.
 
 ---
 
@@ -597,22 +693,38 @@ No meetings. No Slack channels. All coordination happens through structured asyn
 | Quality Report | Updated weekly | QA Lead | Lead Engineer, Product, Austin |
 | Kill List | Generated weekly | Chief of Staff | Austin (approver) |
 
-### Decision Flow to Austin
+### Decision Flow to the Founders
 
 All decisions follow the same path:
 
-1. **Role identifies** a decision that needs Austin's input.
-2. **Role frames** the decision: context, options, recommendation, deadline.
+1. **Role identifies** a decision that needs founder input.
+2. **Role frames** the decision: context, options, recommendation, who owns it (Austin / Jontae / both), deadline.
 3. **Chief of Staff includes** it in the daily briefing (or escalates immediately if urgent).
-4. **Austin decides** during his morning review (or immediately if escalated).
+4. **The owning founder decides** during their morning review (or immediately if escalated). For shared decisions, the briefing flags them for the Sunday sit-down or for an immediate joint call.
 5. **Chief of Staff distributes** the decision to affected roles.
+
+### Founder Decision Matrix
+
+When a decision lands, the routing rule is:
+
+| Decision Type | Owner | Examples |
+|---|---|---|
+| Engineering / architecture | **Austin** | Tech stack, infrastructure, code review, deploy approval |
+| Brand voice / content | **Austin** | Video scripts, content calendar themes, founder-voice copy |
+| Operations / cadence | **Jontae** | Sprint scheduling, role priorities, community ops |
+| Financials / revenue / compliance | **Jontae** | Pricing changes <$5/mo, P&L sign-off, legal compliance |
+| User research / onboarding flow | **Jontae** | Onboarding question wording, user interview synthesis |
+| Strategic direction | **Both** | Pivots, market positioning, major roadmap shifts |
+| Pricing changes | **Both** | Any price change, any new plan |
+| Hiring / contractors | **Both** | Any external hire |
+| Equity decisions | **Both** | Always both |
 
 ### How Dispatch Fits In
 
-Dispatch (the Cowork agent environment) serves as the command center where Austin interfaces with all roles. It is the single pane of glass:
+Dispatch (the Cowork agent environment) serves as the command center where the founders interface with all roles. It is the single pane of glass:
 
-- Austin opens Dispatch to receive his daily briefing.
-- Austin uses Dispatch to issue directives, approve decisions, and review outputs.
+- Both founders receive their daily briefing through Dispatch.
+- Founders use Dispatch to issue directives, approve decisions, and review outputs.
 - All agent roles report through Dispatch.
 - Dispatch maintains the project's persistent memory — context that carries across sessions.
 
@@ -620,19 +732,19 @@ Dispatch (the Cowork agent environment) serves as the command center where Austi
 
 | Severity | Example | Escalation |
 |----------|---------|-----------|
-| **Critical (P0)** | Production is down. Data breach. Payment system broken. | Immediate alert to Austin. All other work stops until resolved. |
-| **High (P1)** | Core flow broken on staging. Security vulnerability found. User-facing bug affecting conversion. | In daily briefing, flagged as top priority. Addressed in Austin's morning review. |
+| **Critical (P0)** | Production is down. Data breach. Payment system broken. | Immediate alert to both founders. All other work stops until resolved. Austin leads technical response; Jontae leads user communication. |
+| **High (P1)** | Core flow broken on staging. Security vulnerability found. User-facing bug affecting conversion. | In daily briefing, flagged as top priority. Addressed in the morning review by the owning founder. |
 | **Medium (P2)** | Non-critical bug. Suboptimal UX. Minor brand inconsistency. | In weekly report. Addressed in sprint planning. |
 | **Low (P3)** | Cosmetic issue. Minor optimization. Documentation update. | Logged. Addressed when capacity allows. |
 
 ### Cadence Summary
 
-| Cadence | What | Austin's Time |
-|---------|------|---------------|
-| Daily | Review briefing, approve decisions, review staging | 15–30 min (morning) |
-| Daily | Content creation, community engagement | 45–60 min (lunch + evening) |
-| Weekly | Strategy review, sprint approval, Kill List review | 60–90 min (Sunday/Monday) |
-| Monthly | Operating review, financial review, roadmap update | 2–3 hours |
+| Cadence | What | Austin's Time | Jontae's Time |
+|---------|------|---------------|---------------|
+| Daily | Review briefing, approve decisions, review staging | 15–30 min (morning) | 15 min (morning) |
+| Daily | Content / community / engineering execution | 45–60 min (lunch + evening) | 60–90 min (lunch + evening) |
+| Weekly | Joint strategy review, sprint approval, Kill List | 45 min (Sunday) | 45 min (Sunday) |
+| Monthly | Operating review, financial review, roadmap | 2–3 hours | 2–3 hours |
 
 ---
 
@@ -640,15 +752,25 @@ Dispatch (the Cowork agent environment) serves as the command center where Austi
 
 ### The Rule
 
-**No money is spent without Austin's explicit, documented approval.** No exceptions. No "we'll expense it later." No "it's only $10/month." Every dollar is approved before it's committed.
+**No money is spent without explicit, documented founder approval.** No exceptions. No "we'll expense it later." No "it's only $10/month." Every dollar is approved before it's committed.
+
+### Spending Approval Routing
+
+| Spending Type | Approver |
+|---|---|
+| Engineering tools, infra, API providers | Austin |
+| Marketing tools, contractors, community spend | Jontae |
+| Anything ≥ $200/month or any annual commitment | Both founders |
+| Anything ≥ $1,000 one-time | Both founders |
+| Any contractor / hire | Both founders |
 
 ### How Spending Requests Work
 
 1. Any role identifies a need that requires spending.
 2. The role creates a Spending Request with: what it is, why it's needed, the cost (monthly and annual), alternatives considered (including free alternatives), and expected ROI.
-3. The Chief of Staff includes the request in the daily briefing.
-4. Austin approves, rejects, or defers.
-5. Approved spending is logged in the monthly P&L.
+3. The Chief of Staff includes the request in the daily briefing, routed to the correct approver(s).
+4. The owning founder(s) approve, reject, or defer.
+5. Approved spending is logged in the monthly P&L (Jontae owns this).
 
 ### Expected Cost Categories
 
@@ -670,14 +792,14 @@ Dispatch (the Cowork agent environment) serves as the command center where Austi
 1. Free tier everything until free tiers are exhausted.
 2. Annual billing only when monthly commitment is proven (3+ months of use).
 3. No marketing spend until organic content proves the message works.
-4. No contractor spend until Austin's time is clearly the bottleneck.
+4. No contractor spend until founder time is clearly the bottleneck (and the bottleneck is in a domain a contractor can actually unblock).
 5. Every cost must be justifiable to an investor asking "where did the money go?"
 
 ---
 
 ## Priority Zero: Path to $2,600/Month Net Profit
 
-This is the single most important financial milestone. $2,600/month net profit covers Austin's rent. Until this number is hit, nothing else matters — not feature expansion, not accelerator applications, not hiring. Every decision filters through: "Does this get us to $2,600 net faster?"
+This is the single most important early financial milestone. $2,600/month net profit covers the household's rent — meaning Kin is no longer a cost center on the family budget. Until this number is hit, nothing else matters — not feature expansion, not accelerator applications, not hiring. Every decision filters through: "Does this get us to $2,600 net faster?"
 
 ### The Math: Subscribers Needed
 
@@ -772,13 +894,13 @@ The Lead Engineer's #1 cost optimization lever. Techniques: summarize conversati
 The launch plan calls for 5–6 videos/week. If even one video hits 100k+ views in the parenting niche, it can drive 200+ trial starts in 48 hours. The cost is Austin's time (already allocated). The upside is asymmetric. Focus on the hooks that name the pain directly: "It's 5pm. Nobody knows what's for dinner. Again."
 
 **7. Reddit/Facebook community seeding (free, high-conversion)**
-One authentic, helpful comment in r/Mommit or r/daddit that naturally mentions Kin can drive 50 trial starts in 24 hours. This is Austin's time, but it's the highest-ROI marketing channel at zero cost.
+One authentic, helpful comment in r/Mommit, r/workingmoms, or r/daddit that naturally mentions Kin can drive 50 trial starts in 24 hours. This is Jontae's domain — her voice in working-parent communities lands harder than Austin's — and it's the highest-ROI marketing channel at zero cost.
 
 ### What NOT to Spend Money On Before $2,600 Net
 
 - Paid ads (TikTok, Instagram, Facebook) — organic first, prove the message works
 - Premium tools or SaaS upgrades — free tiers until they break
-- Contractors (video editing, VA) — Austin does it all until rent is covered
+- Contractors (video editing, VA) — the founders do it all until rent is covered
 - Influencer payments — offer free access only, no cash until revenue supports it
 - Conference tickets, networking events, or co-working spaces
 - Any tool that costs more than $20/month without a direct line to revenue
@@ -819,7 +941,7 @@ One authentic, helpful comment in r/Mommit or r/daddit that naturally mentions K
 | Business Ops | Monitor infrastructure costs. Stripe testing. Trial flow validation. | ●●○○○ |
 | QA & Standards | Testing every staging deploy. Building regression suite as features ship. | ●●●●○ |
 
-**Phase 1 exit criteria:** A real family (Austin's household) can sign up, complete onboarding, receive a personalized meal plan, view a grocery list, enter budget data, and invite a partner. Stripe checkout works. 7-day free trial works.
+**Phase 1 exit criteria:** A real family (the founders' own household) can sign up, complete the SMS onboarding bot, connect their Google Calendar, and receive a real morning briefing the next day. Stripe checkout works. 7-day free trial works. Inbound SMS replies route correctly and respond with household context.
 
 ---
 
@@ -879,32 +1001,53 @@ One authentic, helpful comment in r/Mommit or r/daddit that naturally mentions K
 
 ## Appendix: The Operator's Checklist
 
-A quick-reference for Austin's daily and weekly rhythms.
+A quick-reference for both founders' daily and weekly rhythms.
 
-**Every morning (7:00am, 15 min):**
+### Austin's Checklist
+
+**Every morning (7:00–7:30am, 30 min):**
 - [ ] Read daily briefing
-- [ ] Make pending decisions (approve/reject/redirect)
+- [ ] Make pending technical decisions (approve/reject/redirect)
 - [ ] Review staging if new deploy is waiting
 
-**Every lunch (12:00pm, 15–20 min):**
-- [ ] Engage in 2–3 community threads (Reddit/Facebook)
-- [ ] Respond to any DMs or comments
+**Every lunch (12:00–12:30pm, 30 min):**
+- [ ] Engineering review / code review
+- [ ] Respond to comments on his videos (founder voice)
 
 **Every evening (7:00–9:00pm, 90–120 min):**
 - [ ] Record 1 video (30–45 min)
-- [ ] Review and approve content drafts (10 min)
-- [ ] Write or approve 1 email if scheduled (20 min)
-- [ ] Review any escalated items
+- [ ] Engineering execution / sprint work
+- [ ] Approve content drafts (10 min)
 - [ ] Strategic thinking / roadmap review (remaining time)
 
-**Every Sunday (60–90 min):**
-- [ ] Review weekly progress report
+### Jontae's Checklist
+
+**Every morning (7:00–7:15am, 15 min):**
+- [ ] Read daily briefing
+- [ ] Make pending operational decisions
+- [ ] Flag joint-decision items for Sunday
+
+**Every lunch (12:00–12:30pm, 30 min):**
+- [ ] Engage in 2–3 parent communities (Reddit/Facebook)
+- [ ] Respond to waitlist DMs and community questions
+
+**Every evening (8:00–9:00pm, 60 min):**
+- [ ] User research conversations (when scheduled)
+- [ ] Financial review (numbers, dashboards, P&L state)
+- [ ] Newsletter / partnership outreach
+- [ ] Write founder emails (her voice — community/story emails)
+
+### Joint Founder Checklist
+
+**Every Sunday (45–60 min, in person):**
+- [ ] Review weekly progress report together
 - [ ] Approve next week's sprint
 - [ ] Review Kill List — approve cuts
 - [ ] Review financial summary
 - [ ] Set top 3 priorities for the week
+- [ ] Surface any tension before it festers (this is the marriage check, too)
 
-**First of each month (2–3 hours):**
+**First weekend of each month (2–3 hours, joint):**
 - [ ] Review monthly operating report
 - [ ] Review P&L
 - [ ] Review and update roadmap

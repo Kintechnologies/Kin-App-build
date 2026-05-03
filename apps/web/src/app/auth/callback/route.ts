@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { logActivity } from "@/lib/activity-log";
 
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
@@ -13,6 +14,9 @@ export async function GET(request: Request) {
     const { error } = await supabase.auth.exchangeCodeForSession(code);
 
     if (!error) {
+      // Fire a one-time signup alert for this user (idempotent).
+      await maybeLogSignup().catch(() => {});
+
       // If arriving via a partner invite, accept it now that the session is live.
       // Fixes #36: signUp() with email confirmation ON has no session, so accept
       // was previously called without auth and silently returned 401.
@@ -38,6 +42,45 @@ export async function GET(request: Request) {
 
   // Auth error — redirect to signin with error
   return NextResponse.redirect(`${origin}/signin`);
+}
+
+/**
+ * Fire a "signup" activity event the first time we see this auth user.
+ * Idempotent — checks activity_log for an existing row before inserting.
+ * Non-fatal on any failure (missing env, table not yet migrated, etc.).
+ */
+async function maybeLogSignup(): Promise<void> {
+  try {
+    const supabase = createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const { createAdminClient } = await import("@/lib/supabase/admin");
+    const admin = createAdminClient();
+
+    const { data: existing } = await admin
+      .from("activity_log")
+      .select("id")
+      .eq("event_type", "signup")
+      .eq("profile_id", user.id)
+      .limit(1)
+      .maybeSingle();
+
+    if (existing) return;
+
+    await logActivity({
+      eventType: "signup",
+      email: user.email ?? null,
+      profileId: user.id,
+      metadata: {
+        provider: user.app_metadata?.provider ?? "unknown",
+      },
+    });
+  } catch {
+    // Non-fatal
+  }
 }
 
 /**

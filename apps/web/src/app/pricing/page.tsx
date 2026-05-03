@@ -88,7 +88,7 @@ export default function PricingPage() {
             Your family deserves a chief of staff
           </h1>
           <p className="text-warm-white/50 text-lg max-w-md mx-auto">
-            7-day free trial — no credit card required to start
+            7-day free trial. Cancel anytime from Settings.
           </p>
         </div>
 
@@ -185,8 +185,7 @@ export default function PricingPage() {
         )}
 
         <p className="text-center text-warm-white/25 text-xs mt-8 max-w-sm mx-auto">
-          7-day free trial, cancel anytime. No credit card required to start your trial.
-          You&apos;ll only be charged after the trial ends.
+          7-day free trial, cancel anytime. You&apos;ll only be charged after the trial ends.
         </p>
         <div className="flex justify-center gap-4 mt-4">
           <Link href="/privacy" className="text-warm-white/20 text-xs hover:text-warm-white/40 transition-colors">

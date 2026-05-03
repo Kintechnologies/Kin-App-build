@@ -61,7 +61,7 @@ export default function TermsPage() {
               </div>
             </div>
             <ul className="list-disc pl-5 space-y-2 text-warm-white/60">
-              <li>All plans include a <strong className="text-warm-white/70">7-day free trial</strong>. No credit card required to start.</li>
+              <li>All plans include a <strong className="text-warm-white/70">7-day free trial</strong>.</li>
               <li>Subscriptions renew automatically. Cancel anytime from Settings.</li>
               <li>Cancellation takes effect at the end of your current billing period.</li>
               <li><strong className="text-warm-white/70">Refunds:</strong> Full refund within 7 days of your first paid charge. Contact hello@kinai.family.</li>
