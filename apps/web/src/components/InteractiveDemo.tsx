@@ -815,16 +815,23 @@ function LivePhone({
                 display: "flex",
                 flexDirection: "column",
                 height: "min(640px, 78vh)",
+                maxHeight: "min(640px, 78vh)",
+                flexShrink: 0,
                 boxShadow:
                   "0 0 0 1px rgba(255,255,255,0.06), 0 0 40px rgba(124,184,122,0.08), 0 16px 40px rgba(0,0,0,0.6)",
                 position: "relative",
               }
             : {
                 width: "320px",
-                aspectRatio: "9 / 19",
+                height: "676px",
+                maxHeight: "min(676px, calc(100vh - 140px))",
                 background: "#0a0a0a",
                 borderRadius: "40px",
                 padding: "9px",
+                overflow: "hidden",
+                display: "flex",
+                flexDirection: "column",
+                flexShrink: 0,
                 boxShadow:
                   "0 0 0 2px rgba(255,255,255,0.06), 0 0 60px rgba(124,184,122,0.12), 0 30px 80px rgba(0,0,0,0.7)",
                 position: "relative",
