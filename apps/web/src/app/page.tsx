@@ -1074,11 +1074,6 @@ export default function Home() {
             question and get an answer in seconds.
           </p>
 
-          {/* Hero waitlist CTA — spot 1 of 4 */}
-          <div id="waitlist-top" style={{ maxWidth: 480 }}>
-            <WaitlistForm source="landing_hero" ctaLabel="Join waitlist" />
-          </div>
-
           {/* secondary link */}
           <Link
             href="#how-it-works"
@@ -1089,7 +1084,6 @@ export default function Home() {
               display: "inline-flex",
               alignItems: "center",
               gap: 6,
-              marginTop: -8,
             }}
           >
             See how it works
@@ -1474,13 +1468,15 @@ export default function Home() {
         </p>
       </div>
 
-      {/* ── Mid-page waitlist CTA — spot 2 of 4 ─────────────────────────── */}
+      {/* ── Mid-page waitlist CTA — spot 1 of 3 ─────────────────────────── */}
       <section
+        id="waitlist-top"
         style={{
           maxWidth: 560,
           margin: "0 auto",
           padding: "0 40px 72px",
           textAlign: "center",
+          scrollMarginTop: 80,
         }}
       >
         <div
@@ -1693,7 +1689,7 @@ export default function Home() {
         </motion.div>
       </section>
 
-      {/* ── Closing waitlist CTA — spot 4 of 4 ──────────────────────────── */}
+      {/* ── Closing waitlist CTA — spot 3 of 3 ──────────────────────────── */}
       <section
         style={{
           borderTop: `1px solid ${T.hair}`,
