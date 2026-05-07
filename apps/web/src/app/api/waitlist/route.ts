@@ -9,11 +9,14 @@ import * as Sentry from "@sentry/nextjs";
  * Stores a row in the `waitlist` table.
  *
  * Body: {
- *   email:      string;            // required
- *   firstName?: string;            // optional (collected by expanded form)
- *   lastName?:  string;            // optional
- *   situation?: 'co-parent' | 'dual-parent' | 'caregiver' | 'other';
- *   source?:    string;            // defaults to 'landing_page'
+ *   email:           string;       // required
+ *   phone:           string;       // required (Kin coordinates by SMS)
+ *   smsConsent:      boolean;      // required, must be true (A2P/10DLC)
+ *   smsConsentText?: string;       // exact opt-in copy shown to the user
+ *   firstName?:      string;       // optional (collected by expanded form)
+ *   lastName?:       string;       // optional
+ *   situation?:      'co-parent' | 'dual-parent' | 'caregiver' | 'other';
+ *   source?:         string;       // defaults to 'landing_page'
  * }
  *
  * Responses:
@@ -34,7 +37,7 @@ import * as Sentry from "@sentry/nextjs";
  *
  * Supabase Studio (https://supabase.com/dashboard/project/coxqdpcffmsncvisfyvj):
  *
- *   SELECT email, first_name, last_name, situation, created_at
+ *   SELECT email, phone, first_name, last_name, situation, sms_consent, created_at
  *   FROM waitlist
  *   ORDER BY created_at DESC;
  */
@@ -49,10 +52,30 @@ function clean(value: unknown, max: number): string | null {
   return trimmed.slice(0, max);
 }
 
+// Normalize a user-entered phone number into something close to E.164.
+// Strips formatting, keeps a leading "+" if the user typed one, and
+// assumes US (+1) when no country code is present so we have a complete
+// number for downstream A2P sending. Returns null if the digit count
+// doesn't fit a plausible international range.
+function normalizePhone(raw: string): string | null {
+  const trimmed = raw.trim();
+  if (!trimmed) return null;
+  const hasPlus = trimmed.startsWith("+");
+  const digits = trimmed.replace(/[^\d]/g, "");
+  if (digits.length < 10 || digits.length > 15) return null;
+  if (hasPlus) return `+${digits}`;
+  if (digits.length === 10) return `+1${digits}`;
+  if (digits.length === 11 && digits.startsWith("1")) return `+${digits}`;
+  return `+${digits}`;
+}
+
 export async function POST(request: Request) {
   try {
     const body = (await request.json()) as {
       email?: string;
+      phone?: string;
+      smsConsent?: boolean;
+      smsConsentText?: string;
       firstName?: string;
       lastName?: string;
       situation?: string;
@@ -63,6 +86,9 @@ export async function POST(request: Request) {
     const source = body.source?.trim() || "landing_page";
     const firstName = clean(body.firstName, 100);
     const lastName = clean(body.lastName, 100);
+    const phone = body.phone ? normalizePhone(body.phone) : null;
+    const smsConsent = body.smsConsent === true;
+    const smsConsentText = clean(body.smsConsentText, 1000);
     const situationRaw = body.situation?.trim().toLowerCase();
     const situation: Situation | null =
       situationRaw && (VALID_SITUATIONS as readonly string[]).includes(situationRaw)
@@ -75,6 +101,18 @@ export async function POST(request: Request) {
     if (!email.includes("@") || !email.includes(".")) {
       return NextResponse.json(
         { error: "Please enter a valid email address" },
+        { status: 400 }
+      );
+    }
+    if (!phone) {
+      return NextResponse.json(
+        { error: "A valid mobile phone number is required" },
+        { status: 400 }
+      );
+    }
+    if (!smsConsent) {
+      return NextResponse.json(
+        { error: "You must agree to receive SMS messages to join the waitlist" },
         { status: 400 }
       );
     }
@@ -97,10 +135,14 @@ export async function POST(request: Request) {
 
     const { error } = await supabase.from("waitlist").insert({
       email,
+      phone,
       source,
       first_name: firstName,
       last_name: lastName,
       situation,
+      sms_consent: smsConsent,
+      sms_consent_at: new Date().toISOString(),
+      sms_consent_text: smsConsentText,
     });
 
     if (error) {
