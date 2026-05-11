@@ -302,22 +302,15 @@ function WaitlistForm({
       setSubmitState("error");
       return;
     }
-    if (!trimmedPhone) {
-      setErrorMessage("Phone number is required — Kin coordinates by SMS.");
-      setSubmitState("error");
-      return;
-    }
-    // Loose client-side check; the API route does the strict validation.
-    const phoneDigits = trimmedPhone.replace(/[^\d]/g, "");
-    if (phoneDigits.length < 10 || phoneDigits.length > 15) {
-      setErrorMessage("Please enter a valid phone number with country/area code.");
-      setSubmitState("error");
-      return;
-    }
-    if (!smsConsent) {
-      setErrorMessage("Please check the box to agree to receive SMS messages.");
-      setSubmitState("error");
-      return;
+    // Phone and SMS consent are optional. If a phone is provided, validate
+    // loosely; the API route does the strict E.164 check.
+    if (trimmedPhone) {
+      const phoneDigits = trimmedPhone.replace(/[^\d]/g, "");
+      if (phoneDigits.length < 10 || phoneDigits.length > 15) {
+        setErrorMessage("That phone number doesn't look right — leave it blank or fix the digits.");
+        setSubmitState("error");
+        return;
+      }
     }
     if (!trimmedFirst || !trimmedLast) {
       setErrorMessage("Please add your first and last name.");
@@ -340,9 +333,9 @@ function WaitlistForm({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           email: trimmedEmail,
-          phone: trimmedPhone,
-          smsConsent,
-          smsConsentText: SMS_CONSENT_TEXT,
+          phone: trimmedPhone || undefined,
+          smsConsent: trimmedPhone && smsConsent ? true : false,
+          smsConsentText: trimmedPhone && smsConsent ? SMS_CONSENT_TEXT : undefined,
           firstName: trimmedFirst,
           lastName: trimmedLast,
           situation,
@@ -446,28 +439,39 @@ function WaitlistForm({
                 setPhone(e.target.value);
                 if (submitState === "error") setSubmitState("idle");
               }}
-              placeholder="Mobile phone (e.g. +1 415 555 0117)"
-              required
+              placeholder="Mobile phone (optional)"
               autoComplete="tel"
               inputMode="tel"
               style={{ ...fieldStyle, flex: "1 1 180px", width: "auto" }}
             />
           </div>
 
-          {/* SMS opt-in — A2P/10DLC compliance. The checkbox + consent text */}
-          {/* must be visible to anyone (including Twilio carrier reviewers) */}
-          {/* before they submit. Don't hide this behind expansion. */}
+          {/* SMS opt-in — A2P/10DLC compliance. Optional (Twilio rule 30923: */}
+          {/* consent cannot be a required condition for joining the waitlist). */}
+          {/* Always visible so carrier reviewers can see the exact opt-in copy. */}
           <div
             style={{
               display: "flex",
-              gap: 10,
+              flexDirection: "column",
+              gap: 6,
               padding: "12px 14px",
               background: "rgba(240,237,230,0.03)",
               border: `1px solid ${T.warm12}`,
               borderRadius: 8,
-              alignItems: "flex-start",
             }}
           >
+            <div
+              style={{
+                fontFamily: T.mono,
+                fontSize: 10.5,
+                color: T.warm56,
+                letterSpacing: "0.06em",
+                textTransform: "uppercase",
+              }}
+            >
+              SMS coordination · optional
+            </div>
+            <div style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
             <input
               id="waitlist-sms-consent"
               type="checkbox"
@@ -476,7 +480,6 @@ function WaitlistForm({
                 setSmsConsent(e.target.checked);
                 if (submitState === "error") setSubmitState("idle");
               }}
-              required
               style={{
                 appearance: "none",
                 WebkitAppearance: "none",
@@ -514,6 +517,7 @@ function WaitlistForm({
               </Link>
               .
             </label>
+            </div>
           </div>
 
           <button

@@ -10,14 +10,18 @@ import * as Sentry from "@sentry/nextjs";
  *
  * Body: {
  *   email:           string;       // required
- *   phone:           string;       // required (Kin coordinates by SMS)
- *   smsConsent:      boolean;      // required, must be true (A2P/10DLC)
+ *   phone?:          string;       // optional — if present, normalized to E.164
+ *   smsConsent?:     boolean;      // optional — opt-in to SMS coordination
  *   smsConsentText?: string;       // exact opt-in copy shown to the user
  *   firstName?:      string;       // optional (collected by expanded form)
  *   lastName?:       string;       // optional
  *   situation?:      'co-parent' | 'dual-parent' | 'caregiver' | 'other';
  *   source?:         string;       // defaults to 'landing_page'
  * }
+ *
+ * Note on Twilio A2P/10DLC: SMS consent must NOT be a required condition
+ * for joining the waitlist (carrier rule 30923). Phone + consent are
+ * stored when provided but the submission succeeds without them.
  *
  * Responses:
  *   201 { success: true }                       — newly added
@@ -104,15 +108,9 @@ export async function POST(request: Request) {
         { status: 400 }
       );
     }
-    if (!phone) {
+    if (body.phone && body.phone.trim() && !phone) {
       return NextResponse.json(
-        { error: "A valid mobile phone number is required" },
-        { status: 400 }
-      );
-    }
-    if (!smsConsent) {
-      return NextResponse.json(
-        { error: "You must agree to receive SMS messages to join the waitlist" },
+        { error: "Please enter a valid mobile phone number, or leave it blank" },
         { status: 400 }
       );
     }
@@ -141,8 +139,8 @@ export async function POST(request: Request) {
       last_name: lastName,
       situation,
       sms_consent: smsConsent,
-      sms_consent_at: new Date().toISOString(),
-      sms_consent_text: smsConsentText,
+      sms_consent_at: smsConsent ? new Date().toISOString() : null,
+      sms_consent_text: smsConsent ? smsConsentText : null,
     });
 
     if (error) {
