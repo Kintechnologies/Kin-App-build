@@ -3,8 +3,6 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getAuthenticatedUser } from "@/lib/supabase/api-auth";
 import { getAnthropicClient, ANTHROPIC_MODEL } from "@/lib/anthropic";
-import { buildCommuteLine } from "@/lib/commute";
-import { buildDateNightSuggestion } from "@/lib/date-night";
 import { detectPickupRisk } from "@/lib/pickup-risk";
 import { checkRateLimit, rateLimitResponse } from "@/lib/rate-limit";
 import Anthropic from "@anthropic-ai/sdk";
@@ -14,33 +12,6 @@ interface CalendarEventRow {
   start_time: string;
   title: string;
   location?: string;
-}
-
-interface ActivityRow {
-  day_of_week?: string[];
-  name: string;
-  start_time?: string;
-  family_member?: { name: string };
-}
-
-interface BudgetSummaryRow {
-  category_name: string;
-  total_spent: number;
-  monthly_limit: number;
-  remaining: number;
-}
-
-interface PetMedRow {
-  time_of_day?: string[];
-  name: string;
-  frequency: string;
-  family_member?: { name: string };
-}
-
-interface PetVaccinationRow {
-  name: string;
-  next_due_date: string;
-  family_member?: { name: string };
 }
 
 interface MorningBriefingLogRow {
@@ -101,22 +72,11 @@ async function generateBriefingContent(
 
     const [
       { data: profile },
-      { data: schedule },
       { data: todayEvents },
       { data: _children },
-      { data: activities },
-      { data: _pets },
-      { data: petMeds },
-      { data: budgetSummary },
-      { data: petVaccinations },
       { data: openIssues },
     ] = await Promise.all([
       supabase.from("profiles").select("*").eq("id", profileId).single(),
-      supabase
-        .from("parent_schedules")
-        .select("*")
-        .eq("profile_id", profileId)
-        .single(),
       supabase
         .from("calendar_events")
         .select("*")
@@ -129,28 +89,6 @@ async function generateBriefingContent(
         .select("*")
         .eq("profile_id", profileId)
         .eq("member_type", "child"),
-      supabase
-        .from("children_activities")
-        .select("*, family_member:family_members(name)")
-        .eq("profile_id", profileId)
-        .eq("active", true),
-      supabase
-        .from("family_members")
-        .select("*")
-        .eq("profile_id", profileId)
-        .eq("member_type", "pet"),
-      supabase
-        .from("pet_medications")
-        .select("*, family_member:family_members(name)")
-        .eq("profile_id", profileId)
-        .eq("active", true),
-      supabase.rpc("get_budget_summary", { user_id: profileId }),
-      supabase
-        .from("pet_vaccinations")
-        .select("*, family_member:family_members(name)")
-        .eq("profile_id", profileId)
-        .lte("next_due_date", today)
-        .order("next_due_date", { ascending: true }),
       // §3A: fetch OPEN + ACKNOWLEDGED coordination issues for briefing context.
       // S2-LE-05 (morning-briefing-prompt.md session 13): ACKNOWLEDGED issues must be
       // included so the model can apply softer framing ("still open — acknowledged")
@@ -223,21 +161,8 @@ Do not bury these. They are the primary reason for the briefing.`;
     briefingContext += `
 
 ═══════════════════════════════════════════════════════════════
- TODAY'S SCHEDULE & LOGISTICS
+ TODAY'S SCHEDULE
 ═══════════════════════════════════════════════════════════════`;
-
-    // Add schedule context
-    if (schedule) {
-      briefingContext += `
-
-Your day:
-${schedule.raw_description || "Not specified"}
-
-Locations:
-  Home: ${schedule.home_location || "Not set"}
-  Work: ${schedule.work_location || "Not set"}
-  Commute: ${schedule.commute_mode || "Not specified"}`;
-    }
 
     // Add today's calendar events
     if (todayEvents && todayEvents.length > 0) {
@@ -256,110 +181,6 @@ Today's calendar:`;
       briefingContext += "\n\nNo calendar events today.";
     }
 
-    // D3 — Commute intelligence: calculate leave-by time for first event
-    if (schedule && todayEvents && todayEvents.length > 0) {
-      const commuteLine = await buildCommuteLine(
-        schedule.home_location,
-        schedule.work_location,
-        schedule.commute_mode,
-        todayEvents
-      );
-      if (commuteLine) {
-        briefingContext += `
-
-Commute:
-  ${commuteLine}`;
-      }
-    }
-
-    // Add kids' activities
-    const todayDayName = new Date().toLocaleDateString("en-US", {
-      weekday: "long",
-    });
-    const todayActivities: ActivityRow[] = activities
-      ? activities.filter((a: ActivityRow) =>
-          (a.day_of_week || []).includes(todayDayName)
-        )
-      : [];
-
-    if (todayActivities.length > 0) {
-      briefingContext += `
-
-Kids' activities today:`;
-      todayActivities.forEach((activity: ActivityRow) => {
-        const time = activity.start_time
-          ? new Date(`2000-01-01T${activity.start_time}`).toLocaleTimeString(
-              "en-US",
-              { hour: "numeric", minute: "2-digit" }
-            )
-          : "Time TBD";
-        briefingContext += `
-  ${activity.family_member?.name}: ${activity.name} @ ${time}`;
-      });
-    }
-
-    // Add budget status
-    briefingContext += `
-
-═══════════════════════════════════════════════════════════════
- BUDGET & SPENDING
-═══════════════════════════════════════════════════════════════`;
-
-    if (budgetSummary && budgetSummary.length > 0) {
-      budgetSummary.forEach((b: BudgetSummaryRow) => {
-        const percentUsed = Math.round((b.total_spent / b.monthly_limit) * 100);
-        const status =
-          percentUsed > 100
-            ? `OVER by $${Math.abs(b.remaining)}`
-            : `$${b.remaining} remaining`;
-        briefingContext += `
-${b.category_name}: $${b.total_spent}/$${b.monthly_limit} (${status})`;
-      });
-    } else {
-      briefingContext += "\nNo budget data yet.";
-    }
-
-    // D8/D9 — Date night engine: inject suggestion if 14+ days since last date night
-    const dateNightBlock = await buildDateNightSuggestion(supabase, profileId);
-    if (dateNightBlock) {
-      briefingContext += `
-
-═══════════════════════════════════════════════════════════════
- RELATIONSHIP
-═══════════════════════════════════════════════════════════════
-${dateNightBlock}`;
-    }
-
-    // Add pet medications due today
-    const todayMeds: PetMedRow[] = petMeds
-      ? petMeds.filter((med: PetMedRow) =>
-          (med.time_of_day || []).length > 0 // Has scheduled times
-        )
-      : [];
-
-    if (todayMeds.length > 0) {
-      briefingContext += `
-
-═══════════════════════════════════════════════════════════════
- PET CARE
-═══════════════════════════════════════════════════════════════
-Medications to give today:`;
-      todayMeds.forEach((med: PetMedRow) => {
-        briefingContext += `
-  ${med.family_member?.name}: ${med.name} - ${med.frequency}`;
-      });
-    }
-
-    // Add upcoming pet vaccinations
-    if (petVaccinations && petVaccinations.length > 0) {
-      briefingContext += `
-Due vaccination(s):`;
-      petVaccinations.forEach((vac: PetVaccinationRow) => {
-        briefingContext += `
-  ${vac.family_member?.name}: ${vac.name}`;
-      });
-    }
-
     // ── §7/§11: Repeat suppression — inject last_surfaced_insight ─────────────
     // Tells the model what was surfaced yesterday or earlier today so it can
     // apply the §7 silence rule: return null if situation is materially unchanged.
@@ -374,8 +195,6 @@ last_surfaced_insight (${dayLabel}): ${lastLogEntry.insight_summary}
 INSTRUCTION: If today's primary situation is materially identical to the above, return null (§7 silence rule). Only re-surface if there is a meaningful change — new state transition, new assignment, new time, or new conflict.`;
     }
 
-    // Note: This briefing focuses on logistics and budget — no meal suggestions.
-    // Allergies are not needed here. (Meal planning queries allergies separately via /api/meals)
     const anthropic = getAnthropicClient();
 
     // ── System prompt from docs/prompts/morning-briefing-prompt.md (IE session 13) ──

@@ -53,11 +53,6 @@ export async function GET(request: Request) {
       await supabase.from("conversations").delete().eq("profile_id", user.id);
       await supabase.from("family_members").delete().eq("profile_id", user.id);
       await supabase.from("onboarding_preferences").delete().eq("profile_id", user.id);
-      await supabase.from("saved_meals").delete().eq("profile_id", user.id);
-      await supabase.from("meal_ratings").delete().eq("profile_id", user.id);
-      await supabase.from("transactions").delete().eq("profile_id", user.id);
-      await supabase.from("household_income").delete().eq("profile_id", user.id);
-      await supabase.from("referral_rewards").delete().eq("profile_id", user.id);
 
       // Delete the profile itself (auth.users cascade will handle the rest)
       await supabase.from("profiles").delete().eq("id", user.id);
