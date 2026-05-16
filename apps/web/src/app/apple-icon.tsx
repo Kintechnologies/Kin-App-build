@@ -3,6 +3,7 @@ import { ImageResponse } from "next/og";
 export const size = { width: 180, height: 180 };
 export const contentType = "image/png";
 
+// "kin" wordmark — Geist 600 outlines, matching KinWordmark.tsx (tone="warm").
 export default function AppleIcon() {
   return new ImageResponse(
     (
@@ -17,20 +18,25 @@ export default function AppleIcon() {
         }}
       >
         <svg
-          width="120"
-          height="124"
-          viewBox="0 0 13.64 22.44"
+          width="180"
+          height="180"
+          viewBox="0 0 180 180"
           shapeRendering="geometricPrecision"
         >
-          <rect x="0.286" y="0.44" width="2.86" height="22" fill="#7CB87A" />
-          <path
-            d="M 3.146 13.64 L 13.64 22.44 L 10.637 22.44 L 3.146 17.16 Z"
-            fill="#7CB87A"
-          />
-          <path
-            d="M 3.146 13.64 L 10.639 7.04 L 10.639 9.9 L 3.146 17.16 Z"
-            fill="#7CB87A"
-          />
+          <g
+            transform="translate(32.737 120.497) scale(0.085787 -0.085787)"
+            fill="#F0EDE6"
+          >
+            <path d="M80 710H164V245L422 530H534L325 305L543 0H441L268 248L164 138V0H80Z" />
+            <path
+              transform="translate(550 0)"
+              d="M80 530H164V0H80ZM78 711H166V613H78Z"
+            />
+            <path
+              transform="translate(754 0)"
+              d="M80 530H157L160 395L150 404Q164 472 210.5 507.0Q257 542 322 542Q409 542 455.0 486.0Q501 430 501 341V0H417V317Q417 392 390.0 430.0Q363 468 304 468Q241 468 202.5 428.5Q164 389 164 317V0H80Z"
+            />
+          </g>
         </svg>
       </div>
     ),
