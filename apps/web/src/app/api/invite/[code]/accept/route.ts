@@ -65,8 +65,13 @@ export async function POST(
       return NextResponse.json({ error: "You cannot accept your own invite" }, { status: 400 });
     }
 
-    // Guard: only the intended recipient can accept this invite (prevents leaked-code abuse)
-    if (user.email?.toLowerCase() !== invite.invitee_email.toLowerCase()) {
+    // Guard: for email invites, only the intended recipient can accept (prevents
+    // leaked-code abuse). Phone invites carry no email — the code itself is
+    // delivered privately by SMS, so code possession is the proof of intent.
+    if (
+      invite.invitee_email &&
+      user.email?.toLowerCase() !== invite.invitee_email.toLowerCase()
+    ) {
       return NextResponse.json(
         { error: "This invite was not sent to your email address" },
         { status: 403 }
