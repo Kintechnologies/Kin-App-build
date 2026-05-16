@@ -6,7 +6,7 @@
 //   New: 0 * * * *   (hourly fan-out — checks each user's local hour)
 //
 // Required edge function secrets (set via Supabase dashboard → Edge Functions → Secrets):
-//   TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_PHONE_NUMBER
+//   TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_MESSAGING_SERVICE_SID, TWILIO_PHONE_NUMBER
 
 import { serve } from "https://deno.land/std@0.208.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.40.0";
@@ -16,6 +16,7 @@ const supabaseServiceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const anthropicApiKey = Deno.env.get("ANTHROPIC_API_KEY")!;
 const twilioAccountSid = Deno.env.get("TWILIO_ACCOUNT_SID")!;
 const twilioAuthToken = Deno.env.get("TWILIO_AUTH_TOKEN")!;
+const twilioMessagingServiceSid = Deno.env.get("TWILIO_MESSAGING_SERVICE_SID")!;
 const twilioFromNumber = Deno.env.get("TWILIO_PHONE_NUMBER")!;
 
 const supabase = createClient(supabaseUrl, supabaseServiceRoleKey);
@@ -30,6 +31,10 @@ function getLocalHour(timezone: string): number {
   return parseInt(h, 10) % 24;
 }
 
+// Sent through the A2P 10DLC Messaging Service rather than a bare From number,
+// so carrier delivery is tied to the registered A2P campaign. Sending from an
+// unregistered long code fails US carrier filtering with error 30034
+// ("message from an unregistered number").
 async function sendSms(to: string, body: string): Promise<void> {
   const url = `https://api.twilio.com/2010-04-01/Accounts/${twilioAccountSid}/Messages.json`;
   const res = await fetch(url, {
@@ -38,7 +43,11 @@ async function sendSms(to: string, body: string): Promise<void> {
       Authorization: `Basic ${btoa(`${twilioAccountSid}:${twilioAuthToken}`)}`,
       "Content-Type": "application/x-www-form-urlencoded",
     },
-    body: new URLSearchParams({ To: to, From: twilioFromNumber, Body: body }).toString(),
+    body: new URLSearchParams({
+      To: to,
+      MessagingServiceSid: twilioMessagingServiceSid,
+      Body: body,
+    }).toString(),
   });
   if (!res.ok) {
     const err = await res.text();
