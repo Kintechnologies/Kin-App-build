@@ -259,6 +259,12 @@ const SITUATION_OPTIONS: ReadonlyArray<{ value: Situation; label: string; hint: 
   { value: "other",       label: "Other",       hint: "Tell us when we reach out"      },
 ];
 
+// Exact A2P/10DLC consent copy. Twilio carrier reviewers look for this
+// language verbatim ("agree to receive SMS", "msg & data rates", "Reply STOP").
+// Don't paraphrase without updating the registration submitted to Twilio.
+const SMS_CONSENT_TEXT =
+  "By providing your phone number and checking the box, you agree to receive SMS messages from Kin (daily family briefings and coordination texts) at the number provided. Message frequency varies. Message and data rates may apply. Reply STOP to unsubscribe at any time, or HELP for help.";
+
 function WaitlistForm({
   source = "landing_page",
   ctaLabel = "Join waitlist",
@@ -269,6 +275,8 @@ function WaitlistForm({
   compact?: boolean;
 }) {
   const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
+  const [smsConsent, setSmsConsent] = useState(false);
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [situation, setSituation] = useState<Situation | "">("");
@@ -278,13 +286,14 @@ function WaitlistForm({
 
   // Expand the form once the email field has any content. The full form
   // collapses back if the user empties the email — keeps things minimal at first.
-  const expanded = email.trim().length > 0;
+  const expanded = email.trim().length > 0 || phone.trim().length > 0;
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (submitState === "loading") return;
 
     const trimmedEmail = email.trim();
+    const trimmedPhone = phone.trim();
     const trimmedFirst = firstName.trim();
     const trimmedLast = lastName.trim();
 
@@ -292,6 +301,16 @@ function WaitlistForm({
       setErrorMessage("Email is required.");
       setSubmitState("error");
       return;
+    }
+    // Phone and SMS consent are optional. If a phone is provided, validate
+    // loosely; the API route does the strict E.164 check.
+    if (trimmedPhone) {
+      const phoneDigits = trimmedPhone.replace(/[^\d]/g, "");
+      if (phoneDigits.length < 10 || phoneDigits.length > 15) {
+        setErrorMessage("That phone number doesn't look right — leave it blank or fix the digits.");
+        setSubmitState("error");
+        return;
+      }
     }
     if (!trimmedFirst || !trimmedLast) {
       setErrorMessage("Please add your first and last name.");
@@ -314,6 +333,9 @@ function WaitlistForm({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           email: trimmedEmail,
+          phone: trimmedPhone || undefined,
+          smsConsent: trimmedPhone && smsConsent ? true : false,
+          smsConsentText: trimmedPhone && smsConsent ? SMS_CONSENT_TEXT : undefined,
           firstName: trimmedFirst,
           lastName: trimmedLast,
           situation,
@@ -387,8 +409,9 @@ function WaitlistForm({
           onSubmit={handleSubmit}
           style={{ display: "flex", flexDirection: "column", gap: 10 }}
           noValidate
+          aria-describedby="sms-consent-text"
         >
-          <div style={{ display: "flex", gap: 8 }}>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
             <label htmlFor="waitlist-email" style={{ position: "absolute", width: 1, height: 1, overflow: "hidden", clip: "rect(0,0,0,0)" }}>
               Email address
             </label>
@@ -403,38 +426,130 @@ function WaitlistForm({
               placeholder="your@email.com"
               required
               autoComplete="email"
-              style={{ ...fieldStyle, flex: 1, width: "auto" }}
+              style={{ ...fieldStyle, flex: "1 1 180px", width: "auto" }}
             />
-            <button
-              type="submit"
-              disabled={submitState === "loading"}
+            <label htmlFor="waitlist-phone" style={{ position: "absolute", width: 1, height: 1, overflow: "hidden", clip: "rect(0,0,0,0)" }}>
+              Mobile phone number
+            </label>
+            <input
+              id="waitlist-phone"
+              type="tel"
+              value={phone}
+              onChange={(e) => {
+                setPhone(e.target.value);
+                if (submitState === "error") setSubmitState("idle");
+              }}
+              placeholder="Mobile phone (optional)"
+              autoComplete="tel"
+              inputMode="tel"
+              style={{ ...fieldStyle, flex: "1 1 180px", width: "auto" }}
+            />
+          </div>
+
+          {/* SMS opt-in — A2P/10DLC compliance. Optional (Twilio rule 30923: */}
+          {/* consent cannot be a required condition for joining the waitlist). */}
+          {/* Always visible so carrier reviewers can see the exact opt-in copy. */}
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              gap: 6,
+              padding: "12px 14px",
+              background: "rgba(240,237,230,0.03)",
+              border: `1px solid ${T.warm12}`,
+              borderRadius: 8,
+            }}
+          >
+            <div
               style={{
-                height: 44,
-                padding: "0 18px",
-                background: T.sage,
-                color: T.bg,
-                border: "none",
-                borderRadius: 8,
-                fontFamily: "inherit",
-                fontWeight: 500,
-                fontSize: 14,
-                cursor: submitState === "loading" ? "default" : "pointer",
-                display: "flex",
-                alignItems: "center",
-                gap: 8,
-                opacity: submitState === "loading" ? 0.6 : 1,
-                whiteSpace: "nowrap",
-                flexShrink: 0,
+                fontFamily: T.mono,
+                fontSize: 10.5,
+                color: T.warm56,
+                letterSpacing: "0.06em",
+                textTransform: "uppercase",
               }}
             >
-              {submitState === "loading" ? (
-                <Loader2 size={16} style={{ animation: "spin 1s linear infinite" }} />
-              ) : (
-                <ArrowRight size={16} />
-              )}
-              {expanded ? ctaLabel : "Get on the list"}
-            </button>
+              SMS coordination · optional
+            </div>
+            <div style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
+            <input
+              id="waitlist-sms-consent"
+              type="checkbox"
+              checked={smsConsent}
+              onChange={(e) => {
+                setSmsConsent(e.target.checked);
+                if (submitState === "error") setSubmitState("idle");
+              }}
+              style={{
+                appearance: "none",
+                WebkitAppearance: "none",
+                width: 16,
+                height: 16,
+                borderRadius: 4,
+                border: `1.5px solid ${smsConsent ? T.sage : T.warm40}`,
+                background: smsConsent ? T.sage : "transparent",
+                flexShrink: 0,
+                margin: "2px 0 0",
+                cursor: "pointer",
+                outline: "none",
+                position: "relative",
+              }}
+            />
+            <label
+              htmlFor="waitlist-sms-consent"
+              id="sms-consent-text"
+              style={{
+                fontSize: 12.5,
+                lineHeight: 1.5,
+                color: T.warm72,
+                cursor: "pointer",
+                letterSpacing: "-0.005em",
+              }}
+            >
+              {SMS_CONSENT_TEXT}{" "}
+              See our{" "}
+              <Link href="/privacy" style={{ color: T.sage, textDecoration: "underline" }}>
+                Privacy Policy
+              </Link>{" "}
+              and{" "}
+              <Link href="/terms" style={{ color: T.sage, textDecoration: "underline" }}>
+                Terms of Service
+              </Link>
+              .
+            </label>
+            </div>
           </div>
+
+          <button
+            type="submit"
+            disabled={submitState === "loading"}
+            style={{
+              height: 44,
+              padding: "0 18px",
+              background: T.sage,
+              color: T.bg,
+              border: "none",
+              borderRadius: 8,
+              fontFamily: "inherit",
+              fontWeight: 500,
+              fontSize: 14,
+              cursor: submitState === "loading" ? "default" : "pointer",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 8,
+              opacity: submitState === "loading" ? 0.6 : 1,
+              whiteSpace: "nowrap",
+              width: "100%",
+            }}
+          >
+            {submitState === "loading" ? (
+              <Loader2 size={16} style={{ animation: "spin 1s linear infinite" }} />
+            ) : (
+              <ArrowRight size={16} />
+            )}
+            {expanded ? ctaLabel : "Get on the list"}
+          </button>
 
           <AnimatePresence initial={false}>
             {expanded && (
@@ -963,11 +1078,6 @@ export default function Home() {
             question and get an answer in seconds.
           </p>
 
-          {/* Hero waitlist CTA — spot 1 of 4 */}
-          <div id="waitlist-top" style={{ maxWidth: 480 }}>
-            <WaitlistForm source="landing_hero" ctaLabel="Join waitlist" />
-          </div>
-
           {/* secondary link */}
           <Link
             href="#how-it-works"
@@ -978,7 +1088,6 @@ export default function Home() {
               display: "inline-flex",
               alignItems: "center",
               gap: 6,
-              marginTop: -8,
             }}
           >
             See how it works
@@ -1363,13 +1472,15 @@ export default function Home() {
         </p>
       </div>
 
-      {/* ── Mid-page waitlist CTA — spot 2 of 4 ─────────────────────────── */}
+      {/* ── Mid-page waitlist CTA — spot 1 of 3 ─────────────────────────── */}
       <section
+        id="waitlist-top"
         style={{
           maxWidth: 560,
           margin: "0 auto",
           padding: "0 40px 72px",
           textAlign: "center",
+          scrollMarginTop: 80,
         }}
       >
         <div
@@ -1582,7 +1693,7 @@ export default function Home() {
         </motion.div>
       </section>
 
-      {/* ── Closing waitlist CTA — spot 4 of 4 ──────────────────────────── */}
+      {/* ── Closing waitlist CTA — spot 3 of 3 ──────────────────────────── */}
       <section
         style={{
           borderTop: `1px solid ${T.hair}`,

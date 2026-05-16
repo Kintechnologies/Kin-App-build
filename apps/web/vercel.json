@@ -7,18 +7,6 @@
     {
       "path": "/api/cron/cleanup",
       "schedule": "0 12 * * *"
-    },
-    {
-      "path": "/api/cron/commute-departure",
-      "schedule": "0 13 * * *"
-    },
-    {
-      "path": "/api/cron/med-reminders",
-      "schedule": "0 8 * * *"
-    },
-    {
-      "path": "/api/cron/vax-reminders",
-      "schedule": "0 9 * * *"
     }
   ]
 }
