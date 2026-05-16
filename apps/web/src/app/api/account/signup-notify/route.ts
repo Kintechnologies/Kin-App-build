@@ -47,6 +47,17 @@ export async function POST() {
       },
     });
 
+    // Welcome email — only when an address is on file. Phone-only signups have
+    // no email; they get the welcome SMS after onboarding instead.
+    if (user.email) {
+      try {
+        const { sendEmail, welcomeEmail } = await import("@/lib/email");
+        await sendEmail({ to: user.email, ...welcomeEmail() });
+      } catch (err) {
+        console.warn("Welcome email failed:", err);
+      }
+    }
+
     return NextResponse.json({ logged: true });
   } catch {
     // Non-fatal — return 200 so the client never blocks signup on this

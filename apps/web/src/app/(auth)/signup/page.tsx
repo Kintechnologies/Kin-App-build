@@ -123,7 +123,10 @@ function SignUpForm() {
     if (inviteCode) {
       try {
         const res = await fetch(`/api/invite/${inviteCode}/accept`, { method: "POST" });
-        if (res.ok) { router.push("/onboarding/sms-setup"); return; }
+        // Accepted partners join an existing household — route them to the
+        // abbreviated 2-step partner onboarding (skips the trial/payment step,
+        // since the household already has a subscription).
+        if (res.ok) { router.push("/onboarding/partner"); return; }
       } catch { /* non-fatal */ }
     }
     router.push("/onboarding/sms-setup");

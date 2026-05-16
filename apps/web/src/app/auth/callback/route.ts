@@ -70,6 +70,18 @@ async function maybeLogSignup(): Promise<void> {
         provider: user.app_metadata?.provider ?? "unknown",
       },
     });
+
+    // Welcome email for OAuth / email-link signups (these always have an
+    // address). Reached only once per user — the activity_log check above
+    // returns early on repeat logins.
+    if (user.email) {
+      try {
+        const { sendEmail, welcomeEmail } = await import("@/lib/email");
+        await sendEmail({ to: user.email, ...welcomeEmail() });
+      } catch (err) {
+        console.warn("Welcome email failed:", err);
+      }
+    }
   } catch {
     // Non-fatal
   }
@@ -108,7 +120,10 @@ async function tryAcceptInvite(inviteCode: string): Promise<void> {
       invite.accepted ||
       new Date(invite.expires_at) < new Date() ||
       invite.inviter_profile_id === user.id ||
-      user.email?.toLowerCase() !== invite.invitee_email.toLowerCase()
+      // Email invites must match the recipient; phone invites carry no email
+      // (invitee_email null) and rely on private SMS delivery of the code.
+      (invite.invitee_email &&
+        user.email?.toLowerCase() !== invite.invitee_email.toLowerCase())
     ) {
       return; // Invalid or inapplicable invite — proceed to onboarding normally
     }

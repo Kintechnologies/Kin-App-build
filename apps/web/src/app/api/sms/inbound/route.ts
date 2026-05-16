@@ -24,6 +24,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { getAnthropicClient, ANTHROPIC_MODEL } from "@/lib/anthropic";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { sendSms, validateTwilioRequest, twimlReply, twimlEmpty } from "@/lib/twilio";
+import { dispatchPartnerInvite } from "@/lib/partner-invite";
 import { buildSmsSystemPrompt } from "@/lib/sms-system-prompt";
 import { analyzeConversationForContext } from "@/lib/household-context";
 import type Anthropic from "@anthropic-ai/sdk";
@@ -470,37 +471,31 @@ async function handleOnboarding(
 
 // ─── Partner invite ───────────────────────────────────────────────────────────
 
+/**
+ * Fire the partner invite when SMS onboarding completes. Delegates to the
+ * shared dispatcher so the partner receives a real /join/invite/<code> link
+ * (and a household_invites row) — letting them onboard into THIS household
+ * rather than creating a separate, unlinked one.
+ */
 async function sendPartnerInvite(
   supabase: ReturnType<typeof createAdminClient>,
   profile: ProfileRow
 ): Promise<void> {
-  const partnerPhone = profile.partner_phone_pending!;
-  const senderName = profile.family_name ?? "Your partner";
-  const inviteMsg = `${senderName} set up Kin — a daily 6am briefing for your whole family. Sign up at kinai.family to connect your calendar.`;
+  const partnerPhone = profile.partner_phone_pending;
+  if (!partnerPhone) return;
 
   try {
-    await sendSms(partnerPhone, inviteMsg);
-    await supabase.from("sms_conversations").insert({
-      profile_id: profile.id,
-      direction: "outbound",
-      body: inviteMsg,
-      from_number: process.env.TWILIO_PHONE_NUMBER ?? "",
-      to_number: partnerPhone,
+    await dispatchPartnerInvite({
+      db: supabase,
+      inviterProfileId: profile.id,
+      inviterFamilyName: profile.family_name,
+      partnerPhone,
     });
-  } catch (err: unknown) {
-    // Error 21610 = recipient has opted out — expected, log but don't throw
-    const is21610 = String((err as { message?: string })?.message ?? "").includes("21610");
-    await supabase.from("sms_conversations").insert({
-      profile_id: profile.id,
-      direction: "outbound_failed",
-      body: inviteMsg,
-      from_number: process.env.TWILIO_PHONE_NUMBER ?? "",
-      to_number: partnerPhone,
-    });
-    if (!is21610) console.error("Partner invite SMS failed:", err);
+  } catch (err) {
+    console.error("Partner invite dispatch failed:", err);
   }
 
-  // Clear pending regardless of send outcome
+  // Clear pending regardless of outcome so it isn't re-sent on the next text.
   await supabase
     .from("profiles")
     .update({ partner_phone_pending: null })

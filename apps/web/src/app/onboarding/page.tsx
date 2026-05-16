@@ -134,6 +134,9 @@ export default function OnboardingPage() {
       .update({ onboarding_completed: true })
       .eq("id", user.id);
 
+    // Welcome SMS + partner-phone invite — fire-and-forget, never block routing.
+    fetch("/api/account/onboarding-complete", { method: "POST" }).catch(() => {});
+
     router.push("/dashboard");
   }
 
