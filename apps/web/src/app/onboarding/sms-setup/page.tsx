@@ -33,6 +33,27 @@ function PhoneStep({ onNext }: { onNext: () => void }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
+  // Phone-OTP signups already have a verified number on their profile —
+  // prefill it so the user doesn't re-enter it. Google OAuth users won't
+  // have one yet and start with an empty field.
+  useEffect(() => {
+    const supabase = createClient();
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (!user) return;
+      supabase
+        .from("profiles")
+        .select("phone_number")
+        .eq("id", user.id)
+        .single()
+        .then(({ data }) => {
+          if (!data?.phone_number) return;
+          const digits = data.phone_number.replace(/\D/g, "");
+          const ten = digits.length === 11 && digits.startsWith("1") ? digits.slice(1) : digits;
+          setPhone(formatPhone(ten));
+        });
+    });
+  }, []);
+
   function formatPhone(raw: string) {
     const digits = raw.replace(/\D/g, "");
     if (digits.length <= 3) return digits;

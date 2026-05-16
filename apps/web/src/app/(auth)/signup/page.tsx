@@ -129,6 +129,14 @@ function SignUpForm() {
     router.push("/onboarding/sms-setup");
   }
 
+  function switchMethod(m: "phone" | "email") {
+    setMethod(m);
+    setError("");
+    setPhoneStep("phone");
+    setEmailStep("email");
+    setCode("");
+  }
+
   const fieldStyle: React.CSSProperties = {
     width: "100%",
     height: 44,
@@ -180,6 +188,18 @@ function SignUpForm() {
     opacity: loading ? 0.6 : 1,
   };
 
+  const textLinkStyle: React.CSSProperties = {
+    background: "none",
+    border: "none",
+    color: T.warm56,
+    cursor: "pointer",
+    fontFamily: T.mono,
+    fontSize: 11.5,
+    letterSpacing: "0.02em",
+    padding: 0,
+    alignSelf: "center",
+  };
+
   return (
     <div style={{ width: "100%", maxWidth: 400, display: "flex", flexDirection: "column", gap: 24 }}>
       <div style={{ textAlign: "center" }}>
@@ -188,55 +208,12 @@ function SignUpForm() {
         </div>
         <div style={{ fontSize: 13.5, color: T.warm56 }}>
           {inviteCode
-            ? "Create your account to connect with your partner on Kin."
-            : "7-day free trial · ~90 seconds to set up."}
+            ? "Verify your number to connect with your partner on Kin."
+            : "7-day free trial · ~90 seconds to set up · no password needed."}
         </div>
       </div>
 
-      {/* Google — primary */}
-      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-        <button onClick={handleGoogle} disabled={loading} style={primaryBtnStyle}>
-          {loading ? <Loader2 size={16} style={{ animation: "spin 1s linear infinite" }} /> : <GoogleGlyph />}
-          <span>Continue with Google</span>
-        </button>
-        <div style={{ fontFamily: T.mono, fontSize: 11, color: T.warm40, letterSpacing: "0.03em", textAlign: "center" }}>
-          {"// creates your account · you'll connect calendar in the next step"}
-        </div>
-      </div>
-
-      {/* divider */}
-      <div style={{ display: "flex", alignItems: "center", gap: 12, color: T.warm40, fontSize: 11.5, fontFamily: T.mono, letterSpacing: "0.04em" }}>
-        <div style={{ flex: 1, height: 1, background: T.hair }} />
-        <span>OR</span>
-        <div style={{ flex: 1, height: 1, background: T.hair }} />
-      </div>
-
-      {/* Method toggle — segmented control */}
-      <div style={{
-        display: "flex",
-        width: "100%",
-        padding: 3,
-        background: "rgba(240,237,230,0.04)",
-        border: `1px solid ${T.warm12}`,
-        borderRadius: 8,
-        boxSizing: "border-box",
-      }}>
-        {(["phone", "email"] as const).map((m) => (
-          <button key={m} type="button" onClick={() => { setMethod(m); setError(""); }}
-            style={{
-              flex: 1, height: 32, border: "none",
-              borderRadius: 6,
-              background: method === m ? "rgba(124,184,122,0.14)" : "transparent",
-              color: method === m ? T.sage : T.warm40, fontFamily: "inherit",
-              fontSize: 13, fontWeight: 500, cursor: "pointer",
-              transition: "background 0.15s ease, color 0.15s ease",
-            }}>
-            {m === "phone" ? "Text code" : "Email link"}
-          </button>
-        ))}
-      </div>
-
-      {/* Phone OTP */}
+      {/* Phone OTP — primary */}
       {method === "phone" && (phoneStep === "phone" ? (
         <form onSubmit={handleSendCode} style={{ display: "flex", flexDirection: "column", gap: 12 }}>
           <div>
@@ -255,7 +232,7 @@ function SignUpForm() {
                 style={{ ...fieldStyle, borderRadius: "0 8px 8px 0", flex: 1, width: "auto", minWidth: 0 }} />
             </div>
             <div style={{ marginTop: 6, fontSize: 11, color: T.warm40, lineHeight: 1.6 }}>
-              By verifying your number you agree to receive automated SMS from Kin (daily briefings, ~1/day). Msg &amp; data rates may apply.{" "}
+              By verifying your number you agree to receive automated SMS from Kin (sign-in codes and daily briefings, ~1/day). Msg &amp; data rates may apply.{" "}
               <Link href="/terms" style={{ color: T.sage, textDecoration: "none" }}>Terms</Link>
               {" · "}
               <Link href="/privacy" style={{ color: T.sage, textDecoration: "none" }}>Privacy</Link>
@@ -263,7 +240,7 @@ function SignUpForm() {
             </div>
           </div>
           {error && <p style={{ color: "#D4748A", fontSize: 13, margin: 0 }} role="alert">{error}</p>}
-          <button type="submit" disabled={loading} style={secondaryBtnStyle}>
+          <button type="submit" disabled={loading} style={primaryBtnStyle}>
             {loading ? <Loader2 size={16} style={{ animation: "spin 1s linear infinite" }} /> : null}
             Send verification code
           </button>
@@ -288,14 +265,14 @@ function SignUpForm() {
           </div>
           {error && <p style={{ color: "#D4748A", fontSize: 13, margin: 0 }} role="alert">{error}</p>}
           <button type="submit" disabled={loading || code.length < 6}
-            style={{ ...secondaryBtnStyle, opacity: (loading || code.length < 6) ? 0.5 : 1 }}>
+            style={{ ...primaryBtnStyle, opacity: (loading || code.length < 6) ? 0.5 : 1 }}>
             {loading ? <Loader2 size={16} style={{ animation: "spin 1s linear infinite" }} /> : <ArrowRight size={16} />}
             Verify &amp; continue
           </button>
         </form>
       ))}
 
-      {/* Email magic link */}
+      {/* Email magic link — fallback */}
       {method === "email" && (emailStep === "email" ? (
         <form onSubmit={handleEmailLink} style={{ display: "flex", flexDirection: "column", gap: 12 }}>
           <div>
@@ -309,7 +286,7 @@ function SignUpForm() {
             </div>
           </div>
           {error && <p style={{ color: "#D4748A", fontSize: 13, margin: 0 }} role="alert">{error}</p>}
-          <button type="submit" disabled={loading} style={secondaryBtnStyle}>
+          <button type="submit" disabled={loading} style={primaryBtnStyle}>
             {loading ? <Loader2 size={16} style={{ animation: "spin 1s linear infinite" }} /> : null}
             Send link
           </button>
@@ -325,6 +302,38 @@ function SignUpForm() {
           </button>
         </div>
       ))}
+
+      {/* method switch — only at the first step to avoid mid-verify state */}
+      {((method === "phone" && phoneStep === "phone") ||
+        (method === "email" && emailStep === "email")) && (
+        <button
+          type="button"
+          onClick={() => switchMethod(method === "phone" ? "email" : "phone")}
+          style={textLinkStyle}
+        >
+          {method === "phone"
+            ? "// use an email link instead"
+            : "// use a text code instead"}
+        </button>
+      )}
+
+      {/* divider */}
+      <div style={{ display: "flex", alignItems: "center", gap: 12, color: T.warm40, fontSize: 11.5, fontFamily: T.mono, letterSpacing: "0.04em" }}>
+        <div style={{ flex: 1, height: 1, background: T.hair }} />
+        <span>OR</span>
+        <div style={{ flex: 1, height: 1, background: T.hair }} />
+      </div>
+
+      {/* Google — alternative */}
+      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        <button onClick={handleGoogle} disabled={loading} style={secondaryBtnStyle}>
+          {loading ? <Loader2 size={16} style={{ animation: "spin 1s linear infinite" }} /> : <GoogleGlyph />}
+          <span>Continue with Google</span>
+        </button>
+        <div style={{ fontFamily: T.mono, fontSize: 11, color: T.warm40, letterSpacing: "0.03em", textAlign: "center" }}>
+          {"// creates your account · you'll connect calendar in the next step"}
+        </div>
+      </div>
 
       {/* pricing spec */}
       <div style={{

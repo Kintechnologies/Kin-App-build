@@ -43,7 +43,7 @@ function GoogleGlyph() {
   );
 }
 
-type Method = "phone" | "email" | "password";
+type Method = "phone" | "email";
 type PhoneStep = "phone" | "code";
 type EmailStep = "email" | "sent";
 
@@ -53,7 +53,7 @@ function SignInForm() {
   const inviteCode = searchParams.get("invite");
   const demoMode = searchParams.get("demo") === "true";
 
-  const [method, setMethod] = useState<Method>(demoMode ? "password" : "phone");
+  const [method, setMethod] = useState<Method>("phone");
   const [phoneStep, setPhoneStep] = useState<PhoneStep>("phone");
   const [emailStep, setEmailStep] = useState<EmailStep>("email");
   const [phone, setPhone] = useState("");
@@ -63,10 +63,9 @@ function SignInForm() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
-  // Keep method in sync with ?demo=true if it changes (e.g. SPA nav)
+  // Keep the demo account prefilled if ?demo=true changes (e.g. SPA nav)
   useEffect(() => {
     if (demoMode) {
-      setMethod("password");
       setEmail((e) => e || "demo@kinai.family");
       setPassword((p) => p || "KinDemo2026!");
     }
@@ -144,6 +143,10 @@ function SignInForm() {
       setLoading(false);
       return;
     }
+    // Phone OTP makes no signin/signup distinction — a brand-new number
+    // creates an account here. Fire the (idempotent) founder alert so first
+    // sign-ins from /signin still get logged.
+    fetch("/api/account/signup-notify", { method: "POST" }).catch(() => {});
     await routeAfterAuth();
   }
 
@@ -176,7 +179,15 @@ function SignInForm() {
       .from("profiles")
       .select("onboarding_completed")
       .single();
-    router.push(profile?.onboarding_completed ? "/dashboard" : "/onboarding");
+    router.push(profile?.onboarding_completed ? "/dashboard" : "/onboarding/sms-setup");
+  }
+
+  function switchMethod(m: Method) {
+    setMethod(m);
+    setError("");
+    setPhoneStep("phone");
+    setEmailStep("email");
+    setCode("");
   }
 
   // ── styles ───────────────────────────────────────────────────────────────
@@ -232,6 +243,105 @@ function SignInForm() {
     opacity: loading ? 0.6 : 1,
   };
 
+  const textLinkStyle: React.CSSProperties = {
+    background: "none",
+    border: "none",
+    color: T.warm56,
+    cursor: "pointer",
+    fontFamily: T.mono,
+    fontSize: 11.5,
+    letterSpacing: "0.02em",
+    padding: 0,
+    alignSelf: "center",
+  };
+
+  // ── Demo login (gated behind ?demo=true) ──────────────────────────────────
+  // Phone OTP is the real product. Password sign-in survives only for the
+  // prefilled reviewer/demo account so walkthroughs keep working.
+  if (demoMode) {
+    return (
+      <div style={{ width: "100%", maxWidth: 380, display: "flex", flexDirection: "column", gap: 22 }}>
+        <div>
+          <div
+            style={{
+              fontSize: 28,
+              fontWeight: 500,
+              letterSpacing: "-0.025em",
+              marginBottom: 6,
+              color: T.warm,
+              lineHeight: 1.1,
+            }}
+          >
+            Demo sign in
+          </div>
+          <div style={{ fontSize: 13.5, color: T.warm56, lineHeight: 1.5 }}>
+            The demo account is prefilled — click Sign in to explore Kin with sample data.
+          </div>
+        </div>
+
+        <form onSubmit={handlePassword} style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          <div
+            style={{
+              padding: "10px 12px",
+              background: T.sage12,
+              border: `1px solid ${T.hairSage}`,
+              borderRadius: 10,
+              display: "flex",
+              gap: 10,
+              alignItems: "flex-start",
+            }}
+          >
+            <Lock size={14} style={{ color: T.sage, marginTop: 2, flexShrink: 0 }} />
+            <div style={{ fontSize: 12, color: T.warm72, lineHeight: 1.5 }}>
+              <div style={{ color: T.sage, fontWeight: 500, marginBottom: 2 }}>
+                Demo account prefilled
+              </div>
+              Click <span style={{ color: T.warm }}>Sign in</span> to walk
+              through Kin&apos;s full dashboard with sample data.
+            </div>
+          </div>
+          <div>
+            <label style={labelStyle}>Email</label>
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="you@example.com"
+              required
+              style={fieldStyle}
+            />
+          </div>
+          <div>
+            <label style={labelStyle}>Password</label>
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="Your password"
+              required
+              style={fieldStyle}
+            />
+          </div>
+          {error && <ErrorText>{error}</ErrorText>}
+          <button type="submit" disabled={loading || !email || !password} style={primaryBtnStyle}>
+            {loading ? (
+              <Loader2 size={16} style={{ animation: "spin 1s linear infinite" }} />
+            ) : (
+              <Lock size={14} />
+            )}
+            Sign in
+          </button>
+        </form>
+
+        <div style={{ textAlign: "center", fontSize: 13, color: T.warm56 }}>
+          <Link href="/signin" style={{ color: T.sage, textDecoration: "none" }}>
+            Use phone sign-in instead
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div style={{ width: "100%", maxWidth: 380, display: "flex", flexDirection: "column", gap: 22 }}>
       <div>
@@ -249,88 +359,12 @@ function SignInForm() {
         </div>
         <div style={{ fontSize: 13.5, color: T.warm56, lineHeight: 1.5 }}>
           {inviteCode
-            ? "Sign in to connect with your partner on Kin"
-            : "Continue with Google, get a code by text, or use the demo login."}
+            ? "Verify your number to connect with your partner on Kin."
+            : "Enter your mobile number and we'll text you a code. No password to remember."}
         </div>
       </div>
 
-      {/* Google primary */}
-      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-        <button onClick={handleGoogle} disabled={loading} style={primaryBtnStyle}>
-          {loading && method !== "password" ? (
-            <Loader2 size={16} style={{ animation: "spin 1s linear infinite" }} />
-          ) : (
-            <GoogleGlyph />
-          )}
-          <span>Continue with Google</span>
-        </button>
-        <div style={{ fontFamily: T.mono, fontSize: 10.5, color: T.warm40, letterSpacing: "0.04em" }}>
-          {"// creates your account · no calendar access yet"}
-        </div>
-      </div>
-
-      {/* divider */}
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 12,
-          color: T.warm40,
-          fontSize: 11,
-          fontFamily: T.mono,
-          letterSpacing: "0.06em",
-        }}
-      >
-        <div style={{ flex: 1, height: 1, background: T.hair }} />
-        <span>OR</span>
-        <div style={{ flex: 1, height: 1, background: T.hair }} />
-      </div>
-
-      {/* Method tabs */}
-      <div
-        style={{
-          display: "flex",
-          gap: 4,
-          padding: 4,
-          background: "rgba(240,237,230,0.03)",
-          border: `1px solid ${T.hair}`,
-          borderRadius: 10,
-        }}
-      >
-        {(["phone", "email", "password"] as Method[]).map((m) => {
-          const active = method === m;
-          const label =
-            m === "phone" ? "Text code" : m === "email" ? "Email link" : "Demo login";
-          return (
-            <button
-              key={m}
-              type="button"
-              onClick={() => {
-                setMethod(m);
-                setError("");
-              }}
-              style={{
-                flex: 1,
-                height: 32,
-                border: "none",
-                borderRadius: 7,
-                background: active ? T.sage12 : "transparent",
-                color: active ? T.sage : T.warm56,
-                fontFamily: "inherit",
-                fontSize: 12.5,
-                fontWeight: active ? 500 : 400,
-                cursor: "pointer",
-                letterSpacing: "-0.005em",
-                transition: "background 160ms ease, color 160ms ease",
-              }}
-            >
-              {label}
-            </button>
-          );
-        })}
-      </div>
-
-      {/* Phone OTP */}
+      {/* Phone OTP — primary */}
       {method === "phone" && (phoneStep === "phone" ? (
         <form onSubmit={handleSendCode} style={{ display: "flex", flexDirection: "column", gap: 12 }}>
           <div>
@@ -365,8 +399,8 @@ function SignInForm() {
               />
             </div>
             <div style={fineprintStyle}>
-              By verifying your number you agree to receive automated SMS from Kin (daily briefings,
-              ~1/day). Msg &amp; data rates may apply.{" "}
+              By verifying your number you agree to receive automated SMS from Kin (sign-in
+              codes and daily briefings, ~1/day). Msg &amp; data rates may apply.{" "}
               <Link href="/terms" style={{ color: T.sage, textDecoration: "none" }}>Terms</Link>
               {" · "}
               <Link href="/privacy" style={{ color: T.sage, textDecoration: "none" }}>Privacy</Link>
@@ -374,7 +408,7 @@ function SignInForm() {
             </div>
           </div>
           {error && <ErrorText>{error}</ErrorText>}
-          <button type="submit" disabled={loading} style={secondaryBtnStyle}>
+          <button type="submit" disabled={loading} style={primaryBtnStyle}>
             {loading && <Loader2 size={16} style={{ animation: "spin 1s linear infinite" }} />}
             Text me a code
           </button>
@@ -430,7 +464,7 @@ function SignInForm() {
           <button
             type="submit"
             disabled={loading || code.length < 6}
-            style={{ ...secondaryBtnStyle, opacity: loading || code.length < 6 ? 0.5 : 1 }}
+            style={{ ...primaryBtnStyle, opacity: loading || code.length < 6 ? 0.5 : 1 }}
           >
             {loading ? (
               <Loader2 size={16} style={{ animation: "spin 1s linear infinite" }} />
@@ -442,7 +476,7 @@ function SignInForm() {
         </form>
       ))}
 
-      {/* Email magic link */}
+      {/* Email magic link — fallback */}
       {method === "email" && (emailStep === "email" ? (
         <form onSubmit={handleEmailLink} style={{ display: "flex", flexDirection: "column", gap: 12 }}>
           <div>
@@ -461,7 +495,7 @@ function SignInForm() {
             </div>
           </div>
           {error && <ErrorText>{error}</ErrorText>}
-          <button type="submit" disabled={loading} style={secondaryBtnStyle}>
+          <button type="submit" disabled={loading} style={primaryBtnStyle}>
             {loading && <Loader2 size={16} style={{ animation: "spin 1s linear infinite" }} />}
             Send link
           </button>
@@ -493,68 +527,46 @@ function SignInForm() {
         </div>
       ))}
 
-      {/* Password (demo) */}
-      {method === "password" && (
-        <form onSubmit={handlePassword} style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-          {demoMode && (
-            <div
-              style={{
-                padding: "10px 12px",
-                background: T.sage12,
-                border: `1px solid ${T.hairSage}`,
-                borderRadius: 10,
-                display: "flex",
-                gap: 10,
-                alignItems: "flex-start",
-              }}
-            >
-              <Lock size={14} style={{ color: T.sage, marginTop: 2, flexShrink: 0 }} />
-              <div style={{ fontSize: 12, color: T.warm72, lineHeight: 1.5 }}>
-                <div style={{ color: T.sage, fontWeight: 500, marginBottom: 2 }}>
-                  Demo account prefilled
-                </div>
-                Click <span style={{ color: T.warm }}>Sign in</span> to walk
-                through Kin&apos;s full dashboard with sample data.
-              </div>
-            </div>
-          )}
-          <div>
-            <label style={labelStyle}>Email</label>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="you@example.com"
-              autoFocus={!demoMode}
-              required
-              style={fieldStyle}
-            />
-          </div>
-          <div>
-            <label style={labelStyle}>Password</label>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="Your password"
-              required
-              style={fieldStyle}
-            />
-            <div style={{ marginTop: 6, fontFamily: T.mono, fontSize: 11, color: T.warm40 }}>
-              {"// for the demo account or invited reviewers"}
-            </div>
-          </div>
-          {error && <ErrorText>{error}</ErrorText>}
-          <button type="submit" disabled={loading || !email || !password} style={secondaryBtnStyle}>
-            {loading ? (
-              <Loader2 size={16} style={{ animation: "spin 1s linear infinite" }} />
-            ) : (
-              <Lock size={14} />
-            )}
-            Sign in
-          </button>
-        </form>
+      {/* method switch — only at the first step to avoid mid-verify state */}
+      {((method === "phone" && phoneStep === "phone") ||
+        (method === "email" && emailStep === "email")) && (
+        <button
+          type="button"
+          onClick={() => switchMethod(method === "phone" ? "email" : "phone")}
+          style={textLinkStyle}
+        >
+          {method === "phone"
+            ? "// use an email link instead"
+            : "// use a text code instead"}
+        </button>
       )}
+
+      {/* divider */}
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 12,
+          color: T.warm40,
+          fontSize: 11,
+          fontFamily: T.mono,
+          letterSpacing: "0.06em",
+        }}
+      >
+        <div style={{ flex: 1, height: 1, background: T.hair }} />
+        <span>OR</span>
+        <div style={{ flex: 1, height: 1, background: T.hair }} />
+      </div>
+
+      {/* Google — alternative */}
+      <button onClick={handleGoogle} disabled={loading} style={secondaryBtnStyle}>
+        {loading ? (
+          <Loader2 size={16} style={{ animation: "spin 1s linear infinite" }} />
+        ) : (
+          <GoogleGlyph />
+        )}
+        <span>Continue with Google</span>
+      </button>
 
       <div style={{ textAlign: "center", fontSize: 13, color: T.warm56 }}>
         New here?{" "}
