@@ -259,11 +259,15 @@ const SITUATION_OPTIONS: ReadonlyArray<{ value: Situation; label: string; hint: 
   { value: "other",       label: "Other",       hint: "Tell us when we reach out"      },
 ];
 
-// Exact A2P/10DLC consent copy. Twilio carrier reviewers look for this
-// language verbatim ("agree to receive SMS", "msg & data rates", "Reply STOP").
-// Don't paraphrase without updating the registration submitted to Twilio.
+// A2P/10DLC consent copy, shown as a small-print disclosure below the submit
+// button. Submitting the form with a phone number constitutes consent (the
+// standard TCPA pattern used by Uber, DoorDash, etc.) — no checkbox required.
+// Twilio carrier reviewers look for this language ("agree to receive SMS",
+// "Msg & data rates", "Reply STOP"). Don't paraphrase without updating the
+// registration submitted to Twilio. This exact string is also stored on the
+// waitlist row as the proof-of-consent record.
 const SMS_CONSENT_TEXT =
-  "By providing your phone number and checking the box, you agree to receive SMS messages from Kin (daily family briefings and coordination texts) at the number provided. Message frequency varies. Message and data rates may apply. Reply STOP to unsubscribe at any time, or HELP for help.";
+  "By signing up, you agree to receive SMS messages from Kin. Msg & data rates may apply. Reply STOP to cancel.";
 
 function WaitlistForm({
   source = "landing_page",
@@ -276,7 +280,6 @@ function WaitlistForm({
 }) {
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
-  const [smsConsent, setSmsConsent] = useState(false);
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [situation, setSituation] = useState<Situation | "">("");
@@ -334,8 +337,10 @@ function WaitlistForm({
         body: JSON.stringify({
           email: trimmedEmail,
           phone: trimmedPhone || undefined,
-          smsConsent: trimmedPhone && smsConsent ? true : false,
-          smsConsentText: trimmedPhone && smsConsent ? SMS_CONSENT_TEXT : undefined,
+          // Submitting the form with a phone number constitutes SMS consent —
+          // the disclosure is shown below the submit button (TCPA pattern).
+          smsConsent: trimmedPhone ? true : false,
+          smsConsentText: trimmedPhone ? SMS_CONSENT_TEXT : undefined,
           firstName: trimmedFirst,
           lastName: trimmedLast,
           situation,
@@ -446,80 +451,6 @@ function WaitlistForm({
             />
           </div>
 
-          {/* SMS opt-in — A2P/10DLC compliance. Optional (Twilio rule 30923: */}
-          {/* consent cannot be a required condition for joining the waitlist). */}
-          {/* Always visible so carrier reviewers can see the exact opt-in copy. */}
-          <div
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              gap: 6,
-              padding: "12px 14px",
-              background: "rgba(240,237,230,0.03)",
-              border: `1px solid ${T.warm12}`,
-              borderRadius: 8,
-            }}
-          >
-            <div
-              style={{
-                fontFamily: T.mono,
-                fontSize: 10.5,
-                color: T.warm56,
-                letterSpacing: "0.06em",
-                textTransform: "uppercase",
-              }}
-            >
-              SMS coordination · optional
-            </div>
-            <div style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
-            <input
-              id="waitlist-sms-consent"
-              type="checkbox"
-              checked={smsConsent}
-              onChange={(e) => {
-                setSmsConsent(e.target.checked);
-                if (submitState === "error") setSubmitState("idle");
-              }}
-              style={{
-                appearance: "none",
-                WebkitAppearance: "none",
-                width: 16,
-                height: 16,
-                borderRadius: 4,
-                border: `1.5px solid ${smsConsent ? T.sage : T.warm40}`,
-                background: smsConsent ? T.sage : "transparent",
-                flexShrink: 0,
-                margin: "2px 0 0",
-                cursor: "pointer",
-                outline: "none",
-                position: "relative",
-              }}
-            />
-            <label
-              htmlFor="waitlist-sms-consent"
-              id="sms-consent-text"
-              style={{
-                fontSize: 12.5,
-                lineHeight: 1.5,
-                color: T.warm72,
-                cursor: "pointer",
-                letterSpacing: "-0.005em",
-              }}
-            >
-              {SMS_CONSENT_TEXT}{" "}
-              See our{" "}
-              <Link href="/privacy" style={{ color: T.sage, textDecoration: "underline" }}>
-                Privacy Policy
-              </Link>{" "}
-              and{" "}
-              <Link href="/terms" style={{ color: T.sage, textDecoration: "underline" }}>
-                Terms of Service
-              </Link>
-              .
-            </label>
-            </div>
-          </div>
-
           <button
             type="submit"
             disabled={submitState === "loading"}
@@ -550,6 +481,29 @@ function WaitlistForm({
             )}
             {expanded ? ctaLabel : "Get on the list"}
           </button>
+
+          {/* SMS consent disclosure — A2P/10DLC. Submitting the form with a */}
+          {/* phone number constitutes consent; no checkbox required as long  */}
+          {/* as this disclosure is clearly visible (standard TCPA pattern).  */}
+          <p
+            id="sms-consent-text"
+            style={{
+              fontSize: 11.5,
+              lineHeight: 1.5,
+              color: T.warm40,
+              margin: 0,
+              letterSpacing: "-0.005em",
+            }}
+          >
+            {SMS_CONSENT_TEXT}{" "}
+            <Link href="/privacy" style={{ color: T.warm56, textDecoration: "underline" }}>
+              Privacy Policy
+            </Link>
+            {" · "}
+            <Link href="/terms" style={{ color: T.warm56, textDecoration: "underline" }}>
+              Terms
+            </Link>
+          </p>
 
           <AnimatePresence initial={false}>
             {expanded && (
@@ -878,7 +832,7 @@ const HOW_STEPS = [
   {
     n: "03",
     title: "Wake up already coordinated",
-    body: "6am. One text to each of you. Today's schedule, any conflicts, anything that needs a decision. No app to open, no calendar to check. Just a text.",
+    body: "6am. One text to each of you — today's schedule, any conflicts, anything that needs a decision. The morning brief is just the start: Kin keeps learning, and gets sharper every week.",
     Illustration: StepBriefIllustration,
   },
 ];
@@ -916,8 +870,8 @@ const COMPARISON = [
   },
   {
     kind: "Kin",
-    examples: "Built for groups",
-    body: "Kin texts you. Both parents coordinated. Nothing to download.",
+    examples: "Your family's AI",
+    body: "Kin learns your whole family and keeps everyone coordinated — one system that gets smarter over time. Nothing to download.",
     highlight: true,
   },
 ];
@@ -1043,7 +997,7 @@ export default function Home() {
                 flexShrink: 0,
               }}
             />
-            SMS · COORDINATED · NOTHING TO DOWNLOAD
+            LEARNS YOUR FAMILY · RUNS THE HOUSEHOLD · NO APP
           </div>
 
           {/* headline */}
@@ -1057,9 +1011,9 @@ export default function Home() {
               color: T.warm,
             }}
           >
-            Your family&apos;s daily game plan,{" "}
+            The AI that runs your household.{" "}
             <span style={{ color: T.warm56 }}>
-              delivered by text.
+              It learns how your family works.
             </span>
           </h1>
 
@@ -1073,9 +1027,10 @@ export default function Home() {
               maxWidth: 520,
             }}
           >
-            No app. No group chat chaos. Just one text that keeps everyone in
-            sync — pickups, conflicts, who needs to be where. Text back any
-            question and get an answer in seconds.
+            Kin learns your family&apos;s patterns, keeps every schedule in
+            sync, and gets smarter every week. It starts with a morning text
+            that tells everyone where they need to be — no app, no group-chat
+            chaos.
           </p>
 
           {/* secondary link */}

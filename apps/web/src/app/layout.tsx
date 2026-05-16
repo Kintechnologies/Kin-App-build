@@ -24,9 +24,9 @@ const instrumentSerif = Instrument_Serif({
 });
 
 export const metadata: Metadata = {
-  title: "Kin — Family AI",
+  title: "Kin — The AI that runs your household",
   description:
-    "Your AI-powered family operating system. Meal planning, budgets, calendars, and more.",
+    "Kin is your family's AI assistant. It learns your family's patterns, coordinates everyone's schedules, and keeps you in sync — starting with a morning text.",
 };
 
 export const viewport: Viewport = {
