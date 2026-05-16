@@ -238,9 +238,24 @@ export async function handleSmsOnboarding(
 
     case 8:
     default: {
-      // Step 8: they tapped the calendar link (or replied "skip"). Either way,
-      // any inbound message here completes onboarding. Recap everything Kin
-      // learned and confirm (or re-offer) the calendar connection.
+      // Step 8: the calendar link was sent. The user has tapped it (or replied
+      // "skip"). Before finalizing, check whether this reply is asking to
+      // connect *another* calendar — if so, mint a fresh token, text a new
+      // link, and stay on step 8 until they signal they're done.
+      if (wantsAnotherCalendar(messageBody)) {
+        const token = randomBytes(12).toString("hex");
+        updates.calendar_connect_token = token;
+        reply =
+          "Of course — connect as many calendars as you'd like. Here's a fresh link:\n" +
+          `${APP_URL}/connect/${token}\n\n` +
+          'Tap it to add another, or reply "done" once you\'ve linked them all.';
+        nextStep = 8;
+        break;
+      }
+
+      // Otherwise they're done (or just acknowledged) — complete onboarding.
+      // Recap everything Kin learned and confirm (or re-offer) the calendar
+      // connection.
       const firstName = (profile.family_name ?? "").split(/\s+/)[0] || "there";
       const recap = parseNotes(priorNotes);
 
@@ -351,6 +366,48 @@ function extractPhone(raw: string): string | null {
   if (digits.length === 11 && digits.startsWith("1")) return `+${digits}`;
   if (digits.length >= 11 && digits.length <= 15) return `+${digits}`;
   return null;
+}
+
+/**
+ * At step 8 the user already has a calendar link. Their reply might be asking
+ * to connect *another* calendar rather than signaling they're finished. Returns
+ * true when the message reads as "send me another connect link".
+ *
+ * Default is false (finalize): a neutral acknowledgement or an explicit "done"
+ * completes onboarding — only a clear ask for more keeps the loop open.
+ */
+function wantsAnotherCalendar(raw: string): boolean {
+  const msg = raw.toLowerCase().trim();
+
+  // Unambiguous "connect another" phrasing — wins outright, even next to a
+  // "done"-ish word.
+  if (/\b(another|multiple|additional)\b/.test(msg)) return true;
+  if (/\bone more\b/.test(msg)) return true;
+
+  // Explicit "I'm done" phrasing — finalize. Checked before the ambiguous
+  // cues below so "no more calendars" reads as done, not as a request.
+  if (/\b(skip|done|finished|nope|nah|no)\b/.test(msg)) return false;
+  if (
+    /that'?s it|all set|all good|all done|i'?m good|im good|no thanks|nothing else|good to go/.test(
+      msg
+    )
+  ) {
+    return false;
+  }
+
+  // Ambiguous words ("more", "again", "add", "other", "second") only count as
+  // a request when paired with a calendar/connect cue.
+  const hasCalendarCue = /calendar|calender|connect|link|account|google/.test(msg);
+  if (hasCalendarCue && /\b(more|again|other|extra|also|second|2nd|third|3rd)\b/.test(msg)) {
+    return true;
+  }
+  if (hasCalendarCue && /\badd\b/.test(msg)) return true;
+
+  // A bare affirmative ("yes", "yeah") — read as "yes, another".
+  if (/^(yes|yeah|yep|yup|ya|y)[\s!.]*$/.test(msg)) return true;
+
+  // Anything else is a neutral acknowledgement — finalize.
+  return false;
 }
 
 /** Append a "label: value" line to the accumulated context_notes string. */

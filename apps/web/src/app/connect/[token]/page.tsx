@@ -24,6 +24,23 @@ import { getGoogleAuthUrl } from "@/lib/calendar/google";
 
 export const dynamic = "force-dynamic";
 
+// ─── Design tokens (inline — matches the landing page + tokens.css) ──────────
+const T = {
+  bg: "#0C0F0A",
+  bgCard: "#161A17",
+  sage: "#7CB87A",
+  sageBorder: "rgba(124,184,122,0.28)",
+  sage12: "rgba(124,184,122,0.12)",
+  warm: "#F0EDE6",
+  warm72: "rgba(240,237,230,0.72)",
+  warm56: "rgba(240,237,230,0.56)",
+  warm40: "rgba(240,237,230,0.40)",
+  hair: "rgba(240,237,230,0.08)",
+  rose: "#D4748A",
+  roseBorder: "rgba(212,116,138,0.28)",
+  rose12: "rgba(212,116,138,0.12)",
+};
+
 interface ConnectPageProps {
   params: { token: string };
   searchParams: { connected?: string; error?: string };
@@ -39,16 +56,37 @@ export default async function ConnectCalendarPage({
   if (searchParams.connected) {
     return (
       <PageShell>
-        <div className="flex flex-col items-center text-center gap-4 py-8">
-          <div className="w-16 h-16 rounded-full bg-primary/15 border border-primary/20 flex items-center justify-center">
+        <div style={cardStyle}>
+          <div
+            style={{
+              width: 64,
+              height: 64,
+              borderRadius: 32,
+              background: T.sage12,
+              border: `1px solid ${T.sageBorder}`,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              boxShadow: "0 0 28px rgba(124,184,122,0.22)",
+            }}
+          >
             <CheckIcon />
           </div>
-          <h1 className="font-serif italic text-3xl text-warm-white">Connected!</h1>
-          <p className="text-warm-white/50 text-base max-w-sm leading-relaxed">
-            Your calendar is linked. Kin will use it to make your morning briefings
-            actually useful.
+          <h1 style={headingStyle}>Connected!</h1>
+          <p style={bodyStyle}>
+            Your calendar is linked. Kin will use it to make your morning
+            briefings actually useful.
           </p>
-          <p className="text-warm-white/70 text-sm mt-2">
+          <div style={dividerStyle} />
+          <p
+            style={{
+              margin: 0,
+              fontSize: 14.5,
+              lineHeight: 1.55,
+              color: T.warm,
+              fontWeight: 500,
+            }}
+          >
             Go back to your texts — Kin is waiting for you there.
           </p>
         </div>
@@ -60,18 +98,10 @@ export default async function ConnectCalendarPage({
   if (searchParams.error) {
     return (
       <PageShell>
-        <div className="flex flex-col items-center text-center gap-4 py-8">
-          <div className="w-14 h-14 rounded-full bg-rose/15 flex items-center justify-center">
-            <AlertIcon />
-          </div>
-          <h1 className="font-serif italic text-2xl text-warm-white">
-            We couldn&apos;t connect your calendar
-          </h1>
-          <p className="text-warm-white/50 text-sm max-w-sm leading-relaxed">
-            Something went wrong linking your Google Calendar. Head back to your
-            texts and reply to Kin — it can send you a fresh link.
-          </p>
-        </div>
+        <NoticeCard
+          title="We couldn't connect your calendar"
+          body="Something went wrong linking your Google Calendar. Head back to your texts and reply to Kin — it can send you a fresh link."
+        />
       </PageShell>
     );
   }
@@ -87,18 +117,10 @@ export default async function ConnectCalendarPage({
   if (!profile) {
     return (
       <PageShell>
-        <div className="flex flex-col items-center text-center gap-4 py-8">
-          <div className="w-14 h-14 rounded-full bg-rose/15 flex items-center justify-center">
-            <AlertIcon />
-          </div>
-          <h1 className="font-serif italic text-2xl text-warm-white">
-            This link isn&apos;t valid
-          </h1>
-          <p className="text-warm-white/50 text-sm max-w-sm leading-relaxed">
-            It may have already been used, or it expired. Go back to your texts and
-            reply to Kin — it can send you a new one.
-          </p>
-        </div>
+        <NoticeCard
+          title="This link isn't valid"
+          body="It may have already been used, or it expired. Go back to your texts and reply to Kin — it can send you a new one."
+        />
       </PageShell>
     );
   }
@@ -107,38 +129,148 @@ export default async function ConnectCalendarPage({
   redirect(getGoogleAuthUrl(`sms:${token}`));
 }
 
-// ─── Layout + icons ────────────────────────────────────────────────────────────
+// ─── Layout ─────────────────────────────────────────────────────────────────────
 
 function PageShell({ children }: { children: React.ReactNode }) {
   return (
-    <main className="min-h-screen px-6 py-16 relative overflow-hidden">
-      <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] rounded-full bg-primary/5 blur-[120px] pointer-events-none" />
-      <div className="absolute bottom-1/4 right-1/4 w-[300px] h-[300px] rounded-full bg-amber/5 blur-[100px] pointer-events-none" />
+    <main
+      style={{
+        minHeight: "100vh",
+        background: T.bg,
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: "48px 24px",
+        position: "relative",
+        overflow: "hidden",
+        fontFamily: "var(--font-geist-sans), Geist, system-ui, sans-serif",
+        letterSpacing: "-0.005em",
+      }}
+    >
+      {/* ambient sage glow */}
+      <div
+        style={{
+          position: "absolute",
+          top: "32%",
+          left: "50%",
+          transform: "translate(-50%, -50%)",
+          width: 520,
+          height: 520,
+          borderRadius: "50%",
+          background: "rgba(124,184,122,0.07)",
+          filter: "blur(130px)",
+          pointerEvents: "none",
+        }}
+      />
 
-      <div className="max-w-lg mx-auto relative">
-        <div className="text-center mb-10">
-          <Link href="/" style={{ textDecoration: "none", display: "inline-block" }}>
-            <KinWordmark size={24} tone="warm" />
-          </Link>
-        </div>
+      <div
+        style={{
+          position: "relative",
+          width: "100%",
+          maxWidth: 420,
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          gap: 28,
+        }}
+      >
+        <Link href="/" style={{ textDecoration: "none", display: "inline-block" }}>
+          <KinWordmark size={26} tone="warm" />
+        </Link>
         {children}
       </div>
     </main>
   );
 }
 
+// ─── Shared styles ──────────────────────────────────────────────────────────────
+
+const cardStyle: React.CSSProperties = {
+  width: "100%",
+  background: T.bgCard,
+  border: `1px solid ${T.hair}`,
+  borderRadius: 18,
+  padding: "40px 32px",
+  display: "flex",
+  flexDirection: "column",
+  alignItems: "center",
+  textAlign: "center",
+  gap: 16,
+  boxShadow: "0 24px 60px rgba(0,0,0,0.45)",
+};
+
+const headingStyle: React.CSSProperties = {
+  margin: 0,
+  fontFamily: "var(--font-instrument-serif), Georgia, serif",
+  fontStyle: "italic",
+  fontWeight: 400,
+  fontSize: 34,
+  lineHeight: 1.1,
+  color: T.warm,
+  letterSpacing: "-0.01em",
+};
+
+const bodyStyle: React.CSSProperties = {
+  margin: 0,
+  fontSize: 14.5,
+  lineHeight: 1.6,
+  color: T.warm56,
+  maxWidth: 300,
+};
+
+const dividerStyle: React.CSSProperties = {
+  width: 32,
+  height: 1,
+  background: T.hair,
+  margin: "4px 0",
+};
+
+// ─── Notice card (error / invalid-link states) ──────────────────────────────────
+
+function NoticeCard({ title, body }: { title: string; body: string }) {
+  return (
+    <div style={cardStyle}>
+      <div
+        style={{
+          width: 56,
+          height: 56,
+          borderRadius: 28,
+          background: T.rose12,
+          border: `1px solid ${T.roseBorder}`,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
+        <AlertIcon />
+      </div>
+      <h1
+        style={{
+          ...headingStyle,
+          fontSize: 26,
+        }}
+      >
+        {title}
+      </h1>
+      <p style={bodyStyle}>{body}</p>
+    </div>
+  );
+}
+
+// ─── Icons ──────────────────────────────────────────────────────────────────────
+
 function CheckIcon() {
   return (
     <svg
-      width="28"
-      height="28"
+      width="30"
+      height="30"
       viewBox="0 0 24 24"
       fill="none"
-      stroke="currentColor"
+      stroke={T.sage}
       strokeWidth="2.5"
       strokeLinecap="round"
       strokeLinejoin="round"
-      className="text-primary"
     >
       <path d="M20 6 9 17l-5-5" />
     </svg>
@@ -152,11 +284,10 @@ function AlertIcon() {
       height="24"
       viewBox="0 0 24 24"
       fill="none"
-      stroke="currentColor"
+      stroke={T.rose}
       strokeWidth="2"
       strokeLinecap="round"
       strokeLinejoin="round"
-      className="text-rose"
     >
       <circle cx="12" cy="12" r="10" />
       <line x1="12" y1="8" x2="12" y2="12" />
