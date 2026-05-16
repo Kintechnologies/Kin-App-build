@@ -1,7 +1,11 @@
 /**
  * POST /api/sms/inbound
- * Twilio inbound SMS webhook. Validates signature, runs the onboarding SMS bot
- * for new users (steps 0–4), then conversation-aware Q&A for active users.
+ * Twilio inbound SMS webhook. Validates signature, auto-responds to texters who
+ * aren't registered users, runs the onboarding SMS bot for new users (steps
+ * 0–4), then conversation-aware Q&A for active users.
+ *
+ * Unknown senders get a one-time Kin intro (rate limited to once per number per
+ * 24h) sent via the A2P Messaging Service.
  *
  * Pattern: synchronous — Claude reply completes before response is returned.
  * Twilio's webhook timeout is 15s; replies are typically 2–8s. AbortController
@@ -142,18 +146,55 @@ export async function POST(request: Request) {
     to_number: process.env.TWILIO_PHONE_NUMBER ?? "",
   });
 
-  // ── 6. Unknown sender ──────────────────────────────────────────────────────
+  // ── 6. Unknown sender — auto-respond with a Kin intro ──────────────────────
+  // Rate limited to one auto-reply per phone number per 24h so a repeat texter
+  // isn't spammed. The window is checked against sms_conversations: a prior
+  // auto-reply is an outbound row to this number with profile_id NULL (only
+  // unknown-sender auto-replies have a null profile_id).
   if (!profileRow) {
+    const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+    const { data: priorAutoReply } = await supabase
+      .from("sms_conversations")
+      .select("id")
+      .is("profile_id", null)
+      .eq("direction", "outbound")
+      .eq("to_number", fromNumber)
+      .gte("sent_at", since)
+      .limit(1)
+      .maybeSingle();
+
+    // Already greeted this number within the last 24h — stay quiet.
+    if (priorAutoReply) {
+      return twimlEmpty();
+    }
+
     const reply =
-      "Hi! This is Kin. Sign up at kinai.family to connect your family calendar and get your daily briefing.";
-    await supabase.from("sms_conversations").insert({
-      profile_id: null,
-      direction: "outbound",
-      body: reply,
-      from_number: process.env.TWILIO_PHONE_NUMBER ?? "",
-      to_number: fromNumber,
-    });
-    return twimlReply(reply);
+      "Hey! 👋 Welcome to Kin — the AI that helps busy families stay coordinated. We send personalized morning briefings, help manage schedules, and learn your family's patterns over time. Join the waitlist to get started: https://kinai.family";
+
+    // Send via the A2P 10DLC Messaging Service (not the bare long code) so the
+    // outbound stays carrier-compliant — return empty TwiML since the reply is
+    // delivered out-of-band rather than through the webhook response.
+    try {
+      await sendSms(fromNumber, reply);
+      await supabase.from("sms_conversations").insert({
+        profile_id: null,
+        direction: "outbound",
+        body: reply,
+        from_number: process.env.TWILIO_PHONE_NUMBER ?? "",
+        to_number: fromNumber,
+      });
+    } catch (err: unknown) {
+      console.error("Unknown-sender auto-reply SMS failed:", err);
+      await supabase.from("sms_conversations").insert({
+        profile_id: null,
+        direction: "outbound_failed",
+        body: reply,
+        from_number: process.env.TWILIO_PHONE_NUMBER ?? "",
+        to_number: fromNumber,
+      });
+    }
+
+    return twimlEmpty();
   }
 
   const step = profileRow.onboarding_step ?? 0;
