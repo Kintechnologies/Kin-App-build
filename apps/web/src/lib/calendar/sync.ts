@@ -2,16 +2,9 @@ import { createClient } from "@/lib/supabase/server";
 import {
   pullGoogleEvents,
   googleEventToKinEvent,
-  pushEventToGoogle,
-  deleteGoogleEvent,
   refreshGoogleToken,
 } from "./google";
-import {
-  pullAppleEvents,
-  appleEventToKinEvent,
-  pushEventToApple,
-  deleteAppleEvent,
-} from "./apple";
+import { pullAppleEvents, appleEventToKinEvent } from "./apple";
 import { detectConflicts, findNewConflicts } from "./conflicts";
 import { detectLateScheduleChanges } from "@/lib/late-schedule-change";
 import type { CalendarConnection, CalendarEvent, CalendarConflict } from "@/types";
@@ -41,9 +34,6 @@ export async function syncCalendarForConnection(connectionId: string) {
     } else if (connection.provider === "apple") {
       await syncAppleCalendar(connection);
     }
-
-    // Process outbound sync queue
-    await processOutboundQueue(connection);
 
     // Update sync status
     await supabase
@@ -239,103 +229,6 @@ async function syncAppleCalendar(connection: CalendarConnection) {
   }
 }
 
-// ── Outbound Sync Queue Processing ──
-
-async function processOutboundQueue(connection: CalendarConnection) {
-  const supabase = createClient();
-
-  // Fetch the owner's timezone so pushed events render in the correct local time
-  const { data: profileData } = await supabase
-    .from("profiles")
-    .select("timezone")
-    .eq("id", connection.profile_id)
-    .single();
-  const profileTimezone: string = (profileData as { timezone?: string } | null)?.timezone ?? "UTC";
-
-  const { data: queue } = await supabase
-    .from("calendar_sync_queue")
-    .select("*, calendar_events(*)")
-    .eq("connection_id", connection.id)
-    .lte("next_retry_at", new Date().toISOString())
-    .lt("attempts", 5)
-    .order("created_at", { ascending: true })
-    .limit(50);
-
-  if (!queue?.length) return;
-
-  for (const item of queue) {
-    try {
-      const event = item.calendar_events as unknown as CalendarEvent;
-      if (!event) {
-        await supabase.from("calendar_sync_queue").delete().eq("id", item.id);
-        continue;
-      }
-
-      if (connection.provider === "google") {
-        const accessToken = connection.access_token!;
-
-        if (item.action === "delete" && event.external_id) {
-          await deleteGoogleEvent(accessToken, event.external_id);
-        } else if (item.action === "create" || item.action === "update") {
-          const externalId = await pushEventToGoogle(
-            accessToken,
-            event,
-            connection.google_calendar_id || "primary",
-            profileTimezone
-          );
-          await supabase
-            .from("calendar_events")
-            .update({
-              external_id: externalId,
-              sync_status: "synced",
-              last_synced_at: new Date().toISOString(),
-            })
-            .eq("id", event.id);
-        }
-      } else if (connection.provider === "apple") {
-        if (item.action === "delete" && event.external_id) {
-          await deleteAppleEvent(
-            connection.access_token!,
-            connection.refresh_token!,
-            event.external_id
-          );
-        } else if (item.action === "create" || item.action === "update") {
-          const url = await pushEventToApple(
-            connection.access_token!,
-            connection.refresh_token!,
-            connection.caldav_url!,
-            event,
-            event.external_id || undefined
-          );
-          await supabase
-            .from("calendar_events")
-            .update({
-              external_id: url,
-              sync_status: "synced",
-              last_synced_at: new Date().toISOString(),
-            })
-            .eq("id", event.id);
-        }
-      }
-
-      // Remove from queue on success
-      await supabase.from("calendar_sync_queue").delete().eq("id", item.id);
-    } catch (error) {
-      // Increment retry counter
-      await supabase
-        .from("calendar_sync_queue")
-        .update({
-          attempts: item.attempts + 1,
-          last_error: error instanceof Error ? error.message : "Unknown error",
-          next_retry_at: new Date(
-            Date.now() + Math.pow(2, item.attempts) * 60000
-          ).toISOString(), // exponential backoff
-        })
-        .eq("id", item.id);
-    }
-  }
-}
-
 // ── Conflict Detection ──
 
 async function runConflictDetection(profileId: string) {
@@ -377,33 +270,6 @@ async function runConflictDetection(profileId: string) {
       event_b_id: conflict.event_b.id,
       conflict_type: conflict.conflict_type,
       description: conflict.description,
-    });
-  }
-}
-
-// ── Queue Helpers (used by API routes when events are created/edited in Kin) ──
-
-export async function queueOutboundSync(
-  eventId: string,
-  profileId: string,
-  action: "create" | "update" | "delete"
-) {
-  const supabase = createClient();
-
-  // Find connected calendars for this user
-  const { data: connections } = await supabase
-    .from("calendar_connections")
-    .select("id")
-    .eq("profile_id", profileId)
-    .eq("enabled", true);
-
-  if (!connections?.length) return;
-
-  for (const conn of connections) {
-    await supabase.from("calendar_sync_queue").insert({
-      connection_id: conn.id,
-      event_id: eventId,
-      action,
     });
   }
 }

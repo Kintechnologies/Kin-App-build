@@ -147,7 +147,7 @@ export default function TermsPage() {
 
         <Section title="6. Calendar Integration and Third-Party Services">
           <p>The Service integrates with Google Calendar and may integrate with other third-party calendar services. Your use of these integrations is subject to the terms and privacy policies of those third parties.</p>
-          <p>By connecting your calendar, you authorize Kin to read your calendar data and, where applicable, create and modify events on your behalf. You can revoke this access at any time.</p>
+          <p>By connecting your calendar, you authorize Kin to read your calendar data. Kin requests read-only access and does not create, modify, or delete events on your behalf. You can revoke this access at any time.</p>
           <p>We are not responsible for the availability, accuracy, or security of third-party services. If a third-party service changes its API or terms, we may need to modify or discontinue the relevant integration.</p>
         </Section>
 

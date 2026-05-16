@@ -287,7 +287,7 @@ function CalendarStep() {
         Connect Google Calendar
       </h2>
       <p className="text-warm-white/45 text-sm text-center mb-6">
-        Kin reads your calendar to build your briefing. It never writes events without asking.
+        Kin reads your calendar to build your briefing. It never writes to or changes your calendar.
       </p>
 
       <div className="glass rounded-2xl px-5 py-4 mb-6">

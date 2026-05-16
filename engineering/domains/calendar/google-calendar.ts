@@ -1,13 +1,13 @@
-// Kin AI — Google Calendar OAuth + Two-Way Sync (Track C1.1)
+// Kin AI — Google Calendar OAuth + Read-Only Sync (Track C1.1)
 // Implements complete Google Calendar API v3 integration
-// OAuth scope: https://www.googleapis.com/auth/calendar (full read/write)
+// OAuth scope: https://www.googleapis.com/auth/calendar.readonly (read-only — Kin never writes)
 // Separate from auth Google sign-in — SECOND OAuth grant after sign-in
 // Deep link callback: kin://calendar/google/callback
 // Author: Lead Engineer (Track C1)
 // Date: 2026-04-02
 
 import { supabase } from '../../lib/supabase'
-import type { CalendarConnection, CalendarEvent } from '../../types'
+import type { CalendarConnection } from '../../types'
 
 // ============================================================================
 // TYPES
@@ -70,7 +70,7 @@ const SYNC_TOKEN_PROPERTY_KEY = 'kin_sync_token'
 /**
  * Initiate Google Calendar OAuth flow
  * Opens WebBrowser to Google OAuth endpoint
- * Scope: calendar (full read/write for personal, readonly for work)
+ * Scope: calendar.readonly — Kin only reads calendars, never writes
  * Stores tokens in calendar_connections table on success
  */
 export async function initiateGoogleCalendarOAuth(
@@ -82,9 +82,7 @@ export async function initiateGoogleCalendarOAuth(
   error?: string
 }> {
   try {
-    const scope = isWorkCalendar
-      ? 'https://www.googleapis.com/auth/calendar.readonly'
-      : 'https://www.googleapis.com/auth/calendar'
+    const scope = 'https://www.googleapis.com/auth/calendar.readonly'
 
     const clientId = process.env.EXPO_PUBLIC_GOOGLE_OAUTH_CLIENT_ID
     const redirectUri = 'kin://calendar/google/callback'
@@ -444,187 +442,6 @@ export async function syncFromGoogle(connectionId: string): Promise<{
       eventsAdded: 0,
       eventsUpdated: 0,
       eventsDeleted: 0,
-      error: error instanceof Error ? error.message : 'Unknown error',
-    }
-  }
-}
-
-// ============================================================================
-// EVENT OPERATIONS
-// ============================================================================
-
-/**
- * Create or update event in Google Calendar
- * Stores returned Google event ID in calendar_events.external_id
- */
-export async function pushEventToGoogle(
-  event: CalendarEvent,
-  connectionId: string
-): Promise<{
-  success: boolean
-  googleEventId?: string
-  error?: string
-}> {
-  try {
-    // Fetch connection
-    const { data: connection, error: fetchError } = await supabase
-      .from('calendar_connections')
-      .select()
-      .eq('id', connectionId)
-      .single()
-
-    if (fetchError || !connection || connection.is_read_only) {
-      throw new Error('Cannot push to read-only calendar')
-    }
-
-    let accessToken = connection.access_token
-    if (!accessToken) {
-      throw new Error('No access token')
-    }
-
-    // Build Google event
-    const googleEvent = {
-      summary: event.title,
-      description: event.location ? `Location: ${event.location}` : undefined,
-      location: event.location,
-      start: {
-        dateTime: event.start_at,
-        timeZone: 'UTC',
-      },
-      end: {
-        dateTime: event.end_at,
-        timeZone: 'UTC',
-      },
-      visibility: event.is_shared ? 'public' : 'private',
-    }
-
-    let url = `${GOOGLE_CALENDAR_API}/calendars/${connection.calendar_id}/events`
-    let method = 'POST'
-
-    // If event has external_id, update instead of create
-    if (event.external_id) {
-      url = `${url}/${event.external_id}`
-      method = 'PUT'
-    }
-
-    let response = await fetch(url, {
-      method,
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${accessToken}`,
-      },
-      body: JSON.stringify(googleEvent),
-    })
-
-    // Handle token expiry
-    if (response.status === 401) {
-      accessToken = await refreshGoogleToken(connectionId)
-      if (!accessToken) {
-        throw new Error('Failed to refresh token')
-      }
-
-      response = await fetch(url, {
-        method,
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${accessToken}`,
-        },
-        body: JSON.stringify(googleEvent),
-      })
-    }
-
-    if (!response.ok) {
-      throw new Error(`Failed to push event: ${response.statusText}`)
-    }
-
-    const result = (await response.json()) as GoogleCalendarEvent
-
-    // Update calendar_events with external_id
-    if (result.id && !event.external_id) {
-      await supabase
-        .from('calendar_events')
-        .update({
-          external_id: result.id,
-          external_source: 'google',
-          sync_status: 'synced',
-        })
-        .eq('id', event.id)
-    }
-
-    return {
-      success: true,
-      googleEventId: result.id,
-    }
-  } catch (error) {
-    console.error('Error pushing event to Google:', error)
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : 'Unknown error',
-    }
-  }
-}
-
-/**
- * Delete event from Google Calendar
- */
-export async function deleteEventFromGoogle(
-  externalId: string,
-  connectionId: string
-): Promise<{
-  success: boolean
-  error?: string
-}> {
-  try {
-    const { data: connection, error: fetchError } = await supabase
-      .from('calendar_connections')
-      .select()
-      .eq('id', connectionId)
-      .single()
-
-    if (fetchError || !connection) {
-      throw new Error('Calendar connection not found')
-    }
-
-    let accessToken = connection.access_token
-    if (!accessToken) {
-      throw new Error('No access token')
-    }
-
-    const url = `${GOOGLE_CALENDAR_API}/calendars/${connection.calendar_id}/events/${externalId}`
-
-    let response = await fetch(url, {
-      method: 'DELETE',
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-      },
-    })
-
-    // Handle token expiry
-    if (response.status === 401) {
-      accessToken = await refreshGoogleToken(connectionId)
-      if (!accessToken) {
-        throw new Error('Failed to refresh token')
-      }
-
-      response = await fetch(url, {
-        method: 'DELETE',
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-        },
-      })
-    }
-
-    if (!response.ok && response.status !== 204) {
-      throw new Error(`Failed to delete event: ${response.statusText}`)
-    }
-
-    return {
-      success: true,
-    }
-  } catch (error) {
-    console.error('Error deleting event from Google:', error)
-    return {
-      success: false,
       error: error instanceof Error ? error.message : 'Unknown error',
     }
   }

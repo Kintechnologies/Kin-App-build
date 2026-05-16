@@ -16,7 +16,7 @@ export function getGoogleAuthUrl(state: string): string {
   return oauth2Client.generateAuthUrl({
     access_type: "offline",
     prompt: "consent",
-    scope: ["https://www.googleapis.com/auth/calendar"],
+    scope: ["https://www.googleapis.com/auth/calendar.readonly"],
     state,
   });
 }
@@ -95,55 +95,6 @@ export async function pullGoogleEvents(
     }
     throw error;
   }
-}
-
-// Push event to Google Calendar
-export async function pushEventToGoogle(
-  accessToken: string,
-  event: CalendarEvent,
-  calendarId: string = "primary",
-  timezone: string = "UTC"
-): Promise<string> {
-  const calendar = getCalendarClient(accessToken);
-
-  const googleEvent: calendar_v3.Schema$Event = {
-    summary: event.title,
-    description: event.description || undefined,
-    location: event.location || undefined,
-    start: event.all_day
-      ? { date: event.start_time.split("T")[0] }
-      : { dateTime: event.start_time, timeZone: timezone },
-    end: event.all_day
-      ? { date: event.end_time.split("T")[0] }
-      : { dateTime: event.end_time, timeZone: timezone },
-  };
-
-  if (event.external_id) {
-    // Update existing
-    const response = await calendar.events.update({
-      calendarId,
-      eventId: event.external_id,
-      requestBody: googleEvent,
-    });
-    return response.data.id || event.external_id;
-  } else {
-    // Create new
-    const response = await calendar.events.insert({
-      calendarId,
-      requestBody: googleEvent,
-    });
-    return response.data.id!;
-  }
-}
-
-// Delete event from Google Calendar
-export async function deleteGoogleEvent(
-  accessToken: string,
-  externalId: string,
-  calendarId: string = "primary"
-): Promise<void> {
-  const calendar = getCalendarClient(accessToken);
-  await calendar.events.delete({ calendarId, eventId: externalId });
 }
 
 // ── Webhook Management ──

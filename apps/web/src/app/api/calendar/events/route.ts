@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getAuthenticatedUser } from "@/lib/supabase/api-auth";
-import { queueOutboundSync } from "@/lib/calendar/sync";
 
 // GET /api/calendar/events — list events for the current user
 export async function GET(request: Request) {
@@ -92,7 +91,7 @@ export async function POST(request: Request) {
       color,
       recurrence_rule,
       external_source: "kin",
-      sync_status: "pending_push",
+      sync_status: "synced",
     })
     .select()
     .single();
@@ -100,9 +99,6 @@ export async function POST(request: Request) {
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
-
-  // Queue for outbound sync to connected calendars
-  await queueOutboundSync(event.id, user.id, "create");
 
   return NextResponse.json({ event }, { status: 201 });
 }
@@ -131,7 +127,6 @@ export async function PUT(request: Request) {
     .from("calendar_events")
     .update({
       ...updates,
-      sync_status: "pending_push",
       updated_at: new Date().toISOString(),
     })
     .eq("id", id)
@@ -142,8 +137,6 @@ export async function PUT(request: Request) {
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
-
-  await queueOutboundSync(event.id, user.id, "update");
 
   return NextResponse.json({ event });
 }
@@ -167,7 +160,6 @@ export async function DELETE(request: Request) {
     .from("calendar_events")
     .update({
       deleted_at: new Date().toISOString(),
-      sync_status: "pending_push",
     })
     .eq("id", id)
     .eq("owner_parent_id", user.id);
@@ -175,8 +167,6 @@ export async function DELETE(request: Request) {
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
-
-  await queueOutboundSync(id, user.id, "delete");
 
   return NextResponse.json({ success: true });
 }

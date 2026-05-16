@@ -81,8 +81,9 @@ export default function PrivacyPage() {
           </LegalLI>
           <LegalLI>
             <LegalStrong>Calendar data:</LegalStrong> if you connect a Google
-            Calendar, we read events on the calendars you authorize and may
-            write events you ask Kin to add
+            Calendar, we request read-only access and only read events on the
+            calendars you authorize — Kin never writes to or modifies your
+            calendar
           </LegalLI>
           <LegalLI>
             <LegalStrong>Support communications:</LegalStrong> messages you send

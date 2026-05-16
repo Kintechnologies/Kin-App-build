@@ -71,52 +71,6 @@ export async function pullAppleEvents(
   return { events, objects };
 }
 
-// ── Push Event ──
-
-export async function pushEventToApple(
-  username: string,
-  password: string,
-  calendarUrl: string,
-  event: CalendarEvent,
-  existingUrl?: string
-): Promise<string> {
-  const client = await getAppleCalDAVClient(username, password);
-
-  const icsContent = kinEventToICS(event);
-  const eventUrl =
-    existingUrl || `${calendarUrl}${event.id}.ics`;
-
-  if (existingUrl) {
-    await client.updateCalendarObject({
-      calendarObject: {
-        url: existingUrl,
-        data: icsContent,
-      },
-    });
-  } else {
-    await client.createCalendarObject({
-      calendar: { url: calendarUrl } as DAVCalendar,
-      filename: `${event.id}.ics`,
-      iCalString: icsContent,
-    });
-  }
-
-  return eventUrl;
-}
-
-// ── Delete Event ──
-
-export async function deleteAppleEvent(
-  username: string,
-  password: string,
-  eventUrl: string
-): Promise<void> {
-  const client = await getAppleCalDAVClient(username, password);
-  await client.deleteCalendarObject({
-    calendarObject: { url: eventUrl },
-  });
-}
-
 // ── iCal Parsing ──
 
 export interface ParsedAppleEvent {
@@ -187,45 +141,4 @@ export function appleEventToKinEvent(
     is_shared: false,
     is_kid_event: false,
   };
-}
-
-// ── ICS Generation ──
-
-function kinEventToICS(event: CalendarEvent): string {
-  const now = new Date().toISOString().replace(/[-:]/g, "").split(".")[0] + "Z";
-
-  const formatDate = (iso: string, allDay: boolean) => {
-    if (allDay) {
-      return iso.split("T")[0].replace(/-/g, "");
-    }
-    return iso.replace(/[-:]/g, "").split(".")[0] + "Z";
-  };
-
-  const dtstart = event.all_day
-    ? `DTSTART;VALUE=DATE:${formatDate(event.start_time, true)}`
-    : `DTSTART:${formatDate(event.start_time, false)}`;
-
-  const dtend = event.all_day
-    ? `DTEND;VALUE=DATE:${formatDate(event.end_time, true)}`
-    : `DTEND:${formatDate(event.end_time, false)}`;
-
-  const ics = [
-    "BEGIN:VCALENDAR",
-    "VERSION:2.0",
-    "PRODID:-//Kin Family AI//EN",
-    "BEGIN:VEVENT",
-    `UID:${event.external_id || event.id}`,
-    `DTSTAMP:${now}`,
-    dtstart,
-    dtend,
-    `SUMMARY:${event.title}`,
-  ];
-
-  if (event.description) ics.push(`DESCRIPTION:${event.description}`);
-  if (event.location) ics.push(`LOCATION:${event.location}`);
-  if (event.recurrence_rule) ics.push(`RRULE:${event.recurrence_rule}`);
-
-  ics.push("END:VEVENT", "END:VCALENDAR");
-
-  return ics.join("\r\n");
 }

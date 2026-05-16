@@ -110,7 +110,7 @@ export default function PrivacyPage() {
 
         <Section title="2. Information We Collect">
           <p><strong style={{ color: "#F0EDE6" }}>Account information.</strong> When you create an account, we collect your name, email address, and any profile information you provide.</p>
-          <p><strong style={{ color: "#F0EDE6" }}>Calendar data.</strong> With your explicit permission, we access your Google Calendar to read and write events on your behalf. We read your calendar to understand your schedule and write to it when you ask Kin to add or modify events. We do not access your calendar without your consent.</p>
+          <p><strong style={{ color: "#F0EDE6" }}>Calendar data.</strong> With your explicit permission, we access your Google Calendar with read-only permission. We read your calendar to understand your schedule and build your briefings — Kin never writes to, modifies, or deletes events on your calendar. We do not access your calendar without your consent.</p>
           <p><strong style={{ color: "#F0EDE6" }}>Household data.</strong> You may optionally add information about your household including partner details, children&apos;s names, ages, and activities, and other family members. This information is used only to personalize your Kin experience.</p>
           <p><strong style={{ color: "#F0EDE6" }}>Usage data.</strong> We automatically collect information about how you use the Service, including features accessed, interactions with Kin&apos;s AI, app session data, and diagnostic information.</p>
           <p><strong style={{ color: "#F0EDE6" }}>Device information.</strong> We collect device type, operating system, and app version to provide support and improve the Service.</p>
