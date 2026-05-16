@@ -3,8 +3,9 @@
  *
  * Onboarding now happens entirely over text. A new texter has their profile
  * created on the first inbound message — their phone number IS the auth, no
- * password or OTP. Kin then walks them through a conversational setup, one
- * question per SMS, tracked by profiles.onboarding_step:
+ * password or OTP. The very first reply leads with A2P 10DLC / TCPA consent
+ * language before any question collects data. Kin then walks them through a
+ * conversational setup, one question per SMS, tracked by profiles.onboarding_step:
  *
  *   0 = new (profile just created)      5 = awaiting home location
  *   1 = awaiting first name             6 = awaiting partner phone (or skip)
@@ -44,20 +45,35 @@ export interface OnboardingProfile {
 
 // ─── Static question text ──────────────────────────────────────────────────────
 
-const WELCOME_QUESTION =
-  "Hey! I'm Kin — I help families stay coordinated with a daily morning briefing. What's your first name?";
+/**
+ * A2P 10DLC / TCPA consent. This MUST reach a new texter before any question
+ * collects data — it's the first half of the step-0 reply, ahead of the name
+ * question.
+ */
+const CONSENT_MESSAGE =
+  "Hey there! I'm Kin — I help families stay on top of the morning scramble " +
+  "with a daily briefing made just for them. Quick bit of housekeeping first: " +
+  "by continuing to text, you agree to receive SMS messages from Kin. Msg & " +
+  "data rates apply. Reply STOP to opt out anytime, or HELP for help.";
+
+const NAME_QUESTION =
+  "Okay — the fun part. What should I call you? First name's perfect.";
 
 const WAKE_QUESTION =
-  "What time do you usually wake up on weekdays? I'll have your briefing ready before then.";
+  "What time do weekday mornings usually kick off for you? I'll make sure your " +
+  "briefing's ready and waiting before then.";
 
 const LOCATION_QUESTION =
-  "Where's home? Just a city or zip — I'll pull weather and traffic for your mornings.";
+  "Where's home base? A city or zip is all I need — that's how I fold weather " +
+  "and traffic into your mornings.";
 
 const PARTNER_QUESTION =
-  "Do you have a partner or co-parent who helps coordinate? Text me their phone number and I'll invite them. Or reply \"skip\".";
+  "Is there a partner or co-parent in the mix who helps wrangle all this? Send " +
+  "me their number and I'll loop them in. Or just reply \"skip\" — no worries either way.";
 
 const RECURRING_QUESTION =
-  "Any recurring things I should know? Like \"Tuesdays I leave early\" or \"Fridays WFH\". Reply \"nothing\" if not.";
+  "Last big one: any weekly rhythms I should know? Things like \"Tuesdays I'm " +
+  "out the door early\" or \"Fridays are WFH.\" Reply \"nothing\" if your week's freeform.";
 
 // ─── Profile creation ──────────────────────────────────────────────────────────
 
@@ -131,7 +147,9 @@ export async function handleSmsOnboarding(
   switch (step) {
     case 0: {
       // First inbound text — the message content is just the "hello"; ignore it.
-      reply = WELCOME_QUESTION;
+      // Consent language leads, then the first real question. The consent MUST
+      // come before any data collection (A2P 10DLC / TCPA).
+      reply = `${CONSENT_MESSAGE}\n\n${NAME_QUESTION}`;
       nextStep = 1;
       break;
     }
@@ -139,7 +157,10 @@ export async function handleSmsOnboarding(
     case 1: {
       const name = cleanFirstName(messageBody);
       updates.family_name = name;
-      reply = `Nice to meet you, ${name}. Tell me about your kids — their names and ages. (Something like "Jaxon is 2 and Maya is 5.")`;
+      reply =
+        `Love it — so good to meet you, ${name}. ` +
+        `Now, tell me about your kids: names and ages, however you'd say it out loud. ` +
+        `Something like "Jaxon's 2 and Maya's 5."`;
       nextStep = 2;
       break;
     }
@@ -158,7 +179,7 @@ export async function handleSmsOnboarding(
       } else {
         // No kids parsed — keep the raw answer and skip the school question.
         notes = appendNote(notes, "kids", messageBody);
-        reply = WAKE_QUESTION;
+        reply = `Got it, all noted. ${WAKE_QUESTION}`;
         nextStep = 4;
       }
       break;
@@ -167,21 +188,21 @@ export async function handleSmsOnboarding(
     case 3: {
       notes = appendNote(notes, "schools", messageBody);
       await applySchools(supabase, profile.id, messageBody);
-      reply = WAKE_QUESTION;
+      reply = `Perfect — that's all saved. ${WAKE_QUESTION}`;
       nextStep = 4;
       break;
     }
 
     case 4: {
       notes = appendNote(notes, "wake_time", messageBody);
-      reply = LOCATION_QUESTION;
+      reply = `Got it — I'll beat your alarm to it. ${LOCATION_QUESTION}`;
       nextStep = 5;
       break;
     }
 
     case 5: {
       notes = appendNote(notes, "home_location", messageBody);
-      reply = PARTNER_QUESTION;
+      reply = `Love it. ${PARTNER_QUESTION}`;
       nextStep = 6;
       break;
     }
@@ -191,10 +212,13 @@ export async function handleSmsOnboarding(
       if (partnerPhone) {
         await invitePartner(supabase, profile, partnerPhone);
         notes = appendNote(notes, "partner", `invited ${partnerPhone}`);
+        reply =
+          "Love it — I'm sending them an invite right now so you two stay in sync. " +
+          RECURRING_QUESTION;
       } else {
         notes = appendNote(notes, "partner", "none / solo");
+        reply = `All good — I've got your back, solo crew. ${RECURRING_QUESTION}`;
       }
-      reply = RECURRING_QUESTION;
       nextStep = 7;
       break;
     }
@@ -204,8 +228,10 @@ export async function handleSmsOnboarding(
       const token = randomBytes(12).toString("hex");
       updates.calendar_connect_token = token;
       reply =
-        "Last thing — want me to see your calendar so your briefings are actually useful? " +
-        `Connect it here: ${APP_URL}/connect/${token}\n\nOr reply "skip".`;
+        "Whew — sounds like a full week. I'll keep all of that in mind. " +
+        "One last thing and we're done: want me to peek at your calendar so your " +
+        `briefings actually know what's coming? Connect it here: ${APP_URL}/connect/${token}` +
+        `\n\nOr reply "skip" — you can always do it later.`;
       nextStep = 8;
       break;
     }
@@ -213,11 +239,65 @@ export async function handleSmsOnboarding(
     case 8:
     default: {
       // Step 8: they tapped the calendar link (or replied "skip"). Either way,
-      // any inbound message here completes onboarding.
+      // any inbound message here completes onboarding. Recap everything Kin
+      // learned and confirm (or re-offer) the calendar connection.
       const firstName = (profile.family_name ?? "").split(/\s+/)[0] || "there";
+      const recap = parseNotes(priorNotes);
+
+      let calendarConnected = false;
+      try {
+        const { data: conn } = await supabase
+          .from("calendar_connections")
+          .select("id")
+          .eq("profile_id", profile.id)
+          .limit(1)
+          .maybeSingle<{ id: string }>();
+        calendarConnected = !!conn;
+      } catch (err) {
+        console.error("step 8 calendar connection check failed:", err);
+      }
+
+      const recapLines: string[] = [];
+      if (recap.kids) recapLines.push(`- Kids: ${recap.kids}`);
+      if (recap.schools) recapLines.push(`- School/daycare: ${recap.schools}`);
+      if (recap.wake_time) recapLines.push(`- Mornings start: ${recap.wake_time}`);
+      if (recap.home_location) recapLines.push(`- Home: ${recap.home_location}`);
+      if (recap.partner) {
+        recapLines.push(
+          `- Partner: ${
+            recap.partner.startsWith("invited") ? "invited to join you" : "just you for now"
+          }`
+        );
+      }
+      if (recap.recurring_commitments) {
+        recapLines.push(`- Weekly rhythm: ${recap.recurring_commitments}`);
+      }
+
+      let calendarLine: string;
+      if (calendarConnected) {
+        calendarLine =
+          "And your calendar's all linked up — so your briefings will actually " +
+          "know what your days hold. Nice work.";
+      } else {
+        const token = randomBytes(12).toString("hex");
+        updates.calendar_connect_token = token;
+        calendarLine =
+          "One thing I'm still missing: your calendar isn't linked yet — and " +
+          "that's what takes your briefings from good to genuinely useful. Hook " +
+          `it up whenever you're ready: ${APP_URL}/connect/${token}`;
+      }
+
+      const recapBlock =
+        recapLines.length > 0
+          ? `here's everything I've got:\n${recapLines.join("\n")}`
+          : "you're all set up.";
+
       reply =
-        `You're all set, ${firstName}! Your first briefing arrives tomorrow morning. ` +
-        `Just text me anytime — "who has pickup today?", "what's this week look like?" — I've got you.`;
+        `That's it, ${firstName} — ${recapBlock}\n\n${calendarLine}\n\n` +
+        "We're officially a team now. Your first briefing lands tomorrow morning, " +
+        'and I\'m always one text away — ask me "who\'s got pickup today?" or ' +
+        '"what\'s this week look like?" anytime. So glad you\'re here.';
+
       nextStep = 9;
       updates.onboarding_completed = true;
       // The completion message is the welcome SMS — record it so the web
@@ -287,9 +367,31 @@ function joinNames(names: string[]): string {
 
 function buildSchoolQuestion(names: string[]): string {
   if (names.length === 1) {
-    return `Got it. Does ${names[0]} go to daycare or school? Tell me the name of the place.`;
+    return (
+      `Aw, ${names[0]} — love that. Does ${names[0]} head off to daycare or ` +
+      `school anywhere? Just tell me the name of the place.`
+    );
   }
-  return `Got it. Do they go to daycare or school? Tell me where each one goes — ${joinNames(names)}.`;
+  return (
+    `${joinNames(names)} — what a crew. Do they go to daycare or school? ` +
+    `Tell me where each one lands.`
+  );
+}
+
+/**
+ * Parse the accumulated "label: value" context_notes back into a map. Used by
+ * the step-8 completion recap. During onboarding, every context_notes line was
+ * written by appendNote, so the format is reliable.
+ */
+function parseNotes(notes: string): Record<string, string> {
+  const map: Record<string, string> = {};
+  for (const line of notes.split("\n")) {
+    const idx = line.indexOf(": ");
+    if (idx === -1) continue;
+    const label = line.slice(0, idx).trim();
+    if (label) map[label] = line.slice(idx + 2).trim();
+  }
+  return map;
 }
 
 /** Find the first JSON array in a model response and parse it; [] on failure. */
