@@ -7,6 +7,9 @@
 //
 // Required edge function secrets (set via Supabase dashboard → Edge Functions → Secrets):
 //   TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_MESSAGING_SERVICE_SID, TWILIO_PHONE_NUMBER
+// Optional:
+//   OPENWEATHER_API_KEY — when set, briefings are enriched with a local
+//   weather forecast. Absent or invalid keys degrade silently (no weather).
 
 import { serve } from "https://deno.land/std@0.208.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.40.0";
@@ -18,6 +21,8 @@ const twilioAccountSid = Deno.env.get("TWILIO_ACCOUNT_SID")!;
 const twilioAuthToken = Deno.env.get("TWILIO_AUTH_TOKEN")!;
 const twilioMessagingServiceSid = Deno.env.get("TWILIO_MESSAGING_SERVICE_SID")!;
 const twilioFromNumber = Deno.env.get("TWILIO_PHONE_NUMBER")!;
+// Optional — weather enrichment is skipped entirely when this is unset.
+const openWeatherApiKey = Deno.env.get("OPENWEATHER_API_KEY");
 
 const supabase = createClient(supabaseUrl, supabaseServiceRoleKey);
 
@@ -70,29 +75,129 @@ async function logSms(
   });
 }
 
-async function generateBriefing(profileId: string, familyName: string): Promise<string> {
+// Optional weather enrichment. Returns a one-line summary for the briefing
+// context, or null on any failure — missing key, missing location, API error,
+// or a timezone with no forecast blocks today. Never throws: a weather problem
+// must never be able to break a briefing.
+async function fetchWeather(
+  location: string | null,
+  timezone: string
+): Promise<string | null> {
+  if (!openWeatherApiKey || !location) return null;
+  try {
+    const url =
+      `https://api.openweathermap.org/data/2.5/forecast?q=${encodeURIComponent(location)}` +
+      `&appid=${openWeatherApiKey}&units=imperial`;
+    const res = await fetch(url);
+    if (!res.ok) return null;
+
+    const data = await res.json();
+    const list: any[] = Array.isArray(data.list) ? data.list : [];
+    if (list.length === 0) return null;
+
+    // Forecast blocks are UTC; bucket them into the user's local calendar day.
+    const dayKey = (d: Date) =>
+      new Intl.DateTimeFormat("en-CA", { timeZone: timezone }).format(d);
+    const hourLabel = (d: Date) =>
+      new Intl.DateTimeFormat("en-US", { timeZone: timezone, hour: "numeric" }).format(d);
+
+    const today = dayKey(new Date());
+    const blocks = list.filter((b) => dayKey(new Date(b.dt * 1000)) === today);
+    if (blocks.length === 0) return null;
+
+    const temps = blocks
+      .map((b) => b.main?.temp)
+      .filter((t): t is number => typeof t === "number");
+    if (temps.length === 0) return null;
+
+    const high = Math.round(
+      Math.max(...blocks.map((b) => b.main?.temp_max ?? b.main?.temp ?? -Infinity))
+    );
+    const low = Math.round(
+      Math.min(...blocks.map((b) => b.main?.temp_min ?? b.main?.temp ?? Infinity))
+    );
+
+    const first = blocks[0];
+    const currentTemp = Math.round(first.main?.temp ?? temps[0]);
+    const currentDesc: string = first.weather?.[0]?.description ?? "clear skies";
+
+    // Group consecutive 3-hour blocks with >=30% precipitation into windows.
+    const wet = (b: any) => (b.pop ?? 0) >= 0.3;
+    const windows: string[] = [];
+    let runStart: any = null;
+    let runEnd: any = null;
+    let runKind = "rain";
+    const flush = () => {
+      if (runStart && runEnd) {
+        const start = hourLabel(new Date(runStart.dt * 1000));
+        const end = hourLabel(new Date((runEnd.dt + 3 * 3600) * 1000));
+        windows.push(`${runKind} ${start}–${end}`);
+      }
+      runStart = null;
+      runEnd = null;
+    };
+    for (const b of blocks) {
+      if (wet(b)) {
+        if (!runStart) {
+          runStart = b;
+          runKind = (b.weather?.[0]?.main ?? "Rain").toLowerCase();
+        }
+        runEnd = b;
+      } else {
+        flush();
+      }
+    }
+    flush();
+
+    let summary =
+      `Weather (${location}): currently ${currentTemp}°F ${currentDesc}, ` +
+      `high ${high}°F / low ${low}°F.`;
+    if (windows.length > 0) {
+      summary += ` Precipitation expected — ${windows.join(", ")}.`;
+    }
+    return summary;
+  } catch (err) {
+    console.error("Weather fetch failed:", err instanceof Error ? err.message : String(err));
+    return null;
+  }
+}
+
+async function generateBriefing(
+  profileId: string,
+  familyName: string,
+  timezone: string
+): Promise<string> {
   const today = new Date().toISOString().split("T")[0];
 
-  const [{ data: todayEvents }, { data: activities }, { data: petMeds }] =
-    await Promise.all([
-      supabase
-        .from("calendar_events")
-        .select("title, start_time, location")
-        .eq("profile_id", profileId)
-        .gte("start_time", `${today}T00:00:00Z`)
-        .lte("start_time", `${today}T23:59:59Z`)
-        .order("start_time", { ascending: true }),
-      supabase
-        .from("children_activities")
-        .select("name, start_time, day_of_week, family_member:family_members(name)")
-        .eq("profile_id", profileId)
-        .eq("active", true),
-      supabase
-        .from("pet_medications")
-        .select("name, frequency, family_member:family_members(name)")
-        .eq("profile_id", profileId)
-        .eq("active", true),
-    ]);
+  const [
+    { data: todayEvents },
+    { data: activities },
+    { data: petMeds },
+    { data: schedule },
+  ] = await Promise.all([
+    supabase
+      .from("calendar_events")
+      .select("title, start_time, location")
+      .eq("profile_id", profileId)
+      .gte("start_time", `${today}T00:00:00Z`)
+      .lte("start_time", `${today}T23:59:59Z`)
+      .order("start_time", { ascending: true }),
+    supabase
+      .from("children_activities")
+      .select("name, start_time, day_of_week, family_member:family_members(name)")
+      .eq("profile_id", profileId)
+      .eq("active", true),
+    supabase
+      .from("pet_medications")
+      .select("name, frequency, family_member:family_members(name)")
+      .eq("profile_id", profileId)
+      .eq("active", true),
+    supabase
+      .from("parent_schedules")
+      .select("home_location")
+      .eq("profile_id", profileId)
+      .maybeSingle(),
+  ]);
 
   const todayDayName = new Date().toLocaleDateString("en-US", { weekday: "long" });
   const todayActivities = (activities ?? []).filter((a: any) =>
@@ -128,6 +233,11 @@ async function generateBriefing(profileId: string, familyName: string): Promise<
     }
   }
 
+  const weather = await fetchWeather(schedule?.home_location ?? null, timezone);
+  if (weather) {
+    ctx += `\n${weather}\n`;
+  }
+
   const res = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
     headers: {
@@ -138,7 +248,7 @@ async function generateBriefing(profileId: string, familyName: string): Promise<
     body: JSON.stringify({
       model: "claude-sonnet-4-6",
       max_tokens: 200,
-      system: `You are Kin, a family AI chief of staff sending a morning SMS briefing. Output plain text only — no bullet points, no markdown, no newlines. The entire message must be under 480 characters. Lead with the single most important thing that requires a decision or action today. If nothing is urgent, give a warm 1-sentence schedule overview. Be direct, warm, and specific. Do not start with "Good morning" or "Morning." — just the substance.`,
+      system: `You are Kin, a family AI chief of staff sending a morning SMS briefing. Output plain text only — no bullet points, no markdown, no newlines. The entire message must be under 480 characters. Lead with the single most important thing that requires a decision or action today. If nothing is urgent, give a warm 1-sentence schedule overview. Be direct, warm, and specific. Do not start with "Good morning" or "Morning." — just the substance. If a weather line is present in the context, weave it in naturally only when it actually affects the day — tie it to a specific event rather than reporting it ("grab umbrellas before the 3pm soccer game", "it'll be 40°F at the bus stop, bundle the kids up"). Omit weather entirely when it is mild and uneventful; never include a standalone forecast.`,
       messages: [{ role: "user", content: ctx }],
     }),
   });
@@ -211,7 +321,11 @@ serve(async (req) => {
     results.processed++;
 
     try {
-      const briefingText = await generateBriefing(profile.id, profile.family_name ?? "Family");
+      const briefingText = await generateBriefing(
+        profile.id,
+        profile.family_name ?? "Family",
+        tz
+      );
 
       await sendSms(profile.phone_number, briefingText);
       await logSms(profile.id, "outbound", briefingText, profile.phone_number);
