@@ -7,3 +7,20 @@ enable_signup = true
 
 [auth.external.google]
 enabled = false
+
+# Phone OTP is the primary auth method. OTPs are delivered via Twilio Verify,
+# which uses its own Twilio-managed sender pool — deliberately separate from
+# the Messaging Service that sends morning briefings. This keeps STOP opt-outs
+# isolated: texting STOP to an OTP code won't also disable a user's briefings.
+# Production values live in the Supabase dashboard (Authentication > Providers
+# > Phone); the env() refs below only apply to local `supabase start`.
+[auth.sms]
+enable_signup = true
+enable_confirmations = true
+
+[auth.sms.twilio_verify]
+enabled = true
+account_sid = "env(TWILIO_ACCOUNT_SID)"
+# Twilio Verify Service SID (starts with VA...) — not a Messaging Service SID.
+message_service_sid = "env(TWILIO_VERIFY_SERVICE_SID)"
+auth_token = "env(TWILIO_AUTH_TOKEN)"
