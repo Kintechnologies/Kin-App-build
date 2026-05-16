@@ -1,4 +1,4 @@
--- 034_phone_first_auth.sql
+-- 035_phone_first_auth.sql
 -- Phone OTP is now the primary auth method. Phone-only users have no email,
 -- so handle_new_user() must tolerate a NULL auth.users.email and seed the
 -- profile's phone_number directly from the new auth row.
@@ -9,6 +9,8 @@ ALTER TABLE profiles ALTER COLUMN email DROP NOT NULL;
 -- Rewrite the signup trigger to handle phone-only users.
 -- auth.users.phone is stored as bare digits (no '+'); profiles.phone_number
 -- and the inbound Twilio webhook both expect E.164, so prepend '+'.
+-- search_path is pinned here to preserve the hardening from migration 034:
+-- CREATE OR REPLACE drops function config not restated in this definition.
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -25,4 +27,4 @@ BEGIN
   );
   RETURN NEW;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
