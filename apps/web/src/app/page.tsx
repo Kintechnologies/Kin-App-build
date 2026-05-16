@@ -47,16 +47,18 @@ function KinConversation() {
         Today · 6:02 AM
       </div>
       <SMSBubble from="kin" time="6:02 AM">
-        Jontae&apos;s 5pm standup typically runs late. Daycare closes at 5:45 —
-        pickup is yours today. Jaxon&apos;s 2-year checkup moved to 4pm (12
-        min from daycare). You&apos;re clear after 3:30.
+        Tight afternoon ahead. Jontae&apos;s 5pm standup usually runs over — if
+        it passes 5:15, daycare pickup becomes yours. Daycare locks at 5:45.
+        It&apos;s a 12 min drive, 18 with school traffic, so plan to leave by
+        4:22. Jaxon&apos;s 2-year checkup also moved to 4pm.
       </SMSBubble>
       <SMSBubble from="user" time="6:14 AM">
         Can she still do pickup if her meeting ends on time?
       </SMSBubble>
       <SMSBubble from="kin" time="6:14 AM">
-        I&apos;ll keep an eye on her 5pm and text you by 4:30. If it looks like
-        it&apos;s running over, pickup is yours.
+        I&apos;ll watch her 5pm in real time. If it&apos;s still going at 5:15,
+        I&apos;ll text you to leave — pickup is yours, and 4:22 keeps it
+        comfortable.
       </SMSBubble>
     </>
   );
@@ -780,7 +782,7 @@ function StepBriefIllustration() {
           fontSize: 12.5, lineHeight: 1.45, color: T.warm,
         }}
       >
-        Jontae&apos;s 5pm runs late. Daycare closes 5:45 — <span style={{ color: T.sage }}>pickup is yours</span>. Jaxon&apos;s checkup moved to 4pm (12 min away). You&apos;re clear after 3:30.
+        Jontae&apos;s 5pm usually runs over. If it passes 5:15, <span style={{ color: T.sage }}>pickup is yours</span> — leave by 4:22 (18 min in school traffic). Daycare locks at 5:45.
       </motion.div>
       <motion.div
         initial={{ opacity: 0, y: 4 }}
@@ -810,7 +812,7 @@ function StepBriefIllustration() {
           fontSize: 12.5, lineHeight: 1.45, color: T.warm,
         }}
       >
-        I&apos;ll watch her 5pm and text you by 4:30.
+        Watching her 5pm live — if it&apos;s still going at 5:15, I&apos;ll text you to leave.
       </motion.div>
     </div>
   );
@@ -819,8 +821,8 @@ function StepBriefIllustration() {
 const HOW_STEPS = [
   {
     n: "01",
-    title: "We read both sets of calendars so you don't have to",
-    body: "Connect your Google Calendars once. Kin reads both and knows the full picture — no more \"wait, what's happening Tuesday?\"",
+    title: "Kin sees the conflict before you do",
+    body: "Kin spots the collision early — a late meeting that's about to eat a daycare pickup — and quietly tells the right parent before it becomes a scramble. Connect your Google Calendars once and it has the full picture to work from.",
     Illustration: StepCalendarIllustration,
   },
   {
@@ -1294,6 +1296,77 @@ export default function Home() {
       {/* ── Interactive demo ─────────────────────────────────────────────── */}
       <InteractiveDemo />
 
+      {/* ── Mini story — "this actually happened" ────────────────────────── */}
+      <section
+        data-story
+        style={{
+          padding: "72px 40px",
+          maxWidth: 720,
+          margin: "0 auto",
+          borderBottom: `1px solid ${T.hair}`,
+        }}
+      >
+        <div style={{
+          fontFamily: T.mono, fontSize: 12, color: T.sage,
+          letterSpacing: "0.1em", textTransform: "uppercase",
+          marginBottom: 20, fontWeight: 600,
+        }}>
+          {"// a real Tuesday"}
+        </div>
+        <motion.div
+          initial={{ opacity: 0, y: 12 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.5 }}
+          style={{
+            background: T.bgCard,
+            border: `1px solid ${T.hair}`,
+            borderRadius: 16,
+            padding: "32px 36px",
+            display: "flex",
+            flexDirection: "column",
+            gap: 18,
+          }}
+        >
+          <p style={{
+            margin: 0,
+            fontSize: 18,
+            lineHeight: 1.6,
+            color: T.warm72,
+            letterSpacing: "-0.01em",
+          }}>
+            Last Tuesday, Kin noticed Jontae&apos;s 5pm standup was likely to run
+            late — it usually does. Daycare closes at 5:45. At 3:58pm, it texted
+            Austin:
+          </p>
+          <div style={{
+            alignSelf: "flex-start",
+            maxWidth: "90%",
+            padding: "11px 15px",
+            background: "rgba(124,184,122,0.10)",
+            border: `1px solid ${T.sageBorder}`,
+            borderRadius: "14px 14px 14px 4px",
+            fontSize: 15,
+            lineHeight: 1.5,
+            color: T.warm,
+            letterSpacing: "-0.005em",
+          }}>
+            Pickup is yours today. Leave by 4:22 to make it comfortably.
+          </div>
+          <p style={{
+            margin: 0,
+            fontSize: 18,
+            lineHeight: 1.6,
+            color: T.warm,
+            fontWeight: 500,
+            letterSpacing: "-0.01em",
+          }}>
+            No group chat. No last-minute scramble.{" "}
+            <span style={{ color: T.sage }}>Just handled.</span>
+          </p>
+        </motion.div>
+      </section>
+
       {/* ── How is this different ────────────────────────────────────────── */}
       <section
         id="comparison"
@@ -1724,6 +1797,7 @@ export default function Home() {
           section[data-how-it-works] > div[data-steps] > div[data-connector] { display: none !important; }
           section[data-personas] { padding: 56px 20px !important; }
           section[data-personas] > div[data-personas-grid] { grid-template-columns: 1fr !important; gap: 12px !important; }
+          section[data-story] { padding: 56px 20px !important; }
           section[data-comparison] { padding: 56px 20px !important; }
           section[data-comparison] > div[data-comparison-grid] { grid-template-columns: 1fr !important; gap: 12px !important; }
           section[data-pricing] { padding: 56px 20px !important; }
