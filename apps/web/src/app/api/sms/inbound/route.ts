@@ -25,6 +25,7 @@ import { getAnthropicClient, ANTHROPIC_MODEL } from "@/lib/anthropic";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { sendSms, validateTwilioRequest, twimlReply, twimlEmpty } from "@/lib/twilio";
 import { buildSmsSystemPrompt } from "@/lib/sms-system-prompt";
+import { analyzeConversationForContext } from "@/lib/household-context";
 import type Anthropic from "@anthropic-ai/sdk";
 
 // ─── Onboarding questions (step n sends question n-1 after saving answer n-1) ─
@@ -137,14 +138,18 @@ export async function POST(request: Request) {
     .eq("phone_number", fromNumber)
     .single<ProfileRow>();
 
-  // ── 5. Log inbound ─────────────────────────────────────────────────────────
-  await supabase.from("sms_conversations").insert({
-    profile_id: profileRow?.id ?? null,
-    direction: "inbound",
-    body: messageBody,
-    from_number: fromNumber,
-    to_number: process.env.TWILIO_PHONE_NUMBER ?? "",
-  });
+  // ── 5. Log inbound (capture row id for household-context provenance) ───────
+  const { data: inboundRow } = await supabase
+    .from("sms_conversations")
+    .insert({
+      profile_id: profileRow?.id ?? null,
+      direction: "inbound",
+      body: messageBody,
+      from_number: fromNumber,
+      to_number: process.env.TWILIO_PHONE_NUMBER ?? "",
+    })
+    .select("id")
+    .maybeSingle<{ id: string }>();
 
   // ── 6. Unknown sender — auto-respond with a Kin intro ──────────────────────
   // Rate limited to one auto-reply per phone number per 24h so a repeat texter
@@ -387,6 +392,18 @@ export async function POST(request: Request) {
     from_number: process.env.TWILIO_PHONE_NUMBER ?? "",
     to_number: fromNumber,
   });
+
+  // ── 14. Learn household context from this exchange ────────────────────────
+  // Fire-and-forget so it adds zero latency to the SMS reply. Awaiting a second
+  // Claude call here would risk Twilio's 15s webhook timeout.
+  // analyzeConversationForContext swallows all of its own errors.
+  void analyzeConversationForContext(
+    supabase,
+    profileRow.id,
+    messageBody,
+    reply,
+    inboundRow?.id ?? null
+  );
 
   return twimlReply(reply);
 }
