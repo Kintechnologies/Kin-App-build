@@ -10,14 +10,19 @@ const AUTH_TOKEN = () => {
   if (!v) throw new Error("TWILIO_AUTH_TOKEN is not set");
   return v;
 };
-const FROM_NUMBER = () => {
-  const v = process.env.TWILIO_PHONE_NUMBER;
-  if (!v) throw new Error("TWILIO_PHONE_NUMBER is not set");
+const MESSAGING_SERVICE_SID = () => {
+  const v = process.env.TWILIO_MESSAGING_SERVICE_SID;
+  if (!v) throw new Error("TWILIO_MESSAGING_SERVICE_SID is not set");
   return v;
 };
 
 /**
  * Send an SMS via the Twilio REST API using fetch (no npm package needed).
+ *
+ * Sent through the A2P 10DLC Messaging Service rather than a bare From
+ * number, so carrier delivery is tied to the registered A2P campaign.
+ * Sending from an unregistered long code fails US carrier filtering with
+ * error 30034 ("message from an unregistered number").
  */
 export async function sendSms(to: string, body: string): Promise<void> {
   const sid = ACCOUNT_SID();
@@ -29,7 +34,11 @@ export async function sendSms(to: string, body: string): Promise<void> {
       Authorization: `Basic ${Buffer.from(`${sid}:${token}`).toString("base64")}`,
       "Content-Type": "application/x-www-form-urlencoded",
     },
-    body: new URLSearchParams({ To: to, From: FROM_NUMBER(), Body: body }).toString(),
+    body: new URLSearchParams({
+      To: to,
+      MessagingServiceSid: MESSAGING_SERVICE_SID(),
+      Body: body,
+    }).toString(),
   });
   if (!res.ok) {
     const err = await res.text();
