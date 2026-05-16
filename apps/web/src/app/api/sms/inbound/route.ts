@@ -1,11 +1,11 @@
 /**
  * POST /api/sms/inbound
- * Twilio inbound SMS webhook. Validates signature, auto-responds to texters who
- * aren't registered users, runs the onboarding SMS bot for new users (steps
- * 0–4), then conversation-aware Q&A for active users.
- *
- * Unknown senders get a one-time Kin intro (rate limited to once per number per
- * 24h) sent via the A2P Messaging Service.
+ * Twilio inbound SMS webhook. Validates signature, then routes the texter:
+ *   - Brand-new number → mints a profile (phone number IS the auth) and starts
+ *     the SMS onboarding conversation.
+ *   - Mid-onboarding profile (step 0–8) → advances the onboarding state machine
+ *     in sms-onboarding.ts.
+ *   - Onboarded profile (step 9) → conversation-aware Claude Q&A.
  *
  * Pattern: synchronous — Claude reply completes before response is returned.
  * Twilio's webhook timeout is 15s; replies are typically 2–8s. AbortController
@@ -23,27 +23,15 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getAnthropicClient, ANTHROPIC_MODEL } from "@/lib/anthropic";
 import { checkRateLimit } from "@/lib/rate-limit";
-import { sendSms, validateTwilioRequest, twimlReply, twimlEmpty } from "@/lib/twilio";
-import { dispatchPartnerInvite } from "@/lib/partner-invite";
+import { validateTwilioRequest, twimlReply, twimlEmpty } from "@/lib/twilio";
 import { buildSmsSystemPrompt } from "@/lib/sms-system-prompt";
 import { analyzeConversationForContext } from "@/lib/household-context";
+import {
+  handleSmsOnboarding,
+  createOnboardingProfile,
+  type OnboardingProfile,
+} from "@/lib/sms-onboarding";
 import type Anthropic from "@anthropic-ai/sdk";
-
-// ─── Onboarding questions (step n sends question n-1 after saving answer n-1) ─
-
-const ONBOARDING_QUESTIONS = [
-  "What time do you usually wake up on weekdays? We'll send your briefing a bit before then.",
-  "Any recurring weekly commitments I should know about? (e.g. 'Tuesdays I leave by 5pm', 'Fridays WFH')",
-  "Who's the default person for school or daycare pickup when it's not decided yet?",
-  "Anything coming up this week I should flag for you? (Just reply 'nothing' if not.)",
-] as const;
-
-const ONBOARDING_LABELS = [
-  "wake_time",
-  "recurring_commitments",
-  "default_pickup",
-  "this_week",
-] as const;
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -51,16 +39,6 @@ interface CalendarEventRow {
   title: string;
   start_time: string;
   end_time: string | null;
-}
-
-interface ProfileRow {
-  id: string;
-  family_name: string | null;
-  household_id: string | null;
-  onboarding_step: number;
-  onboarding_completed: boolean | null;
-  context_notes: string | null;
-  partner_phone_pending: string | null;
 }
 
 interface SmsHistoryRow {
@@ -133,17 +111,33 @@ export async function POST(request: Request) {
   const supabase = createAdminClient();
 
   // ── 4. Profile lookup ──────────────────────────────────────────────────────
-  const { data: profileRow } = await supabase
-    .from("profiles")
-    .select("id, family_name, household_id, onboarding_step, onboarding_completed, context_notes, partner_phone_pending")
-    .eq("phone_number", fromNumber)
-    .single<ProfileRow>();
+  let profileRow: OnboardingProfile | null = null;
+  {
+    const { data } = await supabase
+      .from("profiles")
+      .select("id, family_name, household_id, onboarding_step, onboarding_completed, context_notes, partner_phone_pending")
+      .eq("phone_number", fromNumber)
+      .single<OnboardingProfile>();
+    profileRow = data;
+  }
 
-  // ── 5. Log inbound (capture row id for household-context provenance) ───────
+  // ── 5. New texter — create their profile and start SMS onboarding ──────────
+  // The phone number IS the auth: no signup form, no password, no OTP. A
+  // first text in mints the account.
+  if (!profileRow) {
+    profileRow = await createOnboardingProfile(supabase, fromNumber);
+    if (!profileRow) {
+      return twimlReply(
+        "Something went wrong getting you set up. Please try texting again in a minute."
+      );
+    }
+  }
+
+  // ── 6. Log inbound (capture row id for household-context provenance) ───────
   const { data: inboundRow } = await supabase
     .from("sms_conversations")
     .insert({
-      profile_id: profileRow?.id ?? null,
+      profile_id: profileRow.id,
       direction: "inbound",
       body: messageBody,
       from_number: fromNumber,
@@ -152,65 +146,14 @@ export async function POST(request: Request) {
     .select("id")
     .maybeSingle<{ id: string }>();
 
-  // ── 6. Unknown sender — auto-respond with a Kin intro ──────────────────────
-  // Rate limited to one auto-reply per phone number per 24h so a repeat texter
-  // isn't spammed. The window is checked against sms_conversations: a prior
-  // auto-reply is an outbound row to this number with profile_id NULL (only
-  // unknown-sender auto-replies have a null profile_id).
-  if (!profileRow) {
-    const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-    const { data: priorAutoReply } = await supabase
-      .from("sms_conversations")
-      .select("id")
-      .is("profile_id", null)
-      .eq("direction", "outbound")
-      .eq("to_number", fromNumber)
-      .gte("sent_at", since)
-      .limit(1)
-      .maybeSingle();
-
-    // Already greeted this number within the last 24h — stay quiet.
-    if (priorAutoReply) {
-      return twimlEmpty();
-    }
-
-    const reply =
-      "Hey! 👋 Welcome to Kin — the AI that helps busy families stay coordinated. We send personalized morning briefings, help manage schedules, and learn your family's patterns over time. Join the waitlist to get started: https://kinai.family";
-
-    // Send via the A2P 10DLC Messaging Service (not the bare long code) so the
-    // outbound stays carrier-compliant — return empty TwiML since the reply is
-    // delivered out-of-band rather than through the webhook response.
-    try {
-      await sendSms(fromNumber, reply);
-      await supabase.from("sms_conversations").insert({
-        profile_id: null,
-        direction: "outbound",
-        body: reply,
-        from_number: process.env.TWILIO_PHONE_NUMBER ?? "",
-        to_number: fromNumber,
-      });
-    } catch (err: unknown) {
-      console.error("Unknown-sender auto-reply SMS failed:", err);
-      await supabase.from("sms_conversations").insert({
-        profile_id: null,
-        direction: "outbound_failed",
-        body: reply,
-        from_number: process.env.TWILIO_PHONE_NUMBER ?? "",
-        to_number: fromNumber,
-      });
-    }
-
-    return twimlEmpty();
-  }
-
   const step = profileRow.onboarding_step ?? 0;
   const profileName = profileRow.family_name ?? "there";
 
-  // ── 7. SMS onboarding (steps 0–4) ─────────────────────────────────────────
-  // Only if web onboarding isn't already complete — guards against the web
-  // setting onboarding_step=2 (post-Stripe) conflicting with SMS steps.
-  if (!profileRow.onboarding_completed && step < 5) {
-    return handleOnboarding(supabase, profileRow, fromNumber, messageBody, step, profileName);
+  // ── 7. SMS onboarding (steps 0–8) ─────────────────────────────────────────
+  // All onboarding happens here over text. step 9 = complete; once there, the
+  // texter falls through to conversation-aware Q&A below.
+  if (!profileRow.onboarding_completed && step < 9) {
+    return handleSmsOnboarding(supabase, profileRow, fromNumber, messageBody, step);
   }
 
   // ── 8. Resolve partner profile ────────────────────────────────────────────
@@ -407,97 +350,4 @@ export async function POST(request: Request) {
   );
 
   return twimlReply(reply);
-}
-
-// ─── Onboarding handler ───────────────────────────────────────────────────────
-
-async function handleOnboarding(
-  supabase: ReturnType<typeof createAdminClient>,
-  profile: ProfileRow,
-  fromNumber: string,
-  messageBody: string,
-  step: number,
-  profileName: string
-): Promise<Response> {
-  const fromKin = process.env.TWILIO_PHONE_NUMBER ?? "";
-  let reply: string;
-  let nextStep = step;
-  let contextUpdate: string | null = null;
-
-  if (step === 0) {
-    // First text — start onboarding
-    reply = `Welcome to Kin, ${profileName}! 4 quick questions so your briefings are useful.\n\n${ONBOARDING_QUESTIONS[0]}`;
-    nextStep = 1;
-  } else {
-    // step 1–4: save the answer just received, then send the next question
-    const label = ONBOARDING_LABELS[step - 1];
-    const existing = profile.context_notes ?? "";
-    contextUpdate = existing
-      ? `${existing}\n${label}: ${messageBody}`
-      : `${label}: ${messageBody}`;
-
-    if (step < 4) {
-      reply = ONBOARDING_QUESTIONS[step]; // step=1 → Q[1] (Q2), etc.
-      nextStep = step + 1;
-    } else {
-      // step=4, final answer — onboarding complete
-      reply =
-        `You're all set! Your 6am briefing starts tomorrow. Text me anytime — "Who has pickup today?", "What's on the calendar this week?" — and I'll pull up both calendars.`;
-      nextStep = 5;
-    }
-  }
-
-  // Persist step + context_notes
-  const updatePayload: Record<string, unknown> = { onboarding_step: nextStep };
-  if (contextUpdate !== null) updatePayload.context_notes = contextUpdate;
-  await supabase.from("profiles").update(updatePayload).eq("id", profile.id);
-
-  // Log outbound
-  await supabase.from("sms_conversations").insert({
-    profile_id: profile.id,
-    direction: "outbound",
-    body: reply,
-    from_number: fromKin,
-    to_number: fromNumber,
-  });
-
-  // Fire partner invite when onboarding completes
-  if (nextStep === 5 && profile.partner_phone_pending) {
-    await sendPartnerInvite(supabase, profile);
-  }
-
-  return twimlReply(reply);
-}
-
-// ─── Partner invite ───────────────────────────────────────────────────────────
-
-/**
- * Fire the partner invite when SMS onboarding completes. Delegates to the
- * shared dispatcher so the partner receives a real /join/invite/<code> link
- * (and a household_invites row) — letting them onboard into THIS household
- * rather than creating a separate, unlinked one.
- */
-async function sendPartnerInvite(
-  supabase: ReturnType<typeof createAdminClient>,
-  profile: ProfileRow
-): Promise<void> {
-  const partnerPhone = profile.partner_phone_pending;
-  if (!partnerPhone) return;
-
-  try {
-    await dispatchPartnerInvite({
-      db: supabase,
-      inviterProfileId: profile.id,
-      inviterFamilyName: profile.family_name,
-      partnerPhone,
-    });
-  } catch (err) {
-    console.error("Partner invite dispatch failed:", err);
-  }
-
-  // Clear pending regardless of outcome so it isn't re-sent on the next text.
-  await supabase
-    .from("profiles")
-    .update({ partner_phone_pending: null })
-    .eq("id", profile.id);
 }
