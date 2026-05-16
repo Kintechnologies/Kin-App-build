@@ -1,4 +1,10 @@
 /**
+ * DEPRECATED: This route is no longer scheduled via Vercel cron.
+ * Morning briefings are now sent by the Supabase edge function, which does
+ * per-user timezone fan-out at 6am local time instead of a fixed 11:00 UTC
+ * for everyone. The route file is kept (unscheduled) in case we need to fall
+ * back to Vercel cron later.
+ *
  * GET /api/cron/morning-briefing
  * Runs daily at 11:00 UTC (6am EST / 7am EDT).
  * Sends a coordination-aware SMS briefing to every active user who has
