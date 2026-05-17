@@ -229,10 +229,9 @@ export async function handleSmsOnboarding(
       const token = randomBytes(12).toString("hex");
       updates.calendar_connect_token = token;
       reply =
-        "Whew — sounds like a full week. I'll keep all of that in mind. " +
-        "One last thing and we're done: want me to peek at your calendar so your " +
-        `briefings actually know what's coming? Connect it here: ${APP_URL}/connect/${token}` +
-        `\n\nOr reply "skip" — you can always do it later.`;
+        "Last thing — connect your calendar and I'll start spotting conflicts before your " +
+        "day blows up: meetings colliding with pickup, daycare, or gym plans. " +
+        `Connect it here: ${APP_URL}/connect/${token}\n\nOr reply "skip".`;
       nextStep = 8;
       break;
     }
@@ -258,7 +257,7 @@ export async function handleSmsOnboarding(
       // Recap everything Kin learned and confirm (or re-offer) the calendar
       // connection.
       const firstName = (profile.family_name ?? "").split(/\s+/)[0] || "there";
-      const recap = parseNotes(priorNotes);
+      const summary = buildCompletionSummary(profile, firstName);
 
       let calendarConnected = false;
       try {
@@ -271,22 +270,6 @@ export async function handleSmsOnboarding(
         calendarConnected = !!conn;
       } catch (err) {
         console.error("step 8 calendar connection check failed:", err);
-      }
-
-      const recapLines: string[] = [];
-      if (recap.kids) recapLines.push(`- Kids: ${recap.kids}`);
-      if (recap.schools) recapLines.push(`- School/daycare: ${recap.schools}`);
-      if (recap.wake_time) recapLines.push(`- Mornings start: ${recap.wake_time}`);
-      if (recap.home_location) recapLines.push(`- Home: ${recap.home_location}`);
-      if (recap.partner) {
-        recapLines.push(
-          `- Partner: ${
-            recap.partner.startsWith("invited") ? "invited to join you" : "just you for now"
-          }`
-        );
-      }
-      if (recap.recurring_commitments) {
-        recapLines.push(`- Weekly rhythm: ${recap.recurring_commitments}`);
       }
 
       let calendarLine: string;
@@ -303,16 +286,10 @@ export async function handleSmsOnboarding(
           `it up whenever you're ready: ${APP_URL}/connect/${token}`;
       }
 
-      const recapBlock =
-        recapLines.length > 0
-          ? `here's everything I've got:\n${recapLines.join("\n")}`
-          : "you're all set up.";
-
       reply =
-        `That's it, ${firstName} — ${recapBlock}\n\n${calendarLine}\n\n` +
-        "We're officially a team now. Your first briefing lands tomorrow morning, " +
-        'and I\'m always one text away — ask me "who\'s got pickup today?" or ' +
-        '"what\'s this week look like?" anytime.\n\n' +
+        `${summary}\n\n${calendarLine}\n\n` +
+        "We're officially a team now — I'm always one text away, so ask me " +
+        '"who\'s got pickup today?" or "what\'s this week look like?" anytime.\n\n' +
         "You're on your 7-day free trial. On day 7, I'll send you a link to your " +
         "dashboard where you can enter payment details and add any other family " +
         "members or caregivers. No surprises. So glad you're here.";
@@ -418,6 +395,42 @@ function wantsAnotherCalendar(raw: string): boolean {
 function appendNote(existing: string, label: string, value: string): string {
   const line = `${label}: ${value.trim()}`;
   return existing ? `${existing}\n${line}` : line;
+}
+
+function capitalizeFirst(s: string): string {
+  return s ? s.charAt(0).toUpperCase() + s.slice(1) : s;
+}
+
+/**
+ * Warm narrative recap that closes onboarding — the completion SMS. Reflects
+ * back what the family actually told us (drawn from context_notes) so it reads
+ * like Kin understood them, not like a confirmation of stored fields.
+ */
+function buildCompletionSummary(profile: OnboardingProfile, firstName: string): string {
+  const notes = parseNotes(profile.context_notes ?? "");
+  const bits: string[] = [];
+
+  if (notes.wake_time) bits.push(`weekday mornings start around ${notes.wake_time}`);
+  if (notes.schools) bits.push(notes.schools);
+  else if (notes.kids) bits.push(`you've got ${notes.kids}`);
+  if (notes.home_location) bits.push(`home base is ${notes.home_location}`);
+  if (
+    notes.recurring_commitments &&
+    !/^\s*(nothing|none|no|n\/a|nope)\b/i.test(notes.recurring_commitments)
+  ) {
+    bits.push(notes.recurring_commitments);
+  }
+
+  const recap = bits.length ? `${capitalizeFirst(joinNames(bits))}. ` : "";
+  const firstBriefing = notes.wake_time
+    ? `before ${notes.wake_time}`
+    : "before you're up";
+
+  return (
+    `Alright, ${firstName} — I've got enough to start helping. ${recap}` +
+    `I'll keep all of that in mind when I plan your mornings. ` +
+    `Your first briefing lands tomorrow, ${firstBriefing}.`
+  );
 }
 
 function joinNames(names: string[]): string {
