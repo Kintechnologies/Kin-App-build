@@ -4,7 +4,18 @@ import { useState, useEffect, useCallback, Suspense } from "react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ArrowRight, CheckCircle2, MessageSquare } from "lucide-react";
+import {
+  ArrowRight,
+  ArrowUpRight,
+  CheckCircle2,
+  MessageSquare,
+  CalendarCheck,
+  Users,
+  CreditCard,
+  Settings as SettingsIcon,
+  Clock,
+  Sparkles,
+} from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import PhoneBrief from "@/components/dashboard/PhoneBrief";
 
@@ -789,113 +800,431 @@ function WelcomeModal({
 // ─── page ────────────────────────────────────────────────────────────────────
 const DEMO_EMAILS = new Set(["demo@kinai.family", "partner@kinai.family"]);
 
-type SetupStatus = {
-  hasCalendar: boolean;
-  hasPartner: boolean;
+type SubscriptionStatus = "trial" | "active" | "past_due" | "canceled";
+
+const SUB_META: Record<
+  SubscriptionStatus,
+  { label: string; tone: string; bg: string; border: string }
+> = {
+  trial: {
+    label: "Trial",
+    tone: "#7AADCE",
+    bg: "rgba(122,173,206,0.1)",
+    border: "rgba(122,173,206,0.3)",
+  },
+  active: {
+    label: "Active",
+    tone: T.sage,
+    bg: T.sage12,
+    border: T.hairSage,
+  },
+  past_due: {
+    label: "Past due",
+    tone: "#D4748A",
+    bg: "rgba(212,116,138,0.1)",
+    border: "rgba(212,116,138,0.3)",
+  },
+  canceled: {
+    label: "Canceled",
+    tone: T.warm56,
+    bg: T.warm06,
+    border: T.hair,
+  },
 };
 
-function EmptyState({ setup }: { setup: SetupStatus }) {
+function nextBriefing(): { label: string; countdown: string } {
+  const now = new Date();
+  const next = new Date(now);
+  next.setHours(6, 0, 0, 0);
+  const isToday = now.getHours() < 6;
+  if (!isToday) next.setDate(next.getDate() + 1);
+  const ms = next.getTime() - now.getTime();
+  const h = Math.floor(ms / 3600000);
+  const m = Math.floor((ms % 3600000) / 60000);
+  return {
+    label: isToday ? "Today, 6:00 AM" : "Tomorrow, 6:00 AM",
+    countdown: `${String(h).padStart(2, "0")}h ${String(m).padStart(2, "0")}m away`,
+  };
+}
+
+function StatCard({
+  label,
+  value,
+  sub,
+  accent,
+}: {
+  label: string;
+  value: React.ReactNode;
+  sub: string;
+  accent?: string;
+}) {
   return (
-    <Card
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "flex-start",
-        gap: 16,
-        padding: "28px",
-      }}
-    >
-      <PhaseTag label="Setup · 1 step left" tone="sage" />
-      <div>
-        <h2
-          style={{
-            fontSize: 20,
-            fontWeight: 500,
-            color: T.warm,
-            letterSpacing: "-0.02em",
-            margin: "0 0 6px",
-          }}
-        >
-          {setup.hasCalendar
-            ? "You're all set."
-            : "Connect a calendar to start your briefings."}
-        </h2>
-        <p
-          style={{
-            fontSize: 13.5,
-            color: T.warm56,
-            margin: 0,
-            lineHeight: 1.55,
-            maxWidth: 520,
-          }}
-        >
-          {setup.hasCalendar
-            ? "Your first morning briefing will land at 6am. Until then, your calendar view shows what's on the books."
-            : "Read-only Google connection — Kin reads your day to write the brief, never posts back without your say-so."}
-        </p>
+    <Card style={{ padding: 16, display: "flex", flexDirection: "column", gap: 4 }}>
+      <div
+        style={{
+          fontFamily: T.mono,
+          fontSize: 9.5,
+          color: T.warm40,
+          letterSpacing: "0.12em",
+          textTransform: "uppercase",
+        }}
+      >
+        {label}
       </div>
-      <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-        {!setup.hasCalendar && (
-          <Link
-            href="/settings"
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 6,
-              padding: "10px 16px",
-              borderRadius: 10,
-              background: T.sage,
-              color: "#0C0F0A",
-              textDecoration: "none",
-              fontSize: 13,
-              fontWeight: 600,
-            }}
-          >
-            Connect calendar
-            <ArrowRight size={13} />
-          </Link>
-        )}
-        <Link
-          href="/calendar"
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            gap: 6,
-            padding: "10px 16px",
-            borderRadius: 10,
-            background: "transparent",
-            color: T.warm72,
-            border: `1px solid ${T.hair}`,
-            textDecoration: "none",
-            fontSize: 13,
-            fontWeight: 500,
-          }}
-        >
-          {setup.hasCalendar ? "See the week" : "Open calendar view"}
-          <ArrowRight size={13} />
-        </Link>
-        {!setup.hasPartner && (
-          <Link
-            href="/settings"
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 6,
-              padding: "10px 16px",
-              borderRadius: 10,
-              background: "transparent",
-              color: T.warm56,
-              border: `1px solid ${T.hair}`,
-              textDecoration: "none",
-              fontSize: 13,
-              fontWeight: 500,
-            }}
-          >
-            Invite your partner
-          </Link>
-        )}
+      <div
+        style={{
+          fontSize: 22,
+          fontWeight: 500,
+          color: accent ?? T.warm,
+          letterSpacing: "-0.02em",
+          lineHeight: 1.15,
+        }}
+      >
+        {value}
+      </div>
+      <div style={{ fontSize: 11.5, color: T.warm56, letterSpacing: "-0.005em" }}>
+        {sub}
       </div>
     </Card>
+  );
+}
+
+const QUICK_LINKS: {
+  href: string;
+  label: string;
+  desc: string;
+  icon: typeof CalendarCheck;
+}[] = [
+  {
+    href: "/dashboard/calendars",
+    label: "Calendars",
+    desc: "Connect or manage calendars",
+    icon: CalendarCheck,
+  },
+  {
+    href: "/dashboard/family",
+    label: "Family",
+    desc: "Household members & invites",
+    icon: Users,
+  },
+  {
+    href: "/dashboard/billing",
+    label: "Billing",
+    desc: "Plan & payment method",
+    icon: CreditCard,
+  },
+  {
+    href: "/dashboard/settings",
+    label: "Settings",
+    desc: "Phone, briefing & theme",
+    icon: SettingsIcon,
+  },
+];
+
+type OverviewData = {
+  subscriptionStatus: SubscriptionStatus;
+  trialDaysLeft: number;
+  trialEndLabel: string | null;
+  daysActive: number;
+  calendarCount: number;
+  familyCount: number;
+};
+
+function Overview({ data }: { data: OverviewData }) {
+  const {
+    subscriptionStatus,
+    trialDaysLeft,
+    trialEndLabel,
+    daysActive,
+    calendarCount,
+    familyCount,
+  } = data;
+  const sub = SUB_META[subscriptionStatus];
+  const brief = nextBriefing();
+  const hasCalendar = calendarCount > 0;
+
+  const subValue =
+    subscriptionStatus === "trial"
+      ? `${trialDaysLeft} day${trialDaysLeft === 1 ? "" : "s"}`
+      : sub.label;
+  const subSub =
+    subscriptionStatus === "trial"
+      ? trialEndLabel
+        ? `Trial ends ${trialEndLabel}`
+        : "Free trial active"
+      : subscriptionStatus === "active"
+        ? "Kin Premium · billed monthly"
+        : subscriptionStatus === "past_due"
+          ? "Update your payment method"
+          : "Resubscribe anytime";
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+      {/* stat grid */}
+      <div
+        className="kin-stat-grid"
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(4, 1fr)",
+          gap: 12,
+        }}
+      >
+        <StatCard
+          label="Subscription"
+          value={
+            <span style={{ display: "inline-flex", alignItems: "center", gap: 7 }}>
+              {subValue}
+              <span
+                style={{
+                  fontFamily: T.mono,
+                  fontSize: 9.5,
+                  fontWeight: 500,
+                  letterSpacing: "0.06em",
+                  textTransform: "uppercase",
+                  color: sub.tone,
+                  background: sub.bg,
+                  border: `1px solid ${sub.border}`,
+                  borderRadius: 999,
+                  padding: "3px 7px",
+                }}
+              >
+                {sub.label}
+              </span>
+            </span>
+          }
+          sub={subSub}
+        />
+        <StatCard
+          label="Next briefing"
+          value={brief.label.replace(", 6:00 AM", "")}
+          sub={brief.countdown}
+          accent={T.sage}
+        />
+        <StatCard
+          label="Days active"
+          value={daysActive}
+          sub={daysActive === 1 ? "Since you joined" : "Since you joined Kin"}
+        />
+        <StatCard
+          label="Calendars"
+          value={calendarCount}
+          sub={calendarCount === 1 ? "1 calendar connected" : "connected"}
+        />
+      </div>
+
+      {/* briefing status / setup */}
+      <Card style={{ padding: 24 }}>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "flex-start",
+            gap: 14,
+            flexWrap: "wrap",
+          }}
+        >
+          <div
+            style={{
+              width: 36,
+              height: 36,
+              borderRadius: 10,
+              background: T.sage12,
+              border: `1px solid ${T.hairSage}`,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              color: T.sage,
+              flexShrink: 0,
+            }}
+          >
+            {hasCalendar ? <CheckCircle2 size={18} /> : <Sparkles size={18} />}
+          </div>
+          <div style={{ flex: 1, minWidth: 220 }}>
+            <h2
+              style={{
+                fontSize: 17,
+                fontWeight: 500,
+                color: T.warm,
+                letterSpacing: "-0.015em",
+                margin: "2px 0 6px",
+              }}
+            >
+              {hasCalendar
+                ? "Your morning briefing is on"
+                : "Connect a calendar to start your briefings"}
+            </h2>
+            <p
+              style={{
+                fontSize: 13.5,
+                color: T.warm56,
+                margin: 0,
+                lineHeight: 1.55,
+                maxWidth: 460,
+              }}
+            >
+              {hasCalendar
+                ? `Kin reads ${calendarCount === 1 ? "your calendar" : "your calendars"} every morning and texts you a briefing at 6:00 AM — ${brief.countdown.toLowerCase()}.`
+                : "Read-only Google connection — Kin reads your day to write the brief, and never posts back without your say-so."}
+            </p>
+            <div
+              style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 16 }}
+            >
+              <Link
+                href={hasCalendar ? "/calendar" : "/dashboard/calendars"}
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 6,
+                  padding: "10px 16px",
+                  borderRadius: 10,
+                  background: T.sage,
+                  color: "#0C0F0A",
+                  textDecoration: "none",
+                  fontSize: 13,
+                  fontWeight: 600,
+                }}
+              >
+                {hasCalendar ? "See this week" : "Connect calendar"}
+                <ArrowRight size={13} />
+              </Link>
+              {!hasCalendar && (
+                <Link
+                  href="/calendar"
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 6,
+                    padding: "10px 16px",
+                    borderRadius: 10,
+                    background: "transparent",
+                    color: T.warm72,
+                    border: `1px solid ${T.hair}`,
+                    textDecoration: "none",
+                    fontSize: 13,
+                    fontWeight: 500,
+                  }}
+                >
+                  Open calendar view
+                </Link>
+              )}
+            </div>
+          </div>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 7,
+              padding: "8px 12px",
+              borderRadius: 10,
+              background: T.warm06,
+              border: `1px solid ${T.hair}`,
+              color: T.warm72,
+            }}
+          >
+            <Clock size={14} style={{ color: T.sage }} />
+            <span
+              style={{
+                fontFamily: T.mono,
+                fontSize: 11,
+                letterSpacing: "0.04em",
+                fontVariantNumeric: "tabular-nums",
+              }}
+            >
+              {brief.label}
+            </span>
+          </div>
+        </div>
+      </Card>
+
+      {/* quick links */}
+      <div
+        className="kin-stat-grid"
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(4, 1fr)",
+          gap: 12,
+        }}
+      >
+        {QUICK_LINKS.map(({ href, label, desc, icon: Icon }) => (
+          <Link
+            key={href}
+            href={href}
+            style={{ textDecoration: "none" }}
+          >
+            <Card
+              style={{
+                padding: 16,
+                display: "flex",
+                flexDirection: "column",
+                gap: 8,
+                height: "100%",
+              }}
+            >
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                }}
+              >
+                <div
+                  style={{
+                    width: 30,
+                    height: 30,
+                    borderRadius: 8,
+                    background: T.warm06,
+                    border: `1px solid ${T.hair}`,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    color: T.warm72,
+                  }}
+                >
+                  <Icon size={15} strokeWidth={1.8} />
+                </div>
+                <ArrowUpRight size={14} style={{ color: T.warm40 }} />
+              </div>
+              <div>
+                <div
+                  style={{
+                    fontSize: 13.5,
+                    fontWeight: 500,
+                    color: T.warm,
+                    letterSpacing: "-0.005em",
+                  }}
+                >
+                  {label}
+                  {label === "Family" && familyCount > 0 ? (
+                    <span style={{ color: T.warm40, fontWeight: 400 }}>
+                      {" "}
+                      · {familyCount}
+                    </span>
+                  ) : null}
+                </div>
+                <div
+                  style={{
+                    fontSize: 11.5,
+                    color: T.warm56,
+                    marginTop: 2,
+                    lineHeight: 1.4,
+                  }}
+                >
+                  {desc}
+                </div>
+              </div>
+            </Card>
+          </Link>
+        ))}
+      </div>
+
+      <style>{`
+        @media (max-width: 860px) {
+          .kin-stat-grid { grid-template-columns: repeat(2, 1fr) !important; }
+        }
+        @media (max-width: 480px) {
+          .kin-stat-grid { grid-template-columns: 1fr !important; }
+        }
+      `}</style>
+    </div>
   );
 }
 
@@ -908,7 +1237,7 @@ function DashboardContent() {
   const [trialEnd, setTrialEnd] = useState(() => formatTrialEnd(null));
   const [now, setNow] = useState(() => new Date());
   const [isDemoUser, setIsDemoUser] = useState<boolean | null>(null);
-  const [setup, setSetup] = useState<SetupStatus>({ hasCalendar: false, hasPartner: false });
+  const [overview, setOverview] = useState<OverviewData | null>(null);
 
   useEffect(() => {
     const t = setInterval(() => setNow(new Date()), 60_000);
@@ -929,6 +1258,7 @@ function DashboardContent() {
 
   useEffect(() => {
     let cancelled = false;
+    let demo = false;
     (async () => {
       try {
         const supabase = createClient();
@@ -937,12 +1267,14 @@ function DashboardContent() {
         } = await supabase.auth.getUser();
         if (!user || cancelled) return;
 
-        const demo = !!user.email && DEMO_EMAILS.has(user.email.toLowerCase());
+        demo = !!user.email && DEMO_EMAILS.has(user.email.toLowerCase());
         if (!cancelled) setIsDemoUser(demo);
 
         const { data: profile } = await supabase
           .from("profiles")
-          .select("display_name, trial_ends_at, household_id")
+          .select(
+            "first_name, trial_ends_at, subscription_status, created_at, household_id",
+          )
           .eq("id", user.id)
           .single();
 
@@ -953,36 +1285,86 @@ function DashboardContent() {
 
         const { data: members } = await supabase
           .from("family_members")
-          .select("name, profile_id")
-          .eq("member_type", "adult")
+          .select("name, profile_id, member_type")
           .order("created_at", { ascending: true });
 
         if (cancelled) return;
 
-        const me = members?.find((m) => m.profile_id === user.id);
-        const partner = members?.find((m) => m.profile_id !== user.id);
+        const adults = (members ?? []).filter((m) => m.member_type === "adult");
+        const me = adults.find((m) => m.profile_id === user.id);
+        const partner = adults.find((m) => m.profile_id !== user.id);
 
         if (me?.name) setFirstName(me.name.split(" ")[0]);
-        else if (profile?.display_name)
-          setFirstName(profile.display_name.split(" ")[0]);
+        else if (profile?.first_name)
+          setFirstName(profile.first_name.split(" ")[0]);
 
         if (partner?.name) setPartnerName(partner.name.split(" ")[0]);
 
-        // Per-user setup status — only meaningful for non-demo users.
+        // Overview stats — only rendered for non-demo users.
         if (!demo) {
           const { count: connCount } = await supabase
             .from("calendar_connections")
             .select("id", { count: "exact", head: true })
             .eq("profile_id", user.id);
+
+          const myMembers = (members ?? []).filter(
+            (m) => m.profile_id === user.id,
+          );
+
+          const status = (profile?.subscription_status ??
+            "trial") as SubscriptionStatus;
+          const trialEndsAt = profile?.trial_ends_at
+            ? new Date(profile.trial_ends_at)
+            : null;
+          const trialDaysLeft =
+            trialEndsAt && trialEndsAt > new Date()
+              ? Math.max(
+                  1,
+                  Math.ceil(
+                    (trialEndsAt.getTime() - Date.now()) / 86_400_000,
+                  ),
+                )
+              : 0;
+          const trialEndLabel = trialEndsAt
+            ? trialEndsAt.toLocaleDateString("en-US", {
+                month: "short",
+                day: "numeric",
+              })
+            : null;
+          const createdAt = profile?.created_at
+            ? new Date(profile.created_at)
+            : null;
+          const daysActive = createdAt
+            ? Math.max(
+                1,
+                Math.floor((Date.now() - createdAt.getTime()) / 86_400_000) + 1,
+              )
+            : 1;
+
           if (!cancelled) {
-            setSetup({
-              hasCalendar: (connCount ?? 0) > 0,
-              hasPartner: !!partner,
+            setOverview({
+              subscriptionStatus: status,
+              trialDaysLeft,
+              trialEndLabel,
+              daysActive,
+              calendarCount: connCount ?? 0,
+              familyCount: myMembers.length,
             });
           }
         }
       } catch {
-        /* non-fatal */
+        // Non-fatal — fall back to a safe overview so the home base still
+        // renders for a signed-in user even if a query failed.
+        if (!cancelled && !demo) {
+          setOverview({
+            subscriptionStatus: "trial",
+            trialDaysLeft: 0,
+            trialEndLabel: null,
+            daysActive: 1,
+            calendarCount: 0,
+            familyCount: 0,
+          });
+        }
       }
     })();
     return () => {
@@ -997,8 +1379,8 @@ function DashboardContent() {
     ? partnerName
       ? `Today's brief went out at 6:02. You and ${partnerName} both read it.`
       : "Today's brief went out at 6:02. Coverage is locked in."
-    : setup.hasCalendar
-      ? "Your calendar is connected. Briefings start tomorrow at 6am."
+    : (overview?.calendarCount ?? 0) > 0
+      ? "Your calendar is connected. Here's your home base."
       : "One quick step: connect your calendar so Kin can build your morning briefing.";
 
   return (
@@ -1120,8 +1502,29 @@ function DashboardContent() {
               <CoverageCard />
             </div>
           </div>
+        ) : overview ? (
+          <Overview data={overview} />
         ) : (
-          <EmptyState setup={setup} />
+          <p
+            style={{
+              fontSize: 13,
+              color: T.warm40,
+              display: "flex",
+              alignItems: "center",
+              gap: 6,
+            }}
+          >
+            <span
+              style={{
+                width: 6,
+                height: 6,
+                borderRadius: "50%",
+                background: T.sage,
+                display: "inline-block",
+              }}
+            />
+            Loading your home base…
+          </p>
         )}
 
         <style>{`

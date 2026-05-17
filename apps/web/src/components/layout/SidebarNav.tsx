@@ -4,8 +4,10 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import {
-  MessageSquare,
+  Home,
   CalendarDays,
+  CalendarCheck,
+  Users,
   CreditCard,
   Settings as SettingsIcon,
   Menu,
@@ -26,10 +28,12 @@ type NavItem = {
 };
 
 const NAV: NavItem[] = [
-  { href: "/dashboard", label: "Morning briefing", icon: MessageSquare, enabled: true },
+  { href: "/dashboard", label: "Home", icon: Home, enabled: true },
   { href: "/calendar", label: "This week", icon: CalendarDays, enabled: true },
+  { href: "/dashboard/calendars", label: "Calendars", icon: CalendarCheck, enabled: true },
+  { href: "/dashboard/family", label: "Family", icon: Users, enabled: true },
   { href: "/dashboard/billing", label: "Billing", icon: CreditCard, enabled: true },
-  { href: "/settings", label: "Settings", icon: SettingsIcon, enabled: true },
+  { href: "/dashboard/settings", label: "Settings", icon: SettingsIcon, enabled: true },
 ];
 
 function nextBriefCountdown(): string {
@@ -67,12 +71,12 @@ export default function SidebarNav() {
         if (user.email) setEmail(user.email);
         const { data: profile } = await supabase
           .from("profiles")
-          .select("display_name")
+          .select("first_name")
           .eq("id", user.id)
           .single();
         if (cancelled) return;
-        if (profile?.display_name) {
-          setName(profile.display_name.split(" ")[0]);
+        if (profile?.first_name) {
+          setName(profile.first_name.split(" ")[0]);
         } else if (user.email) {
           setName(user.email.split("@")[0]);
         }
