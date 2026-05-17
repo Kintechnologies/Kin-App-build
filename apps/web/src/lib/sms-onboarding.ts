@@ -7,11 +7,12 @@
  * language before any question collects data. Kin then walks them through a
  * conversational setup, one question per SMS, tracked by profiles.onboarding_step:
  *
- *   0 = new (profile just created)      5 = awaiting home location
- *   1 = awaiting first name             6 = awaiting partner phone (or skip)
- *   2 = awaiting kids' names + ages     7 = awaiting recurring commitments
- *   3 = awaiting school / daycare       8 = calendar link sent, awaiting reply
- *   4 = awaiting wake time              9 = complete
+ *   0 = new (profile just created)      6 = awaiting partner phone (or skip)
+ *   1 = awaiting first name             7 = awaiting recurring commitments
+ *   2 = awaiting kids' names + ages     8 = awaiting email (or skip)
+ *   3 = awaiting school / daycare       9 = calendar link sent, awaiting reply
+ *   4 = awaiting wake time             10 = complete
+ *   5 = awaiting home location
  *
  * Structured data lands in its proper table (family_members, children_details),
  * and a human-readable copy is also appended to profiles.context_notes so the
@@ -75,6 +76,11 @@ const PARTNER_QUESTION =
 const RECURRING_QUESTION =
   "Last big one: any weekly rhythms I should know? Things like \"Tuesdays I'm " +
   "out the door early\" or \"Fridays are WFH.\" Reply \"nothing\" if your week's freeform.";
+
+const EMAIL_QUESTION =
+  "One quick thing — what's a good email for you? I'll send your receipts and a " +
+  "weekly recap of how the family's week went there. Reply \"skip\" if you'd " +
+  "rather keep everything to text.";
 
 // ─── Profile creation ──────────────────────────────────────────────────────────
 
@@ -226,22 +232,35 @@ export async function handleSmsOnboarding(
 
     case 7: {
       notes = appendNote(notes, "recurring_commitments", messageBody);
-      const token = randomBytes(12).toString("hex");
-      updates.calendar_connect_token = token;
-      reply =
-        "Last thing — connect your calendar and I'll start spotting conflicts before your " +
-        "day blows up: meetings colliding with pickup, daycare, or gym plans. " +
-        `Connect it here: ${APP_URL}/connect/${token}\n\nOr reply "skip".`;
+      reply = `Noted — that all helps. ${EMAIL_QUESTION}`;
       nextStep = 8;
       break;
     }
 
-    case 8:
+    case 8: {
+      const email = extractEmail(messageBody);
+      if (email) {
+        updates.email = email;
+        reply = `Perfect — I'll send receipts and weekly recaps to ${email}.`;
+      } else {
+        reply = "No worries — we'll keep everything right here in your texts.";
+      }
+      const token = randomBytes(12).toString("hex");
+      updates.calendar_connect_token = token;
+      reply +=
+        " Last thing — connect your calendar and I'll start spotting conflicts before " +
+        "your day blows up: meetings colliding with pickup, daycare, or gym plans. " +
+        `Connect it here: ${APP_URL}/connect/${token}\n\nOr reply "skip".`;
+      nextStep = 9;
+      break;
+    }
+
+    case 9:
     default: {
-      // Step 8: the calendar link was sent. The user has tapped it (or replied
+      // Step 9: the calendar link was sent. The user has tapped it (or replied
       // "skip"). Before finalizing, check whether this reply is asking to
       // connect *another* calendar — if so, mint a fresh token, text a new
-      // link, and stay on step 8 until they signal they're done.
+      // link, and stay on step 9 until they signal they're done.
       if (wantsAnotherCalendar(messageBody)) {
         const token = randomBytes(12).toString("hex");
         updates.calendar_connect_token = token;
@@ -249,7 +268,7 @@ export async function handleSmsOnboarding(
           "Of course — connect as many calendars as you'd like. Here's a fresh link:\n" +
           `${APP_URL}/connect/${token}\n\n` +
           'Tap it to add another, or reply "done" once you\'ve linked them all.';
-        nextStep = 8;
+        nextStep = 9;
         break;
       }
 
@@ -294,7 +313,7 @@ export async function handleSmsOnboarding(
         "dashboard where you can enter payment details and add any other family " +
         "members or caregivers. No surprises. So glad you're here.";
 
-      nextStep = 9;
+      nextStep = 10;
       updates.onboarding_completed = true;
       // The completion message is the welcome SMS — record it so the web
       // welcome hook never double-texts an SMS-onboarded user.
@@ -389,7 +408,19 @@ function extractPhone(raw: string): string | null {
 }
 
 /**
- * At step 8 the user already has a calendar link. Their reply might be asking
+ * Pull an email address out of a freeform reply, or null when there isn't one.
+ * A skip ("skip", "no thanks") and an answer with no address in it are treated
+ * the same — onboarding moves on either way, no re-prompt. Trailing sentence
+ * punctuation is trimmed so "it's sarah@kin.com!" still yields a clean address.
+ */
+function extractEmail(raw: string): string | null {
+  const match = raw.match(/[^\s@]+@[^\s@]+\.[^\s@]+/);
+  if (!match) return null;
+  return match[0].toLowerCase().replace(/[.,;:!?]+$/, "");
+}
+
+/**
+ * At step 9 the user already has a calendar link. Their reply might be asking
  * to connect *another* calendar rather than signaling they're finished. Returns
  * true when the message reads as "send me another connect link".
  *
