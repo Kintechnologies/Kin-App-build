@@ -183,6 +183,41 @@ const PAYMENT_NUDGE =
   "It's been a week with Kin! Hope your mornings have been smoother. To keep your briefings going, " +
   "set up your payment here: kinai.family/dashboard. You can also add other family members or caregivers from there.";
 
+// Calendar data is "stale" when a connected external calendar (Google/Apple)
+// hasn't synced recently or is erroring. A briefing built only from Kin-native
+// events is never stale — those events are the source of truth — so a profile
+// with no enabled connection produces no warning. When a warning is present we
+// pass it into the prompt so the briefing hedges instead of asserting a
+// possibly-outdated schedule with false confidence.
+const STALE_SYNC_THRESHOLD_MS = 12 * 60 * 60 * 1000;
+
+interface CalendarConnectionRow {
+  last_synced_at: string | null;
+  sync_status: string;
+  enabled: boolean;
+}
+
+function calendarStalenessNote(
+  connections: CalendarConnectionRow[] | null
+): string | null {
+  const active = (connections ?? []).filter((c) => c.enabled);
+  if (active.length === 0) return null;
+  if (active.some((c) => c.sync_status === "error")) {
+    return "A connected calendar is failing to sync — today's events may be incomplete or out of date.";
+  }
+  const newestSync = active
+    .map((c) => (c.last_synced_at ? new Date(c.last_synced_at).getTime() : 0))
+    .reduce((a, b) => Math.max(a, b), 0);
+  if (newestSync === 0) {
+    return "A connected calendar has not synced yet — today's events may be out of date.";
+  }
+  const ageMs = Date.now() - newestSync;
+  if (ageMs > STALE_SYNC_THRESHOLD_MS) {
+    return `A connected calendar last synced ${Math.round(ageMs / 3_600_000)}h ago — today's events may be out of date.`;
+  }
+  return null;
+}
+
 async function generateBriefing(
   profileId: string,
   familyName: string,
@@ -196,6 +231,7 @@ async function generateBriefing(
     { data: activities },
     { data: petMeds },
     { data: schedule },
+    { data: calendarConnections },
   ] = await Promise.all([
     supabase
       .from("calendar_events")
@@ -219,6 +255,10 @@ async function generateBriefing(
       .select("home_location")
       .eq("profile_id", profileId)
       .maybeSingle(),
+    supabase
+      .from("calendar_connections")
+      .select("last_synced_at, sync_status, enabled")
+      .eq("profile_id", profileId),
   ]);
 
   const todayDayName = new Date().toLocaleDateString("en-US", { weekday: "long" });
@@ -227,6 +267,11 @@ async function generateBriefing(
   );
 
   let ctx = `Family: ${familyName}\nDate: ${new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}\n\n`;
+
+  const stalenessNote = calendarStalenessNote(calendarConnections);
+  if (stalenessNote) {
+    ctx += `DATA FRESHNESS WARNING: ${stalenessNote}\n\n`;
+  }
 
   if (todayEvents && todayEvents.length > 0) {
     ctx += "Today's calendar:\n";
@@ -271,6 +316,12 @@ async function generateBriefing(
       model: "claude-sonnet-4-6",
       max_tokens: 200,
       system: `You are Kin, a family AI chief of staff sending a morning SMS briefing. Output plain text only — no bullet points, no markdown, no newlines. The entire message must be under 480 characters — or under 600 if (and only if) you end with a contextual follow-up question, see below. Lead with the single most important thing that requires a decision or action today. If nothing is urgent, give a warm 1-sentence schedule overview. Be direct, warm, and specific. Do not start with "Good morning" or "Morning." — just the substance. If a weather line is present in the context, weave it in naturally only when it actually affects the day — tie it to a specific event rather than reporting it ("grab umbrellas before the 3pm soccer game", "it'll be 40°F at the bus stop, bundle the kids up"). Omit weather entirely when it is mild and uneventful; never include a standalone forecast.
+
+GROUNDING — every fact must trace to the context. Only mention events, kids' activities, pet medications, times, names, and locations that appear verbatim in the context below. Never invent an errand, to-do, appointment, deadline, task, or reminder. Any action you suggest ("leave by 2:40 for the 3pm game") must reference an event that is actually in the context — if you cannot point to the line it came from, do not say it. When the context is thin, a shorter briefing is the correct briefing; never manufacture substance to fill space.
+
+SCOPE — you cover this family's calendar, kids' activities, pet medications, and weather only insofar as it affects today's events. Do not give general life advice, news, parenting or health tips, meal ideas, or commentary on anything the context does not contain. If today is genuinely quiet, say so briefly and stop — do not drift into topics you have no data for.
+
+DATA FRESHNESS — if the context contains a "DATA FRESHNESS WARNING" line, the calendar may be out of date. In that case, hedge: frame the schedule as "what I've got on the calendar" rather than asserting it as certain fact, and do not present a clear calendar as definitely clear (e.g. "nothing on the calendar — though it may not have synced yet"). Without that warning, treat the calendar as current and speak with normal confidence; do not hedge needlessly.
 
 CONTEXTUAL FOLLOW-UP QUESTION: On a normal morning, deliver the briefing and stop — do NOT ask a question. Only on a genuinely high-risk day — a real scheduling conflict, tight back-to-back timing between events, or an ambiguous pickup that could quietly go wrong — you MAY end with ONE short follow-up question that offers concrete help the user actually wants. It must name a specific event and time from today and propose a specific action you can take: a reminder, a nudge, a heads-up. Example: "Both your 5pm and Jaxon's 6pm pickup are tight today. Want me to ping you at 4:30 so it doesn't sneak up?" The question must earn its place by being useful to the user, not to chase a reply. Never ask a generic question, never hand the user more work, and never ask anything on a normal day. If you can't name a concrete risk and a concrete offer, ask nothing.`,
       messages: [{ role: "user", content: ctx }],

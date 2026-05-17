@@ -29,6 +29,41 @@ interface CoordinationIssueRow {
   state: string;
 }
 
+interface CalendarConnectionRow {
+  last_synced_at: string | null;
+  sync_status: string;
+  enabled: boolean;
+}
+
+// Calendar data is "stale" when a connected external calendar (Google/Apple)
+// hasn't synced recently or is erroring. A briefing built only from Kin-native
+// events is never stale — those events are the source of truth — so a profile
+// with no enabled connection produces no warning. When a warning is present we
+// pass it into the prompt so the briefing hedges instead of asserting a
+// possibly-outdated schedule with false confidence.
+const STALE_SYNC_THRESHOLD_MS = 12 * 60 * 60 * 1000;
+
+function calendarStalenessNote(
+  connections: CalendarConnectionRow[] | null
+): string | null {
+  const active = (connections ?? []).filter((c) => c.enabled);
+  if (active.length === 0) return null;
+  if (active.some((c) => c.sync_status === "error")) {
+    return "A connected calendar is failing to sync — today's events may be incomplete or out of date.";
+  }
+  const newestSync = active
+    .map((c) => (c.last_synced_at ? new Date(c.last_synced_at).getTime() : 0))
+    .reduce((a, b) => Math.max(a, b), 0);
+  if (newestSync === 0) {
+    return "A connected calendar has not synced yet — today's events may be out of date.";
+  }
+  const ageMs = Date.now() - newestSync;
+  if (ageMs > STALE_SYNC_THRESHOLD_MS) {
+    return `A connected calendar last synced ${Math.round(ageMs / 3_600_000)}h ago — today's events may be out of date.`;
+  }
+  return null;
+}
+
 export interface SmsBriefingProfile {
   id: string;
   family_name: string | null;
@@ -53,6 +88,12 @@ const SMS_BRIEFING_SYSTEM_PROMPT = `You are Kin, a family coordination AI. You a
 
 ## YOUR JOB
 Surface what this parent most needs to know about today — coordination, pickups, schedule conflicts between the two parents, time-sensitive logistics. You are not summarizing their calendar; you are telling them what it means for today.
+
+## GROUNDING — every word traces to the context
+Every event, time, name, location, pickup owner, task, reminder, and next step you mention MUST appear in the context block below. Never invent an errand, to-do, appointment, deadline, or action item. If you propose an action ("leave by 2:40", "I'll remind you before the 3pm pickup"), it must point at an event, coordination issue, or schedule change that is actually present in the context — if you cannot trace it to a line, do not write it. A briefing that says less is always better than one that asserts something unverified.
+
+## SCOPE — calendar coordination only
+You cover exactly one domain: this household's calendar, pickups, conflicts between the two parents, open coordination issues, and recent schedule changes. You do NOT give parenting advice, health tips, meal or activity suggestions, news, or commentary on anything outside the context. If the context is thin, the briefing is short — never pad it with material outside this domain or drift into topics you have no data for.
 
 ## SMS FORMATTING — NON-NEGOTIABLE
 - Plain text only. No markdown, no bullets, no numbered lists, no asterisks.
@@ -92,11 +133,14 @@ Warm but not cutesy. Confident but not arrogant. Direct, specific, human. A trus
 ## NEVER
 - Lecture, warn, or moralize.
 - Use corporate language (leverage, optimize, synergize, utilize).
-- Fabricate any time, name, location, or pickup ownership not in the context.
+- Fabricate any time, name, location, pickup ownership, task, errand, or action item not in the context.
 - Say "I've got this" / "Don't worry" / "You're all set".
 
 ## EMPTY CALENDAR
 If there's truly nothing material to surface, write one warm, brief sentence about the open day and stop. Do not pad.
+
+## DATA FRESHNESS — hedge when the data may be stale
+If the context contains a "DATA FRESHNESS WARNING" line, the calendar may be out of date. When you see one: frame the schedule as "what I've got on the calendar" rather than asserting it as certain fact, do not present a clear or empty calendar as definitely clear, and add a soft qualifier ("though your calendar may not have synced this morning"). Without that warning, treat the calendar as current and speak with your normal confidence — do not hedge needlessly.
 
 ## CONTEXTUAL FOLLOW-UP QUESTION — earn it or skip it
 Most mornings, deliver the briefing and stop. Do NOT ask a question.
@@ -177,11 +221,16 @@ export async function generateSmsBriefing(
         .limit(10)
     : Promise.resolve({ data: null as CalendarEventRow[] | null });
 
+  const connectionProfileIds = [profile.id, partnerProfileId].filter(
+    (id): id is string => !!id
+  );
+
   const [
     { data: myEvents },
     { data: partnerEvents },
     { data: openIssues },
     { data: recentChanges },
+    { data: calendarConnections },
   ] = await Promise.all([
     supabase
       .from("calendar_events")
@@ -208,6 +257,12 @@ export async function generateSmsBriefing(
       .is("deleted_at", null)
       .order("updated_at", { ascending: false })
       .limit(5) as unknown as Promise<{ data: CalendarEventRow[] | null }>,
+    supabase
+      .from("calendar_connections")
+      .select("last_synced_at, sync_status, enabled")
+      .in("profile_id", connectionProfileIds) as unknown as Promise<{
+      data: CalendarConnectionRow[] | null;
+    }>,
   ]);
 
   // ── Household memory (learned from past SMS conversations) ────────────────
@@ -221,6 +276,11 @@ export async function generateSmsBriefing(
 
   // ── Build user-message context block ──────────────────────────────────────
   let ctx = `BRIEFING FOR: ${profileName}${partnerName ? ` (partner: ${partnerName})` : ""}\nDATE: ${dateStr}\n`;
+
+  const stalenessNote = calendarStalenessNote(calendarConnections);
+  if (stalenessNote) {
+    ctx += `\nDATA FRESHNESS WARNING: ${stalenessNote}\n`;
+  }
 
   const issues = openIssues ?? [];
   if (issues.length > 0) {
