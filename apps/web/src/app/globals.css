@@ -2,64 +2,58 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Dark mode (default) */
-:root, .dark {
-  --background: #0C0F0A;
-  --surface: #14181A;
-  --surface-raised: #1B201C;
-  --foreground: #F0EDE6;
-  --primary: #7CB87A;
-  --primary-soft: #3D5C3C;
-  --warm-white: #F0EDE6;
-  --amber: #D4A843;
-  --purple: #A07EC8;
-  --blue: #7AADCE;
-  --rose: #D4748A;
+/* ─────────────────────────────────────────────────────────────────────────
+   Aimé Leon Dore aesthetic — cream / olive / earth-tone palette.
+   The app ships a single warm light theme; .dark and .light both resolve
+   to the same tokens so the theme toggle is a no-op rather than a break.
+   ───────────────────────────────────────────────────────────────────────── */
+:root, .dark, .light {
+  /* Legacy named tokens (consumed by Tailwind + UI components) */
+  --background: #F7F3ED;        /* cream */
+  --surface: #FDFBF7;           /* warm white */
+  --surface-raised: #EBE8E0;    /* sage bg */
+  --foreground: #3A3832;        /* text */
+  --primary: #5C6B4F;           /* olive */
+  --primary-soft: #EBE8E0;      /* sage bg */
+  --warm-white: #2C2C28;        /* charcoal — primary text in components */
+  --amber: #C4A97D;             /* tan */
+  --purple: #8B7355;            /* brown */
+  --blue: #7A8C6A;              /* olive light */
+  --rose: #A65A4A;              /* brick — errors */
 
   /* Kin design system tokens */
-  --bg: #0C0F0A;
-  --bg-lift: #14181A;
-  --bg-card: #161A17;
-  --bg-elev: #1B201C;
-  --sage: #7CB87A;
-  --sage-mute: #6FA56D;
-  --sage-12: rgba(124, 184, 122, 0.12);
-  --sage-20: rgba(124, 184, 122, 0.20);
-  --sage-40: rgba(124, 184, 122, 0.40);
-  --warm: #F0EDE6;
-  --warm-72: rgba(240, 237, 230, 0.72);
-  --warm-56: rgba(240, 237, 230, 0.56);
-  --warm-40: rgba(240, 237, 230, 0.40);
-  --warm-24: rgba(240, 237, 230, 0.24);
-  --warm-12: rgba(240, 237, 230, 0.12);
-  --warm-06: rgba(240, 237, 230, 0.06);
-  --hair: rgba(240, 237, 230, 0.08);
-  --hair-strong: rgba(240, 237, 230, 0.14);
-  --hair-sage: rgba(124, 184, 122, 0.14);
-  --radius-sm: 6px;
-  --radius: 10px;
+  --bg: #F7F3ED;                /* cream */
+  --bg-lift: #FDFBF7;           /* warm white */
+  --bg-card: #FDFBF7;           /* warm white */
+  --bg-elev: #EBE8E0;           /* sage bg */
+  --sage: #5C6B4F;              /* olive */
+  --sage-dark: #3D4A33;         /* olive dark */
+  --sage-mute: #7A8C6A;         /* olive light */
+  --sage-12: rgba(92, 107, 79, 0.12);
+  --sage-20: rgba(92, 107, 79, 0.20);
+  --sage-40: rgba(92, 107, 79, 0.40);
+  --brown: #8B7355;
+  --tan: #C4A97D;
+  --warm: #2C2C28;              /* charcoal — primary text */
+  --warm-72: rgba(44, 44, 40, 0.74);
+  --warm-56: rgba(44, 44, 40, 0.60);
+  --warm-40: rgba(44, 44, 40, 0.46);
+  --warm-24: rgba(44, 44, 40, 0.26);
+  --warm-12: rgba(44, 44, 40, 0.12);
+  --warm-06: rgba(44, 44, 40, 0.05);
+  --hair: #E5DFD5;              /* hairline border */
+  --hair-strong: #D8D0C2;
+  --hair-sage: rgba(92, 107, 79, 0.24);
+  --radius-sm: 4px;
+  --radius: 8px;
   --radius-lg: 14px;
-}
-
-/* Light mode */
-.light {
-  --background: #FAFAF7;
-  --surface: #FFFFFF;
-  --surface-raised: #F5F3EE;
-  --foreground: #1A1F16;
-  --primary: #5A9A58;
-  --primary-soft: #E8F5E7;
-  --warm-white: #1A1F16;
-  --amber: #B8892A;
-  --purple: #7E5BA8;
-  --blue: #5289A8;
-  --rose: #B85A6E;
 }
 
 body {
   color: var(--foreground);
   background: var(--background);
-  font-family: var(--font-geist-sans), system-ui, sans-serif;
+  font-family: var(--font-geist-sans), "Inter", system-ui, sans-serif;
+  font-weight: 400;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
@@ -72,48 +66,35 @@ body {
 }
 
 @layer utilities {
-  /* Glassmorphism — dark */
-  .dark .glass, :root .glass {
-    background: rgba(26, 31, 22, 0.6);
-    backdrop-filter: blur(20px) saturate(1.4);
-    -webkit-backdrop-filter: blur(20px) saturate(1.4);
-    border: 1px solid rgba(240, 237, 230, 0.06);
+  /* Glassmorphism — warm cream */
+  .glass {
+    background: rgba(253, 251, 247, 0.72);
+    backdrop-filter: blur(20px) saturate(1.2);
+    -webkit-backdrop-filter: blur(20px) saturate(1.2);
+    border: 0.5px solid var(--hair);
   }
-  .dark .glass-strong, :root .glass-strong {
-    background: rgba(33, 40, 32, 0.7);
-    backdrop-filter: blur(24px) saturate(1.6);
-    -webkit-backdrop-filter: blur(24px) saturate(1.6);
-    border: 1px solid rgba(240, 237, 230, 0.08);
-  }
-  /* Glassmorphism — light */
-  .light .glass {
-    background: rgba(255, 255, 255, 0.7);
-    backdrop-filter: blur(20px) saturate(1.4);
-    -webkit-backdrop-filter: blur(20px) saturate(1.4);
-    border: 1px solid rgba(0, 0, 0, 0.06);
-  }
-  .light .glass-strong {
-    background: rgba(255, 255, 255, 0.8);
-    backdrop-filter: blur(24px) saturate(1.6);
-    -webkit-backdrop-filter: blur(24px) saturate(1.6);
-    border: 1px solid rgba(0, 0, 0, 0.08);
+  .glass-strong {
+    background: rgba(253, 251, 247, 0.88);
+    backdrop-filter: blur(24px) saturate(1.3);
+    -webkit-backdrop-filter: blur(24px) saturate(1.3);
+    border: 0.5px solid var(--hair);
   }
 
-  /* Glows */
+  /* Soft elevation — understated, warm */
   .glow-primary {
-    box-shadow: 0 4px 24px rgba(124, 184, 122, 0.2), 0 0 60px rgba(124, 184, 122, 0.06);
+    box-shadow: 0 8px 28px rgba(60, 74, 51, 0.10);
   }
   .glow-amber {
-    box-shadow: 0 4px 24px rgba(212, 168, 67, 0.2);
+    box-shadow: 0 8px 28px rgba(196, 169, 125, 0.18);
   }
   .glow-purple {
-    box-shadow: 0 4px 24px rgba(160, 126, 200, 0.2);
+    box-shadow: 0 8px 28px rgba(139, 115, 85, 0.16);
   }
   .glow-blue {
-    box-shadow: 0 4px 24px rgba(122, 173, 206, 0.2);
+    box-shadow: 0 8px 28px rgba(122, 140, 106, 0.16);
   }
   .glow-rose {
-    box-shadow: 0 4px 24px rgba(212, 116, 138, 0.2);
+    box-shadow: 0 8px 28px rgba(166, 90, 74, 0.16);
   }
 
   /* Animations */
@@ -147,10 +128,10 @@ body {
 }
 
 /* Scrollbar */
-::-webkit-scrollbar { width: 5px; }
+::-webkit-scrollbar { width: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: var(--surface-raised); border-radius: 10px; }
-::-webkit-scrollbar-thumb:hover { background: var(--primary); }
+::-webkit-scrollbar-thumb:hover { background: var(--sage-mute); }
 
 /* Hide scrollbar on mobile for horizontal scrolls */
 .scrollbar-none::-webkit-scrollbar { display: none; }

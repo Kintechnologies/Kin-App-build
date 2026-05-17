@@ -9,14 +9,20 @@ import KinWordmark from "@/components/KinWordmark";
 
 // ─── Design tokens ────────────────────────────────────────────────────────────
 const T = {
-  bg: "#0C0F0A",
-  sage: "#7CB87A",
-  sageBorder: "rgba(124,184,122,0.28)",
-  warm: "#F0EDE6",
-  warm56: "rgba(240,237,230,0.56)",
-  warm40: "rgba(240,237,230,0.40)",
-  warm12: "rgba(240,237,230,0.12)",
-  hair: "rgba(240,237,230,0.08)",
+  bg: "#F7F3ED",
+  bgLift: "#FDFBF7",
+  bgElev: "#EBE8E0",
+  sage: "#5C6B4F",
+  sageDark: "#3D4A33",
+  sageBorder: "rgba(92,107,79,0.28)",
+  warm: "#2C2C28",
+  warm56: "rgba(44,44,40,0.56)",
+  warm40: "rgba(44,44,40,0.40)",
+  warm12: "rgba(44,44,40,0.12)",
+  hair: "#E5DFD5",
+  border: "#E5DFD5",
+  rose: "#A65A4A",
+  serif: "var(--font-instrument-serif), 'Playfair Display', serif",
   mono: "'Geist Mono', 'JetBrains Mono', monospace",
 };
 
@@ -144,8 +150,8 @@ function SignUpForm() {
     width: "100%",
     height: 44,
     padding: "0 14px",
-    background: "rgba(240,237,230,0.04)",
-    border: `1px solid ${T.warm12}`,
+    background: T.bgLift,
+    border: `0.5px solid ${T.border}`,
     borderRadius: 8,
     color: T.warm,
     fontSize: 14,
@@ -159,12 +165,14 @@ function SignUpForm() {
     width: "100%",
     height: 44,
     background: T.sage,
-    color: T.bg,
+    color: "#FDFBF7",
     border: "none",
-    borderRadius: 8,
+    borderRadius: 4,
     fontFamily: "inherit",
     fontWeight: 500,
-    fontSize: 14.5,
+    fontSize: 13,
+    textTransform: "uppercase",
+    letterSpacing: "0.08em",
     cursor: loading ? "default" : "pointer",
     display: "flex",
     alignItems: "center",
@@ -176,10 +184,10 @@ function SignUpForm() {
   const secondaryBtnStyle: React.CSSProperties = {
     width: "100%",
     height: 44,
-    background: "rgba(240,237,230,0.06)",
+    background: T.bgLift,
     color: T.warm,
-    border: `1px solid ${T.warm12}`,
-    borderRadius: 8,
+    border: `0.5px solid ${T.border}`,
+    borderRadius: 4,
     fontFamily: "inherit",
     fontWeight: 500,
     fontSize: 14.5,
@@ -206,7 +214,7 @@ function SignUpForm() {
   return (
     <div style={{ width: "100%", maxWidth: 400, display: "flex", flexDirection: "column", gap: 24 }}>
       <div style={{ textAlign: "center" }}>
-        <div style={{ fontSize: 28, fontWeight: 500, letterSpacing: "-0.025em", marginBottom: 6, color: T.warm }}>
+        <div style={{ fontFamily: T.serif, fontSize: 36, fontWeight: 400, letterSpacing: "-0.015em", marginBottom: 6, color: T.warm, lineHeight: 1.1 }}>
           {inviteCode ? "Join your household" : "Wake up to a brief."}
         </div>
         <div style={{ fontSize: 13.5, color: T.warm56 }}>
@@ -225,8 +233,8 @@ function SignUpForm() {
             </label>
             <div style={{ display: "flex", alignItems: "center", width: "100%" }}>
               <div style={{
-                height: 44, padding: "0 12px", background: "rgba(240,237,230,0.04)",
-                border: `1px solid ${T.warm12}`, borderRight: "none", borderRadius: "8px 0 0 8px",
+                height: 44, padding: "0 12px", background: T.bgElev,
+                border: `0.5px solid ${T.border}`, borderRight: "none", borderRadius: "8px 0 0 8px",
                 display: "flex", alignItems: "center", fontSize: 14, color: T.warm40,
                 fontFamily: T.mono, flexShrink: 0, boxSizing: "border-box",
               }}>+1</div>
@@ -242,7 +250,7 @@ function SignUpForm() {
               {" · Reply STOP to cancel"}
             </div>
           </div>
-          {error && <p style={{ color: "#D4748A", fontSize: 13, margin: 0 }} role="alert">{error}</p>}
+          {error && <p style={{ color: T.rose, fontSize: 13, margin: 0 }} role="alert">{error}</p>}
           <button type="submit" disabled={loading} style={primaryBtnStyle}>
             {loading ? <Loader2 size={16} style={{ animation: "spin 1s linear infinite" }} /> : null}
             Send verification code
@@ -266,7 +274,7 @@ function SignUpForm() {
               </button>
             </div>
           </div>
-          {error && <p style={{ color: "#D4748A", fontSize: 13, margin: 0 }} role="alert">{error}</p>}
+          {error && <p style={{ color: T.rose, fontSize: 13, margin: 0 }} role="alert">{error}</p>}
           <button type="submit" disabled={loading || code.length < 6}
             style={{ ...primaryBtnStyle, opacity: (loading || code.length < 6) ? 0.5 : 1 }}>
             {loading ? <Loader2 size={16} style={{ animation: "spin 1s linear infinite" }} /> : <ArrowRight size={16} />}
@@ -288,7 +296,7 @@ function SignUpForm() {
               {"// we'll email you a one-click sign-in link"}
             </div>
           </div>
-          {error && <p style={{ color: "#D4748A", fontSize: 13, margin: 0 }} role="alert">{error}</p>}
+          {error && <p style={{ color: T.rose, fontSize: 13, margin: 0 }} role="alert">{error}</p>}
           <button type="submit" disabled={loading} style={primaryBtnStyle}>
             {loading ? <Loader2 size={16} style={{ animation: "spin 1s linear infinite" }} /> : null}
             Send link
@@ -297,7 +305,7 @@ function SignUpForm() {
       ) : (
         <div style={{ textAlign: "center", padding: "12px 0" }}>
           <div style={{ fontSize: 28, marginBottom: 12 }}>📬</div>
-          <div style={{ color: "rgba(240,237,230,0.72)", fontSize: 14, fontWeight: 500, marginBottom: 6 }}>Check your email</div>
+          <div style={{ color: "rgba(44,44,40,0.72)", fontSize: 14, fontWeight: 500, marginBottom: 6 }}>Check your email</div>
           <div style={{ color: T.warm40, fontSize: 13 }}>We sent a sign-in link to <span style={{ color: T.warm }}>{email}</span></div>
           <button type="button" onClick={() => { setEmailStep("email"); setError(""); }}
             style={{ background: "none", border: "none", color: T.sage, cursor: "pointer", fontSize: 12, marginTop: 12, fontFamily: "inherit" }}>
@@ -341,9 +349,9 @@ function SignUpForm() {
       {/* pricing spec */}
       <div style={{
         padding: "16px 12px",
-        background: "rgba(124,184,122,0.06)",
-        border: `1px solid ${T.sageBorder}`,
-        borderRadius: 10,
+        background: "rgba(92,107,79,0.06)",
+        border: `0.5px solid ${T.sageBorder}`,
+        borderRadius: 8,
         display: "flex",
         gap: 8,
       }}>
@@ -370,8 +378,8 @@ export default function SignUpPage() {
     <main
       style={{
         minHeight: "100vh",
-        background: "#0C0F0A",
-        color: "#F0EDE6",
+        background: "#F7F3ED",
+        color: "#2C2C28",
         fontFamily: "var(--font-geist-sans), Geist, system-ui, sans-serif",
         WebkitFontSmoothing: "antialiased",
         display: "flex",

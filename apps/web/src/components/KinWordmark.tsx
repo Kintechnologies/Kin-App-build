@@ -1,5 +1,5 @@
-// Plain "kin" wordmark — Geist 600, sage by default, tight tracking.
-// No SVG icon — the whole brand reads as quiet text.
+// Plain "kin" wordmark — Playfair Display, olive by default.
+// No SVG icon — the whole brand reads as a quiet serif word.
 
 interface KinWordmarkProps {
   size?: number;
@@ -7,8 +7,8 @@ interface KinWordmarkProps {
 }
 
 const TONES: Record<string, string> = {
-  sage: "#7CB87A",
-  warm: "#F0EDE6",
+  sage: "#5C6B4F", // olive
+  warm: "#2C2C28", // charcoal
 };
 
 export default function KinWordmark({ size = 22, tone = "sage" }: KinWordmarkProps) {
@@ -17,10 +17,10 @@ export default function KinWordmark({ size = 22, tone = "sage" }: KinWordmarkPro
   return (
     <span
       style={{
-        fontFamily: "var(--font-geist-sans), Geist, system-ui, sans-serif",
+        fontFamily: "var(--font-instrument-serif), 'Playfair Display', serif",
         fontWeight: 600,
         fontSize: size,
-        letterSpacing: "-0.04em",
+        letterSpacing: "-0.01em",
         lineHeight: 1,
         color: c,
         userSelect: "none",

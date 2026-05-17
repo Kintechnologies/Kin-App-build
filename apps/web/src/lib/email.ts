@@ -84,17 +84,21 @@ interface EmailOptions {
   footnote?: string;
 }
 
-// Kin brand — dark warm background, sage accent, off-white type.
+// Kin brand — Aimé Leon Dore palette: cream ground, olive accent, earth type.
 const C = {
-  bg: "#0C0F0A",
-  card: "#14180F",
-  cardBorder: "#2C3024",
-  statBg: "#10130C",
-  heading: "#F2EFE6",
-  body: "#C5C3B6",
-  sage: "#9DBF8E",
-  muted: "#787C70",
+  bg: "#F7F3ED",        // cream
+  card: "#FDFBF7",      // warm white
+  cardBorder: "#E5DFD5",
+  statBg: "#EBE8E0",    // sage bg
+  heading: "#2C2C28",   // charcoal
+  body: "#3A3832",      // text
+  sage: "#5C6B4F",      // olive
+  muted: "#7A756D",
 };
+
+// Serif stack for headings — Georgia is universally available in mail clients,
+// so the classic-serif voice survives even where web fonts are stripped.
+const SERIF = "Georgia, 'Playfair Display', 'Times New Roman', serif";
 
 /**
  * Render an on-brand Kin email: a centered card on the dark Kin background,
@@ -107,9 +111,9 @@ function renderHtml(o: EmailOptions): string {
          <tr>${o.stats
            .map(
              (s, i) =>
-               `${i > 0 ? '<td style="width:10px;">&nbsp;</td>' : ""}<td align="center" style="background:${C.statBg};border:1px solid ${C.cardBorder};border-radius:10px;padding:14px 6px;">
-                  <div style="font-size:26px;line-height:1;font-weight:700;color:${C.sage};">${s.value}</div>
-                  <div style="margin-top:6px;font-size:11px;letter-spacing:0.06em;text-transform:uppercase;color:${C.muted};">${s.label}</div>
+               `${i > 0 ? '<td style="width:10px;">&nbsp;</td>' : ""}<td align="center" style="background:${C.statBg};border:1px solid ${C.cardBorder};border-radius:8px;padding:16px 6px;">
+                  <div style="font-family:${SERIF};font-size:30px;line-height:1;font-weight:600;color:${C.sage};">${s.value}</div>
+                  <div style="margin-top:6px;font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:${C.muted};">${s.label}</div>
                 </td>`
            )
            .join("")}</tr>
@@ -142,8 +146,8 @@ function renderHtml(o: EmailOptions): string {
 
   const button = o.cta
     ? `<table role="presentation" cellpadding="0" cellspacing="0" style="margin:24px 0 8px;">
-         <tr><td style="border-radius:8px;background:${C.sage};">
-           <a href="${o.cta.url}" style="display:inline-block;padding:13px 28px;font-size:15px;font-weight:600;color:${C.bg};text-decoration:none;border-radius:8px;">${o.cta.label}</a>
+         <tr><td style="border-radius:4px;background:${C.sage};">
+           <a href="${o.cta.url}" style="display:inline-block;padding:14px 28px;font-size:13px;font-weight:500;letter-spacing:0.08em;text-transform:uppercase;color:${C.card};text-decoration:none;border-radius:4px;">${o.cta.label}</a>
          </td></tr>
        </table>`
     : "";
@@ -165,10 +169,10 @@ function renderHtml(o: EmailOptions): string {
   <tr><td align="center">
     <table role="presentation" width="480" cellpadding="0" cellspacing="0" style="max-width:480px;width:100%;">
       <tr><td style="padding:0 4px 20px;">
-        <span style="font-size:18px;font-weight:700;letter-spacing:-0.02em;color:${C.sage};">Kin</span>
+        <span style="font-family:${SERIF};font-size:22px;font-weight:600;letter-spacing:-0.01em;color:${C.sage};">Kin</span>
       </td></tr>
-      <tr><td style="background:${C.card};border:1px solid ${C.cardBorder};border-radius:14px;padding:32px;">
-        <h1 style="margin:0 0 18px;font-size:22px;line-height:1.3;font-weight:700;letter-spacing:-0.02em;color:${C.heading};">${o.heading}</h1>
+      <tr><td style="background:${C.card};border:1px solid ${C.cardBorder};border-radius:8px;padding:32px;">
+        <h1 style="margin:0 0 18px;font-family:${SERIF};font-size:26px;line-height:1.3;font-weight:600;letter-spacing:-0.01em;color:${C.heading};">${o.heading}</h1>
         ${stats}
         ${body}
         ${bullets}

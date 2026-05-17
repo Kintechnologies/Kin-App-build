@@ -38,6 +38,7 @@ const T = {
   sage40: "var(--sage-40)",
   hairSage: "var(--hair-sage)",
   mono: "var(--font-geist-mono), 'Geist Mono', monospace",
+  serif: "var(--font-instrument-serif), 'Playfair Display', serif",
 };
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
@@ -90,9 +91,9 @@ function Card({
   return (
     <div
       style={{
-        background: "rgba(240,237,230,0.025)",
-        border: `1px solid ${T.warm06}`,
-        borderRadius: 12,
+        background: "#FDFBF7",
+        border: `0.5px solid ${T.hair}`,
+        borderRadius: 8,
         padding: 20,
         ...style,
       }}
@@ -123,7 +124,7 @@ function PhaseTag({
         textTransform: "uppercase",
         color: isSage ? T.sage : T.warm56,
         background: isSage ? T.sage12 : T.warm06,
-        border: `1px solid ${isSage ? T.hairSage : T.hair}`,
+        border: `0.5px solid ${isSage ? T.hairSage : T.hair}`,
       }}
     >
       {label}
@@ -169,7 +170,7 @@ const TIMELINE: TimelineRow[] = [
 const TAG_COLOR: Record<TimelineRow["tag"], string> = {
   brief: T.sage,
   reply: T.warm72,
-  alert: "#D4A843", // amber
+  alert: "#C4A97D", // amber
   sync: T.warm56,
 };
 
@@ -182,7 +183,7 @@ function TimelineRowView({ row }: { row: TimelineRow }) {
         gap: 12,
         alignItems: "start",
         padding: "10px 0",
-        borderTop: `1px solid ${T.hair}`,
+        borderTop: `0.5px solid ${T.hair}`,
       }}
     >
       <div
@@ -208,8 +209,8 @@ function TimelineRowView({ row }: { row: TimelineRow }) {
             letterSpacing: "0.1em",
             textTransform: "uppercase",
             color: TAG_COLOR[row.tag],
-            background: "rgba(240,237,230,0.04)",
-            border: `1px solid ${T.hair}`,
+            background: "rgba(44,44,40,0.04)",
+            border: `0.5px solid ${T.hair}`,
           }}
         >
           {row.tag}
@@ -260,7 +261,7 @@ function BriefingCard() {
               height: 28,
               borderRadius: 8,
               background: T.sage12,
-              border: `1px solid ${T.hairSage}`,
+              border: `0.5px solid ${T.hairSage}`,
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
@@ -335,7 +336,7 @@ function BriefingCard() {
               padding: "12px 14px",
               borderRadius: 10,
               background: T.sage12,
-              border: `1px solid ${T.hairSage}`,
+              border: `0.5px solid ${T.hairSage}`,
               display: "flex",
               flexDirection: "column",
               gap: 4,
@@ -513,7 +514,7 @@ function ThisWeekCard() {
                   <span
                     style={{
                       fontSize: 12.5,
-                      color: e.conflict ? "#D4A843" : T.warm72,
+                      color: e.conflict ? "#C4A97D" : T.warm72,
                       letterSpacing: "-0.005em",
                     }}
                   >
@@ -577,7 +578,7 @@ function CoverageCard() {
       <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
         {COVERAGE.map((c, i) => {
           const accent =
-            c.tone === "you" ? T.sage : c.tone === "partner" ? "#7AADCE" : T.warm72;
+            c.tone === "you" ? T.sage : c.tone === "partner" ? "#7A8C6A" : T.warm72;
           return (
             <div
               key={i}
@@ -588,8 +589,8 @@ function CoverageCard() {
                 alignItems: "baseline",
                 padding: "10px 12px",
                 borderRadius: 8,
-                border: `1px solid ${T.hair}`,
-                background: "rgba(240,237,230,0.025)",
+                border: `0.5px solid ${T.hair}`,
+                background: "#FDFBF7",
               }}
             >
               <span
@@ -676,7 +677,7 @@ function WelcomeModal({
         style={{
           position: "absolute",
           inset: 0,
-          background: "rgba(0,0,0,0.6)",
+          background: "rgba(60,74,51,0.2)",
           backdropFilter: "blur(8px)",
         }}
       />
@@ -690,10 +691,10 @@ function WelcomeModal({
           width: "100%",
           maxWidth: 420,
           background: T.bgCard,
-          border: `1px solid ${T.hairStrong}`,
-          borderRadius: 16,
+          border: `0.5px solid ${T.hairStrong}`,
+          borderRadius: 8,
           padding: 28,
-          boxShadow: "0 24px 80px rgba(0,0,0,0.55), 0 0 60px rgba(124,184,122,0.08)",
+          boxShadow: "0 24px 80px rgba(60,74,51,0.16)",
         }}
       >
         <div
@@ -709,9 +710,9 @@ function WelcomeModal({
             style={{
               width: 44,
               height: 44,
-              borderRadius: 12,
+              borderRadius: 8,
               background: T.sage12,
-              border: `1px solid ${T.hairSage}`,
+              border: `0.5px solid ${T.hairSage}`,
               color: T.sage,
               display: "flex",
               alignItems: "center",
@@ -728,10 +729,11 @@ function WelcomeModal({
             <h2
               id="welcome-heading"
               style={{
-                fontSize: 26,
-                fontWeight: 500,
+                fontFamily: T.serif,
+                fontSize: 30,
+                fontWeight: 400,
                 color: T.warm,
-                letterSpacing: "-0.025em",
+                letterSpacing: "-0.015em",
                 marginBottom: 6,
               }}
             >
@@ -741,7 +743,7 @@ function WelcomeModal({
               Your 6am briefing starts tomorrow.
             </p>
           </div>
-          <div style={{ width: "100%", height: 1, background: T.hair }} />
+          <div style={{ width: "100%", height: 0.5, background: T.hair }} />
           <ul
             style={{
               width: "100%",
@@ -761,21 +763,28 @@ function WelcomeModal({
               </li>
             ))}
           </ul>
-          <div style={{ width: "100%", height: 1, background: T.hair }} />
+          <div style={{ width: "100%", height: 0.5, background: T.hair }} />
           <button
             onClick={onDismiss}
             autoFocus
             style={{
               width: "100%",
               padding: "13px 16px",
-              borderRadius: 10,
-              background: T.sage,
-              color: "#0C0F0A",
+              borderRadius: 4,
+              background: "#5C6B4F",
+              color: "#FDFBF7",
               border: "none",
-              fontSize: 14,
-              fontWeight: 600,
+              fontSize: 13,
+              fontWeight: 500,
               cursor: "pointer",
-              letterSpacing: "-0.005em",
+              letterSpacing: "0.08em",
+              textTransform: "uppercase",
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = "#3D4A33";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = "#5C6B4F";
             }}
           >
             Go to my dashboard
@@ -808,9 +817,9 @@ const SUB_META: Record<
 > = {
   trial: {
     label: "Trial",
-    tone: "#7AADCE",
-    bg: "rgba(122,173,206,0.1)",
-    border: "rgba(122,173,206,0.3)",
+    tone: "#7A8C6A",
+    bg: "rgba(122,140,106,0.1)",
+    border: "rgba(122,140,106,0.3)",
   },
   active: {
     label: "Active",
@@ -820,9 +829,9 @@ const SUB_META: Record<
   },
   past_due: {
     label: "Past due",
-    tone: "#D4748A",
-    bg: "rgba(212,116,138,0.1)",
-    border: "rgba(212,116,138,0.3)",
+    tone: "#A65A4A",
+    bg: "rgba(166,90,74,0.1)",
+    border: "rgba(166,90,74,0.3)",
   },
   canceled: {
     label: "Canceled",
@@ -873,10 +882,11 @@ function StatCard({
       </div>
       <div
         style={{
-          fontSize: 22,
-          fontWeight: 500,
+          fontFamily: T.serif,
+          fontSize: 28,
+          fontWeight: 400,
           color: accent ?? T.warm,
-          letterSpacing: "-0.02em",
+          letterSpacing: "-0.015em",
           lineHeight: 1.15,
         }}
       >
@@ -983,7 +993,7 @@ function Overview({ data }: { data: OverviewData }) {
                   textTransform: "uppercase",
                   color: sub.tone,
                   background: sub.bg,
-                  border: `1px solid ${sub.border}`,
+                  border: `0.5px solid ${sub.border}`,
                   borderRadius: 999,
                   padding: "3px 7px",
                 }}
@@ -1026,9 +1036,9 @@ function Overview({ data }: { data: OverviewData }) {
             style={{
               width: 36,
               height: 36,
-              borderRadius: 10,
+              borderRadius: 8,
               background: T.sage12,
-              border: `1px solid ${T.hairSage}`,
+              border: `0.5px solid ${T.hairSage}`,
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
@@ -1041,8 +1051,9 @@ function Overview({ data }: { data: OverviewData }) {
           <div style={{ flex: 1, minWidth: 220 }}>
             <h2
               style={{
-                fontSize: 17,
-                fontWeight: 500,
+                fontFamily: T.serif,
+                fontSize: 21,
+                fontWeight: 400,
                 color: T.warm,
                 letterSpacing: "-0.015em",
                 margin: "2px 0 6px",
@@ -1074,13 +1085,15 @@ function Overview({ data }: { data: OverviewData }) {
                   display: "inline-flex",
                   alignItems: "center",
                   gap: 6,
-                  padding: "10px 16px",
-                  borderRadius: 10,
-                  background: T.sage,
-                  color: "#0C0F0A",
+                  padding: "11px 18px",
+                  borderRadius: 4,
+                  background: "#5C6B4F",
+                  color: "#FDFBF7",
                   textDecoration: "none",
                   fontSize: 13,
-                  fontWeight: 600,
+                  fontWeight: 500,
+                  letterSpacing: "0.08em",
+                  textTransform: "uppercase",
                 }}
               >
                 {hasCalendar ? "See this week" : "Connect calendar"}
@@ -1093,14 +1106,16 @@ function Overview({ data }: { data: OverviewData }) {
                     display: "inline-flex",
                     alignItems: "center",
                     gap: 6,
-                    padding: "10px 16px",
-                    borderRadius: 10,
+                    padding: "11px 18px",
+                    borderRadius: 4,
                     background: "transparent",
                     color: T.warm72,
-                    border: `1px solid ${T.hair}`,
+                    border: `0.5px solid ${T.hair}`,
                     textDecoration: "none",
                     fontSize: 13,
                     fontWeight: 500,
+                    letterSpacing: "0.08em",
+                    textTransform: "uppercase",
                   }}
                 >
                   Open calendar view
@@ -1114,9 +1129,9 @@ function Overview({ data }: { data: OverviewData }) {
               alignItems: "center",
               gap: 7,
               padding: "8px 12px",
-              borderRadius: 10,
+              borderRadius: 8,
               background: T.warm06,
-              border: `1px solid ${T.hair}`,
+              border: `0.5px solid ${T.hair}`,
               color: T.warm72,
             }}
           >
@@ -1172,7 +1187,7 @@ function Overview({ data }: { data: OverviewData }) {
                     height: 30,
                     borderRadius: 8,
                     background: T.warm06,
-                    border: `1px solid ${T.hair}`,
+                    border: `0.5px solid ${T.hair}`,
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
@@ -1429,10 +1444,11 @@ function DashboardContent() {
             </div>
             <h1
               style={{
-                fontSize: "clamp(28px, 3.4vw, 36px)",
-                fontWeight: 500,
+                fontFamily: T.serif,
+                fontSize: "clamp(32px, 3.8vw, 42px)",
+                fontWeight: 400,
                 color: T.warm,
-                letterSpacing: "-0.025em",
+                letterSpacing: "-0.015em",
                 lineHeight: 1.1,
                 margin: 0,
               }}
@@ -1468,14 +1484,15 @@ function DashboardContent() {
                   display: "inline-flex",
                   alignItems: "center",
                   gap: 6,
-                  padding: "9px 14px",
-                  borderRadius: 8,
-                  background: T.sage,
-                  color: "#0C0F0A",
+                  padding: "11px 18px",
+                  borderRadius: 4,
+                  background: "#5C6B4F",
+                  color: "#FDFBF7",
                   textDecoration: "none",
                   fontSize: 13,
-                  fontWeight: 600,
-                  letterSpacing: "-0.005em",
+                  fontWeight: 500,
+                  letterSpacing: "0.08em",
+                  textTransform: "uppercase",
                 }}
               >
                 See the week

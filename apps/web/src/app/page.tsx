@@ -9,23 +9,27 @@ import { InteractiveDemo } from "@/components/InteractiveDemo";
 
 type SubmitState = "idle" | "loading" | "success" | "error";
 
-// ─── Design tokens (inline — matches tokens.css) ─────────────────────────────
+// ─── Design tokens (inline — Aimé Leon Dore palette) ─────────────────────────
 const T = {
-  bg: "#0C0F0A",
-  bgCard: "#161A17",
-  bgElev: "#1B201C",
-  sage: "#7CB87A",
-  sageBorder: "rgba(124,184,122,0.28)",
-  sage12: "rgba(124,184,122,0.12)",
-  warm: "#F0EDE6",
-  warm72: "rgba(240,237,230,0.72)",
-  warm56: "rgba(240,237,230,0.56)",
-  warm40: "rgba(240,237,230,0.40)",
-  warm24: "rgba(240,237,230,0.24)",
-  warm12: "rgba(240,237,230,0.12)",
-  warm06: "rgba(240,237,230,0.06)",
-  hair: "rgba(240,237,230,0.08)",
-  mono: "'Geist Mono', 'JetBrains Mono', monospace",
+  bg: "#F7F3ED",        // cream
+  bgCard: "#FDFBF7",    // warm white
+  bgElev: "#EBE8E0",    // sage bg
+  sage: "#5C6B4F",      // olive
+  sageDark: "#3D4A33",  // olive dark
+  sageBorder: "rgba(92,107,79,0.30)",
+  sage12: "rgba(92,107,79,0.10)",
+  warm: "#2C2C28",      // charcoal — primary text
+  warm72: "rgba(44,44,40,0.74)",
+  warm56: "rgba(44,44,40,0.58)",
+  warm40: "rgba(44,44,40,0.46)",
+  warm24: "rgba(44,44,40,0.26)",
+  warm12: "rgba(44,44,40,0.12)",
+  warm06: "rgba(44,44,40,0.05)",
+  hair: "#E5DFD5",
+  brown: "#8B7355",
+  tan: "#C4A97D",
+  serif: "var(--font-instrument-serif), 'Playfair Display', serif",
+  mono: "var(--font-geist-mono), 'JetBrains Mono', monospace",
 };
 
 // ─── Phone frame + SMS demo ───────────────────────────────────────────────────
@@ -89,7 +93,7 @@ function SMSBubble({
             borderRadius: 14,
             borderBottomRightRadius: isUser ? 4 : 14,
             borderBottomLeftRadius: isUser ? 14 : 4,
-            background: isUser ? T.warm : "rgba(124,184,122,0.10)",
+            background: isUser ? T.warm : "rgba(92,107,79,0.10)",
             border: isUser ? "1px solid transparent" : `1px solid ${T.sageBorder}`,
             color: isUser ? T.bg : T.warm,
             fontSize: 13,
@@ -129,7 +133,7 @@ function PhoneDemo() {
         background: T.bgElev,
         border: `1px solid ${T.warm12}`,
         padding: 8,
-        boxShadow: "0 24px 60px rgba(0,0,0,0.5)",
+        boxShadow: "0 24px 60px rgba(60,74,51,0.16)",
         flexShrink: 0,
       }}
     >
@@ -178,8 +182,8 @@ function PhoneDemo() {
               width: 22,
               height: 22,
               borderRadius: 11,
-              background: "rgba(124,184,122,0.18)",
-              border: `1px solid rgba(124,184,122,0.4)`,
+              background: "rgba(92,107,79,0.16)",
+              border: `1px solid rgba(92,107,79,0.40)`,
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
@@ -199,7 +203,7 @@ function PhoneDemo() {
               color: T.warm40,
             }}
           >
-            +1 (415) 555-0117
+            (469) 305-0978
           </div>
         </div>
         {/* messages */}
@@ -370,7 +374,7 @@ function WaitlistForm({
   const fieldStyle: React.CSSProperties = {
     height: 44,
     padding: "0 14px",
-    background: "rgba(240,237,230,0.04)",
+    background: "#FDFBF7",
     border: `1px solid ${T.warm12}`,
     borderRadius: 8,
     color: T.warm,
@@ -457,15 +461,17 @@ function WaitlistForm({
             type="submit"
             disabled={submitState === "loading"}
             style={{
-              height: 44,
+              height: 46,
               padding: "0 18px",
               background: T.sage,
-              color: T.bg,
+              color: T.bgCard,
               border: "none",
-              borderRadius: 8,
+              borderRadius: 4,
               fontFamily: "inherit",
               fontWeight: 500,
-              fontSize: 14,
+              fontSize: 13,
+              letterSpacing: "0.08em",
+              textTransform: "uppercase",
               cursor: submitState === "loading" ? "default" : "pointer",
               display: "flex",
               alignItems: "center",
@@ -555,7 +561,7 @@ function WaitlistForm({
                     border: `1px solid ${T.warm12}`,
                     borderRadius: 8,
                     padding: "10px 12px 8px",
-                    background: "rgba(240,237,230,0.02)",
+                    background: "rgba(44,44,40,0.02)",
                     margin: 0,
                   }}
                 >
@@ -589,7 +595,7 @@ function WaitlistForm({
                             alignItems: "flex-start",
                             gap: 8,
                             padding: "8px 10px",
-                            background: checked ? "rgba(124,184,122,0.10)" : "transparent",
+                            background: checked ? "rgba(92,107,79,0.10)" : "transparent",
                             border: `1px solid ${checked ? T.sageBorder : T.hair}`,
                             borderRadius: 6,
                             cursor: "pointer",
@@ -644,7 +650,7 @@ function WaitlistForm({
           </AnimatePresence>
 
           {submitState === "error" && errorMessage && (
-            <p style={{ color: "#D4748A", fontSize: 13, margin: 0 }} role="alert">
+            <p style={{ color: "#A65A4A", fontSize: 13, margin: 0 }} role="alert">
               {errorMessage}
             </p>
           )}
@@ -709,13 +715,13 @@ function StepCalendarIllustration() {
         <div style={{ width: 28, height: 1, background: T.sageBorder }} />
         <div style={{
           width: 20, height: 20, borderRadius: 10,
-          background: "rgba(124,184,122,0.12)", border: `1px solid ${T.sageBorder}`,
+          background: "rgba(92,107,79,0.10)", border: `1px solid ${T.sageBorder}`,
           display: "flex", alignItems: "center", justifyContent: "center",
           fontSize: 10, color: T.sage,
         }}>✓</div>
         <div style={{ width: 28, height: 1, background: T.sageBorder }} />
       </div>
-      <CalendarTile label="Parent B" day="29" color="#5B9CF6" />
+      <CalendarTile label="Parent B" day="29" color="#8B7355" />
     </div>
   );
 }
@@ -739,7 +745,7 @@ function StepConstraintsIllustration() {
           style={{
             display: "flex", alignItems: "center", gap: 8,
             padding: "6px 10px",
-            background: c.active ? "rgba(124,184,122,0.08)" : T.bgElev,
+            background: c.active ? "rgba(92,107,79,0.08)" : T.bgElev,
             border: `1px solid ${c.active ? T.sageBorder : T.hair}`,
             borderRadius: 6,
           }}
@@ -776,7 +782,7 @@ function StepBriefIllustration() {
         transition={{ delay: 0.3, duration: 0.4 }}
         style={{
           padding: "9px 12px",
-          background: "rgba(124,184,122,0.08)",
+          background: "rgba(92,107,79,0.08)",
           border: `1px solid ${T.sageBorder}`,
           borderRadius: "12px 12px 12px 3px",
           fontSize: 12.5, lineHeight: 1.45, color: T.warm,
@@ -806,7 +812,7 @@ function StepBriefIllustration() {
         transition={{ delay: 0.8, duration: 0.35 }}
         style={{
           padding: "7px 11px",
-          background: "rgba(124,184,122,0.08)",
+          background: "rgba(92,107,79,0.08)",
           border: `1px solid ${T.sageBorder}`,
           borderRadius: "12px 12px 12px 3px",
           fontSize: 12.5, lineHeight: 1.45, color: T.warm,
@@ -936,13 +942,15 @@ export default function Home() {
           <Link
             href="#waitlist-top"
             style={{
-              height: 34,
-              padding: "0 14px",
+              height: 36,
+              padding: "0 18px",
               background: T.sage,
-              color: T.bg,
-              borderRadius: 8,
+              color: T.bgCard,
+              borderRadius: 4,
               fontWeight: 500,
-              fontSize: 13.5,
+              fontSize: 12,
+              letterSpacing: "0.08em",
+              textTransform: "uppercase",
               display: "flex",
               alignItems: "center",
               textDecoration: "none",
@@ -979,7 +987,7 @@ export default function Home() {
               alignItems: "center",
               gap: 8,
               padding: "5px 10px 5px 8px",
-              background: "rgba(124,184,122,0.08)",
+              background: "rgba(92,107,79,0.08)",
               border: `1px solid ${T.sageBorder}`,
               borderRadius: 999,
               fontSize: 11.5,
@@ -995,7 +1003,7 @@ export default function Home() {
                 height: 6,
                 borderRadius: 3,
                 background: T.sage,
-                boxShadow: "0 0 8px rgba(124,184,122,0.7)",
+                boxShadow: "0 0 8px rgba(92,107,79,0.45)",
                 flexShrink: 0,
               }}
             />
@@ -1006,15 +1014,16 @@ export default function Home() {
           <h1
             style={{
               margin: 0,
-              fontWeight: 600,
-              fontSize: "clamp(42px, 5vw, 68px)",
-              lineHeight: 1.04,
-              letterSpacing: "-0.04em",
+              fontFamily: T.serif,
+              fontWeight: 500,
+              fontSize: "clamp(42px, 5vw, 66px)",
+              lineHeight: 1.08,
+              letterSpacing: "-0.015em",
               color: T.warm,
             }}
           >
             The AI that runs your household.{" "}
-            <span style={{ color: T.warm56 }}>
+            <span style={{ color: T.warm56, fontStyle: "italic" }}>
               It learns how your family works.
             </span>
           </h1>
@@ -1035,21 +1044,44 @@ export default function Home() {
             chaos.
           </p>
 
-          {/* secondary link */}
-          <Link
-            href="#how-it-works"
-            style={{
-              color: T.warm72,
-              fontSize: 13.5,
-              textDecoration: "none",
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 6,
-            }}
-          >
-            See how it works
-            <ArrowRight size={13} />
-          </Link>
+          {/* primary CTA — text to start */}
+          <div style={{ display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
+            <a
+              href="sms:+14693050978"
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 10,
+                padding: "14px 22px",
+                background: T.sage,
+                color: T.bgCard,
+                borderRadius: 4,
+                fontSize: 13,
+                fontWeight: 500,
+                letterSpacing: "0.08em",
+                textTransform: "uppercase",
+                textDecoration: "none",
+                whiteSpace: "nowrap",
+              }}
+            >
+              Text KIN to (469) 305-0978
+              <ArrowRight size={14} />
+            </a>
+            <Link
+              href="#how-it-works"
+              style={{
+                color: T.warm72,
+                fontSize: 13.5,
+                textDecoration: "none",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 6,
+              }}
+            >
+              See how it works
+              <ArrowRight size={13} />
+            </Link>
+          </div>
 
           {/* pricing meta */}
           <div
@@ -1150,7 +1182,7 @@ export default function Home() {
             position: "absolute",
             top: 52, left: "16.6%", right: "16.6%",
             height: 1,
-            background: `linear-gradient(90deg, ${T.sageBorder}, rgba(124,184,122,0.1) 50%, ${T.sageBorder})`,
+            background: `linear-gradient(90deg, ${T.sageBorder}, rgba(92,107,79,0.10) 50%, ${T.sageBorder})`,
             zIndex: 0,
             pointerEvents: "none",
           }} />
@@ -1228,14 +1260,15 @@ export default function Home() {
         </div>
         <h2 style={{
           margin: "0 0 10px",
-          fontSize: "clamp(28px, 3.2vw, 40px)",
-          letterSpacing: "-0.03em",
+          fontFamily: T.serif,
+          fontSize: "clamp(28px, 3.2vw, 42px)",
+          letterSpacing: "-0.015em",
           fontWeight: 500,
           color: T.warm,
-          lineHeight: 1.1,
+          lineHeight: 1.14,
         }}>
           Built for families.{" "}
-          <span style={{ color: T.warm56 }}>Works for anyone who shares a life.</span>
+          <span style={{ color: T.warm56, fontStyle: "italic" }}>Works for anyone who shares a life.</span>
         </h2>
         <p style={{
           fontSize: 15,
@@ -1343,7 +1376,7 @@ export default function Home() {
             alignSelf: "flex-start",
             maxWidth: "90%",
             padding: "11px 15px",
-            background: "rgba(124,184,122,0.10)",
+            background: "rgba(92,107,79,0.10)",
             border: `1px solid ${T.sageBorder}`,
             borderRadius: "14px 14px 14px 4px",
             fontSize: 15,
@@ -1387,14 +1420,15 @@ export default function Home() {
         </div>
         <h2 style={{
           margin: "0 0 32px",
-          fontSize: "clamp(28px, 3.2vw, 40px)",
-          letterSpacing: "-0.03em",
+          fontFamily: T.serif,
+          fontSize: "clamp(28px, 3.2vw, 42px)",
+          letterSpacing: "-0.015em",
           fontWeight: 500,
           color: T.warm,
-          lineHeight: 1.1,
+          lineHeight: 1.14,
         }}>
           There are AI assistants. There are family apps.{" "}
-          <span style={{ color: T.warm56 }}>Kin is neither.</span>
+          <span style={{ color: T.warm56, fontStyle: "italic" }}>Kin is neither.</span>
         </h2>
 
         <div data-comparison-grid style={{
@@ -1412,7 +1446,7 @@ export default function Home() {
               transition={{ delay: i * 0.1, duration: 0.4 }}
               style={{
                 padding: "24px 22px",
-                background: c.highlight ? "rgba(124,184,122,0.06)" : T.bgCard,
+                background: c.highlight ? "rgba(92,107,79,0.06)" : T.bgCard,
                 border: `1px solid ${c.highlight ? T.sageBorder : T.hair}`,
                 borderRadius: 12,
                 display: "flex",
@@ -1432,7 +1466,7 @@ export default function Home() {
                   letterSpacing: "0.08em",
                   textTransform: "uppercase",
                   padding: "2px 7px",
-                  background: "rgba(124,184,122,0.12)",
+                  background: "rgba(92,107,79,0.10)",
                   border: `1px solid ${T.sageBorder}`,
                   borderRadius: 999,
                 }}>
@@ -1486,8 +1520,9 @@ export default function Home() {
           whileInView={{ opacity: 1 }}
           viewport={{ once: true }}
           style={{
-            fontSize: 18,
-            lineHeight: 1.55,
+            fontFamily: T.serif,
+            fontSize: 22,
+            lineHeight: 1.5,
             color: T.warm72,
             fontStyle: "italic",
             margin: "0 0 12px",
@@ -1570,17 +1605,18 @@ export default function Home() {
         <h2
           style={{
             margin: 0,
-            fontWeight: 600,
-            fontSize: "clamp(32px, 4vw, 48px)",
-            lineHeight: 1.1,
-            letterSpacing: "-0.03em",
+            fontFamily: T.serif,
+            fontWeight: 500,
+            fontSize: "clamp(32px, 4vw, 50px)",
+            lineHeight: 1.12,
+            letterSpacing: "-0.015em",
             color: T.warm,
             textAlign: "center",
             marginBottom: 12,
           }}
         >
           One price.{" "}
-          <span style={{ color: T.warm56 }}>Both parents covered.</span>
+          <span style={{ color: T.warm56, fontStyle: "italic" }}>Both parents covered.</span>
         </h2>
 
         <p
@@ -1615,7 +1651,7 @@ export default function Home() {
             display: "flex",
             flexDirection: "column",
             alignItems: "center",
-            boxShadow: "0 24px 60px rgba(0,0,0,0.35)",
+            boxShadow: "0 24px 60px rgba(60,74,51,0.12)",
           }}
         >
           {/* hero number */}
@@ -1629,10 +1665,11 @@ export default function Home() {
           >
             <span
               style={{
+                fontFamily: T.serif,
                 fontSize: "clamp(72px, 10vw, 104px)",
-                fontWeight: 600,
+                fontWeight: 500,
                 lineHeight: 1,
-                letterSpacing: "-0.045em",
+                letterSpacing: "-0.02em",
                 color: T.sage,
               }}
             >
@@ -1733,9 +1770,11 @@ export default function Home() {
         <h2
           style={{
             margin: "0 0 12px",
-            fontSize: "clamp(28px, 3.5vw, 40px)",
-            fontWeight: 600,
-            letterSpacing: "-0.03em",
+            fontFamily: T.serif,
+            fontSize: "clamp(28px, 3.5vw, 42px)",
+            fontWeight: 500,
+            letterSpacing: "-0.015em",
+            lineHeight: 1.14,
             color: T.warm,
           }}
         >
@@ -1781,8 +1820,8 @@ export default function Home() {
       <style dangerouslySetInnerHTML={{ __html: `
         @keyframes spin { to { transform: rotate(360deg); } }
         @keyframes kinPulse {
-          0%, 100% { box-shadow: 0 0 22px rgba(124,184,122,0.32), 0 0 44px rgba(124,184,122,0.1); }
-          50% { box-shadow: 0 0 38px rgba(124,184,122,0.55), 0 0 76px rgba(124,184,122,0.22); }
+          0%, 100% { box-shadow: 0 0 22px rgba(92,107,79,0.20), 0 0 44px rgba(92,107,79,0.10); }
+          50% { box-shadow: 0 0 38px rgba(92,107,79,0.40), 0 0 76px rgba(92,107,79,0.14); }
         }
         @media (max-width: 768px) {
           section { grid-template-columns: 1fr !important; gap: 32px !important; }

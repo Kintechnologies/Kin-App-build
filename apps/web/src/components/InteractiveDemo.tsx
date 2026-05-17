@@ -5,7 +5,7 @@ import { useState, useEffect, useRef, useCallback, useMemo, forwardRef } from "r
 
 // ───────── Constants ─────────
 
-const ACCENT = "#7CB87A";
+const ACCENT = "#5C6B4F";
 
 const PARTNER_NAME = "Sarah";
 const COPARENT_NAME = "Marcus";
@@ -485,12 +485,12 @@ function ConfigPanel({
     <div
       style={{
         width: "100%",
-        background: "#141810",
-        border: "1px solid rgba(255,255,255,0.07)",
-        borderRadius: "20px",
+        background: "#FDFBF7",
+        border: "0.5px solid #E5DFD5",
+        borderRadius: "8px",
         padding: "clamp(20px, 4vw, 28px)",
         boxShadow:
-          "-3px -3px 8px rgba(255,255,255,0.025), 4px 4px 18px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.04)",
+          "0 1px 2px rgba(60,74,51,0.04), 4px 4px 18px rgba(60,74,51,0.10)",
       }}
     >
       <ConfigGroup label="Your household">
@@ -581,11 +581,11 @@ function ConfigPanel({
         style={{
           marginTop: showsKids(config.persona) ? 22 : 4,
           padding: "12px 14px",
-          background: "rgba(124,184,122,0.06)",
-          border: "1px solid rgba(124,184,122,0.18)",
-          borderRadius: 10,
+          background: "rgba(92,107,79,0.06)",
+          border: "0.5px solid rgba(92,107,79,0.18)",
+          borderRadius: 8,
           fontSize: 12,
-          color: "rgba(240,237,230,0.6)",
+          color: "rgba(44,44,40,0.6)",
           lineHeight: 1.5,
           letterSpacing: "-0.1px",
         }}
@@ -621,7 +621,7 @@ function ConfigGroup({
         style={{
           fontSize: "10.5px",
           fontWeight: 500,
-          color: "rgba(240,237,230,0.45)",
+          color: "rgba(44,44,40,0.45)",
           fontFamily: "var(--font-geist-mono), monospace",
           letterSpacing: "1.2px",
           textTransform: "uppercase",
@@ -661,22 +661,22 @@ function SegBtn({
       style={{
         flex: wide ? "1 1 calc(50% - 6px)" : "1 1 0",
         minWidth: wide ? "calc(50% - 6px)" : "60px",
-        background: active ? "rgba(124,184,122,0.16)" : "#1c211a",
+        background: active ? "rgba(92,107,79,0.14)" : "#F7F3ED",
         border: active
-          ? "1px solid rgba(124,184,122,0.6)"
-          : "1px solid rgba(124,184,122,0.18)",
-        borderRadius: "10px",
+          ? "0.5px solid rgba(92,107,79,0.6)"
+          : "0.5px solid #E5DFD5",
+        borderRadius: "6px",
         padding: wide ? "11px 12px" : "10px 14px",
         fontSize: wide ? "12.5px" : "13px",
         fontWeight: 500,
-        color: active ? ACCENT : "rgba(240,237,230,0.85)",
+        color: active ? ACCENT : "rgba(44,44,40,0.85)",
         cursor: "pointer",
         letterSpacing: "-0.1px",
         textAlign: "center" as const,
         transition: "background 180ms ease, border-color 180ms ease, color 180ms ease",
         boxShadow: active
-          ? "inset 0 0 0 1px rgba(124,184,122,0.12), 0 0 22px rgba(124,184,122,0.14)"
-          : "inset -1px -1px 2px rgba(255,255,255,0.015), inset 1px 1px 2px rgba(0,0,0,0.3)",
+          ? "inset 0 0 0 0.5px rgba(92,107,79,0.12)"
+          : "none",
       }}
     >
       {children}
@@ -809,7 +809,7 @@ function LivePhone({
             ? {
                 width: "100%",
                 maxWidth: "420px",
-                background: "#0d0d0d",
+                background: "#1A1A18",
                 borderRadius: "20px",
                 overflow: "hidden",
                 display: "flex",
@@ -818,14 +818,14 @@ function LivePhone({
                 maxHeight: "min(640px, 78vh)",
                 flexShrink: 0,
                 boxShadow:
-                  "0 0 0 1px rgba(255,255,255,0.06), 0 0 40px rgba(124,184,122,0.08), 0 16px 40px rgba(0,0,0,0.6)",
+                  "0 0 0 0.5px rgba(60,74,51,0.10), 0 16px 40px rgba(60,74,51,0.18)",
                 position: "relative",
               }
             : {
                 width: "320px",
                 height: "676px",
                 maxHeight: "min(676px, calc(100vh - 140px))",
-                background: "#0a0a0a",
+                background: "#1A1A18",
                 borderRadius: "40px",
                 padding: "9px",
                 overflow: "hidden",
@@ -833,7 +833,7 @@ function LivePhone({
                 flexDirection: "column",
                 flexShrink: 0,
                 boxShadow:
-                  "0 0 0 2px rgba(255,255,255,0.06), 0 0 60px rgba(124,184,122,0.12), 0 30px 80px rgba(0,0,0,0.7)",
+                  "0 0 0 1px rgba(60,74,51,0.10), 0 30px 80px rgba(60,74,51,0.22)",
                 position: "relative",
               }
         }
@@ -858,7 +858,7 @@ function LivePhone({
           style={{
             width: "100%",
             height: "100%",
-            background: "#0d0d0d",
+            background: "#F7F3ED",
             borderRadius: isMobile ? "0" : "32px",
             overflow: "hidden",
             display: "flex",
@@ -875,7 +875,7 @@ function LivePhone({
                 alignItems: "center",
                 fontSize: "12.5px",
                 fontWeight: 600,
-                color: "#fff",
+                color: "#2C2C28",
                 fontVariantNumeric: "tabular-nums",
               }}
             >
@@ -892,12 +892,12 @@ function LivePhone({
           <div
             style={{
               padding: isMobile ? "14px 16px 12px" : "8px 16px 12px",
-              borderBottom: "1px solid rgba(255,255,255,0.06)",
+              borderBottom: "0.5px solid #E5DFD5",
               display: "flex",
               flexDirection: "column",
               alignItems: "center",
               gap: "4px",
-              background: "rgba(20,20,22,0.6)",
+              background: "rgba(253,251,247,0.85)",
               backdropFilter: "blur(20px)",
             }}
           >
@@ -906,8 +906,8 @@ function LivePhone({
                 width: "34px",
                 height: "34px",
                 borderRadius: "50%",
-                background: "rgba(124,184,122,0.14)",
-                border: "1px solid rgba(124,184,122,0.3)",
+                background: "rgba(92,107,79,0.12)",
+                border: "0.5px solid rgba(92,107,79,0.3)",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
@@ -923,7 +923,7 @@ function LivePhone({
               style={{
                 fontSize: "13px",
                 fontWeight: 500,
-                color: "#fff",
+                color: "#2C2C28",
                 letterSpacing: "-0.1px",
               }}
             >
@@ -932,7 +932,7 @@ function LivePhone({
             <span
               style={{
                 fontSize: "9.5px",
-                color: "rgba(255,255,255,0.38)",
+                color: "rgba(44,44,40,0.45)",
                 fontFamily: "var(--font-geist-mono), monospace",
                 letterSpacing: "0.5px",
               }}
@@ -961,7 +961,7 @@ function LivePhone({
                   style={{
                     textAlign: "center",
                     fontSize: "9.5px",
-                    color: "rgba(255,255,255,0.32)",
+                    color: "rgba(44,44,40,0.40)",
                     margin: "2px 0 10px",
                     fontWeight: 500,
                   }}
@@ -983,7 +983,7 @@ function LivePhone({
                   justifyContent: "center",
                   textAlign: "center",
                   padding: "20px 16px",
-                  color: "rgba(255,255,255,0.32)",
+                  color: "rgba(44,44,40,0.45)",
                   fontSize: "12.5px",
                   lineHeight: 1.5,
                   letterSpacing: "-0.1px",
@@ -998,8 +998,8 @@ function LivePhone({
           <div
             style={{
               padding: "10px 12px 14px",
-              borderTop: "1px solid rgba(255,255,255,0.05)",
-              background: "rgba(15,15,17,0.7)",
+              borderTop: "0.5px solid #E5DFD5",
+              background: "rgba(253,251,247,0.85)",
               minHeight: "60px",
               display: "flex",
               flexDirection: "column",
@@ -1018,7 +1018,7 @@ function LivePhone({
                   style={{
                     fontSize: "9px",
                     fontWeight: 500,
-                    color: "rgba(255,255,255,0.32)",
+                    color: "rgba(44,44,40,0.40)",
                     fontFamily: "var(--font-geist-mono), monospace",
                     letterSpacing: "1px",
                     textTransform: "uppercase",
@@ -1056,7 +1056,7 @@ function LivePhone({
                 <span
                   style={{
                     fontSize: "11px",
-                    color: "rgba(255,255,255,0.55)",
+                    color: "rgba(44,44,40,0.6)",
                     fontStyle: "italic",
                     letterSpacing: "-0.1px",
                     textAlign: "center",
@@ -1073,15 +1073,15 @@ function LivePhone({
                     alignItems: "center",
                     justifyContent: "center",
                     gap: "6px",
-                    background: ACCENT,
-                    color: "#0C0F0A",
-                    padding: "11px 16px",
-                    borderRadius: "10px",
-                    fontSize: "13.5px",
-                    fontWeight: 600,
-                    letterSpacing: "-0.15px",
+                    background: "#5C6B4F",
+                    color: "#FDFBF7",
+                    padding: "12px 16px",
+                    borderRadius: "4px",
+                    fontSize: "13px",
+                    fontWeight: 500,
+                    letterSpacing: "0.08em",
+                    textTransform: "uppercase",
                     textDecoration: "none",
-                    animation: "kinPulse 2.4s ease-in-out infinite",
                   }}
                 >
                   Join the waitlist →
@@ -1111,7 +1111,8 @@ const Bubble = forwardRef<HTMLDivElement, { item: ChatItem }>(function Bubble(
       >
         <div
           style={{
-            background: "#1f1f22",
+            background: "rgba(92,107,79,0.10)",
+            border: "0.5px solid rgba(92,107,79,0.28)",
             borderRadius: "18px 18px 18px 4px",
             padding: "10px 14px",
             display: "flex",
@@ -1127,7 +1128,7 @@ const Bubble = forwardRef<HTMLDivElement, { item: ChatItem }>(function Bubble(
                 width: "6px",
                 height: "6px",
                 borderRadius: "50%",
-                background: "rgba(255,255,255,0.6)",
+                background: "rgba(92,107,79,0.7)",
               }}
             />
           ))}
@@ -1152,8 +1153,9 @@ const Bubble = forwardRef<HTMLDivElement, { item: ChatItem }>(function Bubble(
     >
       <div
         style={{
-          background: isKin ? "#1f1f22" : "#34C759",
-          color: isKin ? "#F0EDE6" : "#0a1f0a",
+          background: isKin ? "rgba(92,107,79,0.10)" : "#2C2C28",
+          color: isKin ? "#2C2C28" : "#F7F3ED",
+          border: isKin ? "0.5px solid rgba(92,107,79,0.28)" : "0.5px solid transparent",
           borderRadius: isKin ? "18px 18px 18px 4px" : "18px 18px 4px 18px",
           padding: "9px 14px",
           maxWidth: "82%",
@@ -1164,8 +1166,8 @@ const Bubble = forwardRef<HTMLDivElement, { item: ChatItem }>(function Bubble(
           wordBreak: "break-word",
           fontWeight: isKin ? 400 : 500,
           boxShadow: isKin
-            ? "0 1px 2px rgba(0,0,0,0.35)"
-            : "0 1px 2px rgba(0,0,0,0.4), 0 0 18px rgba(52,199,89,0.18)",
+            ? "0 1px 2px rgba(60,74,51,0.08)"
+            : "0 1px 3px rgba(60,74,51,0.14)",
         }}
       >
         {item.text}
@@ -1192,12 +1194,12 @@ function ReplyChip({
       whileHover={{ y: -1 }}
       onClick={onClick}
       style={{
-        background: "rgba(124,184,122,0.1)",
-        border: "1px solid rgba(124,184,122,0.35)",
+        background: "rgba(92,107,79,0.10)",
+        border: "0.5px solid rgba(92,107,79,0.35)",
         borderRadius: "16px",
         padding: "7px 12px",
         fontSize: "12.5px",
-        color: "#9DD49B",
+        color: "#5C6B4F",
         cursor: "pointer",
         letterSpacing: "-0.1px",
         fontWeight: 500,
@@ -1216,7 +1218,7 @@ function SignalIcon() {
   return (
     <svg width="16" height="10" viewBox="0 0 16 10" fill="none">
       {[2, 4, 6, 8].map((h, i) => (
-        <rect key={i} x={i * 3.5} y={10 - h} width="2.5" height={h} fill="#fff" rx="0.5" />
+        <rect key={i} x={i * 3.5} y={10 - h} width="2.5" height={h} fill="#2C2C28" rx="0.5" />
       ))}
     </svg>
   );
@@ -1224,18 +1226,18 @@ function SignalIcon() {
 function WifiIcon() {
   return (
     <svg width="14" height="10" viewBox="0 0 14 10" fill="none">
-      <path d="M7 2.5C9.5 2.5 11.7 3.4 13 4.6L11.5 6.2C10.3 5.2 8.7 4.5 7 4.5C5.3 4.5 3.7 5.2 2.5 6.2L1 4.6C2.3 3.4 4.5 2.5 7 2.5Z" fill="#fff"/>
-      <path d="M7 5.5C8.4 5.5 9.6 6 10.4 6.7L8.9 8.1C8.4 7.7 7.7 7.5 7 7.5C6.3 7.5 5.6 7.7 5.1 8.1L3.6 6.7C4.4 6 5.6 5.5 7 5.5Z" fill="#fff"/>
-      <circle cx="7" cy="9" r="1" fill="#fff"/>
+      <path d="M7 2.5C9.5 2.5 11.7 3.4 13 4.6L11.5 6.2C10.3 5.2 8.7 4.5 7 4.5C5.3 4.5 3.7 5.2 2.5 6.2L1 4.6C2.3 3.4 4.5 2.5 7 2.5Z" fill="#2C2C28"/>
+      <path d="M7 5.5C8.4 5.5 9.6 6 10.4 6.7L8.9 8.1C8.4 7.7 7.7 7.5 7 7.5C6.3 7.5 5.6 7.7 5.1 8.1L3.6 6.7C4.4 6 5.6 5.5 7 5.5Z" fill="#2C2C28"/>
+      <circle cx="7" cy="9" r="1" fill="#2C2C28"/>
     </svg>
   );
 }
 function BatteryIcon() {
   return (
     <svg width="22" height="10" viewBox="0 0 22 10" fill="none">
-      <rect x="0.5" y="0.5" width="18" height="9" rx="2" stroke="#fff" strokeOpacity="0.5"/>
-      <rect x="2" y="2" width="15" height="6" rx="1" fill="#fff"/>
-      <rect x="19.5" y="3" width="1.5" height="4" rx="0.5" fill="#fff" fillOpacity="0.5"/>
+      <rect x="0.5" y="0.5" width="18" height="9" rx="2" stroke="#2C2C28" strokeOpacity="0.5"/>
+      <rect x="2" y="2" width="15" height="6" rx="1" fill="#2C2C28"/>
+      <rect x="19.5" y="3" width="1.5" height="4" rx="0.5" fill="#2C2C28" fillOpacity="0.5"/>
     </svg>
   );
 }
@@ -1293,9 +1295,9 @@ export function InteractiveDemo() {
         viewport={{ once: true }}
         transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
         style={{
-          height: "1px",
+          height: "0.5px",
           background:
-            "linear-gradient(90deg, transparent, rgba(124,184,122,0.3), transparent)",
+            "linear-gradient(90deg, transparent, rgba(92,107,79,0.3), transparent)",
           marginBottom: "56px",
           transformOrigin: "center",
         }}
@@ -1319,8 +1321,8 @@ export function InteractiveDemo() {
             textTransform: "uppercase",
             marginBottom: "20px",
             padding: "5px 12px",
-            background: "rgba(124,184,122,0.1)",
-            border: "1px solid rgba(124,184,122,0.35)",
+            background: "rgba(92,107,79,0.10)",
+            border: "0.5px solid rgba(92,107,79,0.35)",
             borderRadius: "999px",
           }}
         >
@@ -1330,7 +1332,6 @@ export function InteractiveDemo() {
               height: 6,
               borderRadius: 3,
               background: ACCENT,
-              boxShadow: "0 0 8px rgba(124,184,122,0.7)",
             }}
           />
           Live demo
@@ -1343,9 +1344,10 @@ export function InteractiveDemo() {
           transition={{ duration: 0.65, delay: 0.1, ease: [0.22, 1, 0.36, 1] }}
           style={{
             fontSize: "clamp(28px, 4vw, 38px)",
-            fontWeight: 600,
-            color: "#F0EDE6",
-            letterSpacing: "-0.8px",
+            fontFamily: "var(--font-instrument-serif), 'Playfair Display', serif",
+            fontWeight: 400,
+            color: "#2C2C28",
+            letterSpacing: "-0.015em",
             lineHeight: 1.2,
             marginBottom: "16px",
             maxWidth: "640px",
@@ -1363,7 +1365,7 @@ export function InteractiveDemo() {
           transition={{ duration: 0.6, delay: 0.2 }}
           style={{
             fontSize: "15px",
-            color: "rgba(240,237,230,0.72)",
+            color: "rgba(44,44,40,0.72)",
             lineHeight: 1.6,
             maxWidth: "520px",
             margin: "0 auto",

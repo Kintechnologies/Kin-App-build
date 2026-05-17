@@ -26,19 +26,19 @@ export const dynamic = "force-dynamic";
 
 // ─── Design tokens (inline — matches the landing page + tokens.css) ──────────
 const T = {
-  bg: "#0C0F0A",
-  bgCard: "#161A17",
-  sage: "#7CB87A",
-  sageBorder: "rgba(124,184,122,0.28)",
-  sage12: "rgba(124,184,122,0.12)",
-  warm: "#F0EDE6",
-  warm72: "rgba(240,237,230,0.72)",
-  warm56: "rgba(240,237,230,0.56)",
-  warm40: "rgba(240,237,230,0.40)",
-  hair: "rgba(240,237,230,0.08)",
-  rose: "#D4748A",
-  roseBorder: "rgba(212,116,138,0.28)",
-  rose12: "rgba(212,116,138,0.12)",
+  bg: "#F7F3ED",
+  bgCard: "#FDFBF7",
+  sage: "#5C6B4F",
+  sageBorder: "rgba(92,107,79,0.28)",
+  sage12: "rgba(92,107,79,0.12)",
+  warm: "#2C2C28",
+  warm72: "rgba(44,44,40,0.72)",
+  warm56: "rgba(44,44,40,0.56)",
+  warm40: "rgba(44,44,40,0.40)",
+  hair: "#E5DFD5",
+  rose: "#A65A4A",
+  roseBorder: "rgba(166,90,74,0.28)",
+  rose12: "rgba(166,90,74,0.12)",
 };
 
 interface ConnectPageProps {
@@ -63,11 +63,11 @@ export default async function ConnectCalendarPage({
               height: 64,
               borderRadius: 32,
               background: T.sage12,
-              border: `1px solid ${T.sageBorder}`,
+              border: `0.5px solid ${T.sageBorder}`,
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              boxShadow: "0 0 28px rgba(124,184,122,0.22)",
+              boxShadow: "0 0 28px rgba(92,107,79,0.10)",
             }}
           >
             <CheckIcon />
@@ -158,7 +158,7 @@ function PageShell({ children }: { children: React.ReactNode }) {
           width: 520,
           height: 520,
           borderRadius: "50%",
-          background: "rgba(124,184,122,0.07)",
+          background: "rgba(92,107,79,0.06)",
           filter: "blur(130px)",
           pointerEvents: "none",
         }}
@@ -189,15 +189,15 @@ function PageShell({ children }: { children: React.ReactNode }) {
 const cardStyle: React.CSSProperties = {
   width: "100%",
   background: T.bgCard,
-  border: `1px solid ${T.hair}`,
-  borderRadius: 18,
+  border: `0.5px solid ${T.hair}`,
+  borderRadius: 8,
   padding: "40px 32px",
   display: "flex",
   flexDirection: "column",
   alignItems: "center",
   textAlign: "center",
   gap: 16,
-  boxShadow: "0 24px 60px rgba(0,0,0,0.45)",
+  boxShadow: "0 24px 60px rgba(60,74,51,0.14)",
 };
 
 const headingStyle: React.CSSProperties = {
@@ -221,7 +221,7 @@ const bodyStyle: React.CSSProperties = {
 
 const dividerStyle: React.CSSProperties = {
   width: 32,
-  height: 1,
+  height: 0.5,
   background: T.hair,
   margin: "4px 0",
 };
@@ -237,7 +237,7 @@ function NoticeCard({ title, body }: { title: string; body: string }) {
           height: 56,
           borderRadius: 28,
           background: T.rose12,
-          border: `1px solid ${T.roseBorder}`,
+          border: `0.5px solid ${T.roseBorder}`,
           display: "flex",
           alignItems: "center",
           justifyContent: "center",

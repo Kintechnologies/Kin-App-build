@@ -84,7 +84,7 @@ export default function PricingPage() {
           <Link href="/" style={{ textDecoration: "none", marginBottom: 24, display: "inline-block" }}>
             <KinWordmark size={24} tone="warm" />
           </Link>
-          <h1 className="text-4xl font-medium text-warm-white mb-3" style={{ letterSpacing: "-0.03em" }}>
+          <h1 className="font-serif text-4xl font-medium text-warm-white mb-3" style={{ letterSpacing: "-0.015em" }}>
             Your family deserves a chief of staff
           </h1>
           <p className="text-warm-white/50 text-lg max-w-md mx-auto">
@@ -134,7 +134,7 @@ export default function PricingPage() {
 
           <div className="mb-6">
             <div className="flex items-baseline gap-1">
-              <span className="text-4xl font-bold font-mono text-primary">
+              <span className="text-5xl font-serif font-medium text-primary">
                 ${billing === "monthly" ? displayPrice : displayPrice.toFixed(0)}
               </span>
               <span className="text-warm-white/30 text-sm">/month</span>
@@ -165,7 +165,7 @@ export default function PricingPage() {
           <button
             onClick={handleSubscribe}
             disabled={loading}
-            className="w-full py-3.5 rounded-2xl font-semibold text-sm transition-all hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-2 bg-primary text-background hover:shadow-lg hover:shadow-primary/25"
+            className="w-full py-3.5 rounded font-medium text-[13px] uppercase tracking-[0.08em] transition-all disabled:opacity-50 flex items-center justify-center gap-2 bg-primary text-surface hover:bg-olive-dark"
           >
             {loading ? (
               <span>Starting trial...</span>

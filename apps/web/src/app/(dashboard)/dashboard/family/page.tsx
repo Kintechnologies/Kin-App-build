@@ -51,23 +51,23 @@ const TYPE_META: Record<
   adult: {
     label: "Caregivers",
     icon: Users,
-    tone: "#7CB87A",
-    bg: "rgba(124,184,122,0.14)",
-    border: "rgba(124,184,122,0.3)",
+    tone: "#5C6B4F",
+    bg: "rgba(92,107,79,0.14)",
+    border: "rgba(92,107,79,0.3)",
   },
   child: {
     label: "Children",
     icon: Baby,
-    tone: "#7AADCE",
-    bg: "rgba(122,173,206,0.14)",
-    border: "rgba(122,173,206,0.3)",
+    tone: "#7A8C6A",
+    bg: "rgba(122,140,106,0.14)",
+    border: "rgba(122,140,106,0.3)",
   },
   pet: {
     label: "Pets",
     icon: PawPrint,
-    tone: "#D4A843",
-    bg: "rgba(212,168,67,0.14)",
-    border: "rgba(212,168,67,0.3)",
+    tone: "#C4A97D",
+    bg: "rgba(196,169,125,0.14)",
+    border: "rgba(196,169,125,0.3)",
   },
 };
 
@@ -80,9 +80,9 @@ function MemberRow({ member }: { member: FamilyMember }) {
         alignItems: "center",
         gap: "12px",
         padding: "12px 14px",
-        background: "rgba(240,237,230,0.02)",
-        border: "1px solid var(--hair)",
-        borderRadius: "10px",
+        background: "rgba(44,44,40,0.02)",
+        border: "0.5px solid var(--hair)",
+        borderRadius: "8px",
       }}
     >
       <div
@@ -91,7 +91,7 @@ function MemberRow({ member }: { member: FamilyMember }) {
           height: "36px",
           borderRadius: "50%",
           background: meta.bg,
-          border: `1px solid ${meta.border}`,
+          border: `0.5px solid ${meta.border}`,
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
@@ -238,10 +238,11 @@ export default function FamilyPage() {
         <MonoLabel>{"// FAMILY"}</MonoLabel>
         <h1
           style={{
-            fontSize: "28px",
-            fontWeight: 500,
+            fontFamily: "var(--font-instrument-serif), 'Playfair Display', serif",
+            fontSize: "34px",
+            fontWeight: 400,
             color: "var(--warm)",
-            letterSpacing: "-0.025em",
+            letterSpacing: "-0.015em",
             marginTop: "8px",
           }}
         >
@@ -278,9 +279,9 @@ export default function FamilyPage() {
           {members.length === 0 && (
             <section
               style={{
-                background: "rgba(240,237,230,0.025)",
-                border: "1px dashed var(--hair-strong)",
-                borderRadius: "12px",
+                background: "#FDFBF7",
+                border: "0.5px dashed var(--hair-strong)",
+                borderRadius: "8px",
                 padding: "24px",
                 textAlign: "center",
                 fontSize: "13px",
@@ -301,9 +302,9 @@ export default function FamilyPage() {
               <section
                 key={type}
                 style={{
-                  background: "rgba(240,237,230,0.025)",
-                  border: "1px solid var(--hair)",
-                  borderRadius: "12px",
+                  background: "#FDFBF7",
+                  border: "0.5px solid var(--hair)",
+                  borderRadius: "8px",
                   padding: "20px",
                 }}
               >
@@ -356,9 +357,9 @@ export default function FamilyPage() {
       {/* Invite a caregiver */}
       <section
         style={{
-          background: "rgba(240,237,230,0.025)",
-          border: "1px solid var(--hair)",
-          borderRadius: "12px",
+          background: "#FDFBF7",
+          border: "0.5px solid var(--hair)",
+          borderRadius: "8px",
           padding: "20px",
         }}
       >
@@ -401,12 +402,12 @@ export default function FamilyPage() {
               alignItems: "center",
               gap: "9px",
               padding: "11px 13px",
-              background: "rgba(122,173,206,0.1)",
-              border: "1px solid rgba(122,173,206,0.3)",
-              borderRadius: "10px",
+              background: "rgba(122,140,106,0.1)",
+              border: "0.5px solid rgba(122,140,106,0.3)",
+              borderRadius: "8px",
               marginBottom: "14px",
               fontSize: "12.5px",
-              color: "#7AADCE",
+              color: "#7A8C6A",
             }}
           >
             <Clock size={14} style={{ flexShrink: 0 }} />
@@ -427,8 +428,8 @@ export default function FamilyPage() {
               gap: "9px",
               padding: "11px 13px",
               background: "var(--sage-12)",
-              border: "1px solid var(--hair-sage)",
-              borderRadius: "10px",
+              border: "0.5px solid var(--hair-sage)",
+              borderRadius: "8px",
               fontSize: "13px",
               color: "var(--sage)",
             }}
@@ -451,8 +452,8 @@ export default function FamilyPage() {
               style={{
                 flex: "1 1 200px",
                 background: "var(--warm-06)",
-                border: "1px solid var(--hair-strong)",
-                borderRadius: "10px",
+                border: "0.5px solid var(--hair-strong)",
+                borderRadius: "4px",
                 padding: "10px 12px",
                 fontSize: "13.5px",
                 color: "var(--warm)",
@@ -467,16 +468,23 @@ export default function FamilyPage() {
                 alignItems: "center",
                 justifyContent: "center",
                 gap: "7px",
-                background: "var(--sage)",
-                color: "#0C0F0A",
+                background: "#5C6B4F",
+                color: "#FDFBF7",
                 border: "none",
-                borderRadius: "10px",
-                padding: "10px 16px",
-                fontSize: "13.5px",
-                fontWeight: 600,
-                letterSpacing: "-0.15px",
+                borderRadius: "4px",
+                padding: "11px 18px",
+                fontSize: "13px",
+                fontWeight: 500,
+                letterSpacing: "0.08em",
+                textTransform: "uppercase",
                 cursor: saving ? "wait" : "pointer",
                 opacity: saving ? 0.6 : 1,
+              }}
+              onMouseEnter={(e) => {
+                if (!saving) e.currentTarget.style.background = "#3D4A33";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = "#5C6B4F";
               }}
             >
               {saving && <Loader2 size={14} className="animate-spin" />}
@@ -491,7 +499,7 @@ export default function FamilyPage() {
             style={{
               marginTop: "10px",
               fontSize: "12.5px",
-              color: "rgba(212,116,138,0.85)",
+              color: "rgba(166,90,74,0.9)",
             }}
           >
             {formError}
@@ -503,9 +511,9 @@ export default function FamilyPage() {
       {contextNotes && (
         <section
           style={{
-            background: "rgba(240,237,230,0.025)",
-            border: "1px solid var(--hair)",
-            borderRadius: "12px",
+            background: "#FDFBF7",
+            border: "0.5px solid var(--hair)",
+            borderRadius: "8px",
             padding: "20px",
           }}
         >
@@ -539,7 +547,7 @@ export default function FamilyPage() {
               color: "var(--warm-40)",
               lineHeight: 1.5,
               marginTop: "12px",
-              borderTop: "1px solid var(--hair)",
+              borderTop: "0.5px solid var(--hair)",
               paddingTop: "12px",
             }}
           >

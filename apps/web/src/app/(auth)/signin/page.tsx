@@ -9,25 +9,29 @@ import KinWordmark from "@/components/KinWordmark";
 
 // ─── tokens ───────────────────────────────────────────────────────────────────
 const T = {
-  bg: "#0C0F0A",
-  bgLift: "#14181A",
-  bgCard: "#161A17",
-  bgElev: "#1B201C",
-  sage: "#7CB87A",
-  sageBorder: "rgba(124,184,122,0.28)",
-  sage12: "rgba(124,184,122,0.12)",
-  sage20: "rgba(124,184,122,0.20)",
-  hairSage: "rgba(124,184,122,0.14)",
-  warm: "#F0EDE6",
-  warm72: "rgba(240,237,230,0.72)",
-  warm56: "rgba(240,237,230,0.56)",
-  warm40: "rgba(240,237,230,0.40)",
-  warm24: "rgba(240,237,230,0.24)",
-  warm12: "rgba(240,237,230,0.12)",
-  warm06: "rgba(240,237,230,0.06)",
-  hair: "rgba(240,237,230,0.08)",
-  hairStrong: "rgba(240,237,230,0.14)",
-  rose: "#D4748A",
+  bg: "#F7F3ED",
+  bgLift: "#FDFBF7",
+  bgCard: "#FDFBF7",
+  bgElev: "#EBE8E0",
+  sage: "#5C6B4F",
+  sageDark: "#3D4A33",
+  sageBorder: "rgba(92,107,79,0.28)",
+  sage12: "rgba(92,107,79,0.12)",
+  sage20: "rgba(92,107,79,0.20)",
+  hairSage: "rgba(92,107,79,0.14)",
+  warm: "#2C2C28",
+  warm72: "rgba(44,44,40,0.72)",
+  warm56: "rgba(44,44,40,0.56)",
+  warm40: "rgba(44,44,40,0.40)",
+  warm24: "rgba(44,44,40,0.24)",
+  warm12: "rgba(44,44,40,0.12)",
+  warm06: "rgba(44,44,40,0.06)",
+  hair: "#E5DFD5",
+  hairStrong: "rgba(44,44,40,0.14)",
+  border: "#E5DFD5",
+  rose: "#A65A4A",
+  cardBg: "#FDFBF7",
+  serif: "var(--font-instrument-serif), 'Playfair Display', serif",
   mono: "var(--font-geist-mono), 'Geist Mono', 'JetBrains Mono', monospace",
   sans: "var(--font-geist-sans), 'Geist', system-ui, sans-serif",
 };
@@ -195,9 +199,9 @@ function SignInForm() {
     width: "100%",
     height: 44,
     padding: "0 14px",
-    background: "rgba(240,237,230,0.04)",
-    border: `1px solid ${T.warm12}`,
-    borderRadius: 10,
+    background: T.bgLift,
+    border: `0.5px solid ${T.border}`,
+    borderRadius: 8,
     color: T.warm,
     fontSize: 14,
     fontFamily: "inherit",
@@ -210,28 +214,29 @@ function SignInForm() {
     width: "100%",
     height: 44,
     background: T.sage,
-    color: T.bg,
+    color: "#FDFBF7",
     border: "none",
-    borderRadius: 10,
+    borderRadius: 4,
     fontFamily: "inherit",
-    fontWeight: 600,
-    fontSize: 14,
+    fontWeight: 500,
+    fontSize: 13,
+    textTransform: "uppercase",
+    letterSpacing: "0.08em",
     cursor: loading ? "default" : "pointer",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
     gap: 8,
     opacity: loading ? 0.6 : 1,
-    letterSpacing: "-0.005em",
   };
 
   const secondaryBtnStyle: React.CSSProperties = {
     width: "100%",
     height: 44,
-    background: "rgba(240,237,230,0.06)",
+    background: T.bgLift,
     color: T.warm,
-    border: `1px solid ${T.warm12}`,
-    borderRadius: 10,
+    border: `0.5px solid ${T.border}`,
+    borderRadius: 4,
     fontFamily: "inherit",
     fontWeight: 500,
     fontSize: 14,
@@ -264,9 +269,10 @@ function SignInForm() {
         <div>
           <div
             style={{
-              fontSize: 28,
-              fontWeight: 500,
-              letterSpacing: "-0.025em",
+              fontFamily: T.serif,
+              fontSize: 34,
+              fontWeight: 400,
+              letterSpacing: "-0.015em",
               marginBottom: 6,
               color: T.warm,
               lineHeight: 1.1,
@@ -284,8 +290,8 @@ function SignInForm() {
             style={{
               padding: "10px 12px",
               background: T.sage12,
-              border: `1px solid ${T.hairSage}`,
-              borderRadius: 10,
+              border: `0.5px solid ${T.hairSage}`,
+              borderRadius: 8,
               display: "flex",
               gap: 10,
               alignItems: "flex-start",
@@ -347,9 +353,10 @@ function SignInForm() {
       <div>
         <div
           style={{
-            fontSize: 28,
-            fontWeight: 500,
-            letterSpacing: "-0.025em",
+            fontFamily: T.serif,
+            fontSize: 34,
+            fontWeight: 400,
+            letterSpacing: "-0.015em",
             marginBottom: 6,
             color: T.warm,
             lineHeight: 1.1,
@@ -374,10 +381,10 @@ function SignInForm() {
                 style={{
                   height: 44,
                   padding: "0 12px",
-                  background: "rgba(240,237,230,0.04)",
-                  border: `1px solid ${T.warm12}`,
+                  background: T.bgElev,
+                  border: `0.5px solid ${T.border}`,
                   borderRight: "none",
-                  borderRadius: "10px 0 0 10px",
+                  borderRadius: "8px 0 0 8px",
                   display: "flex",
                   alignItems: "center",
                   fontSize: 14,
@@ -395,7 +402,7 @@ function SignInForm() {
                 placeholder="(415) 555-0117"
                 autoFocus
                 required
-                style={{ ...fieldStyle, borderRadius: "0 10px 10px 0" }}
+                style={{ ...fieldStyle, borderRadius: "0 8px 8px 0" }}
               />
             </div>
             <div style={fineprintStyle}>
@@ -607,8 +614,8 @@ function ErrorText({ children }: { children: React.ReactNode }) {
         fontSize: 13,
         margin: 0,
         padding: "8px 12px",
-        background: "rgba(212,116,138,0.08)",
-        border: "1px solid rgba(212,116,138,0.2)",
+        background: "rgba(166,90,74,0.08)",
+        border: "0.5px solid rgba(166,90,74,0.2)",
         borderRadius: 8,
       }}
       role="alert"
@@ -630,7 +637,7 @@ function LeftRail() {
         position: "sticky",
         top: 0,
         background: T.bgLift,
-        borderRight: `1px solid ${T.hair}`,
+        borderRight: `0.5px solid ${T.hair}`,
         padding: "44px 48px",
         display: "flex",
         flexDirection: "column",
@@ -648,7 +655,7 @@ function LeftRail() {
           height: 380,
           borderRadius: "50%",
           background:
-            "radial-gradient(circle, rgba(124,184,122,0.18), rgba(124,184,122,0) 60%)",
+            "radial-gradient(circle, rgba(92,107,79,0.12), rgba(92,107,79,0) 60%)",
           pointerEvents: "none",
         }}
       />
@@ -678,10 +685,11 @@ function LeftRail() {
         </div>
         <div
           style={{
-            fontSize: 38,
-            fontWeight: 500,
+            fontFamily: T.serif,
+            fontSize: 46,
+            fontWeight: 400,
             color: T.warm,
-            letterSpacing: "-0.03em",
+            letterSpacing: "-0.015em",
             lineHeight: 1.1,
           }}
         >
@@ -709,8 +717,8 @@ function LeftRail() {
             display: "flex",
             flexDirection: "column",
             gap: 1,
-            border: `1px solid ${T.hair}`,
-            borderRadius: 10,
+            border: `0.5px solid ${T.hair}`,
+            borderRadius: 8,
             background: T.bgCard,
             overflow: "hidden",
             maxWidth: 360,
@@ -727,7 +735,7 @@ function LeftRail() {
                 display: "flex",
                 justifyContent: "space-between",
                 padding: "11px 14px",
-                borderTop: i === 0 ? "none" : `1px solid ${T.hair}`,
+                borderTop: i === 0 ? "none" : `0.5px solid ${T.hair}`,
                 fontSize: 13,
               }}
             >

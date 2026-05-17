@@ -172,10 +172,9 @@ export default function TermsPage() {
       <LegalSection n="06" title="Google Calendar integration">
         <LegalP>
           If you choose to connect a Google Calendar, you authorize Kin to read
-          events from, and (with your permission) write events to, the
-          calendars you select. We use Google&apos;s OAuth flow to obtain this
-          access and we comply with the Google API Services User Data Policy,
-          including the Limited Use requirements.
+          events from the calendars you select. We use Google&apos;s OAuth flow
+          to obtain this read-only access and we comply with the Google API
+          Services User Data Policy, including the Limited Use requirements.
         </LegalP>
         <LegalP>
           You may revoke Kin&apos;s access at any time from your Google Account

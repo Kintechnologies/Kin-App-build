@@ -117,7 +117,7 @@ export default function SidebarNav() {
               borderRadius: 8,
               color: isActive ? "var(--sage)" : "var(--warm-72)",
               background: isActive ? "var(--sage-12)" : "transparent",
-              border: isActive ? "1px solid var(--hair-sage)" : "1px solid transparent",
+              border: isActive ? "0.5px solid var(--hair-sage)" : "0.5px solid transparent",
               fontSize: 13.5,
               fontWeight: isActive ? 500 : 400,
               letterSpacing: "-0.005em",
@@ -151,7 +151,7 @@ export default function SidebarNav() {
       style={{
         display: "inline-block",
         textDecoration: "none",
-        color: "#7CB87A",
+        color: "#5C6B4F",
         fontFamily: "var(--font-geist-sans), Geist, system-ui, sans-serif",
         fontWeight: 600,
         fontSize: 22,
@@ -169,9 +169,9 @@ export default function SidebarNav() {
       style={{
         marginTop: 12,
         padding: "10px 12px",
-        borderRadius: 10,
+        borderRadius: 8,
         background: "var(--bg-card)",
-        border: "1px solid var(--hair)",
+        border: "0.5px solid var(--hair)",
       }}
     >
       <div
@@ -217,7 +217,7 @@ export default function SidebarNav() {
         alignItems: "center",
         gap: 10,
         padding: "10px 8px",
-        borderTop: "1px solid var(--hair)",
+        borderTop: "0.5px solid var(--hair)",
         marginTop: 10,
       }}
     >
@@ -233,7 +233,7 @@ export default function SidebarNav() {
           justifyContent: "center",
           fontWeight: 600,
           fontSize: 12.5,
-          border: "1px solid var(--hair-sage)",
+          border: "0.5px solid var(--hair-sage)",
           flexShrink: 0,
         }}
       >
@@ -303,7 +303,7 @@ export default function SidebarNav() {
         flexDirection: "column",
         padding: "18px 14px 14px",
         background: "var(--bg-lift)",
-        borderRight: "1px solid var(--hair)",
+        borderRight: "0.5px solid var(--hair)",
       }}
     >
       <div style={{ padding: "0 4px 16px" }}>{Wordmark}</div>
@@ -343,10 +343,10 @@ export default function SidebarNav() {
           alignItems: "center",
           justifyContent: "space-between",
           padding: "10px 14px",
-          background: "rgba(12,15,10,0.85)",
+          background: "rgba(247,243,237,0.88)",
           backdropFilter: "blur(12px)",
           WebkitBackdropFilter: "blur(12px)",
-          borderBottom: "1px solid var(--hair)",
+          borderBottom: "0.5px solid var(--hair)",
         }}
       >
         {Wordmark}
@@ -355,7 +355,7 @@ export default function SidebarNav() {
           aria-label={mobileOpen ? "Close menu" : "Open menu"}
           style={{
             background: "var(--warm-06)",
-            border: "1px solid var(--hair)",
+            border: "0.5px solid var(--hair)",
             color: "var(--warm-72)",
             borderRadius: 8,
             padding: 8,
@@ -384,7 +384,7 @@ export default function SidebarNav() {
             style={{
               position: "absolute",
               inset: 0,
-              background: "rgba(0,0,0,0.55)",
+              background: "rgba(60,74,51,0.2)",
               backdropFilter: "blur(4px)",
             }}
           />

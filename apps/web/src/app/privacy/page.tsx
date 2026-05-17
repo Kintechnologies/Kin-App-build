@@ -141,8 +141,7 @@ export default function PrivacyPage() {
             SMS
           </LegalLI>
           <LegalLI>
-            Read events from, and write events to, the Google Calendars you
-            connect
+            Read events from the Google Calendars you connect
           </LegalLI>
           <LegalLI>
             Send service-related communications about your account, the
@@ -283,7 +282,7 @@ export default function PrivacyPage() {
             },
             {
               name: "Google",
-              desc: "If you connect Google Calendar, we use Google's OAuth flow to obtain read and write access to the calendars you authorize. Our use of information received from Google APIs adheres to the Google API Services User Data Policy, including the Limited Use requirements.",
+              desc: "If you connect Google Calendar, we use Google's OAuth flow to obtain read-only access to the calendars you authorize. Our use of information received from Google APIs adheres to the Google API Services User Data Policy, including the Limited Use requirements.",
             },
             {
               name: "Vercel",
@@ -295,8 +294,9 @@ export default function PrivacyPage() {
               style={{
                 padding: "14px 16px",
                 background: T.bgCard,
-                border: `1px solid ${T.hair}`,
-                borderRadius: 10,
+                border: `0.5px solid ${T.hair}`,
+                borderRadius: 8,
+                boxShadow: "0 1px 2px rgba(60,74,51,0.04)",
               }}
             >
               <div

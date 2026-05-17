@@ -3,27 +3,28 @@ import KinWordmark from "@/components/KinWordmark";
 
 // Design tokens — kept in lockstep with apps/web/src/app/page.tsx
 export const T = {
-  bg: "#0C0F0A",
-  bgCard: "#161A17",
-  bgElev: "#1B201C",
-  sage: "#7CB87A",
-  sageBorder: "rgba(124,184,122,0.28)",
-  sage12: "rgba(124,184,122,0.12)",
-  sage08: "rgba(124,184,122,0.08)",
-  warm: "#F0EDE6",
-  warm72: "rgba(240,237,230,0.72)",
-  warm56: "rgba(240,237,230,0.56)",
-  warm40: "rgba(240,237,230,0.40)",
-  warm24: "rgba(240,237,230,0.24)",
-  warm12: "rgba(240,237,230,0.12)",
-  warm06: "rgba(240,237,230,0.06)",
-  hair: "rgba(240,237,230,0.08)",
+  bg: "#F7F3ED",
+  bgCard: "#FDFBF7",
+  bgElev: "#EBE8E0",
+  sage: "#5C6B4F",
+  sageBorder: "rgba(92,107,79,0.28)",
+  sage12: "rgba(92,107,79,0.12)",
+  sage08: "rgba(92,107,79,0.08)",
+  warm: "#2C2C28",
+  warm72: "rgba(44,44,40,0.72)",
+  warm56: "rgba(44,44,40,0.56)",
+  warm40: "rgba(44,44,40,0.40)",
+  warm24: "rgba(44,44,40,0.24)",
+  warm12: "rgba(44,44,40,0.12)",
+  warm06: "rgba(44,44,40,0.06)",
+  hair: "rgba(44,44,40,0.08)",
   amber: "#D4A843",
   amberBorder: "rgba(212,168,67,0.28)",
   amber08: "rgba(212,168,67,0.08)",
-  rose: "#D4748A",
-  roseBorder: "rgba(212,116,138,0.28)",
-  rose08: "rgba(212,116,138,0.08)",
+  rose: "#A65A4A",
+  roseBorder: "rgba(166,90,74,0.28)",
+  rose08: "rgba(166,90,74,0.08)",
+  serif: "var(--font-instrument-serif), 'Playfair Display', serif",
   mono: "'Geist Mono', 'JetBrains Mono', monospace",
 } as const;
 
@@ -62,7 +63,7 @@ export default function LegalShell({
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
-          borderBottom: `1px solid ${T.hair}`,
+          borderBottom: `0.5px solid ${T.hair}`,
           position: "sticky",
           top: 0,
           background: T.bg,
@@ -134,10 +135,11 @@ export default function LegalShell({
         <h1
           style={{
             margin: 0,
+            fontFamily: T.serif,
             fontWeight: 600,
             fontSize: "clamp(36px, 4.4vw, 56px)",
             lineHeight: 1.05,
-            letterSpacing: "-0.035em",
+            letterSpacing: "-0.015em",
             color: T.warm,
           }}
         >
@@ -164,8 +166,9 @@ export default function LegalShell({
             marginTop: 28,
             padding: "20px 22px",
             background: T.bgCard,
-            border: `1px solid ${T.hair}`,
-            borderRadius: 12,
+            border: `0.5px solid ${T.hair}`,
+            borderRadius: 8,
+            boxShadow: "0 1px 2px rgba(60,74,51,0.04)",
             color: T.warm72,
             fontSize: 14.5,
             lineHeight: 1.6,
@@ -192,7 +195,7 @@ export default function LegalShell({
       {/* ── Footer ────────────────────────────────────────────────────── */}
       <footer
         style={{
-          borderTop: `1px solid ${T.hair}`,
+          borderTop: `0.5px solid ${T.hair}`,
           padding: "24px 40px",
           display: "flex",
           alignItems: "center",
@@ -265,10 +268,11 @@ export function LegalSection({
         <h2
           style={{
             margin: 0,
-            fontSize: 22,
+            fontFamily: T.serif,
+            fontSize: 24,
             fontWeight: 500,
             color: T.warm,
-            letterSpacing: "-0.02em",
+            letterSpacing: "-0.015em",
             lineHeight: 1.25,
           }}
         >
@@ -382,8 +386,8 @@ export function LegalCallout({
         margin: "12px 0 16px",
         padding: "14px 16px",
         background: palette.bg,
-        border: `1px solid ${palette.border}`,
-        borderRadius: 10,
+        border: `0.5px solid ${palette.border}`,
+        borderRadius: 8,
       }}
     >
       {title && (
@@ -421,7 +425,7 @@ export function LegalInlineLink({
       style={{
         color: T.sage,
         textDecoration: "none",
-        borderBottom: `1px solid ${T.sageBorder}`,
+        borderBottom: `0.5px solid ${T.sageBorder}`,
       }}
     >
       {children}

@@ -53,7 +53,7 @@ function ContactHeader() {
         flexDirection: "column",
         alignItems: "center",
         gap: 4,
-        borderBottom: "1px solid var(--hair)",
+        borderBottom: "0.5px solid var(--hair)",
         flexShrink: 0,
       }}
     >
@@ -63,7 +63,7 @@ function ContactHeader() {
           height: 30,
           borderRadius: "50%",
           background: "var(--sage-20)",
-          border: "1px solid var(--hair-sage)",
+          border: "0.5px solid var(--hair-sage)",
           color: "var(--sage)",
           display: "flex",
           alignItems: "center",
@@ -105,7 +105,7 @@ function ComposeBar() {
     <div
       style={{
         padding: "8px 10px 12px",
-        borderTop: "1px solid var(--hair)",
+        borderTop: "0.5px solid var(--hair)",
         flexShrink: 0,
       }}
     >
@@ -115,7 +115,7 @@ function ComposeBar() {
           padding: "0 12px",
           borderRadius: 999,
           background: "var(--warm-06)",
-          border: "1px solid var(--hair)",
+          border: "0.5px solid var(--hair)",
           display: "flex",
           alignItems: "center",
           fontSize: 11,
@@ -137,7 +137,7 @@ function BubbleView({ bubble }: { bubble: Bubble }) {
           textAlign: "center",
           fontFamily: "var(--font-geist-mono), monospace",
           fontSize: 9.5,
-          color: "rgba(240,237,230,0.32)",
+          color: "rgba(44,44,40,0.40)",
           letterSpacing: "0.08em",
           textTransform: "uppercase",
           margin: "4px 0 6px",
@@ -165,9 +165,9 @@ function BubbleView({ bubble }: { bubble: Bubble }) {
           maxWidth: "84%",
           padding: "8px 11px",
           borderRadius: isKin ? "14px 14px 14px 4px" : "14px 14px 4px 14px",
-          background: isKin ? "rgba(124,184,122,0.10)" : "#F0EDE6",
-          border: isKin ? "1px solid rgba(124,184,122,0.28)" : "1px solid rgba(240,237,230,0)",
-          color: isKin ? "var(--warm)" : "#0C0F0A",
+          background: isKin ? "rgba(92,107,79,0.10)" : "#2C2C28",
+          border: isKin ? "0.5px solid rgba(92,107,79,0.28)" : "0.5px solid rgba(44,44,40,0)",
+          color: isKin ? "var(--warm)" : "#F7F3ED",
           fontSize: 12,
           lineHeight: 1.4,
           letterSpacing: "-0.005em",
@@ -182,7 +182,7 @@ function BubbleView({ bubble }: { bubble: Bubble }) {
           style={{
             fontFamily: "var(--font-geist-mono), monospace",
             fontSize: 9.5,
-            color: "rgba(240,237,230,0.32)",
+            color: "rgba(44,44,40,0.40)",
             letterSpacing: "0.04em",
             padding: "0 6px",
           }}
@@ -212,10 +212,10 @@ export default function PhoneBrief({
         height,
         borderRadius: 28,
         background: "var(--bg-elev)",
-        border: "1px solid rgba(240,237,230,0.10)",
+        border: "0.5px solid rgba(44,44,40,0.10)",
         padding: 8,
         boxShadow:
-          "0 0 0 1px rgba(240,237,230,0.04), 0 12px 40px rgba(0,0,0,0.55), 0 0 60px rgba(124,184,122,0.05)",
+          "0 0 0 0.5px rgba(44,44,40,0.04), 0 12px 40px rgba(60,74,51,0.16), 0 0 60px rgba(92,107,79,0.05)",
         flexShrink: 0,
       }}
     >

@@ -51,7 +51,7 @@ function ProviderGlyph({ provider }: { provider: "google" | "apple" }) {
     );
   }
   return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="#F0EDE6" aria-hidden="true">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="#2C2C28" aria-hidden="true">
       <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.8-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z" />
     </svg>
   );
@@ -60,10 +60,10 @@ function ProviderGlyph({ provider }: { provider: "google" | "apple" }) {
 function StatusDot({ status }: { status: "connected" | "syncing" | "error" }) {
   const color =
     status === "connected"
-      ? "#7CB87A"
+      ? "#5C6B4F"
       : status === "syncing"
-        ? "#7AADCE"
-        : "#D4748A";
+        ? "#7A8C6A"
+        : "#A65A4A";
   return (
     <span
       aria-hidden="true"
@@ -73,7 +73,6 @@ function StatusDot({ status }: { status: "connected" | "syncing" | "error" }) {
         height: "6px",
         borderRadius: "50%",
         background: color,
-        boxShadow: `0 0 8px ${color}`,
         flexShrink: 0,
       }}
     />
@@ -184,10 +183,11 @@ export default function CalendarsPage() {
         <MonoLabel>{"// CALENDARS"}</MonoLabel>
         <h1
           style={{
-            fontSize: "28px",
-            fontWeight: 500,
+            fontFamily: "var(--font-instrument-serif), 'Playfair Display', serif",
+            fontSize: "34px",
+            fontWeight: 400,
             color: "var(--warm)",
-            letterSpacing: "-0.025em",
+            letterSpacing: "-0.015em",
             marginTop: "8px",
           }}
         >
@@ -209,9 +209,9 @@ export default function CalendarsPage() {
 
       <section
         style={{
-          background: "rgba(240,237,230,0.025)",
-          border: "1px solid var(--hair)",
-          borderRadius: "12px",
+          background: "#FDFBF7",
+          border: "0.5px solid var(--hair)",
+          borderRadius: "8px",
           padding: "20px",
           display: "flex",
           flexDirection: "column",
@@ -284,17 +284,17 @@ export default function CalendarsPage() {
               textAlign: "center",
               gap: "10px",
               padding: "24px 16px",
-              border: "1px dashed var(--hair-strong)",
-              borderRadius: "10px",
+              border: "0.5px dashed var(--hair-strong)",
+              borderRadius: "8px",
             }}
           >
             <div
               style={{
                 width: "40px",
                 height: "40px",
-                borderRadius: "10px",
+                borderRadius: "8px",
                 background: "var(--sage-12)",
-                border: "1px solid var(--hair-sage)",
+                border: "0.5px solid var(--hair-sage)",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
@@ -345,9 +345,9 @@ export default function CalendarsPage() {
                     alignItems: "center",
                     gap: "12px",
                     padding: "12px 14px",
-                    background: "rgba(240,237,230,0.02)",
-                    border: "1px solid var(--hair)",
-                    borderRadius: "10px",
+                    background: "rgba(44,44,40,0.02)",
+                    border: "0.5px solid var(--hair)",
+                    borderRadius: "8px",
                   }}
                 >
                   <div
@@ -402,11 +402,11 @@ export default function CalendarsPage() {
                       <button
                         onClick={() => disconnect(conn)}
                         style={{
-                          background: "rgba(212,116,138,0.1)",
-                          border: "1px solid rgba(212,116,138,0.3)",
-                          borderRadius: "8px",
+                          background: "rgba(166,90,74,0.1)",
+                          border: "0.5px solid rgba(166,90,74,0.3)",
+                          borderRadius: "4px",
                           padding: "6px 10px",
-                          color: "#D4748A",
+                          color: "#A65A4A",
                           fontSize: "12px",
                           fontWeight: 500,
                           cursor: "pointer",
@@ -418,8 +418,8 @@ export default function CalendarsPage() {
                         onClick={() => setConfirmId(null)}
                         style={{
                           background: "transparent",
-                          border: "1px solid var(--hair-strong)",
-                          borderRadius: "8px",
+                          border: "0.5px solid var(--hair-strong)",
+                          borderRadius: "4px",
                           padding: "6px 10px",
                           color: "var(--warm-56)",
                           fontSize: "12px",
@@ -444,7 +444,7 @@ export default function CalendarsPage() {
                         alignItems: "center",
                       }}
                       onMouseEnter={(e) => {
-                        e.currentTarget.style.color = "#D4748A";
+                        e.currentTarget.style.color = "#A65A4A";
                       }}
                       onMouseLeave={(e) => {
                         e.currentTarget.style.color = "var(--warm-24)";
@@ -468,8 +468,8 @@ export default function CalendarsPage() {
               alignItems: "center",
               gap: "7px",
               background: "transparent",
-              border: "1px solid var(--hair-sage)",
-              borderRadius: "10px",
+              border: "0.5px solid var(--hair-sage)",
+              borderRadius: "4px",
               padding: "9px 14px",
               fontSize: "13px",
               fontWeight: 500,
@@ -490,7 +490,7 @@ export default function CalendarsPage() {
         {error && (
           <p
             role="alert"
-            style={{ fontSize: "12.5px", color: "rgba(212,116,138,0.85)" }}
+            style={{ fontSize: "12.5px", color: "rgba(166,90,74,0.9)" }}
           >
             {error}
           </p>
@@ -504,8 +504,8 @@ export default function CalendarsPage() {
           gap: "10px",
           padding: "13px 15px",
           background: "var(--sage-12)",
-          border: "1px solid var(--hair-sage)",
-          borderRadius: "10px",
+          border: "0.5px solid var(--hair-sage)",
+          borderRadius: "8px",
         }}
       >
         <ShieldCheck

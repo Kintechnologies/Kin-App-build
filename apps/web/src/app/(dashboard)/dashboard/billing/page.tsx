@@ -33,7 +33,7 @@ function MonoLabel({ children }: { children: React.ReactNode }) {
       style={{
         fontSize: "11.5px",
         letterSpacing: "0.04em",
-        color: "rgba(240,237,230,0.4)",
+        color: "rgba(44,44,40,0.4)",
       }}
     >
       {children}
@@ -47,27 +47,27 @@ const STATUS_META: Record<
 > = {
   trial: {
     label: "Trial",
-    tone: "#7AADCE",
-    bg: "rgba(122,173,206,0.1)",
-    border: "rgba(122,173,206,0.3)",
+    tone: "#7A8C6A",
+    bg: "rgba(122,140,106,0.1)",
+    border: "rgba(122,140,106,0.3)",
   },
   active: {
     label: "Active",
-    tone: "#7CB87A",
-    bg: "rgba(124,184,122,0.1)",
-    border: "rgba(124,184,122,0.3)",
+    tone: "#5C6B4F",
+    bg: "rgba(92,107,79,0.1)",
+    border: "rgba(92,107,79,0.3)",
   },
   past_due: {
     label: "Past due",
-    tone: "#D4748A",
-    bg: "rgba(212,116,138,0.1)",
-    border: "rgba(212,116,138,0.3)",
+    tone: "#A65A4A",
+    bg: "rgba(166,90,74,0.1)",
+    border: "rgba(166,90,74,0.3)",
   },
   canceled: {
     label: "Canceled",
-    tone: "rgba(240,237,230,0.5)",
-    bg: "rgba(240,237,230,0.04)",
-    border: "rgba(240,237,230,0.08)",
+    tone: "rgba(44,44,40,0.5)",
+    bg: "rgba(44,44,40,0.04)",
+    border: "rgba(44,44,40,0.08)",
   },
 };
 
@@ -81,7 +81,7 @@ function StatusBadge({ status }: { status: SubscriptionStatus }) {
         alignItems: "center",
         padding: "5px 10px",
         background: m.bg,
-        border: `1px solid ${m.border}`,
+        border: `0.5px solid ${m.border}`,
         borderRadius: "999px",
         fontSize: "11.5px",
         fontWeight: 500,
@@ -112,16 +112,23 @@ function PrimaryButton({
         alignItems: "center",
         justifyContent: "center",
         gap: "7px",
-        background: "#7CB87A",
-        color: "#0C0F0A",
+        background: "#5C6B4F",
+        color: "#FDFBF7",
         border: "none",
-        borderRadius: "10px",
+        borderRadius: "4px",
         padding: "11px 18px",
-        fontSize: "13.5px",
-        fontWeight: 600,
-        letterSpacing: "-0.15px",
+        fontSize: "13px",
+        fontWeight: 500,
+        letterSpacing: "0.08em",
+        textTransform: "uppercase",
         cursor: loading ? "wait" : "pointer",
         opacity: loading ? 0.6 : 1,
+      }}
+      onMouseEnter={(e) => {
+        if (!loading) e.currentTarget.style.background = "#3D4A33";
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.background = "#5C6B4F";
       }}
     >
       {loading && <Loader2 size={14} className="animate-spin" />}
@@ -149,12 +156,14 @@ function GhostButton({
         justifyContent: "center",
         gap: "7px",
         background: "transparent",
-        border: "1px solid rgba(240,237,230,0.12)",
-        borderRadius: "10px",
+        border: "0.5px solid rgba(44,44,40,0.12)",
+        borderRadius: "4px",
         padding: "11px 18px",
-        fontSize: "13.5px",
+        fontSize: "13px",
         fontWeight: 500,
-        color: "rgba(240,237,230,0.72)",
+        letterSpacing: "0.08em",
+        textTransform: "uppercase",
+        color: "rgba(44,44,40,0.72)",
         cursor: loading ? "wait" : "pointer",
         opacity: loading ? 0.6 : 1,
       }}
@@ -303,10 +312,11 @@ function BillingPageInner() {
         <MonoLabel>{"// BILLING"}</MonoLabel>
         <h1
           style={{
-            fontSize: "28px",
-            fontWeight: 500,
-            color: "#F0EDE6",
-            letterSpacing: "-0.025em",
+            fontFamily: "var(--font-instrument-serif), 'Playfair Display', serif",
+            fontSize: "34px",
+            fontWeight: 400,
+            color: "#2C2C28",
+            letterSpacing: "-0.015em",
             marginTop: "8px",
           }}
         >
@@ -322,11 +332,11 @@ function BillingPageInner() {
             alignItems: "center",
             gap: "10px",
             padding: "12px 14px",
-            background: "rgba(124,184,122,0.1)",
-            border: "1px solid rgba(124,184,122,0.3)",
-            borderRadius: "10px",
+            background: "rgba(92,107,79,0.1)",
+            border: "0.5px solid rgba(92,107,79,0.3)",
+            borderRadius: "8px",
             fontSize: "13.5px",
-            color: "#7CB87A",
+            color: "#5C6B4F",
           }}
         >
           <Check size={15} />
@@ -338,7 +348,7 @@ function BillingPageInner() {
         <p
           style={{
             fontSize: "13.5px",
-            color: "rgba(240,237,230,0.4)",
+            color: "rgba(44,44,40,0.4)",
             display: "flex",
             alignItems: "center",
             gap: "6px",
@@ -349,9 +359,9 @@ function BillingPageInner() {
       ) : (
         <section
           style={{
-            background: "rgba(240,237,230,0.025)",
-            border: "1px solid rgba(240,237,230,0.06)",
-            borderRadius: "12px",
+            background: "#FDFBF7",
+            border: "0.5px solid var(--hair)",
+            borderRadius: "8px",
             padding: "22px",
             display: "flex",
             flexDirection: "column",
@@ -378,10 +388,11 @@ function BillingPageInner() {
               >
                 <h2
                   style={{
-                    fontSize: "18px",
-                    fontWeight: 500,
-                    color: "#F0EDE6",
-                    letterSpacing: "-0.01em",
+                    fontFamily: "var(--font-instrument-serif), 'Playfair Display', serif",
+                    fontSize: "22px",
+                    fontWeight: 400,
+                    color: "#2C2C28",
+                    letterSpacing: "-0.015em",
                   }}
                 >
                   Kin Premium
@@ -389,7 +400,7 @@ function BillingPageInner() {
                 <span
                   style={{
                     fontSize: "13px",
-                    color: "rgba(240,237,230,0.56)",
+                    color: "rgba(44,44,40,0.56)",
                     fontVariantNumeric: "tabular-nums",
                   }}
                 >
@@ -401,8 +412,8 @@ function BillingPageInner() {
                   fontSize: "13px",
                   color:
                     status === "past_due"
-                      ? "rgba(212,116,138,0.85)"
-                      : "rgba(240,237,230,0.56)",
+                      ? "rgba(166,90,74,0.9)"
+                      : "rgba(44,44,40,0.56)",
                   lineHeight: 1.5,
                   maxWidth: "380px",
                 }}
@@ -420,11 +431,11 @@ function BillingPageInner() {
                 alignItems: "center",
                 gap: "9px",
                 padding: "11px 13px",
-                background: "rgba(212,116,138,0.08)",
-                border: "1px solid rgba(212,116,138,0.25)",
-                borderRadius: "10px",
+                background: "rgba(166,90,74,0.08)",
+                border: "0.5px solid rgba(166,90,74,0.25)",
+                borderRadius: "8px",
                 fontSize: "12.5px",
-                color: "rgba(212,116,138,0.9)",
+                color: "rgba(166,90,74,0.9)",
               }}
             >
               <AlertTriangle size={14} style={{ flexShrink: 0 }} />
@@ -455,12 +466,12 @@ function BillingPageInner() {
                 style={{
                   width: "100%",
                   maxWidth: "240px",
-                  background: "rgba(240,237,230,0.04)",
-                  border: "1px solid rgba(240,237,230,0.12)",
-                  borderRadius: "10px",
+                  background: "rgba(44,44,40,0.04)",
+                  border: "0.5px solid rgba(44,44,40,0.12)",
+                  borderRadius: "4px",
                   padding: "10px 12px",
                   fontSize: "13.5px",
-                  color: "#F0EDE6",
+                  color: "#2C2C28",
                   letterSpacing: "0.02em",
                   outline: "none",
                 }}
@@ -512,7 +523,7 @@ function BillingPageInner() {
           {error && (
             <p
               role="alert"
-              style={{ fontSize: "12.5px", color: "rgba(212,116,138,0.85)" }}
+              style={{ fontSize: "12.5px", color: "rgba(166,90,74,0.9)" }}
             >
               {error}
             </p>
@@ -521,9 +532,9 @@ function BillingPageInner() {
           <p
             style={{
               fontSize: "12px",
-              color: "rgba(240,237,230,0.4)",
+              color: "rgba(44,44,40,0.4)",
               lineHeight: 1.5,
-              borderTop: "1px solid rgba(240,237,230,0.06)",
+              borderTop: "0.5px solid var(--hair)",
               paddingTop: "14px",
             }}
           >

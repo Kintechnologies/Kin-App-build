@@ -18,6 +18,7 @@ const T = {
   hairSage: "var(--hair-sage)",
   bgCard: "var(--bg-card)",
   mono: "var(--font-geist-mono), 'Geist Mono', monospace",
+  serif: "var(--font-instrument-serif), 'Playfair Display', serif",
 };
 
 type CalendarEvent = {
@@ -80,9 +81,9 @@ function Card({
   return (
     <div
       style={{
-        background: "rgba(240,237,230,0.025)",
-        border: `1px solid ${T.warm06}`,
-        borderRadius: 12,
+        background: "#FDFBF7",
+        border: `0.5px solid ${T.hair}`,
+        borderRadius: 8,
         padding: 20,
         ...style,
       }}
@@ -244,10 +245,11 @@ export default function CalendarPage() {
           </div>
           <h1
             style={{
-              fontSize: "clamp(26px, 3vw, 32px)",
-              fontWeight: 500,
+              fontFamily: T.serif,
+              fontSize: "clamp(30px, 3.4vw, 38px)",
+              fontWeight: 400,
               color: T.warm,
-              letterSpacing: "-0.025em",
+              letterSpacing: "-0.015em",
               lineHeight: 1.1,
               margin: 0,
             }}
@@ -298,7 +300,7 @@ export default function CalendarPage() {
             alignItems: "center",
             gap: 12,
             background: T.sage12,
-            border: `1px solid ${T.hairSage}`,
+            border: `0.5px solid ${T.hairSage}`,
           }}
         >
           <CalendarDays size={16} style={{ color: T.sage, flexShrink: 0 }} />
@@ -341,9 +343,9 @@ export default function CalendarPage() {
                 flexDirection: "column",
                 gap: 10,
                 border: today
-                  ? `1px solid ${T.hairSage}`
-                  : `1px solid ${T.warm06}`,
-                background: today ? T.sage12 : "rgba(240,237,230,0.025)",
+                  ? `0.5px solid ${T.hairSage}`
+                  : `0.5px solid ${T.hair}`,
+                background: today ? T.sage12 : "#FDFBF7",
               }}
             >
               <div
@@ -365,10 +367,11 @@ export default function CalendarPage() {
                 </div>
                 <div
                   style={{
-                    fontSize: 18,
+                    fontFamily: T.serif,
+                    fontSize: 22,
                     color: today ? T.sage : T.warm,
-                    fontWeight: 500,
-                    letterSpacing: "-0.02em",
+                    fontWeight: 400,
+                    letterSpacing: "-0.015em",
                     fontVariantNumeric: "tabular-nums",
                   }}
                 >
@@ -393,8 +396,8 @@ export default function CalendarPage() {
                           borderRadius: 6,
                           background: ev.is_kid_event
                             ? T.sage12
-                            : "rgba(240,237,230,0.04)",
-                          border: `1px solid ${
+                            : "rgba(44,44,40,0.04)",
+                          border: `0.5px solid ${
                             ev.is_kid_event ? T.hairSage : T.hair
                           }`,
                           display: "flex",
@@ -430,8 +433,8 @@ export default function CalendarPage() {
                         style={{
                           padding: "6px 8px",
                           borderRadius: 6,
-                          background: "rgba(240,237,230,0.03)",
-                          border: `1px solid ${T.hair}`,
+                          background: "rgba(44,44,40,0.03)",
+                          border: `0.5px solid ${T.hair}`,
                           display: "flex",
                           flexDirection: "column",
                           gap: 1,
@@ -442,7 +445,7 @@ export default function CalendarPage() {
                             fontFamily: T.mono,
                             fontSize: 9.5,
                             color:
-                              e.who === "conflict" ? "#D4A843" : T.warm40,
+                              e.who === "conflict" ? "#C4A97D" : T.warm40,
                             letterSpacing: "0.04em",
                           }}
                         >
@@ -451,7 +454,7 @@ export default function CalendarPage() {
                         <div
                           style={{
                             fontSize: 11.5,
-                            color: e.who === "conflict" ? "#D4A843" : T.warm72,
+                            color: e.who === "conflict" ? "#C4A97D" : T.warm72,
                             letterSpacing: "-0.005em",
                             lineHeight: 1.3,
                           }}
@@ -547,9 +550,9 @@ export default function CalendarPage() {
 
 const btnSecondary: React.CSSProperties = {
   padding: "8px 12px",
-  borderRadius: 8,
+  borderRadius: 4,
   background: T.warm06,
-  border: `1px solid ${T.hair}`,
+  border: `0.5px solid ${T.hair}`,
   color: T.warm72,
   fontSize: 12.5,
   fontWeight: 500,

@@ -57,9 +57,9 @@ function SectionCard({
   return (
     <section
       style={{
-        background: "rgba(240,237,230,0.025)",
-        border: "1px solid var(--hair)",
-        borderRadius: "12px",
+        background: "#FDFBF7",
+        border: "0.5px solid var(--hair)",
+        borderRadius: "8px",
         padding: "20px",
       }}
     >
@@ -112,9 +112,9 @@ function InfoRow({
         alignItems: "center",
         gap: "12px",
         padding: "12px 14px",
-        background: "rgba(240,237,230,0.02)",
-        border: "1px solid var(--hair)",
-        borderRadius: "10px",
+        background: "rgba(44,44,40,0.02)",
+        border: "0.5px solid var(--hair)",
+        borderRadius: "8px",
       }}
     >
       <div
@@ -250,10 +250,11 @@ export default function DashboardSettingsPage() {
         <MonoLabel>{"// SETTINGS"}</MonoLabel>
         <h1
           style={{
-            fontSize: "28px",
-            fontWeight: 500,
+            fontFamily: "var(--font-instrument-serif), 'Playfair Display', serif",
+            fontSize: "34px",
+            fontWeight: 400,
             color: "var(--warm)",
-            letterSpacing: "-0.025em",
+            letterSpacing: "-0.015em",
             marginTop: "8px",
           }}
         >
@@ -341,11 +342,11 @@ export default function DashboardSettingsPage() {
                   alignItems: "center",
                   gap: "10px",
                   padding: "12px 14px",
-                  background: isDark ? "var(--sage-12)" : "rgba(240,237,230,0.02)",
+                  background: isDark ? "var(--sage-12)" : "rgba(44,44,40,0.02)",
                   border: isDark
-                    ? "1px solid rgba(124,184,122,0.5)"
-                    : "1px solid var(--hair)",
-                  borderRadius: "10px",
+                    ? "0.5px solid rgba(92,107,79,0.5)"
+                    : "0.5px solid var(--hair)",
+                  borderRadius: "8px",
                   color: isDark ? "var(--sage)" : "var(--warm-72)",
                   cursor: "pointer",
                   fontSize: "13.5px",
@@ -368,12 +369,12 @@ export default function DashboardSettingsPage() {
                   background:
                     theme === "light"
                       ? "var(--sage-12)"
-                      : "rgba(240,237,230,0.02)",
+                      : "rgba(44,44,40,0.02)",
                   border:
                     theme === "light"
-                      ? "1px solid rgba(124,184,122,0.5)"
-                      : "1px solid var(--hair)",
-                  borderRadius: "10px",
+                      ? "0.5px solid rgba(92,107,79,0.5)"
+                      : "0.5px solid var(--hair)",
+                  borderRadius: "8px",
                   color: theme === "light" ? "var(--sage)" : "var(--warm-72)",
                   cursor: "pointer",
                   fontSize: "13.5px",
@@ -409,9 +410,9 @@ export default function DashboardSettingsPage() {
               alignItems: "center",
               gap: "12px",
               padding: "16px 18px",
-              background: "rgba(240,237,230,0.025)",
-              border: "1px solid var(--hair)",
-              borderRadius: "12px",
+              background: "#FDFBF7",
+              border: "0.5px solid var(--hair)",
+              borderRadius: "8px",
               textDecoration: "none",
               transition: "border-color 180ms ease",
             }}
@@ -443,8 +444,8 @@ export default function DashboardSettingsPage() {
               justifyContent: "center",
               gap: "8px",
               background: "transparent",
-              border: "1px solid var(--hair)",
-              borderRadius: "12px",
+              border: "0.5px solid var(--hair)",
+              borderRadius: "8px",
               padding: "14px",
               color: "var(--warm-56)",
               fontSize: "13.5px",
@@ -454,9 +455,9 @@ export default function DashboardSettingsPage() {
                 "color 180ms ease, border-color 180ms ease, background 180ms ease",
             }}
             onMouseEnter={(e) => {
-              e.currentTarget.style.color = "#D4748A";
-              e.currentTarget.style.borderColor = "rgba(212,116,138,0.25)";
-              e.currentTarget.style.background = "rgba(212,116,138,0.05)";
+              e.currentTarget.style.color = "#A65A4A";
+              e.currentTarget.style.borderColor = "rgba(166,90,74,0.25)";
+              e.currentTarget.style.background = "rgba(166,90,74,0.05)";
             }}
             onMouseLeave={(e) => {
               e.currentTarget.style.color = "var(--warm-56)";
