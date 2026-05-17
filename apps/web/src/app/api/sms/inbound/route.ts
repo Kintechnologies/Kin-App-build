@@ -151,7 +151,10 @@ export async function POST(request: Request) {
 
   // ── 7. SMS onboarding (steps 0–9) ─────────────────────────────────────────
   // All onboarding happens here over text. step 10 = complete; once there, the
-  // texter falls through to conversation-aware Q&A below.
+  // texter falls through to conversation-aware Q&A below. handleSmsOnboarding
+  // is itself conversational: an off-script question asked mid-flow is answered
+  // by the LLM and the current step re-prompted, so the texter never has to
+  // wait until onboarding ends to get an answer.
   if (!profileRow.onboarding_completed && step < 10) {
     return handleSmsOnboarding(supabase, profileRow, fromNumber, messageBody, step);
   }
