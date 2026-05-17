@@ -1,8 +1,10 @@
 /**
  * POST /api/sms/inbound
  * Twilio inbound SMS webhook. Validates signature, then routes the texter:
- *   - Brand-new number → mints a profile (phone number IS the auth) and starts
- *     the SMS onboarding conversation.
+ *   - Brand-new number → checked against the approved-numbers allowlist. If
+ *     approved, mints a profile (phone number IS the auth) and starts the SMS
+ *     onboarding conversation. If not, sends a warm waitlist reply and saves
+ *     the number to sms_waitlist for an admin to approve later.
  *   - Mid-onboarding profile (step 0–8) → advances the onboarding state machine
  *     in sms-onboarding.ts.
  *   - Onboarded profile (step 9) → conversation-aware Claude Q&A.
@@ -31,6 +33,11 @@ import {
   createOnboardingProfile,
   type OnboardingProfile,
 } from "@/lib/sms-onboarding";
+import {
+  isNumberApproved,
+  recordWaitlistContact,
+  WAITLIST_MESSAGE,
+} from "@/lib/sms-access";
 import type Anthropic from "@anthropic-ai/sdk";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -157,10 +164,20 @@ export async function POST(request: Request) {
     profileRow = data;
   }
 
-  // ── 5. New texter — create their profile and start SMS onboarding ──────────
-  // The phone number IS the auth: no signup form, no password, no OTP. A
-  // first text in mints the account.
+  // ── 5. New texter — gate on the approved-numbers allowlist ─────────────────
+  // Kin's SMS beta is invite-only. An existing profile means the number was
+  // already let in, so it skips this check entirely. A brand-new number must
+  // be on the approved list to onboard; anyone else gets a warm waitlist reply
+  // and has their number saved to sms_waitlist for an admin to approve later.
   if (!profileRow) {
+    const approved = await isNumberApproved(supabase, fromNumber);
+    if (!approved) {
+      await recordWaitlistContact(supabase, fromNumber, messageBody);
+      return twimlReply(WAITLIST_MESSAGE);
+    }
+
+    // Approved — the phone number IS the auth: no signup form, no password, no
+    // OTP. A first text in mints the account.
     profileRow = await createOnboardingProfile(supabase, fromNumber);
     if (!profileRow) {
       return twimlReply(
