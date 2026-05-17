@@ -1,74 +1,82 @@
+/**
+ * POST /api/stripe/checkout
+ *
+ * Creates a Stripe Checkout session for the $39/mo Kin Premium subscription
+ * and returns the session URL for the client to redirect to.
+ *
+ * The 7-day free trial is tracked at the app level (profiles.trial_ends_at),
+ * so the subscription created here bills immediately on day 7 — no extra
+ * Stripe-side trial.
+ */
+
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { getStripe, PLANS } from "@/lib/stripe";
+import { getStripe, resolveMonthlyPriceId } from "@/lib/stripe";
 import * as Sentry from "@sentry/nextjs";
 
 export async function POST(request: Request) {
   try {
-    const { planId, billing = "monthly", successPath = "/dashboard?subscribed=true" } = await request.json();
-
-    if (!planId || !(planId in PLANS)) {
-      return NextResponse.json({ error: "Invalid plan" }, { status: 400 });
-    }
+    const body = (await request.json().catch(() => ({}))) as {
+      successPath?: string;
+      cancelPath?: string;
+    };
+    const successPath = body.successPath ?? "/dashboard/billing?subscribed=true";
+    const cancelPath = body.cancelPath ?? "/dashboard/billing";
 
     if (!process.env.STRIPE_SECRET_KEY) {
       return NextResponse.json(
-        { error: "Stripe is not configured yet. Add STRIPE_SECRET_KEY to .env.local" },
+        { error: "Billing is not configured yet." },
         { status: 503 }
       );
     }
 
     const supabase = createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const plan = PLANS[planId as keyof typeof PLANS];
-    const priceId = billing === "annual" ? plan.annualPriceId : plan.monthlyPriceId;
     const stripe = getStripe();
 
-    // Create or retrieve Stripe customer
+    // Create or reuse the Stripe customer for this user.
     const { data: profile } = await supabase
       .from("profiles")
       .select("stripe_customer_id")
       .eq("id", user.id)
-      .single();
+      .single<{ stripe_customer_id: string | null }>();
 
-    let customerId = profile?.stripe_customer_id;
-
+    let customerId = profile?.stripe_customer_id ?? null;
     if (!customerId) {
       const customer = await stripe.customers.create({
         email: user.email,
         metadata: { supabase_user_id: user.id },
       });
       customerId = customer.id;
-
       await supabase
         .from("profiles")
         .update({ stripe_customer_id: customerId })
         .eq("id", user.id);
     }
 
-    // Create checkout session
+    const priceId = await resolveMonthlyPriceId(stripe);
+    const baseUrl =
+      process.env.NEXT_PUBLIC_APP_URL ?? new URL(request.url).origin;
+
     const session = await stripe.checkout.sessions.create({
       customer: customerId,
       mode: "subscription",
       payment_method_types: ["card"],
-      line_items: [
-        {
-          price: priceId,
-          quantity: 1,
-        },
-      ],
+      line_items: [{ price: priceId, quantity: 1 }],
+      // Metadata on both the session and the subscription so every webhook
+      // event can resolve back to the Supabase user.
+      metadata: { supabase_user_id: user.id },
       subscription_data: {
-        trial_period_days: 7,
-        metadata: { supabase_user_id: user.id, plan: planId, billing },
+        metadata: { supabase_user_id: user.id },
       },
-      success_url: `${process.env.NEXT_PUBLIC_APP_URL}${successPath}`,
-      cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/pricing`,
-      metadata: { supabase_user_id: user.id, plan: planId, billing },
+      success_url: `${baseUrl}${successPath}`,
+      cancel_url: `${baseUrl}${cancelPath}`,
     });
 
     return NextResponse.json({ url: session.url });

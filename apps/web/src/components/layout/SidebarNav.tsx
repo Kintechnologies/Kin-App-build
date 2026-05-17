@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import {
   MessageSquare,
   CalendarDays,
+  CreditCard,
   Settings as SettingsIcon,
   Menu,
   X,
@@ -27,6 +28,7 @@ type NavItem = {
 const NAV: NavItem[] = [
   { href: "/dashboard", label: "Morning briefing", icon: MessageSquare, enabled: true },
   { href: "/calendar", label: "This week", icon: CalendarDays, enabled: true },
+  { href: "/dashboard/billing", label: "Billing", icon: CreditCard, enabled: true },
   { href: "/settings", label: "Settings", icon: SettingsIcon, enabled: true },
 ];
 
