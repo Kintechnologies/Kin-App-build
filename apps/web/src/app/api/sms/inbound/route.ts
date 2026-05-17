@@ -66,6 +66,42 @@ function formatCalendar(events: CalendarEventRow[] | null | undefined): string |
   return events.map((e) => `  ${formatTime(e.start_time)} — ${e.title}`).join("\n");
 }
 
+/**
+ * One-line description of how fresh the synced calendar is, fed to the system
+ * prompt so Kin hedges instead of asserting stale schedule facts. `connRow` is
+ * the most-recent calendar_connections row, or null when none is connected.
+ */
+function describeCalendarFreshness(
+  connRow: { last_synced_at: string | null } | null
+): string {
+  if (!connRow) {
+    return (
+      "No calendar is connected for this family — you have NO schedule data. " +
+      "Do not reference, assume, or invent any events; suggest connecting a calendar instead."
+    );
+  }
+  if (!connRow.last_synced_at) {
+    return "A calendar is connected but has not synced yet — treat all schedule data as unconfirmed.";
+  }
+  const ageMs = Date.now() - new Date(connRow.last_synced_at).getTime();
+  const mins = Math.max(0, Math.round(ageMs / 60000));
+  let rel: string;
+  if (mins < 2) rel = "just now";
+  else if (mins < 60) rel = `about ${mins} minutes ago`;
+  else if (mins < 60 * 24) {
+    const hrs = Math.round(mins / 60);
+    rel = `about ${hrs} hour${hrs === 1 ? "" : "s"} ago`;
+  } else {
+    const days = Math.round(mins / (60 * 24));
+    rel = `about ${days} day${days === 1 ? "" : "s"} ago`;
+  }
+  const staleNote =
+    ageMs > 6 * 60 * 60 * 1000
+      ? " That is old enough that events may have changed — hedge accordingly."
+      : "";
+  return `This family's calendar was last synced ${rel}.${staleNote}`;
+}
+
 // ─── POST ─────────────────────────────────────────────────────────────────────
 
 export async function POST(request: Request) {
@@ -203,6 +239,7 @@ export async function POST(request: Request) {
     { data: partnerEvents },
     { data: todaysBriefingRow },
     { data: smsHistory },
+    { data: calendarConn },
   ] = await Promise.all([
     supabase
       .from("calendar_events")
@@ -230,6 +267,16 @@ export async function POST(request: Request) {
       .neq("direction", "outbound_failed")
       .order("sent_at", { ascending: false })
       .limit(SMS_HISTORY_LIMIT + 1) as unknown as Promise<{ data: SmsHistoryRow[] | null }>,
+    // Most recent calendar sync — drives the staleness hedge in the system
+    // prompt. nullsFirst:false keeps a never-synced connection from outranking
+    // a real timestamp.
+    supabase
+      .from("calendar_connections")
+      .select("last_synced_at")
+      .eq("profile_id", profileRow.id)
+      .order("last_synced_at", { ascending: false, nullsFirst: false })
+      .limit(1)
+      .maybeSingle<{ last_synced_at: string | null }>(),
   ]);
 
   const dateStr = new Date().toLocaleDateString("en-US", {
@@ -248,6 +295,7 @@ export async function POST(request: Request) {
     partner_today_calendar: partnerProfileId ? formatCalendar(partnerEvents) : null,
     morning_briefing: todaysBriefingRow?.content ?? null,
     context_notes: profileRow.context_notes,
+    calendar_freshness: describeCalendarFreshness(calendarConn ?? null),
   });
 
   // ── 11. Build conversation memory ─────────────────────────────────────────
