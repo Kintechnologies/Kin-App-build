@@ -149,10 +149,10 @@ export async function POST(request: Request) {
   const step = profileRow.onboarding_step ?? 0;
   const profileName = profileRow.family_name ?? "there";
 
-  // ── 7. SMS onboarding (steps 0–8) ─────────────────────────────────────────
-  // All onboarding happens here over text. step 9 = complete; once there, the
+  // ── 7. SMS onboarding (steps 0–9) ─────────────────────────────────────────
+  // All onboarding happens here over text. step 10 = complete; once there, the
   // texter falls through to conversation-aware Q&A below.
-  if (!profileRow.onboarding_completed && step < 9) {
+  if (!profileRow.onboarding_completed && step < 10) {
     return handleSmsOnboarding(supabase, profileRow, fromNumber, messageBody, step);
   }
 
