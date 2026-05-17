@@ -204,7 +204,8 @@ export async function handleSmsOnboarding(
       const token = randomBytes(12).toString("hex");
       updates.calendar_connect_token = token;
       reply =
-        "Last thing — want me to see your calendar so your briefings are actually useful? " +
+        "Last thing — connect your calendar and I'll start spotting conflicts before your " +
+        "day blows up: meetings colliding with pickup, daycare, or gym plans. " +
         `Connect it here: ${APP_URL}/connect/${token}\n\nOr reply "skip".`;
       nextStep = 8;
       break;
@@ -215,9 +216,7 @@ export async function handleSmsOnboarding(
       // Step 8: they tapped the calendar link (or replied "skip"). Either way,
       // any inbound message here completes onboarding.
       const firstName = (profile.family_name ?? "").split(/\s+/)[0] || "there";
-      reply =
-        `You're all set, ${firstName}! Your first briefing arrives tomorrow morning. ` +
-        `Just text me anytime — "who has pickup today?", "what's this week look like?" — I've got you.`;
+      reply = buildCompletionSummary(profile, firstName);
       nextStep = 9;
       updates.onboarding_completed = true;
       // The completion message is the welcome SMS — record it so the web
@@ -277,6 +276,55 @@ function extractPhone(raw: string): string | null {
 function appendNote(existing: string, label: string, value: string): string {
   const line = `${label}: ${value.trim()}`;
   return existing ? `${existing}\n${line}` : line;
+}
+
+/** Parse the "label: value" lines of context_notes back into a lookup map. */
+function parseNotes(raw: string): Record<string, string> {
+  const map: Record<string, string> = {};
+  for (const line of raw.split("\n")) {
+    const idx = line.indexOf(":");
+    if (idx === -1) continue;
+    const label = line.slice(0, idx).trim();
+    const value = line.slice(idx + 1).trim();
+    if (label && value) map[label] = value;
+  }
+  return map;
+}
+
+function capitalizeFirst(s: string): string {
+  return s ? s.charAt(0).toUpperCase() + s.slice(1) : s;
+}
+
+/**
+ * Warm narrative recap that closes onboarding — the completion SMS. Reflects
+ * back what the family actually told us (drawn from context_notes) so it reads
+ * like Kin understood them, not like a confirmation of stored fields.
+ */
+function buildCompletionSummary(profile: OnboardingProfile, firstName: string): string {
+  const notes = parseNotes(profile.context_notes ?? "");
+  const bits: string[] = [];
+
+  if (notes.wake_time) bits.push(`weekday mornings start around ${notes.wake_time}`);
+  if (notes.schools) bits.push(notes.schools);
+  else if (notes.kids) bits.push(`you've got ${notes.kids}`);
+  if (notes.home_location) bits.push(`home base is ${notes.home_location}`);
+  if (
+    notes.recurring_commitments &&
+    !/^\s*(nothing|none|no|n\/a|nope)\b/i.test(notes.recurring_commitments)
+  ) {
+    bits.push(notes.recurring_commitments);
+  }
+
+  const recap = bits.length ? `${capitalizeFirst(joinNames(bits))}. ` : "";
+  const firstBriefing = notes.wake_time
+    ? `before ${notes.wake_time}`
+    : "before you're up";
+
+  return (
+    `Alright, ${firstName} — I've got enough to start helping. ${recap}` +
+    `I'll keep all of that in mind when I plan your mornings. ` +
+    `Your first briefing lands tomorrow, ${firstBriefing}.`
+  );
 }
 
 function joinNames(names: string[]): string {
