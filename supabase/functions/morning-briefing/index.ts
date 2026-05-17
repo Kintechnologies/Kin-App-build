@@ -1,9 +1,10 @@
 // Morning briefing cron — runs hourly (0 * * * *) and fans out to users
 // whose local time is 6:00am–6:59am in their timezone.
 //
-// CRON SCHEDULE CHANGE REQUIRED in Supabase dashboard:
-//   Old: 0 13 * * *  (fixed 6am PT only)
-//   New: 0 * * * *   (hourly fan-out — checks each user's local hour)
+// The hourly cron trigger (0 * * * *) is a pg_cron job defined in
+// migration 046_morning_briefing_cron.sql — version-controlled, not a manual
+// dashboard setting. The function fans out internally to users whose local
+// hour is 6:xx.
 //
 // Required edge function secrets (set via Supabase dashboard → Edge Functions → Secrets):
 //   TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_MESSAGING_SERVICE_SID, TWILIO_PHONE_NUMBER
@@ -34,6 +35,19 @@ function getLocalHour(timezone: string): number {
   }).formatToParts(new Date());
   const h = parts.find((p) => p.type === "hour")?.value ?? "0";
   return parseInt(h, 10) % 24;
+}
+
+// The user's local calendar date (YYYY-MM-DD), used as the dedup key. "Today"
+// for dedup must mean the user's today, not UTC's: a test send at 9:30pm EDT is
+// already the next UTC day, so a UTC key would let that send eat the user's
+// real morning slot. en-CA formats as YYYY-MM-DD.
+function getLocalDate(timezone: string): string {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: timezone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date());
 }
 
 // Sent through the A2P 10DLC Messaging Service rather than a bare From number,
@@ -281,8 +295,6 @@ serve(async (req) => {
     return new Response("Method not allowed", { status: 405 });
   }
 
-  const today = new Date().toISOString().split("T")[0];
-
   // Fan-out: only profiles whose local hour is 6:xx and have a phone number
   const { data: profiles, error: profileError } = await supabase
     .from("profiles")
@@ -317,12 +329,15 @@ serve(async (req) => {
       continue;
     }
 
+    // Dedup key is the user's local date, not UTC — see getLocalDate.
+    const briefingDate = getLocalDate(tz);
+
     // Dedup guard: skip if already sent today
     const { data: existing } = await supabase
       .from("morning_briefings")
       .select("id, delivery_status")
       .eq("profile_id", profile.id)
-      .eq("briefing_date", today)
+      .eq("briefing_date", briefingDate)
       .single();
 
     if (existing?.delivery_status === "sent") {
@@ -358,7 +373,7 @@ serve(async (req) => {
       await supabase.from("morning_briefings").upsert(
         {
           profile_id: profile.id,
-          briefing_date: today,
+          briefing_date: briefingDate,
           content: briefingText,
           delivery_status: "sent",
           sent_at: new Date().toISOString(),
@@ -379,7 +394,7 @@ serve(async (req) => {
       await supabase.from("morning_briefings").upsert(
         {
           profile_id: profile.id,
-          briefing_date: today,
+          briefing_date: briefingDate,
           content: "",
           delivery_status: "failed",
         },
