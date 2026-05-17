@@ -45,7 +45,9 @@ export interface OnboardingProfile {
 // ─── Static question text ──────────────────────────────────────────────────────
 
 const WELCOME_QUESTION =
-  "Hey! I'm Kin — I help families stay coordinated with a daily morning briefing. What's your first name?";
+  "Hey! I'm Kin — I help families stay coordinated with a daily morning briefing. " +
+  "You're starting a 7-day free trial — after that it's $39/mo. No card needed to get started. " +
+  "What's your first name?";
 
 const WAKE_QUESTION =
   "What time do you usually wake up on weekdays? I'll have your briefing ready before then.";
@@ -217,7 +219,9 @@ export async function handleSmsOnboarding(
       const firstName = (profile.family_name ?? "").split(/\s+/)[0] || "there";
       reply =
         `You're all set, ${firstName}! Your first briefing arrives tomorrow morning. ` +
-        `Just text me anytime — "who has pickup today?", "what's this week look like?" — I've got you.`;
+        `Just text me anytime — "who has pickup today?", "what's this week look like?" — I've got you.\n\n` +
+        `You're on your 7-day free trial. On day 7, I'll send you a link to your dashboard where ` +
+        `you can enter payment details and add any other family members or caregivers. No surprises.`;
       nextStep = 9;
       updates.onboarding_completed = true;
       // The completion message is the welcome SMS — record it so the web

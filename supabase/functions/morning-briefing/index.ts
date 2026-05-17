@@ -162,10 +162,18 @@ async function fetchWeather(
   }
 }
 
+// The day-7 payment nudge. Appended verbatim to the briefing so the LLM's
+// 480-char message stays focused on the day's substance, and the ask is always
+// phrased exactly as intended.
+const PAYMENT_NUDGE =
+  "It's been a week with Kin! Hope your mornings have been smoother. To keep your briefings going, " +
+  "set up your payment here: kinai.family/dashboard. You can also add other family members or caregivers from there.";
+
 async function generateBriefing(
   profileId: string,
   familyName: string,
-  timezone: string
+  timezone: string,
+  appendPaymentNudge: boolean
 ): Promise<string> {
   const today = new Date().toISOString().split("T")[0];
 
@@ -260,7 +268,8 @@ async function generateBriefing(
 
   const data = await res.json();
   const text: string = data.content?.[0]?.type === "text" ? data.content[0].text : "";
-  return text.trim().slice(0, 480);
+  const briefing = text.trim().slice(0, 480);
+  return appendPaymentNudge ? `${briefing}\n\n${PAYMENT_NUDGE}` : briefing;
 }
 
 serve(async (req) => {
@@ -273,7 +282,7 @@ serve(async (req) => {
   // Fan-out: only profiles whose local hour is 6:xx and have a phone number
   const { data: profiles, error: profileError } = await supabase
     .from("profiles")
-    .select("id, family_name, phone_number, timezone")
+    .select("id, family_name, phone_number, timezone, created_at")
     .not("phone_number", "is", null)
     .eq("onboarding_completed", true);
 
@@ -320,11 +329,23 @@ serve(async (req) => {
 
     results.processed++;
 
+    // Day-7 trial nudge: once a profile is 7+ days old, append the payment
+    // prompt. It runs day 7 onward (not just exactly day 7) so users who never
+    // set up payment keep seeing the ask until they convert or churn.
+    let daysSinceCreated = 0;
+    if (profile.created_at) {
+      daysSinceCreated = Math.floor(
+        (Date.now() - new Date(profile.created_at).getTime()) / 86_400_000
+      );
+    }
+    const appendPaymentNudge = daysSinceCreated >= 7;
+
     try {
       const briefingText = await generateBriefing(
         profile.id,
         profile.family_name ?? "Family",
-        tz
+        tz,
+        appendPaymentNudge
       );
 
       await sendSms(profile.phone_number, briefingText);
