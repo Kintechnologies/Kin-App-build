@@ -308,6 +308,12 @@ export async function handleSmsOnboarding(
 
   await supabase.from("profiles").update(updates).eq("id", profile.id);
 
+  // Onboarding just completed — send the welcome email as a best-effort side
+  // channel. No-ops for phone-only profiles (no email on file).
+  if (updates.onboarding_completed) {
+    await sendWelcomeEmail(supabase, profile);
+  }
+
   await supabase.from("sms_conversations").insert({
     profile_id: profile.id,
     direction: "outbound",
@@ -317,6 +323,39 @@ export async function handleSmsOnboarding(
   });
 
   return twimlReply(reply);
+}
+
+/**
+ * Send the welcome email once onboarding completes. Best-effort: phone-only
+ * profiles have no email on file, so this commonly no-ops. Guarded by
+ * profiles.welcome_email_sent_at so a re-run of step 8 never double-sends.
+ */
+async function sendWelcomeEmail(
+  supabase: AdminClient,
+  profile: OnboardingProfile
+): Promise<void> {
+  try {
+    const { data } = await supabase
+      .from("profiles")
+      .select("email, welcome_email_sent_at")
+      .eq("id", profile.id)
+      .maybeSingle<{ email: string | null; welcome_email_sent_at: string | null }>();
+
+    if (!data?.email || data.welcome_email_sent_at) return;
+
+    const firstName = (profile.family_name ?? "").split(/\s+/)[0] || null;
+    const { sendEmail, welcomeEmail } = await import("@/lib/email");
+    const sent = await sendEmail({ to: data.email, ...welcomeEmail(firstName) });
+
+    if (sent) {
+      await supabase
+        .from("profiles")
+        .update({ welcome_email_sent_at: new Date().toISOString() })
+        .eq("id", profile.id);
+    }
+  } catch (err) {
+    console.error("Welcome email dispatch failed:", err);
+  }
 }
 
 // ─── Answer parsing ────────────────────────────────────────────────────────────

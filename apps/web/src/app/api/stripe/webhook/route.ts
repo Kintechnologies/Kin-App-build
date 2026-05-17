@@ -63,6 +63,51 @@ async function setStatus(
   );
 }
 
+/**
+ * Send the one-time "You're all set" payment confirmation. Resolves the profile
+ * by Supabase user id, falling back to Stripe customer id. Best-effort and
+ * guarded by profiles.payment_email_sent_at so Stripe webhook retries (and the
+ * subscription's first invoice) never double-send.
+ */
+async function sendPaymentConfirmation(
+  supabase: SupabaseClient,
+  { userId, customerId }: { userId?: string | null; customerId?: string | null }
+) {
+  try {
+    let query = supabase
+      .from("profiles")
+      .select("id, email, family_name, payment_email_sent_at");
+    query = userId
+      ? query.eq("id", userId)
+      : query.eq("stripe_customer_id", customerId ?? "");
+
+    const { data: profile } = await query.maybeSingle<{
+      id: string;
+      email: string | null;
+      family_name: string | null;
+      payment_email_sent_at: string | null;
+    }>();
+
+    if (!profile?.email || profile.payment_email_sent_at) return;
+
+    const firstName = (profile.family_name ?? "").split(/\s+/)[0] || null;
+    const { sendEmail, paymentConfirmationEmail } = await import("@/lib/email");
+    const sent = await sendEmail({
+      to: profile.email,
+      ...paymentConfirmationEmail(firstName),
+    });
+
+    if (sent) {
+      await supabase
+        .from("profiles")
+        .update({ payment_email_sent_at: new Date().toISOString() })
+        .eq("id", profile.id);
+    }
+  } catch (err) {
+    Sentry.captureException(err);
+  }
+}
+
 export async function POST(request: Request) {
   if (!process.env.STRIPE_SECRET_KEY || !process.env.STRIPE_WEBHOOK_SECRET) {
     return NextResponse.json({ error: "Stripe not configured" }, { status: 503 });
@@ -92,13 +137,13 @@ export async function POST(request: Request) {
     switch (event.type) {
       case "checkout.session.completed": {
         const session = event.data.object as Stripe.Checkout.Session;
-        await setStatus(supabase, "active", {
-          userId: session.metadata?.supabase_user_id,
-          customerId:
-            typeof session.customer === "string"
-              ? session.customer
-              : session.customer?.id ?? null,
-        });
+        const userId = session.metadata?.supabase_user_id;
+        const customerId =
+          typeof session.customer === "string"
+            ? session.customer
+            : session.customer?.id ?? null;
+        await setStatus(supabase, "active", { userId, customerId });
+        await sendPaymentConfirmation(supabase, { userId, customerId });
         break;
       }
 
