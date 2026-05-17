@@ -175,6 +175,7 @@ function BillingPageInner() {
   const [loading, setLoading] = useState(true);
   const [action, setAction] = useState<"checkout" | "portal" | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [couponCode, setCouponCode] = useState("");
 
   useEffect(() => {
     let cancelled = false;
@@ -207,10 +208,13 @@ function BillingPageInner() {
     setAction("checkout");
     setError(null);
     try {
+      const trimmedCoupon = couponCode.trim();
       const res = await fetch("/api/stripe/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({}),
+        body: JSON.stringify(
+          trimmedCoupon ? { coupon: trimmedCoupon } : {}
+        ),
       });
       const data = (await res.json()) as { url?: string; error?: string };
       if (res.ok && data.url) {
@@ -425,6 +429,42 @@ function BillingPageInner() {
             >
               <AlertTriangle size={14} style={{ flexShrink: 0 }} />
               Your subscription is paused until payment succeeds.
+            </div>
+          )}
+
+          {(status === "trial" || status === "canceled") && (
+            <div
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                gap: "6px",
+              }}
+            >
+              <label htmlFor="coupon">
+                <MonoLabel>{"// HAVE A BETA CODE?"}</MonoLabel>
+              </label>
+              <input
+                id="coupon"
+                type="text"
+                value={couponCode}
+                onChange={(e) => setCouponCode(e.target.value)}
+                placeholder="Enter code"
+                autoCapitalize="characters"
+                autoComplete="off"
+                spellCheck={false}
+                style={{
+                  width: "100%",
+                  maxWidth: "240px",
+                  background: "rgba(240,237,230,0.04)",
+                  border: "1px solid rgba(240,237,230,0.12)",
+                  borderRadius: "10px",
+                  padding: "10px 12px",
+                  fontSize: "13.5px",
+                  color: "#F0EDE6",
+                  letterSpacing: "0.02em",
+                  outline: "none",
+                }}
+              />
             </div>
           )}
 

@@ -10,18 +10,58 @@
  */
 
 import { NextResponse } from "next/server";
+import type Stripe from "stripe";
 import { createClient } from "@/lib/supabase/server";
 import { getStripe, resolveMonthlyPriceId } from "@/lib/stripe";
 import * as Sentry from "@sentry/nextjs";
+
+/**
+ * Resolves a user-entered code to a Stripe Checkout `discounts` entry.
+ *
+ * Accepts either a promotion code (the human-readable code customers type,
+ * e.g. "BETA") or a raw coupon ID. Promotion codes are checked first since
+ * that's what beta users will actually enter; a coupon-ID retrieve is the
+ * fallback. Returns null when the code matches nothing or is inactive.
+ */
+async function resolveDiscount(
+  stripe: Stripe,
+  code: string
+): Promise<Stripe.Checkout.SessionCreateParams.Discount | null> {
+  const promos = await stripe.promotionCodes.list({
+    code,
+    active: true,
+    limit: 1,
+  });
+  if (promos.data.length > 0) {
+    return { promotion_code: promos.data[0].id };
+  }
+
+  try {
+    const coupon = await stripe.coupons.retrieve(code);
+    if (coupon.valid) {
+      return { coupon: coupon.id };
+    }
+  } catch {
+    // Not a coupon ID either — fall through to "no match".
+  }
+
+  return null;
+}
 
 export async function POST(request: Request) {
   try {
     const body = (await request.json().catch(() => ({}))) as {
       successPath?: string;
       cancelPath?: string;
+      coupon?: string;
     };
     const successPath = body.successPath ?? "/dashboard/billing?subscribed=true";
     const cancelPath = body.cancelPath ?? "/dashboard/billing";
+    const couponCode = (
+      body.coupon ??
+      new URL(request.url).searchParams.get("coupon") ??
+      ""
+    ).trim();
 
     if (!process.env.STRIPE_SECRET_KEY) {
       return NextResponse.json(
@@ -64,6 +104,18 @@ export async function POST(request: Request) {
     const baseUrl =
       process.env.NEXT_PUBLIC_APP_URL ?? new URL(request.url).origin;
 
+    let discounts: Stripe.Checkout.SessionCreateParams.Discount[] | undefined;
+    if (couponCode) {
+      const discount = await resolveDiscount(stripe, couponCode);
+      if (!discount) {
+        return NextResponse.json(
+          { error: "That code isn't valid. Check it and try again." },
+          { status: 400 }
+        );
+      }
+      discounts = [discount];
+    }
+
     const session = await stripe.checkout.sessions.create({
       customer: customerId,
       mode: "subscription",
@@ -75,6 +127,7 @@ export async function POST(request: Request) {
       subscription_data: {
         metadata: { supabase_user_id: user.id },
       },
+      ...(discounts ? { discounts } : {}),
       success_url: `${baseUrl}${successPath}`,
       cancel_url: `${baseUrl}${cancelPath}`,
     });
