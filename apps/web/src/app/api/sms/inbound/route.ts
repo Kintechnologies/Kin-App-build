@@ -68,6 +68,22 @@ function formatTime(iso: string): string {
   });
 }
 
+/**
+ * The texter's local calendar date (YYYY-MM-DD). The morning-briefing edge
+ * function fans out at 6am local and stores each briefing under the user's
+ * LOCAL date — so the briefing lookup here must resolve "today" in that same
+ * timezone. A UTC date misses the row whenever the user's local day differs
+ * from UTC at request time. en-CA formats as YYYY-MM-DD.
+ */
+function getLocalDate(timezone: string): string {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: timezone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date());
+}
+
 function formatCalendar(events: CalendarEventRow[] | null | undefined): string | null {
   if (!events || events.length === 0) return "(no events today)";
   return events.map((e) => `  ${formatTime(e.start_time)} — ${e.title}`).join("\n");
@@ -158,7 +174,7 @@ export async function POST(request: Request) {
   {
     const { data } = await supabase
       .from("profiles")
-      .select("id, family_name, household_id, onboarding_step, onboarding_completed, context_notes, partner_phone_pending")
+      .select("id, family_name, household_id, onboarding_step, onboarding_completed, context_notes, partner_phone_pending, timezone")
       .eq("phone_number", fromNumber)
       .single<OnboardingProfile>();
     profileRow = data;
@@ -239,6 +255,11 @@ export async function POST(request: Request) {
   // ── 9. Fetch calendar context, today's briefing, and conversation history ─
   const today = new Date().toISOString().split("T")[0];
 
+  // The morning briefing is stored by the edge function under the user's LOCAL
+  // date — look it up with the same timezone-resolved date, not the UTC `today`
+  // used for the calendar windows. profiles.timezone is NOT NULL DEFAULT 'UTC'.
+  const briefingDate = getLocalDate(profileRow.timezone ?? "America/Los_Angeles");
+
   const partnerEventsQuery = partnerProfileId
     ? supabase
         .from("calendar_events")
@@ -272,7 +293,7 @@ export async function POST(request: Request) {
       .from("morning_briefings")
       .select("content")
       .eq("profile_id", profileRow.id)
-      .eq("briefing_date", today)
+      .eq("briefing_date", briefingDate)
       .maybeSingle<{ content: string }>(),
     // Conversation history: most-recent N rows, then we reverse to chronological.
     // Exclude the just-inserted inbound row so it doesn't appear twice (we add it

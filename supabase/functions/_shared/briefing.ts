@@ -58,6 +58,23 @@ export function getLocalDate(timezone: string): string {
   }).format(new Date());
 }
 
+// Pulls a single "label: value" line out of profiles.context_notes — the
+// newline-delimited blob of answers SMS onboarding accumulates (see
+// sms-onboarding.ts appendNote). Returns null when the note is absent. Used to
+// recover the home location for weather now that parent_schedules is dropped.
+function getContextNote(notes: string | null, key: string): string | null {
+  if (!notes) return null;
+  for (const line of notes.split("\n")) {
+    const idx = line.indexOf(": ");
+    if (idx === -1) continue;
+    if (line.slice(0, idx).trim() === key) {
+      const value = line.slice(idx + 2).trim();
+      return value.length > 0 ? value : null;
+    }
+  }
+  return null;
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Twilio send — with retry
 // ─────────────────────────────────────────────────────────────────────────────
@@ -303,11 +320,11 @@ function calendarStalenessNote(
   return null;
 }
 
-const SYSTEM_PROMPT = `You are Kin, a family AI chief of staff sending a morning SMS briefing. Output plain text only — no bullet points, no markdown, no newlines. The entire message must be under 480 characters — or under 600 if (and only if) you end with a contextual follow-up question, see below. Lead with the single most important thing that requires a decision or action today. If nothing is urgent, give a warm 1-sentence schedule overview. Be direct, warm, and specific. Do not start with "Good morning" or "Morning." — just the substance. If a weather line is present in the context, weave it in naturally only when it actually affects the day — tie it to a specific event rather than reporting it ("grab umbrellas before the 3pm soccer game", "it'll be 40°F at the bus stop, bundle the kids up"). Omit weather entirely when it is mild and uneventful; never include a standalone forecast.
+const SYSTEM_PROMPT = `You are Kin, a family AI chief of staff sending a morning SMS briefing. Output plain text only — no bullet points, no markdown, no newlines. The entire message must be under 480 characters — or under 600 if (and only if) you end with a contextual follow-up question, see below. Lead with the single most important thing that requires a decision or action today. If nothing is urgent, give a warm 1-sentence schedule overview. Be direct, warm, and specific. You are given this family's household members and everything Kin learned about them during onboarding — kids' names and ages, schools, activities, weekly routines, wake time, special needs. Use it so the briefing feels like you know them: refer to kids by name, tie a calendar event to a known school or activity, and flag it when today's schedule collides with one of their routines. Never invent a detail that isn't in the context, and never read the context back as a list. Do not start with "Good morning" or "Morning." — just the substance. If a weather line is present in the context, weave it in naturally only when it actually affects the day — tie it to a specific event rather than reporting it ("grab umbrellas before the 3pm soccer game", "it'll be 40°F at the bus stop, bundle the kids up"). Omit weather entirely when it is mild and uneventful; never include a standalone forecast.
 
-GROUNDING — every fact must trace to the context. Only mention events, kids' activities, pet medications, times, names, and locations that appear verbatim in the context below. Never invent an errand, to-do, appointment, deadline, task, or reminder. Any action you suggest ("leave by 2:40 for the 3pm game") must reference an event that is actually in the context — if you cannot point to the line it came from, do not say it. When the context is thin, a shorter briefing is the correct briefing; never manufacture substance to fill space.
+GROUNDING — every fact must trace to the context. Only mention events, household members, schools, activities, times, names, and locations that appear in the context below. Never invent an errand, to-do, appointment, deadline, task, or reminder. Any action you suggest ("leave by 2:40 for the 3pm game") must reference an event that is actually in the context — if you cannot point to the line it came from, do not say it. When the context is thin, a shorter briefing is the correct briefing; never manufacture substance to fill space.
 
-SCOPE — you cover this family's calendar, kids' activities, pet medications, and weather only insofar as it affects today's events. Do not give general life advice, news, parenting or health tips, meal ideas, or commentary on anything the context does not contain. If today is genuinely quiet, say so briefly and stop — do not drift into topics you have no data for.
+SCOPE — you cover this family's calendar, household, the routines and details they shared during onboarding, and weather only insofar as it affects today's events. Do not give general life advice, news, parenting or health tips, meal ideas, or commentary on anything the context does not contain. If today is genuinely quiet, say so briefly and stop — do not drift into topics you have no data for.
 
 DATA FRESHNESS — if the context contains a "DATA FRESHNESS WARNING" line, the calendar may be out of date. In that case, hedge: frame the schedule as "what I've got on the calendar" rather than asserting it as certain fact, and do not present a clear calendar as definitely clear (e.g. "nothing on the calendar — though it may not have synced yet"). Without that warning, treat the calendar as current and speak with normal confidence; do not hedge needlessly.
 
@@ -316,8 +333,6 @@ CONTEXTUAL FOLLOW-UP QUESTION: On a normal morning, deliver the briefing and sto
 interface BriefingContext {
   ctx: string;
   events: { time: string; title: string; location?: string | null }[];
-  activities: { who: string; what: string; time: string }[];
-  petMeds: { who: string; what: string }[];
   dateLabel: string;
 }
 
@@ -328,11 +343,20 @@ async function buildBriefingContext(
 ): Promise<BriefingContext> {
   const today = new Date().toISOString().split("T")[0];
 
+  // Resolve the household and onboarding context first — the family_members
+  // query below is scoped by household id. household_id = the primary parent's
+  // profile id; COALESCE(profiles.household_id, profiles.id).
+  const { data: profileRow } = await supabase
+    .from("profiles")
+    .select("context_notes, household_id")
+    .eq("id", profileId)
+    .maybeSingle();
+  const contextNotes: string | null = profileRow?.context_notes ?? null;
+  const householdId: string = profileRow?.household_id ?? profileId;
+
   const [
     { data: todayEvents },
-    { data: activities },
-    { data: petMeds },
-    { data: schedule },
+    { data: familyMembers },
     { data: calendarConnections },
   ] = await Promise.all([
     supabase
@@ -342,36 +366,24 @@ async function buildBriefingContext(
       .gte("start_time", `${today}T00:00:00Z`)
       .lte("start_time", `${today}T23:59:59Z`)
       .order("start_time", { ascending: true }),
+    // Household members — kids, partners, pets. SMS onboarding inserts kids
+    // with profile_id set; the conversation-learning layer writes household_id
+    // too. Match either column so members from neither source are missed.
     supabase
-      .from("children_activities")
-      .select("name, start_time, day_of_week, family_member:family_members(name)")
-      .eq("profile_id", profileId)
-      .eq("active", true),
-    supabase
-      .from("pet_medications")
-      .select("name, frequency, family_member:family_members(name)")
-      .eq("profile_id", profileId)
-      .eq("active", true),
-    supabase
-      .from("parent_schedules")
-      .select("home_location")
-      .eq("profile_id", profileId)
-      .maybeSingle(),
+      .from("family_members")
+      .select("name, age, member_type, relationship")
+      .or(`profile_id.eq.${profileId},household_id.eq.${householdId}`),
     supabase
       .from("calendar_connections")
       .select("last_synced_at, sync_status, enabled")
       .eq("profile_id", profileId),
   ]);
 
-  const todayDayName = new Date().toLocaleDateString("en-US", { weekday: "long" });
   const dateLabel = new Date().toLocaleDateString("en-US", {
     weekday: "long",
     month: "long",
     day: "numeric",
   });
-  const todayActivities = (activities ?? []).filter((a: any) =>
-    (a.day_of_week ?? []).includes(todayDayName)
-  );
 
   const events = (todayEvents ?? []).map((e: any) => ({
     time: new Date(e.start_time).toLocaleTimeString("en-US", {
@@ -380,20 +392,6 @@ async function buildBriefingContext(
     }),
     title: e.title,
     location: e.location,
-  }));
-  const activityList = todayActivities.map((a: any) => ({
-    who: (a.family_member as any)?.name ?? "Kids",
-    what: a.name,
-    time: a.start_time
-      ? new Date(`2000-01-01T${a.start_time}`).toLocaleTimeString("en-US", {
-          hour: "numeric",
-          minute: "2-digit",
-        })
-      : "time TBD",
-  }));
-  const petMedList = (petMeds ?? []).map((m: any) => ({
-    who: (m.family_member as any)?.name ?? "Pet",
-    what: `${m.name} (${m.frequency})`,
   }));
 
   let ctx = `Family: ${familyName}\nDate: ${dateLabel}\n\n`;
@@ -411,19 +409,27 @@ async function buildBriefingContext(
   } else {
     ctx += "Today's calendar: clear\n";
   }
-  if (activityList.length > 0) {
-    ctx += "\nKids' activities:\n";
-    for (const a of activityList) ctx += `  ${a.who}: ${a.what} @ ${a.time}\n`;
-  }
-  if (petMedList.length > 0) {
-    ctx += "\nPet medications due today:\n";
-    for (const m of petMedList) ctx += `  ${m.who}: ${m.what}\n`;
+
+  if (familyMembers && familyMembers.length > 0) {
+    ctx += "\nHousehold members:\n";
+    for (const m of familyMembers as any[]) {
+      const descriptors = [m.relationship?.trim() || m.member_type];
+      if (m.age != null) descriptors.push(`age ${m.age}`);
+      ctx += `  ${m.name} (${descriptors.join(", ")})\n`;
+    }
   }
 
-  const weather = await fetchWeather(schedule?.home_location ?? null, timezone);
+  if (contextNotes && contextNotes.trim()) {
+    ctx +=
+      "\nWhat Kin learned about this family during onboarding " +
+      "(kids' schools, activities, weekly routines, wake time, special needs):\n" +
+      `${contextNotes.trim()}\n`;
+  }
+
+  const weather = await fetchWeather(getContextNote(contextNotes, "home_location"), timezone);
   if (weather) ctx += `\n${weather}\n`;
 
-  return { ctx, events, activities: activityList, petMeds: petMedList, dateLabel };
+  return { ctx, events, dateLabel };
 }
 
 // Calls Claude with 3 attempts and exponential backoff. Throws if all fail.
@@ -471,29 +477,15 @@ async function callAnthropicWithRetry(ctx: string): Promise<string> {
 // Plaintext fallback when the AI call fails after retries. No summary — just a
 // simple, useful list of the day's calendar so the user still gets something.
 function buildPlaintextBriefing(c: BriefingContext, familyName: string): string {
-  if (c.events.length === 0 && c.activities.length === 0 && c.petMeds.length === 0) {
+  if (c.events.length === 0) {
     return `Good morning, ${familyName}. Nothing on the calendar today — an open day.`;
   }
   const parts: string[] = [`Good morning, ${familyName}. Here's ${c.dateLabel}:`];
-  if (c.events.length > 0) {
-    parts.push(
-      c.events
-        .map((e) => `${e.time} ${e.title}${e.location ? ` at ${e.location}` : ""}`)
-        .join("; ") + "."
-    );
-  }
-  if (c.activities.length > 0) {
-    parts.push(
-      "Activities: " +
-        c.activities.map((a) => `${a.who} — ${a.what} at ${a.time}`).join("; ") +
-        "."
-    );
-  }
-  if (c.petMeds.length > 0) {
-    parts.push(
-      "Pet meds: " + c.petMeds.map((m) => `${m.who} — ${m.what}`).join("; ") + "."
-    );
-  }
+  parts.push(
+    c.events
+      .map((e) => `${e.time} ${e.title}${e.location ? ` at ${e.location}` : ""}`)
+      .join("; ") + "."
+  );
   return parts.join(" ").slice(0, 600);
 }
 

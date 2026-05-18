@@ -50,6 +50,7 @@ export interface OnboardingProfile {
   onboarding_completed: boolean | null;
   context_notes: string | null;
   partner_phone_pending: string | null;
+  timezone?: string | null;
 }
 
 // ─── Static question text ──────────────────────────────────────────────────────
@@ -141,7 +142,7 @@ export async function createOnboardingProfile(
     })
     .eq("id", created.user.id)
     .select(
-      "id, family_name, household_id, onboarding_step, onboarding_completed, context_notes, partner_phone_pending"
+      "id, family_name, household_id, onboarding_step, onboarding_completed, context_notes, partner_phone_pending, timezone"
     )
     .single<OnboardingProfile>();
 
@@ -827,9 +828,13 @@ async function insertKids(
   kids: { name: string; age: number | null }[]
 ): Promise<void> {
   try {
+    // household_id, not just profile_id: the morning briefing and household
+    // memory layer scope family_members by household. A new SMS texter is the
+    // primary parent, so the household id is their own profile id.
     await supabase.from("family_members").insert(
       kids.map((k) => ({
         profile_id: profileId,
+        household_id: profileId,
         name: k.name,
         age: k.age,
         member_type: "child",
