@@ -1,13 +1,20 @@
 /**
- * POST /api/cron/pickup-risk
+ * GET /api/cron/pickup-risk
  *
- * Cron job: run pickup risk detection for all households.
- * Intended to fire once daily before morning briefings are generated (~6 AM).
+ * Cron job: run pickup-risk detection for every household.
  *
- * Protected by CRON_SECRET header — same pattern as other cron routes.
+ * Runs every 30 minutes (see apps/web/vercel.json). detectPickupRisk is the
+ * intra-day proactive alert engine: each tick re-detects pickup conflicts and
+ * texts the household a heads-up for any conflict whose pickup is ~30 minutes
+ * out. The work is idempotent — coordination_issues dedupe by window and the
+ * SMS dedupes via coordination_issues.alert_sms_sent_at.
  *
- * Each household is processed independently; partial failures are logged
- * but do not abort the run. Returns a summary of issues created.
+ * Vercel Cron invokes scheduled routes with GET and an
+ * `Authorization: Bearer <CRON_SECRET>` header — same pattern as the other
+ * cron routes.
+ *
+ * Each household is processed independently; partial failures are logged but
+ * do not abort the run. Returns a summary of issues created.
  */
 
 import { NextResponse } from "next/server";
@@ -18,7 +25,7 @@ interface ProfileRow {
   id: string;
 }
 
-export async function POST(request: Request) {
+export async function GET(request: Request) {
   // Verify cron secret
   const authHeader = request.headers.get("authorization");
 

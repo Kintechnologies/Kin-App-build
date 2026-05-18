@@ -2,7 +2,7 @@
   "crons": [
     {
       "path": "/api/cron/pickup-risk",
-      "schedule": "0 11 * * *"
+      "schedule": "*/30 * * * *"
     },
     {
       "path": "/api/cron/cleanup",

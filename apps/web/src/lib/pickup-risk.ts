@@ -1,95 +1,100 @@
 /**
  * Pickup Risk Detection — §3A
  *
- * For each child with a scheduled activity today, checks whether parent calendar
- * coverage exists during the pickup window (activity end_time → end_time + 30min).
+ * The intra-day "your plan is breaking" alert. For each known recurring pickup
+ * or dropoff today, checks whether a parent's calendar event collides with the
+ * coverage window around that time, then:
+ *   1. records the gap as an OPEN coordination_issue (so the morning briefing
+ *      and Today screen surface it), and
+ *   2. texts the household a proactive heads-up ~30 minutes before the pickup,
+ *      while there is still time to react.
  *
- * Severity rules (§3A):
- *   RED    — both parents have calendar events during the pickup window
- *            → create OPEN coordination_issue with trigger_type = 'pickup_risk'
- *   YELLOW — default handler (the parent who registered the activity) is busy,
- *            but the other parent is free
- *            → create OPEN coordination_issue (softer tone)
- *   CLEAR  — default handler is free, or no partner exists → no issue created
+ * Data model (post-pivot — see migration 036, briefing rewrite 87c306a):
+ *   - Recurring pickup/dropoff times are extracted from profiles.context_notes
+ *     (the SMS onboarding blob) by pickup-windows.ts — the pre-pivot
+ *     children_activities table was dropped.
+ *   - Children's names come from family_members.
+ *   - Conflicting events are synced Google/Apple events in calendar_events.
  *
- * Deduplication: a new issue is only inserted when no OPEN or ACKNOWLEDGED
- * pickup_risk issue already exists for the same household + event_window_start.
+ * Severity (§3A):
+ *   RED    — every household parent has a conflict in the coverage window.
+ *   YELLOW — at least one parent is conflicted but another is free.
+ *   CLEAR  — no parent is conflicted → no issue, no alert.
+ *
+ * Deduplication:
+ *   - One coordination_issue per pickup window: a new issue is inserted only
+ *     when no OPEN/ACKNOWLEDGED pickup_risk issue exists for the same
+ *     event_window_start.
+ *   - The proactive SMS fires once per issue, gated by alert_sms_sent_at
+ *     (migration 048) so repeated cron ticks never re-text the family.
  *
  * Called from:
- *   - /api/cron/pickup-risk  (daily, before morning briefings are generated)
- *   - morning-briefing route  (inline, so briefing content reflects latest risk)
+ *   - /api/cron/pickup-risk      (every 30 min — drives the proactive SMS)
+ *   - morning-briefing route     (inline, so the briefing reflects fresh risk)
+ *   - sms-briefing.ts            (inline, same reason)
  */
 
 import { SupabaseClient } from "@supabase/supabase-js";
-import { generateAlertContent } from "@/lib/generate-alert-content";
+import { generateAlertContent, type ParentStatus } from "@/lib/generate-alert-content";
+import {
+  resolveHousehold,
+  extractPickupWindows,
+  windowRunsOn,
+  coverageWindow,
+  overlaps,
+  zonedTimeToUtc,
+  localDateInTz,
+  localWeekdayInTz,
+  formatTimeInTz,
+  describeWindow,
+  shortTitle,
+  sendAlertSms,
+  type HouseholdParent,
+  type PickupWindow,
+} from "@/lib/pickup-windows";
 
-// ─── Types ────────────────────────────────────────────────────────────────────
+// ─── Types ──────────────────────────────────────────────────────────────────
 
-interface ActivityRow {
-  id: string;
-  name: string;
-  end_time: string | null; // TIME string "HH:MM:SS"
-  day_of_week: string[] | null;
-  profile_id: string; // default handler = parent who registered the activity
-  family_member: { name: string } | null;
-}
-
-interface CalendarEventRow {
-  id: string;
+interface EventRow {
+  title: string;
   start_time: string;
   end_time: string;
-  owner_parent_id: string;
+  profile_id: string;
+  all_day: boolean | null;
 }
 
 interface ExistingIssueRow {
   id: string;
   event_window_start: string | null;
+  alert_sms_sent_at: string | null;
 }
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
-/** Returns "Monday", "Tuesday", etc. for the given Date. */
-function getDayName(date: Date): string {
-  return date.toLocaleDateString("en-US", { weekday: "long" });
+/** A parent and the calendar event (if any) that conflicts with a window. */
+interface ParentConflict {
+  parent: HouseholdParent;
+  event: EventRow | null;
 }
+
+// ─── SMS lead-time gate ─────────────────────────────────────────────────────
 
 /**
- * Parses a TIME string ("HH:MM:SS") into today's UTC Date,
- * treating the time as local (approximate — pickup windows are not sub-second precise).
+ * The proactive SMS fires when the pickup is between these many minutes away.
+ * Centered on ~30 min so a 30-minute cron cadence catches every window exactly
+ * once; alert_sms_sent_at is the hard backstop against any double-send.
  */
-function todayAtTime(timeStr: string): Date {
-  const [hours, minutes] = timeStr.split(":").map(Number);
-  const d = new Date();
-  d.setHours(hours, minutes, 0, 0);
-  return d;
-}
+const SMS_LEAD_MIN = 15;
+const SMS_LEAD_MAX = 45;
+
+// ─── Main detection ─────────────────────────────────────────────────────────
 
 /**
- * Returns true if a calendar event overlaps with [windowStart, windowEnd).
- * Overlap: event starts before window ends AND event ends after window starts.
- */
-function overlapsWindow(
-  event: CalendarEventRow,
-  windowStart: Date,
-  windowEnd: Date
-): boolean {
-  const evStart = new Date(event.start_time);
-  const evEnd = new Date(event.end_time);
-  return evStart < windowEnd && evEnd > windowStart;
-}
-
-// ─── Main Detection Function ──────────────────────────────────────────────────
-
-/**
- * detectPickupRisk
+ * Run pickup-risk detection for the household that `profileId` belongs to.
  *
- * Runs pickup risk detection for a single parent profile.
- * Resolves the household (both parents), checks today's child activities,
- * and creates coordination_issues for any pickup coverage gaps found.
+ * Creates coordination_issues for any newly-detected conflicts and sends the
+ * proactive heads-up SMS for any conflict whose pickup is ~30 minutes out.
+ * Idempotent: safe to call on every cron tick and inline from the briefing.
  *
- * @param supabase  Service-role or user-context Supabase client
- * @param profileId Profile ID of either parent in the household
- * @returns Array of issue IDs created (empty if no risks detected or all deduped)
+ * @returns ids of coordination_issues created on this run (empty if none/deduped)
  */
 export async function detectPickupRisk(
   supabase: SupabaseClient,
@@ -97,200 +102,251 @@ export async function detectPickupRisk(
 ): Promise<string[]> {
   const createdIssueIds: string[] = [];
 
-  // ── 1. Resolve household members ─────────────────────────────────────────
+  const household = await resolveHousehold(supabase, profileId);
+  if (!household) return createdIssueIds;
+  const { primaryId, parents, contextNotes, timezone } = household;
+  if (parents.length === 0) return createdIssueIds;
 
-  // household_id = NULL  → this is the primary parent
-  // household_id = <X>   → this parent's primary is X
-  const { data: selfProfile } = await supabase
-    .from("profiles")
-    .select("id, household_id")
-    .eq("id", profileId)
-    .single<{ id: string; household_id: string | null }>();
+  const parentIds = parents.map((p) => p.id);
+  const today = localDateInTz(timezone);
+  const weekday = localWeekdayInTz(timezone);
 
-  if (!selfProfile) return createdIssueIds;
+  // ── Today's calendar events for every household parent ────────────────────
+  // Lower bound reaches back 12h so an overnight event can still be detected
+  // overlapping an early-morning dropoff window.
+  const dayStart = zonedTimeToUtc(today, "00:00", timezone);
+  const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000);
+  const fetchFrom = new Date(dayStart.getTime() - 12 * 60 * 60 * 1000);
 
-  // Determine primary profile ID (normalise so we always query from the primary's POV)
-  const primaryId = selfProfile.household_id ?? selfProfile.id;
-
-  // Find partner: the other profile whose household_id points to primaryId,
-  // or whose id is household_id (if selfProfile IS the partner).
-  const { data: partnerProfile } = await supabase
-    .from("profiles")
-    .select("id")
-    .eq("household_id", primaryId)
-    .neq("id", primaryId)
-    .limit(1)
-    .maybeSingle<{ id: string }>();
-
-  const partnerId: string | null = partnerProfile?.id ?? null;
-
-  // Both parent IDs in one array for calendar queries
-  const parentIds = [primaryId, ...(partnerId ? [partnerId] : [])];
-
-  // ── 2. Find today's children's activities with a known end_time ───────────
-
-  const todayName = getDayName(new Date());
-
-  // Query activities across all children registered by either parent
-  const { data: activities, error: actError } = await supabase
-    .from("children_activities")
-    .select(
-      "id, name, end_time, day_of_week, profile_id, family_member:family_members(name)"
-    )
+  const { data: events } = await supabase
+    .from("calendar_events")
+    .select("title, start_time, end_time, profile_id, all_day")
     .in("profile_id", parentIds)
-    .eq("active", true)
-    .not("end_time", "is", null)
-    .returns<ActivityRow[]>();
+    .gte("start_time", fetchFrom.toISOString())
+    .lt("start_time", dayEnd.toISOString())
+    .is("deleted_at", null)
+    .returns<EventRow[]>();
 
-  if (actError || !activities || activities.length === 0) {
-    return createdIssueIds;
-  }
+  const dayEvents = (events ?? []).filter((e) => !e.all_day);
+  // No timed events today → no possible conflict. Skip the LLM extraction.
+  if (dayEvents.length === 0) return createdIssueIds;
 
-  // Filter to activities that run today
-  const todayActivities = activities.filter(
-    (a) => (a.day_of_week ?? []).includes(todayName) && a.end_time
+  // ── Pickup/dropoff windows from onboarding context ────────────────────────
+  const { data: members } = await supabase
+    .from("family_members")
+    .select("name")
+    .eq("household_id", primaryId)
+    .eq("member_type", "child")
+    .returns<{ name: string }[]>();
+  const childNames = (members ?? []).map((m) => m.name);
+
+  const windows = (await extractPickupWindows(contextNotes, childNames)).filter(
+    (w) => windowRunsOn(w, weekday)
   );
+  if (windows.length === 0) return createdIssueIds;
 
-  if (todayActivities.length === 0) return createdIssueIds;
-
-  // ── 3. Fetch existing OPEN/ACKNOWLEDGED pickup_risk issues for dedup ──────
-
-  const { data: existingIssues } = await supabase
+  // ── Existing OPEN/ACK pickup_risk issues, keyed by window start ───────────
+  const { data: existing } = await supabase
     .from("coordination_issues")
-    .select("id, event_window_start")
+    .select("id, event_window_start, alert_sms_sent_at")
     .eq("household_id", primaryId)
     .eq("trigger_type", "pickup_risk")
     .in("state", ["OPEN", "ACKNOWLEDGED"])
     .returns<ExistingIssueRow[]>();
 
-  const existingWindowStarts = new Set(
-    (existingIssues ?? [])
-      .map((i) => i.event_window_start)
-      .filter(Boolean) as string[]
-  );
+  const issueByWindow = new Map<string, ExistingIssueRow>();
+  for (const i of existing ?? []) {
+    if (i.event_window_start) issueByWindow.set(i.event_window_start, i);
+  }
 
-  // ── 4. Evaluate each activity's pickup window ─────────────────────────────
+  const now = Date.now();
 
-  for (const activity of todayActivities) {
-    if (!activity.end_time) continue;
+  // ── Evaluate each window ──────────────────────────────────────────────────
+  for (const window of windows) {
+    const pickupAt = zonedTimeToUtc(today, window.time, timezone);
+    const { start, end } = coverageWindow(pickupAt);
+    const windowKey = pickupAt.toISOString();
 
-    const pickupStart = todayAtTime(activity.end_time);
-    const pickupEnd = new Date(pickupStart.getTime() + 30 * 60 * 1000); // +30 min
-
-    // Dedup: skip if an issue already exists for this window start
-    const windowStartISO = pickupStart.toISOString();
-    if (existingWindowStarts.has(windowStartISO)) continue;
-
-    // ── 5. Query both parents' calendars for the pickup window ─────────────
-
-    const { data: conflictingEvents } = await supabase
-      .from("calendar_events")
-      .select("id, start_time, end_time, owner_parent_id")
-      .in("owner_parent_id", parentIds)
-      .lt("start_time", pickupEnd.toISOString())
-      .gt("end_time", pickupStart.toISOString())
-      .is("deleted_at", null)
-      .returns<CalendarEventRow[]>();
-
-    const events = conflictingEvents ?? [];
-
-    const defaultHandlerId = activity.profile_id;
-    const otherParentId = parentIds.find((id) => id !== defaultHandlerId) ?? null;
-
-    const defaultHandlerBusy = events.some(
-      (e) =>
-        e.owner_parent_id === defaultHandlerId &&
-        overlapsWindow(e, pickupStart, pickupEnd)
-    );
-
-    const partnerBusy =
-      otherParentId !== null &&
-      events.some(
-        (e) =>
-          e.owner_parent_id === otherParentId &&
-          overlapsWindow(e, pickupStart, pickupEnd)
-      );
-
-    const childName = activity.family_member?.name ?? "your child";
-    const activityName = activity.name;
-    const pickupTimeStr = pickupStart.toLocaleTimeString("en-US", {
-      hour: "numeric",
-      minute: "2-digit",
+    // Which parents have an event overlapping the coverage window?
+    const conflicts: ParentConflict[] = parents.map((parent) => {
+      const event =
+        dayEvents.find(
+          (e) =>
+            e.profile_id === parent.id &&
+            overlaps(new Date(e.start_time), new Date(e.end_time), start, end)
+        ) ?? null;
+      return { parent, event };
     });
 
-    // ── 6. Determine risk level and generate AI alert content ─────────────
-    // Template strings serve as validated fallbacks if AI generation fails.
-    // Severity is stored in migration 027 column for alert-prompt audit trail.
+    const busy = conflicts.filter((c) => c.event);
+    if (busy.length === 0) continue; // CLEAR — coverage exists
 
-    let severity: "RED" | "YELLOW" | null = null;
-    let fallbackContent: string | null = null;
-    let parentAStatus: "CONFLICTED" | "AVAILABLE" | "UNCONFIRMED" = "AVAILABLE";
-    let parentBStatus: "CONFLICTED" | "AVAILABLE" | "UNCONFIRMED" = "AVAILABLE";
+    const severity: "RED" | "YELLOW" =
+      busy.length === parents.length ? "RED" : "YELLOW";
 
-    if (defaultHandlerBusy && (partnerId === null || partnerBusy)) {
-      // RED — no coverage: both parents (or only parent) are busy
-      severity = "RED";
-      fallbackContent =
-        `${childName} needs pickup from ${activityName} at ${pickupTimeStr}` +
-        ` — both parents have conflicts and no coverage is confirmed.`;
-      parentAStatus = "CONFLICTED";
-      parentBStatus = partnerId === null ? "UNCONFIRMED" : "CONFLICTED";
-    } else if (defaultHandlerBusy && !partnerBusy) {
-      // YELLOW — default handler busy, partner free (confirmed: !partnerBusy)
-      severity = "YELLOW";
-      fallbackContent =
-        `${childName} needs pickup from ${activityName} at ${pickupTimeStr}` +
-        ` — you're in a conflict, partner is free.`;
-      parentAStatus = "CONFLICTED";
-      parentBStatus = "AVAILABLE";
-    }
-    // CLEAR — default handler is free, no issue needed
-
-    if (!severity || !fallbackContent) continue;
-
-    // ── 6a. AI alert content generation (alert-prompt.md, IE S1.7) ────────
-    const alertResult = await generateAlertContent(
-      {
-        trigger_type: "PICKUP_RISK",
+    // ── Get or create the coordination_issue for this window ────────────────
+    let issue = issueByWindow.get(windowKey) ?? null;
+    if (!issue) {
+      issue = await createIssue(
+        supabase,
+        primaryId,
+        parents,
+        conflicts,
+        window,
+        pickupAt,
+        end,
         severity,
-        event_window_start: pickupStart.toISOString(),
-        event_window_end: pickupEnd.toISOString(),
-        affected_child: childName,
-        parent_a_status: parentAStatus,
-        parent_b_status: parentBStatus,
-        change_description: null,
-        confidence: "HIGH",
-      },
-      fallbackContent
-    );
+        timezone
+      );
+      if (issue) {
+        issueByWindow.set(windowKey, issue);
+        createdIssueIds.push(issue.id);
+      }
+    }
+    if (!issue) continue;
 
-    // null = AI returned low-confidence suppression — skip issue creation
-    if (!alertResult) continue;
+    // ── Proactive SMS: fire ~30 min before the pickup, once ─────────────────
+    const minutesUntil = (pickupAt.getTime() - now) / 60000;
+    const inLeadWindow =
+      minutesUntil > SMS_LEAD_MIN && minutesUntil <= SMS_LEAD_MAX;
 
-    const issueContent = alertResult.content;
-
-    // ── 7. Insert the coordination issue ──────────────────────────────────
-
-    const { data: newIssue } = await supabase
-      .from("coordination_issues")
-      .insert({
-        household_id: primaryId,
-        trigger_type: "pickup_risk",
-        state: "OPEN",
-        content: issueContent,
-        severity: alertResult.severity,
-        event_window_start: pickupStart.toISOString(),
-        event_window_end: pickupEnd.toISOString(),
-      })
-      .select("id")
-      .single<{ id: string }>();
-
-    if (newIssue?.id) {
-      createdIssueIds.push(newIssue.id);
-      // Track to avoid duplicate inserts within the same run
-      existingWindowStarts.add(windowStartISO);
+    if (inLeadWindow && !issue.alert_sms_sent_at) {
+      await dispatchAlerts(supabase, conflicts, window, pickupAt, timezone, severity);
+      const sentAt = new Date().toISOString();
+      await supabase
+        .from("coordination_issues")
+        .update({ alert_sms_sent_at: sentAt })
+        .eq("id", issue.id);
+      issue.alert_sms_sent_at = sentAt;
     }
   }
 
   return createdIssueIds;
+}
+
+// ─── Issue creation ─────────────────────────────────────────────────────────
+
+/**
+ * Insert a coordination_issue for a detected pickup conflict. Content is
+ * AI-generated via the shared alert prompt, with a validated template fallback.
+ * Returns the new row (id + alert_sms_sent_at = null), or null on failure.
+ */
+async function createIssue(
+  supabase: SupabaseClient,
+  primaryId: string,
+  parents: HouseholdParent[],
+  conflicts: ParentConflict[],
+  window: PickupWindow,
+  pickupAt: Date,
+  windowEnd: Date,
+  severity: "RED" | "YELLOW",
+  timezone: string
+): Promise<ExistingIssueRow | null> {
+  const pickupTime = formatTimeInTz(pickupAt, timezone);
+  const desc = describeWindow(window, pickupTime);
+
+  const fallbackContent =
+    severity === "RED"
+      ? `Both parents have a conflict around ${desc} — no coverage is lined up.`
+      : `A calendar conflict overlaps ${desc} — coverage needs a quick check.`;
+
+  // parent_a = primary, parent_b = partner (UNCONFIRMED when solo).
+  const parentStatus = (parent: HouseholdParent | undefined): ParentStatus => {
+    if (!parent) return "UNCONFIRMED";
+    return conflicts.find((c) => c.parent.id === parent.id)?.event
+      ? "CONFLICTED"
+      : "AVAILABLE";
+  };
+
+  const alert = await generateAlertContent(
+    {
+      trigger_type: "PICKUP_RISK",
+      severity,
+      event_window_start: pickupAt.toISOString(),
+      event_window_end: windowEnd.toISOString(),
+      affected_child: window.child,
+      parent_a_status: parentStatus(parents[0]),
+      parent_b_status: parentStatus(parents[1]),
+      change_description: null,
+      confidence: "HIGH",
+    },
+    fallbackContent
+  );
+
+  // null = AI low-confidence suppression → do not surface an issue.
+  if (!alert) return null;
+
+  const { data, error } = await supabase
+    .from("coordination_issues")
+    .insert({
+      household_id: primaryId,
+      trigger_type: "pickup_risk",
+      state: "OPEN",
+      content: alert.content,
+      severity: alert.severity,
+      event_window_start: pickupAt.toISOString(),
+      event_window_end: windowEnd.toISOString(),
+      surfaced_at: new Date().toISOString(),
+    })
+    .select("id, event_window_start, alert_sms_sent_at")
+    .single<ExistingIssueRow>();
+
+  if (error || !data) {
+    if (process.env.NODE_ENV !== "production") {
+      console.error("pickup-risk: failed to insert coordination_issue", error);
+    }
+    return null;
+  }
+  return data;
+}
+
+// ─── Proactive SMS ──────────────────────────────────────────────────────────
+
+/**
+ * Text each household parent a heads-up about the conflict. A conflicted parent
+ * is told which of their events collides; a free parent (YELLOW) is told the
+ * pickup may fall to them. Best-effort — failures are logged, never thrown.
+ */
+async function dispatchAlerts(
+  supabase: SupabaseClient,
+  conflicts: ParentConflict[],
+  window: PickupWindow,
+  pickupAt: Date,
+  timezone: string,
+  severity: "RED" | "YELLOW"
+): Promise<void> {
+  const pickupTime = formatTimeInTz(pickupAt, timezone);
+  const desc = describeWindow(window, pickupTime);
+
+  // A representative conflicted parent — used to name the conflict for any
+  // free partner who needs to know the pickup may land on them.
+  const firstConflicted = conflicts.find((c) => c.event);
+
+  for (const { parent, event } of conflicts) {
+    let body: string;
+
+    if (event) {
+      const evTime = formatTimeInTz(new Date(event.start_time), timezone);
+      const tail =
+        severity === "RED"
+          ? conflicts.length > 1
+            ? " Heads up — you've both got conflicts, so line up coverage."
+            : " Heads up — no backup on this one."
+          : " Heads up.";
+      body = `Your ${evTime} ${shortTitle(event.title)} overlaps with ${desc}.${tail}`;
+    } else if (firstConflicted?.event) {
+      const other = firstConflicted.parent.name ?? "Your partner";
+      const evTime = formatTimeInTz(
+        new Date(firstConflicted.event.start_time),
+        timezone
+      );
+      body =
+        `${other}'s ${evTime} ${shortTitle(firstConflicted.event.title)} ` +
+        `overlaps with ${desc} — heads up, ${window.kind} may be on you.`;
+    } else {
+      continue;
+    }
+
+    await sendAlertSms(supabase, parent, body);
+  }
 }
