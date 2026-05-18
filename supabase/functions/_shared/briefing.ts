@@ -279,11 +279,11 @@ async function fetchWeather(
 // Briefing generation
 // ─────────────────────────────────────────────────────────────────────────────
 
-// The day-7 payment nudge. Appended verbatim so the LLM's message stays
+// The trial payment nudge. Appended verbatim so the LLM's message stays
 // focused on the day's substance and the ask is phrased exactly as intended.
 const PAYMENT_NUDGE =
-  "It's been a week with Kin! Hope your mornings have been smoother. To keep your briefings going, " +
-  "set up your payment here: kinai.family/dashboard. You can also add other family members or caregivers from there.";
+  "To keep your daily briefings going, set up your payment here: https://kinai.family/dashboard. " +
+  "You can also add other family members or caregivers from there.";
 
 // Calendar data is "stale" when a connected external calendar (Google/Apple)
 // hasn't synced recently or is erroring. A briefing built only from Kin-native
@@ -536,6 +536,8 @@ export interface BriefingProfile {
   phone_number: string;
   timezone: string | null;
   created_at: string | null;
+  subscription_status: string | null;
+  billing_exempt: boolean | null;
 }
 
 export interface DeliveryResult {
@@ -554,15 +556,19 @@ export async function deliverBriefing(
 ): Promise<DeliveryResult> {
   const tz = profile.timezone ?? "America/Los_Angeles";
 
-  // Day-7 trial nudge: once a profile is 7+ days old, append the payment
-  // prompt — it runs day 7 onward until the user converts or churns.
+  // Trial payment nudge: append the payment prompt once a profile is 7+ days
+  // old, but only while they're still on the trial. Paid, past-due, and
+  // canceled accounts don't get it, and billing-exempt profiles never do.
   let daysSinceCreated = 0;
   if (profile.created_at) {
     daysSinceCreated = Math.floor(
       (Date.now() - new Date(profile.created_at).getTime()) / 86_400_000
     );
   }
-  const appendPaymentNudge = daysSinceCreated >= 7;
+  const appendPaymentNudge =
+    !profile.billing_exempt &&
+    profile.subscription_status === "trial" &&
+    daysSinceCreated >= 7;
 
   try {
     const { text, degraded } = await generateBriefing(
