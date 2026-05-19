@@ -16,13 +16,13 @@ function Section({ title, children }: { title: string; children: React.ReactNode
     <section style={{ marginBottom: "48px" }}>
       <h2
         style={{
-          fontSize: "18px",
+          fontSize: "19px",
           fontWeight: 600,
-          color: "#F0EDE6",
-          letterSpacing: "-0.3px",
+          color: "var(--ink)",
+          letterSpacing: "-0.4px",
           marginBottom: "16px",
           paddingBottom: "12px",
-          borderBottom: "1px solid rgba(255,255,255,0.07)",
+          borderBottom: "1px solid var(--border-2)",
         }}
       >
         {title}
@@ -30,7 +30,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
       <div
         style={{
           fontSize: "15px",
-          color: "rgba(240,237,230,0.65)",
+          color: "var(--ink-2)",
           lineHeight: 1.75,
           display: "flex",
           flexDirection: "column",
@@ -55,57 +55,71 @@ function Ul({ items }: { items: string[] }) {
 
 export default function TermsPage() {
   return (
-    <div style={{ backgroundColor: "#0C0F0A", color: "#F0EDE6", minHeight: "100vh" }}>
+    <div style={{ backgroundColor: "var(--bg)", color: "var(--ink)", minHeight: "100vh" }}>
       <nav
         style={{
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
           padding: "0 24px",
-          height: "60px",
-          borderBottom: "1px solid rgba(255,255,255,0.06)",
+          height: "64px",
+          borderBottom: "1px solid var(--border)",
+          background: "var(--paper)",
         }}
       >
-        <Link href="/" style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-          <KinMark size={24} />
-          <span style={{ fontSize: "16px", fontWeight: 500, letterSpacing: "-0.2px" }}>Kin</span>
+        <Link href="/" style={{ display: "flex", alignItems: "center", gap: "9px" }}>
+          <KinMark size={26} color="#3C4A33" />
+          <span style={{ fontSize: "18px", fontWeight: 600, letterSpacing: "-0.4px", color: "var(--ink)" }}>Kin</span>
         </Link>
-        <Link href="/" style={{ fontSize: "13px", color: "rgba(240,237,230,0.4)" }}>← Back</Link>
+        <Link href="/" style={{ fontSize: "13px", color: "var(--ink-3)" }}>← Back</Link>
       </nav>
 
-      <article style={{ maxWidth: "680px", margin: "0 auto", padding: "60px 24px 100px" }}>
-        <div style={{ marginBottom: "48px" }}>
+      <article style={{ maxWidth: "680px", margin: "0 auto", padding: "64px 24px 100px" }}>
+        <div style={{ marginBottom: "52px" }}>
           <p
             style={{
               fontSize: "11px",
+              fontWeight: 500,
               fontFamily: "var(--font-geist-mono), monospace",
-              letterSpacing: "1.5px",
+              letterSpacing: "1.6px",
               textTransform: "uppercase",
-              color: "rgba(240,237,230,0.3)",
-              marginBottom: "16px",
+              color: "var(--ink-3)",
+              marginBottom: "18px",
             }}
           >
             Legal · Last updated {LAST_UPDATED}
           </p>
           <h1
             style={{
-              fontSize: "36px",
+              fontSize: "clamp(32px, 5vw, 40px)",
               fontWeight: 600,
-              letterSpacing: "-0.8px",
+              letterSpacing: "-1px",
               lineHeight: 1.15,
-              marginBottom: "16px",
+              marginBottom: "24px",
+              color: "var(--ink)",
             }}
           >
             Terms of Service
           </h1>
-          <p style={{ fontSize: "15px", color: "rgba(240,237,230,0.55)", lineHeight: 1.65, fontStyle: "italic" }}>
-            Please read these Terms carefully before using {APP}. By using the Service, you agree to these Terms.
-          </p>
+          <div
+            style={{
+              background: "var(--paper)",
+              border: "1px solid var(--border)",
+              borderLeft: "2px solid var(--green)",
+              borderRadius: "0 12px 12px 0",
+              padding: "18px 22px",
+              boxShadow: "0 1px 2px rgba(43,38,30,0.06), 0 6px 16px rgba(43,38,30,0.06)",
+            }}
+          >
+            <p style={{ fontSize: "15px", color: "var(--ink-2)", lineHeight: 1.7, fontStyle: "italic" }}>
+              Please read these Terms carefully before using {APP}. By using the Service, you agree to these Terms.
+            </p>
+          </div>
         </div>
 
         <Section title="1. Agreement to Terms">
           <p>These Terms of Service (&ldquo;Terms&rdquo;) are a binding legal agreement between you and {COMPANY} (&ldquo;Kin,&rdquo; &ldquo;we,&rdquo; &ldquo;us,&rdquo; or &ldquo;our&rdquo;) governing your access to and use of the {APP} mobile application, website (kinai.family), and related services (collectively, the &ldquo;Service&rdquo;).</p>
-          <p>By creating an account or using the Service, you confirm that you are at least 18 years old, have the legal capacity to enter into this agreement, and agree to be bound by these Terms and our <Link href="/privacy" style={{ color: "#7CB87A" }}>Privacy Policy</Link>.</p>
+          <p>By creating an account or using the Service, you confirm that you are at least 18 years old, have the legal capacity to enter into this agreement, and agree to be bound by these Terms and our <Link href="/privacy" style={{ color: "var(--green)", fontWeight: 500 }}>Privacy Policy</Link>.</p>
           <p>If you do not agree to these Terms, do not use the Service.</p>
         </Section>
 
@@ -122,11 +136,11 @@ export default function TermsPage() {
 
         <Section title="4. Subscriptions and Billing">
           <p>{APP} is offered on a subscription basis. Subscriptions are available on a monthly or annual basis. Pricing is displayed in the App Store and Google Play Store at the time of purchase.</p>
-          <p><strong style={{ color: "#F0EDE6" }}>Billing.</strong> Subscriptions are billed through Apple App Store or Google Play, managed by RevenueCat. By subscribing, you authorize the applicable app store to charge your payment method on a recurring basis at the start of each billing period.</p>
-          <p><strong style={{ color: "#F0EDE6" }}>Free trials.</strong> If a free trial is offered, your subscription will automatically begin at the end of the trial period unless you cancel before the trial ends.</p>
-          <p><strong style={{ color: "#F0EDE6" }}>Cancellations.</strong> You may cancel your subscription at any time through your App Store or Google Play account settings. Cancellation takes effect at the end of the current billing period. We do not provide refunds for partial billing periods except as required by applicable law.</p>
-          <p><strong style={{ color: "#F0EDE6" }}>Price changes.</strong> We may change subscription pricing with reasonable advance notice. Continued use of the Service after a price change constitutes acceptance of the new pricing.</p>
-          <p><strong style={{ color: "#F0EDE6" }}>Refunds.</strong> Refund requests are subject to the refund policies of Apple App Store and Google Play. Contact <a href={`mailto:${EMAIL}`} style={{ color: "#7CB87A" }}>{EMAIL}</a> if you have billing questions.</p>
+          <p><strong style={{ color: "var(--ink)" }}>Billing.</strong> Subscriptions are billed through Apple App Store or Google Play, managed by RevenueCat. By subscribing, you authorize the applicable app store to charge your payment method on a recurring basis at the start of each billing period.</p>
+          <p><strong style={{ color: "var(--ink)" }}>Free trials.</strong> If a free trial is offered, your subscription will automatically begin at the end of the trial period unless you cancel before the trial ends.</p>
+          <p><strong style={{ color: "var(--ink)" }}>Cancellations.</strong> You may cancel your subscription at any time through your App Store or Google Play account settings. Cancellation takes effect at the end of the current billing period. We do not provide refunds for partial billing periods except as required by applicable law.</p>
+          <p><strong style={{ color: "var(--ink)" }}>Price changes.</strong> We may change subscription pricing with reasonable advance notice. Continued use of the Service after a price change constitutes acceptance of the new pricing.</p>
+          <p><strong style={{ color: "var(--ink)" }}>Refunds.</strong> Refund requests are subject to the refund policies of Apple App Store and Google Play. Contact <a href={`mailto:${EMAIL}`} style={{ color: "var(--green)", fontWeight: 500 }}>{EMAIL}</a> if you have billing questions.</p>
         </Section>
 
         <Section title="5. Acceptable Use">
@@ -161,7 +175,7 @@ export default function TermsPage() {
             "The accuracy of AI Content depends on the accuracy of your calendar data and account information",
           ]} />
           <p>You are solely responsible for verifying time-sensitive information (such as pickup times, appointment details, and deadlines) against your original calendar and other sources.</p>
-          <p><strong style={{ color: "#F0EDE6" }}>Reliance on Kin.</strong> Kin is an assistant tool, not a system of record, and can sit in the critical path of family logistics — pickups, drop-offs, appointments, and medication timing. A briefing can be wrong: a connected calendar may be out of date, an event may have changed since the last sync, or the AI may misread the context. Always verify time-sensitive logistics independently before acting on them. To the fullest extent permitted by law, {COMPANY} is not responsible for missed events, missed pickups or drop-offs, scheduling conflicts, missed appointments or medications, or any other outcome arising from action or inaction taken in reliance on AI Content.</p>
+          <p><strong style={{ color: "var(--ink)" }}>Reliance on Kin.</strong> Kin is an assistant tool, not a system of record, and can sit in the critical path of family logistics — pickups, drop-offs, appointments, and medication timing. A briefing can be wrong: a connected calendar may be out of date, an event may have changed since the last sync, or the AI may misread the context. Always verify time-sensitive logistics independently before acting on them. To the fullest extent permitted by law, {COMPANY} is not responsible for missed events, missed pickups or drop-offs, scheduling conflicts, missed appointments or medications, or any other outcome arising from action or inaction taken in reliance on AI Content.</p>
         </Section>
 
         <Section title="8. Household and Partner Features">
@@ -225,26 +239,26 @@ export default function TermsPage() {
         <Section title="15. Governing Law and Dispute Resolution">
           <p>These Terms are governed by the laws of the state where {COMPANY} is registered, without regard to its conflict of law provisions.</p>
           <p>Any dispute arising from these Terms or your use of the Service that cannot be resolved informally will be submitted to binding arbitration under the rules of the American Arbitration Association, except that either party may seek injunctive or other equitable relief in a court of competent jurisdiction.</p>
-          <p><strong style={{ color: "#F0EDE6" }}>Class action waiver.</strong> You agree to bring claims against Kin only in your individual capacity and not as a plaintiff or class member in any class action.</p>
+          <p><strong style={{ color: "var(--ink)" }}>Class action waiver.</strong> You agree to bring claims against Kin only in your individual capacity and not as a plaintiff or class member in any class action.</p>
           <p>If you are an EU consumer, you may have the right to bring disputes before the courts of your country of residence.</p>
         </Section>
 
         <Section title="16. General Provisions">
-          <p><strong style={{ color: "#F0EDE6" }}>Entire agreement.</strong> These Terms and our Privacy Policy constitute the entire agreement between you and {COMPANY} regarding the Service.</p>
-          <p><strong style={{ color: "#F0EDE6" }}>Severability.</strong> If any provision of these Terms is found to be unenforceable, the remaining provisions will remain in full force and effect.</p>
-          <p><strong style={{ color: "#F0EDE6" }}>No waiver.</strong> Our failure to enforce any right or provision of these Terms will not be considered a waiver of those rights.</p>
-          <p><strong style={{ color: "#F0EDE6" }}>Changes to Terms.</strong> We may update these Terms from time to time. We will notify you of material changes by posting an updated version and, where appropriate, by email. Continued use of the Service after changes constitutes acceptance.</p>
+          <p><strong style={{ color: "var(--ink)" }}>Entire agreement.</strong> These Terms and our Privacy Policy constitute the entire agreement between you and {COMPANY} regarding the Service.</p>
+          <p><strong style={{ color: "var(--ink)" }}>Severability.</strong> If any provision of these Terms is found to be unenforceable, the remaining provisions will remain in full force and effect.</p>
+          <p><strong style={{ color: "var(--ink)" }}>No waiver.</strong> Our failure to enforce any right or provision of these Terms will not be considered a waiver of those rights.</p>
+          <p><strong style={{ color: "var(--ink)" }}>Changes to Terms.</strong> We may update these Terms from time to time. We will notify you of material changes by posting an updated version and, where appropriate, by email. Continued use of the Service after changes constitutes acceptance.</p>
         </Section>
 
         <Section title="17. Contact">
           <p>Questions about these Terms? Contact us:</p>
-          <p><strong style={{ color: "#F0EDE6" }}>{COMPANY}</strong><br /><a href={`mailto:${EMAIL}`} style={{ color: "#7CB87A" }}>{EMAIL}</a></p>
+          <p><strong style={{ color: "var(--ink)" }}>{COMPANY}</strong><br /><a href={`mailto:${EMAIL}`} style={{ color: "var(--green)", fontWeight: 500 }}>{EMAIL}</a></p>
         </Section>
       </article>
 
-      <footer style={{ borderTop: "1px solid rgba(255,255,255,0.06)", padding: "24px", textAlign: "center" }}>
-        <p style={{ fontSize: "12px", color: "rgba(240,237,230,0.25)" }}>
-          © 2026 {COMPANY} · <Link href="/privacy" style={{ color: "rgba(240,237,230,0.4)" }}>Privacy</Link> · <a href={`mailto:${EMAIL}`} style={{ color: "rgba(240,237,230,0.4)" }}>{EMAIL}</a>
+      <footer style={{ borderTop: "1px solid var(--border)", background: "var(--bg-deep)", padding: "28px 24px", textAlign: "center" }}>
+        <p style={{ fontSize: "12px", color: "var(--ink-3)" }}>
+          © 2026 {COMPANY} · <Link href="/privacy" style={{ color: "var(--green)", fontWeight: 500 }}>Privacy</Link> · <a href={`mailto:${EMAIL}`} style={{ color: "var(--green)", fontWeight: 500 }}>{EMAIL}</a>
         </p>
       </footer>
     </div>
