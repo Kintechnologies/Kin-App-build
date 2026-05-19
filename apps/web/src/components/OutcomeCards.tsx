@@ -5,23 +5,27 @@ import { Reveal } from "./Reveal";
 
 const cards = [
   {
-    label: "Knows when things don't line up",
-    quote: "Your partner's meeting runs late — you've got pickup.",
+    label: "Catches conflicts before they collide",
+    quote:
+      "Your 4:00 and your partner's 4:00 both need a parent — one of you has to move.",
     accent: "#3C4A33",
   },
   {
-    label: "Catches tight schedules before they break",
-    quote: "Back-to-back until 6, then pickup — tight stretch.",
-    accent: "#A98230",
-  },
-  {
-    label: "Adapts when plans change",
-    quote: "Your 3pm cleared — you're back on for pickup.",
+    label: "Reads the weather and the roads",
+    quote:
+      "Rain at pickup time — send an umbrella. And leave 10 minutes early, traffic's heavy toward school.",
     accent: "#5C6B73",
   },
   {
-    label: "Closes the loop",
-    quote: "Pickup's sorted — you're clear for the evening.",
+    label: "Remembers what you'd forget",
+    quote:
+      "Field-trip permission slip is due tomorrow — and the dentist moved to Thursday.",
+    accent: "#A98230",
+  },
+  {
+    label: "Adjusts the moment the day shifts",
+    quote:
+      "School called an early release today — work just got rearranged for both of you.",
     accent: "#AC6A45",
   },
 ];

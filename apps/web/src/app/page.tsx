@@ -5,6 +5,7 @@ import { Relatability } from "@/components/Relatability";
 import { OutcomeCards } from "@/components/OutcomeCards";
 import { WhyDifferent } from "@/components/WhyDifferent";
 import { BriefingDemo } from "@/components/BriefingDemo";
+import { Capabilities } from "@/components/Capabilities";
 import { Pricing } from "@/components/Pricing";
 import { WaitlistSection } from "@/components/WaitlistSection";
 import { Footer } from "@/components/Footer";
@@ -39,6 +40,7 @@ export default function Home() {
       <OutcomeCards />
       <WhyDifferent />
       <BriefingDemo />
+      <Capabilities />
       <Pricing />
       <WaitlistSection />
       <Footer />

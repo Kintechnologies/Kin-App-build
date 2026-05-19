@@ -7,13 +7,26 @@ import { KinMark } from "./KinMark";
 import { Reveal } from "./Reveal";
 import { WaitlistForm } from "./WaitlistForm";
 
-// A realistic Kin morning briefing, split into the sections that arrive
-// one after another — the way a real text lands on your phone.
-const briefing = [
-  "Good morning, Sarah. Here's your family's day. ☀️",
-  "Maya has soccer at 4:30 — you're on pickup. Tom has a 5:00 call he can't move, so it's you today.",
-  "Heads up: your 3:00 meeting runs right up against school dismissal. Worth building in a buffer.",
-  "One to remember — Leo's field-trip slip is due tomorrow. That's everything. Have a good one. 💚",
+// A day with Kin, told in two real text messages. The morning briefing
+// arrives as ONE continuous SMS — the way a text actually lands. Then,
+// hours later, Kin catches a change in real time and sends the save.
+type Message = {
+  time: string;
+  label: string;
+  text: string;
+};
+
+const messages: Message[] = [
+  {
+    time: "7:03 AM",
+    label: "Today 7:03 AM",
+    text: "Good morning, Sarah. Here's your family's day. ☀️\n\nMaya has soccer at 4:30 — you're on pickup. Tom's got a 5:00 call he can't move, so today's on you.\n\nHeads up: your 3:00 meeting runs right up against pickup. Worth building in a buffer.\n\nOne to remember — Leo's field-trip slip is due tomorrow.\n\nThat's everything. Have a good one. 💚",
+  },
+  {
+    time: "3:47 PM",
+    label: "Today 3:47 PM",
+    text: "Quick one, Sarah. Your 3:00 just moved to 4:15 — that now collides with Maya's 4:30 soccer pickup. Tom's call wraps at 5:00. Want me to ask him to grab Maya so you can keep the meeting?",
+  },
 ];
 
 function TypingDots() {
@@ -45,29 +58,55 @@ function TypingDots() {
   );
 }
 
+function DayDivider({ label }: { label: string }) {
+  return (
+    <span
+      style={{
+        fontSize: "10.5px",
+        color: "#9A9488",
+        textAlign: "center",
+        margin: "6px 0 2px",
+      }}
+    >
+      <strong style={{ fontWeight: 600 }}>{label.split(" ")[0]}</strong>{" "}
+      {label.split(" ").slice(1).join(" ")}
+    </span>
+  );
+}
+
 export function BriefingDemo() {
   const phoneRef = useRef<HTMLDivElement>(null);
+  const threadRef = useRef<HTMLDivElement>(null);
   const inView = useInView(phoneRef, { once: true, margin: "-120px" });
   const [visibleCount, setVisibleCount] = useState(0);
-  const [typing, setTyping] = useState(false);
+  const [typingIndex, setTypingIndex] = useState<number | null>(null);
 
   useEffect(() => {
     if (!inView) return;
     const timers: ReturnType<typeof setTimeout>[] = [];
     let t = 500;
-    briefing.forEach((_, i) => {
-      timers.push(setTimeout(() => setTyping(true), t));
-      t += 1150;
+    messages.forEach((_, i) => {
+      // A longer pause before the afternoon save — time passing in the day.
+      if (i > 0) t += 1400;
+      timers.push(setTimeout(() => setTypingIndex(i), t));
+      // The morning briefing is long; let the typing indicator linger.
+      t += i === 0 ? 1700 : 1300;
       timers.push(
         setTimeout(() => {
-          setTyping(false);
+          setTypingIndex(null);
           setVisibleCount(i + 1);
         }, t)
       );
-      t += 900;
+      t += 700;
     });
     return () => timers.forEach(clearTimeout);
   }, [inView]);
+
+  // Keep the newest message in view as the thread fills.
+  useEffect(() => {
+    const el = threadRef.current;
+    if (el) el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
+  }, [visibleCount, typingIndex]);
 
   return (
     <section
@@ -93,7 +132,7 @@ export function BriefingDemo() {
             marginBottom: "20px",
           }}
         >
-          A morning with Kin
+          A day with Kin
         </p>
       </Reveal>
 
@@ -109,7 +148,10 @@ export function BriefingDemo() {
             marginBottom: "14px",
           }}
         >
-          One text. The whole day, handled.
+          One calm text to start the day.{" "}
+          <span style={{ color: "var(--green)" }}>
+            Then Kin keeps watch.
+          </span>
         </h2>
       </Reveal>
 
@@ -120,12 +162,12 @@ export function BriefingDemo() {
             color: "var(--ink-2)",
             textAlign: "center",
             lineHeight: 1.65,
-            maxWidth: "440px",
+            maxWidth: "460px",
             marginBottom: "56px",
           }}
         >
-          No dashboard. No app to open. Here&apos;s exactly what a Kin briefing
-          looks like when it lands.
+          No dashboard. No app to open. A briefing every morning — and a
+          heads-up the moment the day actually changes.
         </p>
       </Reveal>
 
@@ -151,7 +193,7 @@ export function BriefingDemo() {
             overflow: "hidden",
             display: "flex",
             flexDirection: "column",
-            height: "600px",
+            height: "620px",
             position: "relative",
           }}
         >
@@ -247,54 +289,58 @@ export function BriefingDemo() {
 
           {/* Thread */}
           <div
+            ref={threadRef}
             style={{
               flex: 1,
               display: "flex",
               flexDirection: "column",
               gap: "8px",
               padding: "16px 14px",
-              overflow: "hidden",
+              overflowY: "auto",
+              scrollbarWidth: "none",
             }}
           >
-            <span
-              style={{
-                fontSize: "10.5px",
-                color: "#9A9488",
-                textAlign: "center",
-                marginBottom: "4px",
-              }}
-            >
-              <strong style={{ fontWeight: 600 }}>Today</strong> 7:03 AM
-            </span>
+            {messages.map((message, i) => {
+              if (i >= visibleCount && typingIndex !== i) return null;
+              return (
+                <div
+                  key={i}
+                  style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: "8px",
+                  }}
+                >
+                  <DayDivider label={message.label} />
+                  {i < visibleCount ? (
+                    <div
+                      className="kin-reveal"
+                      style={{
+                        alignSelf: "flex-start",
+                        maxWidth: "84%",
+                        background: "#E7E3DA",
+                        color: "#2B261E",
+                        borderRadius: "18px 18px 18px 5px",
+                        padding: "11px 15px",
+                        fontSize: "13.5px",
+                        lineHeight: 1.5,
+                        whiteSpace: "pre-wrap",
+                        animationDuration: "0.4s",
+                        "--kin-reveal-y": "10px",
+                      } as CSSProperties}
+                    >
+                      {message.text}
+                    </div>
+                  ) : (
+                    <div className="kin-fade">
+                      <TypingDots />
+                    </div>
+                  )}
+                </div>
+              );
+            })}
 
-            {briefing.slice(0, visibleCount).map((text, i) => (
-              <div
-                key={i}
-                className="kin-reveal"
-                style={{
-                  alignSelf: "flex-start",
-                  maxWidth: "82%",
-                  background: "#E7E3DA",
-                  color: "#2B261E",
-                  borderRadius: "18px 18px 18px 5px",
-                  padding: "9px 14px",
-                  fontSize: "13.5px",
-                  lineHeight: 1.5,
-                  animationDuration: "0.4s",
-                  "--kin-reveal-y": "10px",
-                } as CSSProperties}
-              >
-                {text}
-              </div>
-            ))}
-
-            {typing && (
-              <div className="kin-fade">
-                <TypingDots />
-              </div>
-            )}
-
-            {visibleCount === briefing.length && !typing && (
+            {visibleCount === messages.length && typingIndex === null && (
               <span
                 className="kin-fade"
                 style={{
@@ -330,7 +376,7 @@ export function BriefingDemo() {
                 color: "#9A9488",
               }}
             >
-              iMessage
+              Text Kin back…
             </div>
             <div
               style={{
@@ -364,7 +410,7 @@ export function BriefingDemo() {
               letterSpacing: "-0.2px",
             }}
           >
-            Want one of these every morning?
+            Want Kin watching your family&apos;s day?
           </p>
           <div style={{ display: "flex", justifyContent: "center", width: "100%" }}>
             <WaitlistForm ctaText="Get Early Access" />

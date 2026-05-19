@@ -31,7 +31,7 @@ export function Relatability() {
           "--kin-reveal-y": "18px",
         } as CSSProperties}
       >
-        You&apos;re keeping track of everything.
+        You&apos;re the family air traffic controller.
       </h2>
 
       <div

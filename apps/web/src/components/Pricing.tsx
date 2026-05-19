@@ -5,14 +5,10 @@ import { useState } from "react";
 import { Reveal } from "./Reveal";
 
 const features = [
-  "Daily morning briefing — one sharp coordination insight, every day",
-  "Real-time alerts when your partner's schedule shifts and it affects you",
-  "Pickup risk detection — Kin catches coverage gaps before you do",
-  "Partner calendar sync — Kin sees both sides of your household",
-  "Kids' schedules, activities & pickup windows — all tracked",
-  "Escalating reminders — from heads-up to 'leave now' as time closes in",
-  "Household memory — learns your routines and gets sharper over time",
-  "Ask Kin anything — AI chat with full family context",
+  "Both parents on the same page — every single morning",
+  "A real-time heads-up the moment plans collide",
+  "No more dropped pickups or forgotten permission slips",
+  "Ask Kin anything, any time — full family context",
 ];
 
 export function Pricing() {
