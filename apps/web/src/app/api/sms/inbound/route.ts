@@ -174,7 +174,7 @@ export async function POST(request: Request) {
   {
     const { data } = await supabase
       .from("profiles")
-      .select("id, family_name, household_id, onboarding_step, onboarding_completed, context_notes, partner_phone_pending, timezone")
+      .select("id, family_name, household_id, onboarding_step, onboarding_completed, context_notes, partner_phone_pending, timezone, sunday_checkin_sent_at, sunday_checkin_reply_at")
       .eq("phone_number", fromNumber)
       .single<OnboardingProfile>();
     profileRow = data;
@@ -214,6 +214,32 @@ export async function POST(request: Request) {
     })
     .select("id")
     .maybeSingle<{ id: string }>();
+
+  // ── 6b. Capture a Sunday check-in reply ───────────────────────────────────
+  // If this onboarded user got a weekly Sunday check-in text in the last 24h
+  // and hasn't replied to it yet, treat this message as that reply: store it as
+  // a context note (TTL'd) so the next morning briefing can fold in whatever
+  // they shared about the week ahead. Only the first reply is captured —
+  // sunday_checkin_reply_at is the latch. The normal conversation flow below
+  // still runs, so Kin also answers warmly.
+  if (
+    profileRow.onboarding_completed &&
+    profileRow.sunday_checkin_sent_at &&
+    !profileRow.sunday_checkin_reply_at &&
+    Date.now() - new Date(profileRow.sunday_checkin_sent_at).getTime() <
+      24 * 60 * 60 * 1000 &&
+    messageBody.length > 0
+  ) {
+    await supabase.from("user_context_notes").insert({
+      profile_id: profileRow.id,
+      source: "sunday_checkin",
+      content: messageBody,
+    });
+    await supabase
+      .from("profiles")
+      .update({ sunday_checkin_reply_at: new Date().toISOString() })
+      .eq("id", profileRow.id);
+  }
 
   const step = profileRow.onboarding_step ?? 0;
   const profileName = profileRow.family_name ?? "there";

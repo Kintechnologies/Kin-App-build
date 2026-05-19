@@ -51,6 +51,8 @@ export interface OnboardingProfile {
   context_notes: string | null;
   partner_phone_pending: string | null;
   timezone?: string | null;
+  sunday_checkin_sent_at?: string | null;
+  sunday_checkin_reply_at?: string | null;
 }
 
 // ─── Static question text ──────────────────────────────────────────────────────

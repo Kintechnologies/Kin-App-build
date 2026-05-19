@@ -324,7 +324,7 @@ const SYSTEM_PROMPT = `You are Kin, a family AI chief of staff sending a morning
 
 ADDRESSING THE FAMILY — the context names the primary parent (the person reading this) and, when one is known, the family surname. When a surname is given, you may refer to the household as "the [Surname]s" or "the [Surname] family". When NO surname is given, never manufacture a family name from the parent's first name — writing "the [first name] family" (e.g. "the Austin family") is wrong and impersonal. Instead, speak to the parent directly by their first name and refer to the household by its actual members: "you and the kids", "you, Jontae, and Jaxon", "your family". Always call children by their own names. The briefing should sound like you know this household, not like you are reading a name field.
 
-GROUNDING — every fact must trace to the context. Only mention events, household members, schools, activities, times, names, and locations that appear in the context below. Never invent an errand, to-do, appointment, deadline, task, or reminder. Any action you suggest ("leave by 2:40 for the 3pm game") must reference an event that is actually in the context — if you cannot point to the line it came from, do not say it. When the context is thin, a shorter briefing is the correct briefing; never manufacture substance to fill space.
+GROUNDING — every fact must trace to the context. Only mention events, household members, schools, activities, times, names, and locations that appear in the context below. Never invent an errand, to-do, appointment, deadline, task, or reminder. Any action you suggest ("leave by 2:40 for the 3pm game") must reference an event that is actually in the context — if you cannot point to the line it came from, do not say it. When the context is thin, a shorter briefing is the correct briefing; never manufacture substance to fill space. If the context contains a "Recent notes this family shared" section, those are reminders, plans, and deadlines the family told Kin directly — they ARE valid grounding, so you SHOULD surface anything in them relevant to today or the days just ahead, weaving it in naturally rather than quoting it back.
 
 SCOPE — you cover this family's calendar, household, the routines and details they shared during onboarding, and weather only insofar as it affects today's events. Do not give general life advice, news, parenting or health tips, meal ideas, or commentary on anything the context does not contain. If today is genuinely quiet, say so briefly and stop — do not drift into topics you have no data for.
 
@@ -394,6 +394,7 @@ async function buildBriefingContext(
     { data: todayEvents },
     { data: familyMembers },
     { data: calendarConnections },
+    { data: contextNoteRows },
   ] = await Promise.all([
     supabase
       .from("calendar_events")
@@ -413,6 +414,15 @@ async function buildBriefingContext(
       .from("calendar_connections")
       .select("last_synced_at, sync_status, enabled")
       .eq("profile_id", profileId),
+    // Live context notes — e.g. the weekly Sunday check-in reply about the
+    // week ahead. expires_at is a TTL; drop anything past it.
+    supabase
+      .from("user_context_notes")
+      .select("content")
+      .eq("profile_id", profileId)
+      .gt("expires_at", new Date().toISOString())
+      .order("created_at", { ascending: false })
+      .limit(5),
   ]);
 
   const dateLabel = new Date().toLocaleDateString("en-US", {
@@ -478,6 +488,16 @@ async function buildBriefingContext(
       "\nWhat Kin learned about this family during onboarding " +
       "(kids' schools, activities, weekly routines, wake time, special needs):\n" +
       `${contextNotes.trim()}\n`;
+  }
+
+  const liveNotes = (contextNoteRows ?? []) as { content: string }[];
+  if (liveNotes.length > 0) {
+    ctx +=
+      "\nRecent notes this family shared directly with Kin (e.g. their reply to " +
+      "Kin's Sunday check-in about the week ahead):\n";
+    for (const n of liveNotes) {
+      if (n.content && n.content.trim()) ctx += `  ${n.content.trim()}\n`;
+    }
   }
 
   const weather = await fetchWeather(getContextNote(contextNotes, "home_location"), timezone);
