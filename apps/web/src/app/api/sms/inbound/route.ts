@@ -5,9 +5,9 @@
  *     approved, mints a profile (phone number IS the auth) and starts the SMS
  *     onboarding conversation. If not, sends a warm waitlist reply and saves
  *     the number to sms_waitlist for an admin to approve later.
- *   - Mid-onboarding profile (step 0–8) → advances the onboarding state machine
+ *   - Mid-onboarding profile (step 0–10) → advances the onboarding state machine
  *     in sms-onboarding.ts.
- *   - Onboarded profile (step 9) → conversation-aware Claude Q&A.
+ *   - Onboarded profile (step 11) → conversation-aware Claude Q&A.
  *
  * Pattern: synchronous — Claude reply completes before response is returned.
  * Twilio's webhook timeout is 15s; replies are typically 2–8s. AbortController
@@ -218,13 +218,13 @@ export async function POST(request: Request) {
   const step = profileRow.onboarding_step ?? 0;
   const profileName = profileRow.family_name ?? "there";
 
-  // ── 7. SMS onboarding (steps 0–9) ─────────────────────────────────────────
-  // All onboarding happens here over text. step 10 = complete; once there, the
+  // ── 7. SMS onboarding (steps 0–10) ────────────────────────────────────────
+  // All onboarding happens here over text. step 11 = complete; once there, the
   // texter falls through to conversation-aware Q&A below. handleSmsOnboarding
   // is itself conversational: an off-script question asked mid-flow is answered
   // by the LLM and the current step re-prompted, so the texter never has to
   // wait until onboarding ends to get an answer.
-  if (!profileRow.onboarding_completed && step < 10) {
+  if (!profileRow.onboarding_completed && step < 11) {
     return handleSmsOnboarding(supabase, profileRow, fromNumber, messageBody, step);
   }
 

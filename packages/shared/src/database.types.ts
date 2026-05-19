@@ -26,6 +26,7 @@ export type Database = {
           email: string;
           family_name: string | null;
           first_name: string | null;
+          last_name: string | null;
           household_type: "two-parent" | "single-parent" | "blended" | "other" | null;
           parent_role: "mom" | "dad" | "parent" | null;
           subscription_tier: "free" | "starter" | "family";
@@ -48,6 +49,7 @@ export type Database = {
           email: string;
           family_name?: string | null;
           first_name?: string | null;
+          last_name?: string | null;
           household_type?: "two-parent" | "single-parent" | "blended" | "other" | null;
           parent_role?: "mom" | "dad" | "parent" | null;
           subscription_tier?: "free" | "starter" | "family";
@@ -70,6 +72,7 @@ export type Database = {
           email?: string;
           family_name?: string | null;
           first_name?: string | null;
+          last_name?: string | null;
           household_type?: "two-parent" | "single-parent" | "blended" | "other" | null;
           parent_role?: "mom" | "dad" | "parent" | null;
           subscription_tier?: "free" | "starter" | "family";

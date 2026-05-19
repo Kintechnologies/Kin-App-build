@@ -339,34 +339,40 @@ interface BriefingContext {
   parentFirstName: string | null;
 }
 
-// SMS onboarding asks only for a first name ("What should I call you? First
-// name's perfect."), so profiles.family_name almost always holds just that —
-// "Austin", not "Ford" or "the Ford family". Feeding that straight into the
+// profiles.family_name holds the primary parent's FIRST name — SMS onboarding
+// asks "What should I call you? First name's perfect." Feeding it into the
 // prompt as the family's name produced "the Austin family", which reads like a
-// database field. We split the stored value: a single token is the parent's
-// first name with no surname; a multi-word value ("Sarah Ford") yields both.
-// When there is no surname the briefing addresses the household by its members
-// instead of inventing a family name.
+// database field. The dedicated last-name onboarding step fills profiles.last_name
+// when the texter gives one; the briefing prefers that for the surname. For
+// profiles created before last_name existed we still split a multi-word
+// family_name ("Sarah Ford") as a fallback. When there is no surname at all the
+// briefing addresses the household by its members instead of inventing a name.
 interface FamilyNaming {
   parentFirstName: string | null;
   surname: string | null;
 }
 
-function resolveFamilyNaming(rawName: string | null): FamilyNaming {
+function resolveFamilyNaming(
+  rawName: string | null,
+  lastName: string | null
+): FamilyNaming {
+  const explicitSurname = (lastName ?? "").trim() || null;
   const cleaned = (rawName ?? "").trim();
   if (!cleaned || cleaned.toLowerCase() === "family") {
-    return { parentFirstName: null, surname: null };
+    return { parentFirstName: null, surname: explicitSurname };
   }
   const tokens = cleaned.split(/\s+/);
-  if (tokens.length === 1) {
-    return { parentFirstName: tokens[0], surname: null };
-  }
-  return { parentFirstName: tokens[0], surname: tokens.slice(1).join(" ") };
+  // Prefer the dedicated last_name column; fall back to a multi-word
+  // family_name for profiles created before that column existed.
+  const surname =
+    explicitSurname ?? (tokens.length > 1 ? tokens.slice(1).join(" ") : null);
+  return { parentFirstName: tokens[0], surname };
 }
 
 async function buildBriefingContext(
   profileId: string,
   familyName: string | null,
+  lastName: string | null,
   timezone: string
 ): Promise<BriefingContext> {
   const today = new Date().toISOString().split("T")[0];
@@ -422,7 +428,7 @@ async function buildBriefingContext(
     location: e.location,
   }));
 
-  const naming = resolveFamilyNaming(familyName);
+  const naming = resolveFamilyNaming(familyName, lastName);
   let ctx = "";
   if (naming.parentFirstName) {
     ctx += `Primary parent (the person reading this briefing): ${naming.parentFirstName}\n`;
@@ -538,10 +544,11 @@ export interface GeneratedBriefing {
 export async function generateBriefing(
   profileId: string,
   familyName: string | null,
+  lastName: string | null,
   timezone: string,
   appendPaymentNudge: boolean
 ): Promise<GeneratedBriefing> {
-  const context = await buildBriefingContext(profileId, familyName, timezone);
+  const context = await buildBriefingContext(profileId, familyName, lastName, timezone);
 
   let text: string;
   let degraded = false;
@@ -572,6 +579,7 @@ export async function generateBriefing(
 export interface BriefingProfile {
   id: string;
   family_name: string | null;
+  last_name: string | null;
   phone_number: string;
   timezone: string | null;
   created_at: string | null;
@@ -613,6 +621,7 @@ export async function deliverBriefing(
     const { text, degraded } = await generateBriefing(
       profile.id,
       profile.family_name,
+      profile.last_name,
       tz,
       appendPaymentNudge
     );

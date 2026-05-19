@@ -7,12 +7,12 @@
  * language before any question collects data. Kin then walks them through a
  * conversational setup, one question per SMS, tracked by profiles.onboarding_step:
  *
- *   0 = new (profile just created)      6 = awaiting partner phone (or skip)
- *   1 = awaiting first name             7 = awaiting recurring commitments
- *   2 = awaiting kids' names + ages     8 = awaiting email (or skip)
- *   3 = awaiting school / daycare       9 = calendar link sent, awaiting reply
- *   4 = awaiting wake time             10 = complete
- *   5 = awaiting home location
+ *   0 = new (profile just created)      6 = awaiting home location
+ *   1 = awaiting first name             7 = awaiting partner phone (or skip)
+ *   2 = awaiting family last name       8 = awaiting recurring commitments
+ *   3 = awaiting kids' names + ages     9 = awaiting email (or skip)
+ *   4 = awaiting school / daycare      10 = calendar link sent, awaiting reply
+ *   5 = awaiting wake time             11 = complete
  *
  * Structured data lands in its proper table (family_members, children_details),
  * and a human-readable copy is also appended to profiles.context_notes so the
@@ -69,6 +69,10 @@ const CONSENT_MESSAGE =
 
 const NAME_QUESTION =
   "Okay — the fun part. What should I call you? First name's perfect.";
+
+const LAST_NAME_QUESTION =
+  "And what's the family's last name? That's how I'll address your briefings — " +
+  '"the Ford family" beats a generic hello. Reply "skip" to keep it first-name only.';
 
 const KIDS_QUESTION =
   "Now, tell me about your kids: names and ages, however you'd say it out loud. " +
@@ -180,7 +184,7 @@ export async function handleSmsOnboarding(
   // current step. Detect that, answer it with the LLM, and re-prompt the same
   // step — the state machine below only runs on a genuine answer. Step 0 (the
   // opening "hello", whose content is ignored) is never intercepted.
-  if (step >= 1 && step <= 9 && isOffScriptQuestion(step, messageBody)) {
+  if (step >= 1 && step <= 10 && isOffScriptQuestion(step, messageBody)) {
     const answer = await answerOnboardingQuestion(messageBody);
     const reprompt = repromptForStep(step);
     const interruptReply = reprompt ? `${answer}\n\n${reprompt}` : answer;
@@ -209,12 +213,27 @@ export async function handleSmsOnboarding(
     case 1: {
       const name = cleanFirstName(messageBody);
       updates.family_name = name;
-      reply = `Love it — so good to meet you, ${name}. ${KIDS_QUESTION}`;
+      reply = `Love it — so good to meet you, ${name}. ${LAST_NAME_QUESTION}`;
       nextStep = 2;
       break;
     }
 
     case 2: {
+      // Family last name. Optional — a skip leaves last_name null and the
+      // briefing falls back to addressing the household by its members.
+      const lastName = cleanLastName(messageBody);
+      if (lastName) {
+        updates.last_name = lastName;
+        notes = appendNote(notes, "last_name", lastName);
+        reply = `Got it — the ${lastName} family it is. ${KIDS_QUESTION}`;
+      } else {
+        reply = `No problem — first name's all I need. ${KIDS_QUESTION}`;
+      }
+      nextStep = 3;
+      break;
+    }
+
+    case 3: {
       const kids = await parseKids(messageBody);
       if (kids.length > 0) {
         await insertKids(supabase, profile.id, kids);
@@ -224,39 +243,39 @@ export async function handleSmsOnboarding(
           kids.map((k) => (k.age != null ? `${k.name} (${k.age})` : k.name)).join(", ")
         );
         reply = buildSchoolQuestion(kids.map((k) => k.name));
-        nextStep = 3;
+        nextStep = 4;
       } else {
         // No kids parsed — keep the raw answer and skip the school question.
         notes = appendNote(notes, "kids", messageBody);
         reply = `Got it, all noted. ${WAKE_QUESTION}`;
-        nextStep = 4;
+        nextStep = 5;
       }
       break;
     }
 
-    case 3: {
+    case 4: {
       notes = appendNote(notes, "schools", messageBody);
       await applySchools(supabase, profile.id, messageBody);
       reply = `Perfect — that's all saved. ${WAKE_QUESTION}`;
-      nextStep = 4;
-      break;
-    }
-
-    case 4: {
-      notes = appendNote(notes, "wake_time", messageBody);
-      reply = `Got it — I'll beat your alarm to it. ${LOCATION_QUESTION}`;
       nextStep = 5;
       break;
     }
 
     case 5: {
-      notes = appendNote(notes, "home_location", messageBody);
-      reply = `Love it. ${PARTNER_QUESTION}`;
+      notes = appendNote(notes, "wake_time", messageBody);
+      reply = `Got it — I'll beat your alarm to it. ${LOCATION_QUESTION}`;
       nextStep = 6;
       break;
     }
 
     case 6: {
+      notes = appendNote(notes, "home_location", messageBody);
+      reply = `Love it. ${PARTNER_QUESTION}`;
+      nextStep = 7;
+      break;
+    }
+
+    case 7: {
       const partnerPhone = extractPhone(messageBody);
       if (partnerPhone) {
         await invitePartner(supabase, profile, partnerPhone);
@@ -268,18 +287,18 @@ export async function handleSmsOnboarding(
         notes = appendNote(notes, "partner", "none / solo");
         reply = `All good — I've got your back, solo crew. ${RECURRING_QUESTION}`;
       }
-      nextStep = 7;
-      break;
-    }
-
-    case 7: {
-      notes = appendNote(notes, "recurring_commitments", messageBody);
-      reply = `Noted — that all helps. ${EMAIL_QUESTION}`;
       nextStep = 8;
       break;
     }
 
     case 8: {
+      notes = appendNote(notes, "recurring_commitments", messageBody);
+      reply = `Noted — that all helps. ${EMAIL_QUESTION}`;
+      nextStep = 9;
+      break;
+    }
+
+    case 9: {
       const email = extractEmail(messageBody);
       if (email) {
         updates.email = email;
@@ -293,16 +312,16 @@ export async function handleSmsOnboarding(
         " Last thing — connect your calendar and I'll start spotting conflicts before " +
         "your day blows up: meetings colliding with pickup, daycare, or gym plans. " +
         `Connect it here: ${APP_URL}/connect/${token}\n\nOr reply "skip".`;
-      nextStep = 9;
+      nextStep = 10;
       break;
     }
 
-    case 9:
+    case 10:
     default: {
-      // Step 9: the calendar link was sent. The user has tapped it (or replied
+      // Step 10: the calendar link was sent. The user has tapped it (or replied
       // "skip"). Before finalizing, check whether this reply is asking to
       // connect *another* calendar — if so, mint a fresh token, text a new
-      // link, and stay on step 9 until they signal they're done.
+      // link, and stay on step 10 until they signal they're done.
       if (wantsAnotherCalendar(messageBody)) {
         const token = randomBytes(12).toString("hex");
         updates.calendar_connect_token = token;
@@ -310,7 +329,7 @@ export async function handleSmsOnboarding(
           "Of course — connect as many calendars as you'd like. Here's a fresh link:\n" +
           `${APP_URL}/connect/${token}\n\n` +
           'Tap it to add another, or reply "done" once you\'ve linked them all.';
-        nextStep = 9;
+        nextStep = 10;
         break;
       }
 
@@ -330,7 +349,7 @@ export async function handleSmsOnboarding(
           .maybeSingle<{ id: string }>();
         calendarConnected = !!conn;
       } catch (err) {
-        console.error("step 8 calendar connection check failed:", err);
+        console.error("step 10 calendar connection check failed:", err);
       }
 
       let calendarLine: string;
@@ -355,7 +374,7 @@ export async function handleSmsOnboarding(
         "dashboard where you can enter payment details and add any other family " +
         "members or caregivers. No surprises. So glad you're here.";
 
-      nextStep = 10;
+      nextStep = 11;
       updates.onboarding_completed = true;
       // The completion message is the welcome SMS — record it so the web
       // welcome hook never double-texts an SMS-onboarded user.
@@ -391,7 +410,7 @@ export async function handleSmsOnboarding(
 /**
  * Interrogative openers. A message that begins with one of these reads as a
  * question even without a question mark. Applied only on the structured steps
- * (4, 6, 8, 9) — the freeform steps collect names ("Will", "May", "Art") that
+ * (5, 7, 9, 10) — the freeform steps collect names ("Will", "May", "Art") that
  * collide with these words, so there the question mark is the only signal.
  */
 const QUESTION_OPENERS =
@@ -399,7 +418,7 @@ const QUESTION_OPENERS =
 
 /** Steps whose expected answer has a recognizable shape (time, phone, email,
  * control word). Only these accept the opener heuristic above. */
-const STRUCTURED_STEPS = new Set([4, 6, 8, 9]);
+const STRUCTURED_STEPS = new Set([5, 7, 9, 10]);
 
 /**
  * Does this message satisfy the current step's expected answer shape? Only the
@@ -409,16 +428,16 @@ const STRUCTURED_STEPS = new Set([4, 6, 8, 9]);
 function matchesExpectedAnswer(step: number, msg: string): boolean {
   const m = msg.toLowerCase();
   switch (step) {
-    case 4: // wake time — a clock time or a time-of-day word
+    case 5: // wake time — a clock time or a time-of-day word
       return (
         /\b\d{1,2}(:\d{2})?\s*(a\.?m\.?|p\.?m\.?)?\b/.test(m) ||
         /\b(noon|midnight|dawn|sunrise|early|late|morning)\b/.test(m)
       );
-    case 6: // partner phone, or an explicit skip
+    case 7: // partner phone, or an explicit skip
       return extractPhone(msg) !== null || /\b(skip|none|no|nope|nah|solo|n\/a)\b/.test(m);
-    case 8: // email, or an explicit skip
+    case 9: // email, or an explicit skip
       return extractEmail(msg) !== null || /\b(skip|none|no|nope|nah|n\/a)\b/.test(m);
-    case 9: // a calendar control word
+    case 10: // a calendar control word
       return /\b(done|skip|finished|connected|linked|added|yes|yeah|yep|yup|no|nope|nah)\b/.test(m);
     default:
       return false;
@@ -455,14 +474,15 @@ function isOffScriptQuestion(step: number, raw: string): boolean {
 function repromptForStep(step: number): string {
   switch (step) {
     case 1: return NAME_QUESTION;
-    case 2: return KIDS_QUESTION;
-    case 3: return SCHOOL_REPROMPT;
-    case 4: return WAKE_QUESTION;
-    case 5: return LOCATION_QUESTION;
-    case 6: return PARTNER_QUESTION;
-    case 7: return RECURRING_QUESTION;
-    case 8: return EMAIL_QUESTION;
-    case 9: return CALENDAR_REPROMPT;
+    case 2: return LAST_NAME_QUESTION;
+    case 3: return KIDS_QUESTION;
+    case 4: return SCHOOL_REPROMPT;
+    case 5: return WAKE_QUESTION;
+    case 6: return LOCATION_QUESTION;
+    case 7: return PARTNER_QUESTION;
+    case 8: return RECURRING_QUESTION;
+    case 9: return EMAIL_QUESTION;
+    case 10: return CALENDAR_REPROMPT;
     default: return "";
   }
 }
@@ -570,6 +590,35 @@ function cleanFirstName(raw: string): string {
   s = (s.split(/[\s,.!?]+/)[0] ?? "").replace(/[^A-Za-z'-]/g, "");
   if (!s) return "there";
   return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
+/**
+ * Pull a family last name out of a freeform reply ("we're the Fords" → "Fords",
+ * "it's Smith-Jones" → "Smith-Jones"). Returns null when the texter skips or
+ * the reply carries no usable name — the briefing handles a missing surname by
+ * addressing the household by its members instead.
+ */
+function cleanLastName(raw: string): string | null {
+  const trimmed = raw.trim();
+  if (!trimmed) return null;
+  // Explicit skip / refusal — onboarding moves on, last_name stays null.
+  if (/^(skip|none|n\/?a|no\b|nope|nah|pass)/i.test(trimmed)) return null;
+  if (/(rather not|prefer not|don'?t want|no thanks)/i.test(trimmed)) return null;
+
+  const s = trimmed
+    // Strip conversational lead-ins ("it's Ford", "our last name is Ford").
+    .replace(
+      /^(hey,?\s*)?(it'?s|its|the|our (?:last ?name|surname) is|(?:last ?name|surname)(?:'?s| is)|name'?s|we'?re the|we are the|call us(?: the)?)\s+/i,
+      ""
+    )
+    // Strip a trailing collective noun ("the Ford family" → "Ford").
+    .replace(/[\s,]+(family|household|clan|crew|bunch|gang)\s*$/i, "");
+
+  // Take the last word — handles "Sarah Ford" and a bare "Ford" alike.
+  const tokens = s.split(/[\s,.!?]+/).filter(Boolean);
+  const candidate = (tokens[tokens.length - 1] ?? "").replace(/[^A-Za-z'-]/g, "");
+  if (candidate.length < 2) return null;
+  return candidate.charAt(0).toUpperCase() + candidate.slice(1);
 }
 
 /** Extract a partner phone number, or null if the reply is a skip/no. */

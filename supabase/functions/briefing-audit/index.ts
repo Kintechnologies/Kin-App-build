@@ -30,7 +30,7 @@ serve(async (req) => {
 
   const { data: profiles, error } = await supabase
     .from("profiles")
-    .select("id, family_name, phone_number, timezone, created_at, subscription_status, billing_exempt")
+    .select("id, family_name, last_name, phone_number, timezone, created_at, subscription_status, billing_exempt")
     .not("phone_number", "is", null)
     .eq("onboarding_completed", true);
 
