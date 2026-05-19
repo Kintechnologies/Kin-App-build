@@ -38,6 +38,9 @@ const EMAIL_STRICT = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
  * Phone-first rows insert with email NULL; once the texter replies the email
  * is set, so a completed signup returns null here and falls through to the
  * inbound webhook's normal handling.
+ *
+ * Opted-out rows (sms_opted_out_at set) are excluded — TCPA forbids texting
+ * a number that replied STOP, so we never send them the waitlist reply.
  */
 export async function findPendingWaitlistReply(
   supabase: AdminClient,
@@ -48,6 +51,7 @@ export async function findPendingWaitlistReply(
     .select("id, name")
     .eq("phone", phone)
     .is("email", null)
+    .is("sms_opted_out_at", null)
     .order("created_at", { ascending: false })
     .limit(1)
     .maybeSingle<PendingWaitlistRow>();
@@ -98,10 +102,11 @@ export async function handleWaitlistReply(
   const { name, email } = parseWaitlistReply(body);
 
   // No usable email — re-prompt rather than half-completing the row.
+  // Every waitlist SMS carries opt-out instructions (TCPA / A2P 10DLC).
   if (!email) {
     return twimlReply(
       "Almost there! Reply with your name and email so we can keep you posted — " +
-        "like: Jane Doe, jane@email.com"
+        "like: Jane Doe, jane@email.com. Reply STOP to opt out."
     );
   }
 
@@ -126,16 +131,16 @@ export async function handleWaitlistReply(
     Sentry.captureException(error);
     return twimlReply(
       "Got it — thanks! You're on the Kin waitlist. " +
-        "We'll text you when it's your turn. 🤙"
+        "We'll text you when it's your turn. Reply STOP to opt out."
     );
   }
 
   const firstName = name ? name.split(" ")[0] : null;
   return twimlReply(
     firstName
-      ? `Thanks ${firstName}! You're officially on the Kin waitlist. ` +
-          "We'll text you when it's your turn. 🤙"
-      : "Thanks! You're officially on the Kin waitlist. " +
-          "We'll text you when it's your turn. 🤙"
+      ? `Thanks ${firstName}! You're on the Kin waitlist. ` +
+          "We'll text you when it's your turn. Reply STOP to opt out."
+      : "Thanks! You're on the Kin waitlist. " +
+          "We'll text you when it's your turn. Reply STOP to opt out."
   );
 }

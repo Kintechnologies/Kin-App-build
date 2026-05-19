@@ -14,10 +14,17 @@ const SMS_CONSENT_TEXT =
 // The confirmation SMS sent the moment a number joins the waitlist. It asks
 // for the name + email that the inbound webhook (apps/web /api/sms/inbound)
 // parses out of the reply and writes back onto the row.
+//
+// TCPA / A2P 10DLC: as the first message to this number it must name the
+// sender (Kin), state what they signed up for (the waitlist), and carry
+// opt-out instructions. Every later waitlist SMS repeats "Reply STOP".
 const CONFIRMATION_SMS =
-  "Welcome to the Kin waitlist! We're excited to have you. " +
-  "Quick — what's your name and email so we can keep you updated? " +
-  "Just reply with your name and email.";
+  "Hey! This is Kin — thanks for joining our waitlist! 🤙 " +
+  "What's your name and email so we can keep you in the loop? " +
+  "Just reply here. Reply STOP to opt out.";
+
+// Identifies where the SMS opt-in was captured (waitlist.sms_consent_source).
+const SMS_CONSENT_SOURCE = "website_waitlist_form";
 
 // Rate limiter: 3 submissions per IP per hour.
 // Gracefully disabled when UPSTASH env vars are absent (dev/CI).
@@ -106,12 +113,15 @@ export async function POST(req: NextRequest) {
       auth: { persistSession: false },
     });
 
-    // Store the number and the consent record.
+    // Store the number and the consent record. Submitting this form — which
+    // always shows SMS_CONSENT_TEXT — IS the TCPA opt-in, so we snapshot the
+    // verbatim copy, the timestamp, and the source onto the row.
     const { error } = await supabase.from("waitlist").insert({
       phone: normalizedPhone,
       sms_consent: true,
       sms_consent_at: new Date().toISOString(),
       sms_consent_text: SMS_CONSENT_TEXT,
+      sms_consent_source: SMS_CONSENT_SOURCE,
     });
 
     if (error) {

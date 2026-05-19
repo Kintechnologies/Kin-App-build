@@ -162,6 +162,17 @@ export async function POST(request: Request) {
   // ── 2. STOP guard — Twilio handles unsubscribe at carrier level, but we
   //    honor it in-route too and return empty TwiML (no reply sent) ───────────
   if (/^(STOP|STOPALL|UNSUBSCRIBE|CANCEL|END|QUIT)$/i.test(messageBody)) {
+    // TCPA: record the opt-out on any matching waitlist signup so the
+    // phone-first marketing flow never texts that number again.
+    try {
+      await createAdminClient()
+        .from("waitlist")
+        .update({ sms_opted_out_at: new Date().toISOString() })
+        .eq("phone", fromNumber)
+        .is("sms_opted_out_at", null);
+    } catch (err) {
+      console.error("Failed to record waitlist SMS opt-out:", err);
+    }
     return twimlEmpty();
   }
 
