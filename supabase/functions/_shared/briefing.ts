@@ -9,7 +9,7 @@
 //   TWILIO_PHONE_NUMBER
 // Optional:
 //   OPENWEATHER_API_KEY — weather enrichment; absent keys degrade silently.
-//   SLACK_WEBHOOK_URL    — reliability alerts; falls back to ADMIN_PHONE SMS.
+//   SLACK_BRIEFING_WEBHOOK_URL — reliability alerts; falls back to ADMIN_PHONE SMS.
 //   ADMIN_PHONE          — Austin's number; alert fallback when Slack is unset.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.40.0";
@@ -24,7 +24,7 @@ const twilioFromNumber = Deno.env.get("TWILIO_PHONE_NUMBER")!;
 // Optional — weather enrichment is skipped entirely when this is unset.
 const openWeatherApiKey = Deno.env.get("OPENWEATHER_API_KEY");
 // Optional — reliability alerting. See notifySlack.
-const slackWebhookUrl = Deno.env.get("SLACK_WEBHOOK_URL");
+const slackWebhookUrl = Deno.env.get("SLACK_BRIEFING_WEBHOOK_URL");
 const adminPhone = Deno.env.get("ADMIN_PHONE");
 
 export const supabase = createClient(supabaseUrl, supabaseServiceRoleKey);
@@ -223,7 +223,7 @@ export async function logSms(
 
 export type Severity = "info" | "warning" | "critical";
 
-// Posts a reliability alert to SLACK_WEBHOOK_URL. If the webhook isn't
+// Posts a reliability alert to SLACK_BRIEFING_WEBHOOK_URL. If the webhook isn't
 // configured yet, falls back to texting ADMIN_PHONE so an alert is never
 // silently lost. Never throws — alerting must not be able to break a briefing.
 export async function notifySlack(

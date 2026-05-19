@@ -1,7 +1,7 @@
 /**
  * Slack alerting for briefing reliability.
  *
- * Posts to SLACK_WEBHOOK_URL. If the webhook isn't configured yet, falls back
+ * Posts to SLACK_ALERTS_WEBHOOK_URL. If the webhook isn't configured yet, falls back
  * to texting ADMIN_PHONE (Austin's number) so a reliability alert is never
  * silently lost. Never throws — alerting must not be able to break a request.
  */
@@ -18,7 +18,7 @@ export async function notifySlack(
     severity === "critical" ? "🔴" : severity === "warning" ? "🟠" : "🔵";
   const text = `${emoji} [briefing/${severity}] ${message}`;
 
-  const webhook = process.env.SLACK_WEBHOOK_URL;
+  const webhook = process.env.SLACK_ALERTS_WEBHOOK_URL;
   if (webhook) {
     try {
       const res = await fetch(webhook, {

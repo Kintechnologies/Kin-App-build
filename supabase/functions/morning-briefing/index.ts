@@ -15,7 +15,7 @@
 //   TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_MESSAGING_SERVICE_SID, TWILIO_PHONE_NUMBER
 // Optional:
 //   OPENWEATHER_API_KEY — weather enrichment; absent keys degrade silently.
-//   SLACK_WEBHOOK_URL / ADMIN_PHONE — reliability alerting (see _shared/briefing.ts).
+//   SLACK_BRIEFING_WEBHOOK_URL / ADMIN_PHONE — reliability alerting (see _shared/briefing.ts).
 
 import { serve } from "https://deno.land/std@0.208.0/http/server.ts";
 import {
