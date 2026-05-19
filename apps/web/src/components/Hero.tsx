@@ -1,9 +1,5 @@
-"use client";
-
-import { motion } from "framer-motion";
+import type { CSSProperties } from "react";
 import { WaitlistForm } from "./WaitlistForm";
-
-const ease = [0.22, 1, 0.36, 1] as const;
 
 export function Hero() {
   return (
@@ -46,10 +42,8 @@ export function Hero() {
         }}
       >
         {/* Eyebrow */}
-        <motion.div
-          initial={{ opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.55, delay: 0.05 }}
+        <div
+          className="kin-reveal"
           style={{
             display: "inline-flex",
             alignItems: "center",
@@ -60,7 +54,9 @@ export function Hero() {
             padding: "6px 14px 6px 12px",
             marginBottom: "30px",
             boxShadow: "0 1px 2px rgba(43,38,30,0.05)",
-          }}
+            animationDelay: "0.05s",
+            "--kin-reveal-y": "8px",
+          } as CSSProperties}
         >
           <span
             style={{
@@ -82,13 +78,11 @@ export function Hero() {
           >
             The Family OS · Early Access
           </span>
-        </motion.div>
+        </div>
 
         {/* Headline */}
-        <motion.h1
-          initial={{ opacity: 0, y: 16 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.7, delay: 0.15, ease }}
+        <h1
+          className="kin-reveal"
           style={{
             fontSize: "clamp(32px, 6vw, 58px)",
             fontWeight: 600,
@@ -97,20 +91,20 @@ export function Hero() {
             letterSpacing: "-1.8px",
             lineHeight: 1.1,
             marginBottom: "22px",
-          }}
+            animationDelay: "0.15s",
+            "--kin-reveal-y": "16px",
+          } as CSSProperties}
         >
           Stop keeping your
           <br />
           family schedule
           <br />
           in your head.
-        </motion.h1>
+        </h1>
 
         {/* Subheadline */}
-        <motion.p
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.65, delay: 0.3, ease }}
+        <p
+          className="kin-reveal"
           style={{
             fontSize: "18px",
             color: "var(--ink-2)",
@@ -118,38 +112,43 @@ export function Hero() {
             lineHeight: 1.6,
             maxWidth: "500px",
             marginBottom: "40px",
-          }}
+            animationDelay: "0.3s",
+            "--kin-reveal-y": "12px",
+          } as CSSProperties}
         >
           Kin is a Family OS that texts you one calm morning briefing —
           everything that matters today, before you have to figure it out
           yourself.
-        </motion.p>
+        </p>
 
         {/* Phone CTA #1 */}
-        <motion.div
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.65, delay: 0.42, ease }}
-          style={{ display: "flex", justifyContent: "center", width: "100%" }}
+        <div
+          className="kin-reveal"
+          style={{
+            display: "flex",
+            justifyContent: "center",
+            width: "100%",
+            animationDelay: "0.42s",
+            "--kin-reveal-y": "12px",
+          } as CSSProperties}
         >
           <WaitlistForm ctaText="Join the Waitlist" />
-        </motion.div>
+        </div>
 
         {/* Reassurance */}
-        <motion.p
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.6, delay: 0.6 }}
+        <p
+          className="kin-fade"
           style={{
             marginTop: "26px",
             fontSize: "13px",
             color: "var(--ink-3)",
             fontStyle: "italic",
+            animationDelay: "0.6s",
           }}
         >
           No app to download. It arrives as a text — like a note from someone
           who&apos;s got you.
-        </motion.p>
+        </p>
       </div>
     </section>
   );

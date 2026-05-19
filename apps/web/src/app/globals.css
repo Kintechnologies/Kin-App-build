@@ -136,3 +136,63 @@ body {
 /* Hide scrollbar on mobile for horizontal scrolls */
 .scrollbar-none::-webkit-scrollbar { display: none; }
 .scrollbar-none { -ms-overflow-style: none; scrollbar-width: none; }
+
+/* ─────────────────────────────────────────────────────────────────────────
+   Marketing surface — Aimé Leon Dore palette for the public landing,
+   privacy, and terms pages. Scoped under .marketing so these warm
+   oat/cream tokens never leak into the authenticated app, which runs its
+   own design system above. Public pages opt in by adding className="marketing"
+   to their root element.
+   ───────────────────────────────────────────────────────────────────────── */
+.marketing {
+  --bg:          #ECE4D2;
+  --bg-deep:     #E3D9C1;
+  --paper:       #F7F2E6;
+  --paper-2:     #EFE7D4;
+  --border:      rgba(43, 38, 30, 0.12);
+  --border-2:    rgba(43, 38, 30, 0.22);
+  --ink:         #2B261E;
+  --ink-2:       rgba(43, 38, 30, 0.62);
+  --ink-3:       rgba(43, 38, 30, 0.4);
+  --green:       #3C4A33;
+  --green-2:     #4A5B3F;
+  --green-soft:  rgba(60, 74, 51, 0.1);
+  --green-line:  rgba(60, 74, 51, 0.28);
+  --clay:        #AC6A45;
+  --ochre:       #A98230;
+  --olive:       #6E7757;
+  --dusk:        #5C6B73;
+}
+
+.marketing ::selection {
+  background: var(--green-soft);
+  color: var(--ink);
+}
+
+/* Marketing surface entrance treatment.
+
+   Content is visible at rest. .kin-reveal / .kin-fade must NEVER gate
+   visibility, because any "start at opacity 0, animate up to 1" approach —
+   CSS animation or framer-motion alike — strands content invisible whenever
+   the document is hidden: a backgrounded tab, a headless crawler, a
+   link-preview bot. The browser freezes both the rAF loop and the CSS
+   animation timeline for a hidden page, so a keyframe that begins invisible
+   stays invisible. The resting (un-animated) state is therefore the visible
+   state, and the page renders correctly with no animation runtime at all.
+
+   .kin-reveal slides up via transform only — opacity is left untouched, so
+   even a frozen timeline shows fully-opaque content (at worst a few px of
+   offset). It is gated behind prefers-reduced-motion: no-preference. */
+@keyframes kinReveal {
+  from { transform: translateY(var(--kin-reveal-y, 16px)); }
+  to   { transform: translateY(0); }
+}
+@keyframes kinTypingDot {
+  0%, 100% { opacity: 0.35; transform: translateY(0); }
+  50%      { opacity: 0.85; transform: translateY(-2px); }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .marketing .kin-reveal {
+    animation: kinReveal 0.6s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+}

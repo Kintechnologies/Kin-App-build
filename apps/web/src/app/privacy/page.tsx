@@ -1,442 +1,239 @@
-import LegalShell, {
-  LegalSection,
-  LegalSubheading,
-  LegalP,
-  LegalUL,
-  LegalLI,
-  LegalStrong,
-  LegalCallout,
-  LegalEmail,
-  T,
-} from "@/components/LegalShell";
+import { KinMark } from "@/components/KinMark";
+import Link from "next/link";
 
-const Mono = ({ children }: { children: React.ReactNode }) => (
-  <span style={{ fontFamily: T.mono, color: T.warm, fontSize: "0.92em" }}>
-    {children}
-  </span>
-);
+export const metadata = {
+  title: "Privacy Policy — Kin",
+  description: "How Kin collects, uses, and protects your data.",
+};
+
+const LAST_UPDATED = "April 1, 2026";
+const COMPANY = "Kin Technologies LLC";
+const APP = "Kin AI";
+const EMAIL = "hello@kinai.family";
+
+function Section({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <section style={{ marginBottom: "48px" }}>
+      <h2
+        style={{
+          fontSize: "19px",
+          fontWeight: 600,
+          color: "var(--ink)",
+          letterSpacing: "-0.4px",
+          marginBottom: "16px",
+          paddingBottom: "12px",
+          borderBottom: "1px solid var(--border-2)",
+        }}
+      >
+        {title}
+      </h2>
+      <div
+        style={{
+          fontSize: "15px",
+          color: "var(--ink-2)",
+          lineHeight: 1.75,
+          display: "flex",
+          flexDirection: "column",
+          gap: "12px",
+        }}
+      >
+        {children}
+      </div>
+    </section>
+  );
+}
+
+function Ul({ items }: { items: string[] }) {
+  return (
+    <ul style={{ paddingLeft: "20px", display: "flex", flexDirection: "column", gap: "6px" }}>
+      {items.map((item, i) => (
+        <li key={i} style={{ listStyleType: "disc" }}>{item}</li>
+      ))}
+    </ul>
+  );
+}
 
 export default function PrivacyPage() {
   return (
-    <LegalShell
-      eyebrow="Privacy Policy"
-      title="How Kin handles your family's data."
-      org="Kin Technologies LLC"
-      updated="May 2026"
-      intro={
-        <>
-          This Privacy Policy explains how Kin Technologies LLC (&ldquo;Kin,&rdquo;
-          &ldquo;we,&rdquo; &ldquo;our,&rdquo; or &ldquo;us&rdquo;) collects,
-          uses, stores, and protects information when you join the Kin waitlist,
-          use Kin&apos;s SMS service, or visit the kinai.family website. Kin is
-          currently available only to residents of the United States who are 18
-          or older. By joining the waitlist or using Kin, you agree to the
-          practices described here.
-        </>
-      }
-    >
-      <LegalSection n="01" title="Who we are">
-        <LegalP>
-          Kin Technologies LLC is the operator of Kin, an SMS-based AI assistant
-          that helps co-parents coordinate their family schedules. We are an
-          Ohio limited liability company and operate the service at
-          kinai.family. If you have any questions about this Privacy Policy,
-          contact us at <LegalEmail address="hello@kinai.family" />.
-        </LegalP>
-      </LegalSection>
+    <div className="marketing" style={{ backgroundColor: "var(--bg)", color: "var(--ink)", minHeight: "100vh" }}>
+      <nav
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          padding: "0 24px",
+          height: "64px",
+          borderBottom: "1px solid var(--border)",
+          background: "var(--paper)",
+        }}
+      >
+        <Link href="/" style={{ display: "flex", alignItems: "center", gap: "9px" }}>
+          <KinMark size={26} color="#3C4A33" />
+          <span style={{ fontSize: "18px", fontWeight: 600, letterSpacing: "-0.4px", color: "var(--ink)" }}>Kin</span>
+        </Link>
+        <Link href="/" style={{ fontSize: "13px", color: "var(--ink-3)" }}>← Back</Link>
+      </nav>
 
-      <LegalSection n="02" title="What information we collect">
-        <LegalSubheading>2.1 Information you provide directly</LegalSubheading>
-        <LegalP>
-          When you join the Kin waitlist or use the Kin service, we collect:
-        </LegalP>
-        <LegalUL>
-          <LegalLI>
-            <LegalStrong>Waitlist information:</LegalStrong> first and last name,
-            email address, and mobile phone number
-          </LegalLI>
-          <LegalLI>
-            <LegalStrong>SMS consent record:</LegalStrong> the date, time, and
-            IP address at which you checked the SMS consent box on the waitlist
-            form
-          </LegalLI>
-          <LegalLI>
-            <LegalStrong>Account information:</LegalStrong> if your account is
-            activated, the phone number used to identify you and one-time
-            verification codes (OTPs) sent by SMS
-          </LegalLI>
-          <LegalLI>
-            <LegalStrong>Household profile:</LegalStrong> your name, your
-            co-parent&apos;s name and phone number (if you invite them), and the
-            structure of your household
-          </LegalLI>
-          <LegalLI>
-            <LegalStrong>Children&apos;s information:</LegalStrong> first names,
-            ages, and schedule details (school, daycare, activities, custody
-            schedules) that you provide
-          </LegalLI>
-          <LegalLI>
-            <LegalStrong>Conversation content:</LegalStrong> the SMS messages
-            you send to and receive from Kin
-          </LegalLI>
-          <LegalLI>
-            <LegalStrong>Calendar data:</LegalStrong> if you connect a Google
-            Calendar, we request read-only access and only read events on the
-            calendars you authorize — Kin never writes to or modifies your
-            calendar
-          </LegalLI>
-          <LegalLI>
-            <LegalStrong>Support communications:</LegalStrong> messages you send
-            to hello@kinai.family
-          </LegalLI>
-        </LegalUL>
-
-        <LegalSubheading>2.2 Information collected automatically</LegalSubheading>
-        <LegalUL>
-          <LegalLI>
-            Log data: IP address, user agent, request timestamps, and pages
-            viewed on kinai.family
-          </LegalLI>
-          <LegalLI>
-            SMS metadata: message status, delivery timestamps, and carrier
-            information returned by our SMS provider
-          </LegalLI>
-          <LegalLI>
-            Usage data: which features you use and general interaction patterns
-          </LegalLI>
-          <LegalLI>
-            Error and performance data needed to keep the service running
-          </LegalLI>
-        </LegalUL>
-        <LegalP>
-          We do not run advertising on Kin and do not use tracking cookies for
-          advertising purposes.
-        </LegalP>
-
-        <LegalSubheading>2.3 Information we do not collect</LegalSubheading>
-        <LegalUL>
-          <LegalLI>
-            Payment card numbers, bank account credentials, or financial
-            transaction data (Kin is currently free during the waitlist phase
-            and does not process payments)
-          </LegalLI>
-          <LegalLI>Social Security numbers or government ID numbers</LegalLI>
-          <LegalLI>Biometric data</LegalLI>
-          <LegalLI>Personal information collected directly from children</LegalLI>
-          <LegalLI>Precise device location data</LegalLI>
-        </LegalUL>
-      </LegalSection>
-
-      <LegalSection n="03" title="How we use your information">
-        <LegalUL>
-          <LegalLI>
-            Send the daily 6:00 AM (local time) family schedule briefing by SMS
-          </LegalLI>
-          <LegalLI>
-            Power Kin&apos;s conversational SMS replies using the Anthropic
-            Claude API
-          </LegalLI>
-          <LegalLI>
-            Send partner invitations and one-time verification codes (OTPs) by
-            SMS
-          </LegalLI>
-          <LegalLI>
-            Read events from the Google Calendars you connect
-          </LegalLI>
-          <LegalLI>
-            Send service-related communications about your account, the
-            waitlist, or the SMS program
-          </LegalLI>
-          <LegalLI>Respond to support requests</LegalLI>
-          <LegalLI>Detect and prevent fraud, abuse, and security incidents</LegalLI>
-          <LegalLI>Comply with legal obligations</LegalLI>
-        </LegalUL>
-        <LegalP>
-          <LegalStrong>
-            We do not sell or rent your personal information. We do not use
-            your information for advertising. We do not share your phone number
-            with third parties for their own marketing, and we do not share
-            mobile opt-in information with third parties or affiliates for
-            marketing or promotional purposes.
-          </LegalStrong>
-        </LegalP>
-      </LegalSection>
-
-      <LegalSection n="04" title="SMS messaging program">
-        <LegalP>
-          Kin is an SMS-based service. By checking the SMS consent box on the
-          waitlist form at kinai.family, you expressly consent to receive
-          recurring text messages from Kin at the mobile number you provided,
-          sent using an automatic telephone dialing system or similar
-          technology. Consent is not a condition of any purchase.
-        </LegalP>
-        <LegalP>
-          <LegalStrong>Program description.</LegalStrong> The Kin SMS program
-          includes:
-        </LegalP>
-        <LegalUL>
-          <LegalLI>
-            A daily morning schedule briefing delivered around 6:00 AM in your
-            local time zone
-          </LegalLI>
-          <LegalLI>
-            Two-way conversational replies (you can text Kin questions or
-            schedule updates and Kin will respond)
-          </LegalLI>
-          <LegalLI>
-            Partner invitation messages and one-time verification codes (OTPs)
-          </LegalLI>
-          <LegalLI>Account, security, and service notifications</LegalLI>
-        </LegalUL>
-        <LegalP>
-          <LegalStrong>Message frequency:</LegalStrong> approximately 1–3
-          messages per day, varying with how actively you use the service.
-        </LegalP>
-        <LegalP>
-          <LegalStrong>Message and data rates may apply.</LegalStrong> Message
-          and data rates from your wireless carrier may apply to messages you
-          send and receive. Kin does not charge you separately for SMS
-          messages, but your carrier&apos;s standard rates and fees apply.
-        </LegalP>
-        <LegalP>
-          <LegalStrong>Opt out and help.</LegalStrong> You can opt out of the
-          SMS program at any time by replying <Mono>STOP</Mono> to any Kin
-          message. After replying STOP, you will receive one confirmation
-          message and no further marketing or briefing messages. Reply{" "}
-          <Mono>HELP</Mono> for help, or contact us at{" "}
-          <LegalEmail address="hello@kinai.family" />. To re-subscribe after
-          opting out, reply <Mono>START</Mono> or sign up again.
-        </LegalP>
-        <LegalP>
-          <LegalStrong>Carriers:</LegalStrong> supported by major U.S. carriers.
-          Carriers are not liable for delayed or undelivered messages. SMS
-          messages are delivered via our SMS provider, Twilio (see Section 7).
-        </LegalP>
-      </LegalSection>
-
-      <LegalSection n="05" title="Dual-parent privacy architecture">
-        <LegalCallout tone="sage" title="Private parent threads">
-          <ul style={{ margin: 0, paddingLeft: 18, display: "flex", flexDirection: "column", gap: 4 }}>
-            <li>
-              Each parent&apos;s SMS conversation thread with Kin is private to
-              that parent and is not visible to the other parent
-            </li>
-            <li>
-              Kin will not disclose the contents of one parent&apos;s thread to
-              the other parent, even if directly asked
-            </li>
-            <li>
-              Personal context one parent shares with Kin is not surfaced to
-              the other parent&apos;s thread without that parent&apos;s explicit
-              instruction
-            </li>
-          </ul>
-        </LegalCallout>
-
-        <LegalCallout tone="amber" title="Shared household data">
-          <ul style={{ margin: 0, paddingLeft: 18, display: "flex", flexDirection: "column", gap: 4 }}>
-            <li>The merged family calendar (events from each connected calendar)</li>
-            <li>Children&apos;s names, ages, and schedule details</li>
-            <li>The daily morning briefing each parent receives</li>
-          </ul>
-        </LegalCallout>
-      </LegalSection>
-
-      <LegalSection n="06" title="Children's privacy (COPPA)">
-        <LegalP>
-          Kin is intended for use by parents and other adult household members.
-          The service is not directed to children, and we do not knowingly
-          allow children under 13 to use Kin or collect personal information
-          directly from children under 13.
-        </LegalP>
-        <LegalP>
-          Information about your children (such as first names, ages, and
-          schedule details) is provided to us by you, the parent, in your role
-          as the account holder. You can review, update, or delete this
-          information at any time by texting Kin or emailing{" "}
-          <LegalEmail address="hello@kinai.family" />.
-        </LegalP>
-      </LegalSection>
-
-      <LegalSection n="07" title="Third-party services">
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "1fr",
-            gap: 10,
-            margin: "8px 0 4px",
-          }}
-        >
-          {[
-            {
-              name: "Anthropic (Claude API)",
-              desc: "Kin's AI replies are generated by Anthropic's Claude API. The relevant family context, calendar data, and your SMS messages are sent to Anthropic to generate responses. Anthropic does not train its models on data submitted through its API.",
-            },
-            {
-              name: "Twilio",
-              desc: "SMS messages are delivered to and from your phone by Twilio, our SMS provider. Twilio receives your phone number and message content to route messages and returns delivery metadata to us.",
-            },
-            {
-              name: "Supabase",
-              desc: "Your account information, household profile, conversation history, and operational data are stored in Supabase, our database and authentication provider, with infrastructure located in the United States. Data is encrypted at rest and in transit.",
-            },
-            {
-              name: "Google",
-              desc: "If you connect Google Calendar, we use Google's OAuth flow to obtain read-only access to the calendars you authorize. Our use of information received from Google APIs adheres to the Google API Services User Data Policy, including the Limited Use requirements.",
-            },
-            {
-              name: "Vercel",
-              desc: "The kinai.family website and Kin's server-side code are hosted on Vercel. Vercel processes request logs and basic operational telemetry on our behalf.",
-            },
-          ].map((s) => (
-            <div
-              key={s.name}
-              style={{
-                padding: "14px 16px",
-                background: T.bgCard,
-                border: `0.5px solid ${T.hair}`,
-                borderRadius: 8,
-                boxShadow: "0 1px 2px rgba(60,74,51,0.04)",
-              }}
-            >
-              <div
-                style={{
-                  fontFamily: T.mono,
-                  fontSize: 11,
-                  color: T.sage,
-                  letterSpacing: "0.06em",
-                  textTransform: "uppercase",
-                  fontWeight: 600,
-                  marginBottom: 6,
-                }}
-              >
-                {s.name}
-              </div>
-              <div style={{ color: T.warm72, fontSize: 13.5, lineHeight: 1.6 }}>
-                {s.desc}
-              </div>
-            </div>
-          ))}
+      <article style={{ maxWidth: "680px", margin: "0 auto", padding: "64px 24px 100px" }}>
+        <div style={{ marginBottom: "52px" }}>
+          <p
+            style={{
+              fontSize: "11px",
+              fontWeight: 500,
+              fontFamily: "var(--font-geist-mono), monospace",
+              letterSpacing: "1.6px",
+              textTransform: "uppercase",
+              color: "var(--ink-3)",
+              marginBottom: "18px",
+            }}
+          >
+            Legal · Last updated {LAST_UPDATED}
+          </p>
+          <h1
+            style={{
+              fontSize: "clamp(32px, 5vw, 40px)",
+              fontWeight: 600,
+              letterSpacing: "-1px",
+              lineHeight: 1.15,
+              marginBottom: "24px",
+              color: "var(--ink)",
+            }}
+          >
+            Privacy Policy
+          </h1>
+          <div
+            style={{
+              background: "var(--paper)",
+              border: "1px solid var(--border)",
+              borderLeft: "2px solid var(--green)",
+              borderRadius: "0 12px 12px 0",
+              padding: "18px 22px",
+              boxShadow: "0 1px 2px rgba(43,38,30,0.06), 0 6px 16px rgba(43,38,30,0.06)",
+            }}
+          >
+            <p style={{ fontSize: "15px", color: "var(--ink-2)", lineHeight: 1.7, fontStyle: "italic" }}>
+              {APP} is built on trust. We collect only what we need, use it to serve you, and give you full control over your data.
+            </p>
+          </div>
         </div>
-        <LegalP>
-          We may also disclose information when required by law, to enforce our
-          Terms, or to protect the rights, property, or safety of Kin, our
-          users, or others.
-        </LegalP>
-      </LegalSection>
 
-      <LegalSection n="08" title="Data retention and deletion">
-        <LegalP>
-          We retain your information for as long as you have an active account
-          or are on the waitlist, and for a reasonable period afterward to
-          comply with our legal obligations, resolve disputes, and enforce our
-          agreements. Records of SMS consent and opt-out requests are retained
-          as required by applicable law.
-        </LegalP>
-        <LegalP>
-          You may request deletion of your waitlist entry, account, or other
-          personal information at any time by emailing{" "}
-          <LegalEmail address="hello@kinai.family" /> from the address on file
-          or by replying STOP to opt out of SMS. We will honor verified
-          deletion requests within 30 days, subject to limited exceptions for
-          legal, security, or fraud-prevention purposes.
-        </LegalP>
-      </LegalSection>
+        <Section title="1. Who We Are">
+          <p>{APP} is operated by {COMPANY} (&ldquo;Kin,&rdquo; &ldquo;we,&rdquo; &ldquo;us,&rdquo; or &ldquo;our&rdquo;). This Privacy Policy explains how we collect, use, disclose, and protect information about you when you use our mobile application, website (kinai.family), and related services (collectively, the &ldquo;Service&rdquo;).</p>
+          <p>Questions? Contact us at <a href={`mailto:${EMAIL}`} style={{ color: "var(--green)", fontWeight: 500 }}>{EMAIL}</a>.</p>
+        </Section>
 
-      <LegalSection n="09" title="Data security">
-        <LegalUL>
-          <LegalLI>All data is encrypted in transit using TLS</LegalLI>
-          <LegalLI>Data stored in Supabase is encrypted at rest</LegalLI>
-          <LegalLI>
-            Authentication is handled via SMS one-time codes; we do not store
-            user passwords
-          </LegalLI>
-          <LegalLI>
-            Access to production data is limited to essential personnel
-          </LegalLI>
-          <LegalLI>
-            We perform regular reviews of our infrastructure and third-party
-            processors
-          </LegalLI>
-        </LegalUL>
-        <LegalP>
-          No system can be guaranteed perfectly secure. You are responsible for
-          keeping access to your phone, email, and connected Google account
-          secure.
-        </LegalP>
-      </LegalSection>
+        <Section title="2. Information We Collect">
+          <p><strong style={{ color: "var(--ink)" }}>Account information.</strong> When you create an account, we collect your name, email address, and any profile information you provide.</p>
+          <p><strong style={{ color: "var(--ink)" }}>Calendar data.</strong> With your explicit permission, we access your Google Calendar with read-only permission. We read your calendar to understand your schedule and build your briefings — Kin never writes to, modifies, or deletes events on your calendar. We do not access your calendar without your consent.</p>
+          <p><strong style={{ color: "var(--ink)" }}>Household data.</strong> You may optionally add information about your household including partner details, children&apos;s names, ages, and activities, and other family members. This information is used only to personalize your Kin experience.</p>
+          <p><strong style={{ color: "var(--ink)" }}>Usage data.</strong> We automatically collect information about how you use the Service, including features accessed, interactions with Kin&apos;s AI, app session data, and diagnostic information.</p>
+          <p><strong style={{ color: "var(--ink)" }}>Device information.</strong> We collect device type, operating system, and app version to provide support and improve the Service.</p>
+          <p><strong style={{ color: "var(--ink)" }}>Payment information.</strong> Subscription billing is handled entirely by RevenueCat and Apple/Google. We do not store your payment card details.</p>
+        </Section>
 
-      <LegalSection n="10" title="Your rights">
-        <LegalUL>
-          <LegalLI>
-            <LegalStrong>Access:</LegalStrong> Request a copy of the personal
-            information we hold about you
-          </LegalLI>
-          <LegalLI>
-            <LegalStrong>Correction:</LegalStrong> Ask us to correct inaccurate
-            or incomplete information
-          </LegalLI>
-          <LegalLI>
-            <LegalStrong>Deletion:</LegalStrong> Request deletion of your
-            information as described in Section 8
-          </LegalLI>
-          <LegalLI>
-            <LegalStrong>Portability:</LegalStrong> Request an export of your
-            data in a machine-readable format
-          </LegalLI>
-          <LegalLI>
-            <LegalStrong>Opt out of SMS:</LegalStrong> Reply STOP to any Kin
-            message at any time
-          </LegalLI>
-          <LegalLI>
-            <LegalStrong>Disconnect Google Calendar:</LegalStrong> Revoke
-            Kin&apos;s access at any time from your Google Account permissions
-            page
-          </LegalLI>
-        </LegalUL>
-        <LegalP>
-          Contact us at <LegalEmail address="hello@kinai.family" />. We will
-          respond within 30 days.
-        </LegalP>
-      </LegalSection>
+        <Section title="3. How We Use Your Information">
+          <p>We use the information we collect to:</p>
+          <Ul items={[
+            "Provide, operate, and improve the Kin AI service",
+            "Generate personalized family schedule briefings and reminders",
+            "Detect scheduling conflicts and notify you proactively",
+            "Sync and manage your calendar events with your permission",
+            "Process your subscription and manage billing",
+            "Send important service communications",
+            "Respond to support requests",
+            "Detect and prevent fraud, abuse, and security issues",
+            "Comply with legal obligations",
+          ]} />
+          <p>We do not sell your personal information to third parties. We do not use your calendar data for advertising purposes.</p>
+        </Section>
 
-      <LegalSection n="11" title="California privacy rights (CCPA/CPRA)">
-        <LegalP>
-          If you are a California resident, you have additional rights under
-          the California Consumer Privacy Act, as amended by the California
-          Privacy Rights Act: the right to know what personal information we
-          collect, use, and disclose; the right to correct inaccurate personal
-          information; the right to delete your personal information; the right
-          to opt out of the sale or sharing of personal information; the right
-          to limit the use of sensitive personal information; and the right not
-          to be discriminated against for exercising these rights.
-        </LegalP>
-        <LegalP>
-          We do not sell or share personal information for cross-context
-          behavioral advertising as those terms are defined under the
-          CCPA/CPRA. To exercise your rights, contact{" "}
-          <LegalEmail address="hello@kinai.family" />. We will verify your
-          request using the email address or phone number on file.
-        </LegalP>
-      </LegalSection>
+        <Section title="4. AI Processing">
+          <p>{APP} uses artificial intelligence to analyze your calendar, generate briefings, and provide scheduling insights. This processing is performed using Anthropic&apos;s Claude AI platform. Your calendar data and household context may be sent to Anthropic to generate AI responses on your behalf.</p>
+          <p>Anthropic processes data under data processing agreements that restrict the use of your data for model training. For Anthropic&apos;s privacy practices, see <a href="https://www.anthropic.com/privacy" target="_blank" rel="noopener noreferrer" style={{ color: "var(--green)", fontWeight: 500 }}>anthropic.com/privacy</a>.</p>
+          <p>We minimize the data sent to AI systems — only the information necessary to answer your query or generate your briefing is transmitted.</p>
+        </Section>
 
-      <LegalSection n="12" title="Changes to this policy">
-        <LegalP>
-          We may update this Privacy Policy from time to time. If we make
-          material changes, we will notify you by email or SMS, and update the
-          &ldquo;Last updated&rdquo; date above. Your continued use of Kin
-          after the effective date constitutes acceptance of the updated
-          policy.
-        </LegalP>
-      </LegalSection>
+        <Section title="5. Data Sharing and Third Parties">
+          <p>We share your data with the following service providers:</p>
+          <Ul items={[
+            "Supabase — database and authentication infrastructure. Data stored in the United States.",
+            "Google — calendar access via Google OAuth. Subject to Google's Privacy Policy.",
+            "Anthropic — AI inference for generating schedule briefings and insights.",
+            "RevenueCat — subscription management and billing. No payment card data is shared with us.",
+            "Sentry — error tracking and crash reporting. Anonymized diagnostic data only.",
+          ]} />
+          <p>We may also disclose your information if required by law, to protect the safety of our users, or in connection with a merger or acquisition (in which case you will be notified).</p>
+        </Section>
 
-      <LegalSection n="13" title="Contact us">
-        <LegalP>Kin Technologies LLC</LegalP>
-        <LegalP>
-          Email: <LegalEmail address="hello@kinai.family" />
-        </LegalP>
-        <LegalP>Website: kinai.family</LegalP>
-      </LegalSection>
-    </LegalShell>
+        <Section title="6. Google Calendar Access">
+          <p>Kin requests access to your Google Calendar using OAuth 2.0. We request read and write access to view your schedule and add events on your behalf.</p>
+          <p><strong style={{ color: "var(--ink)" }}>Scope of use:</strong> We access only the calendars you authorize during setup. We do not share your calendar data with other users except your connected household partner(s).</p>
+          <p>You can revoke Kin&apos;s access to your Google Calendar at any time from your Google Account settings at <a href="https://myaccount.google.com/permissions" target="_blank" rel="noopener noreferrer" style={{ color: "var(--green)", fontWeight: 500 }}>myaccount.google.com/permissions</a>.</p>
+          <p>Kin&apos;s use of Google user data complies with the <a href="https://developers.google.com/terms/api-services-user-data-policy" target="_blank" rel="noopener noreferrer" style={{ color: "var(--green)", fontWeight: 500 }}>Google API Services User Data Policy</a>, including the Limited Use requirements.</p>
+        </Section>
+
+        <Section title="7. Data Retention">
+          <p>We retain your account and calendar data for as long as your account is active. If you delete your account, we will delete your personal data within 30 days, except where retention is required by law.</p>
+          <p>AI interaction logs may be retained in anonymized or aggregated form for up to 12 months to improve our service.</p>
+        </Section>
+
+        <Section title="8. Your Rights and Controls">
+          <p><strong style={{ color: "var(--ink)" }}>Access and correction.</strong> You can view and update your account information within the Kin app at any time.</p>
+          <p><strong style={{ color: "var(--ink)" }}>Deletion.</strong> You can delete your account from Settings → Account → Delete Account. This will permanently remove your profile, household data, and calendar access.</p>
+          <p><strong style={{ color: "var(--ink)" }}>Data export.</strong> You may request a copy of your data by contacting us at <a href={`mailto:${EMAIL}`} style={{ color: "var(--green)", fontWeight: 500 }}>{EMAIL}</a>. We will provide your data in a machine-readable format within 30 days.</p>
+          <p><strong style={{ color: "var(--ink)" }}>Calendar access.</strong> You can revoke Google Calendar access without deleting your account. Some features will be unavailable without calendar access.</p>
+        </Section>
+
+        <Section title="9. GDPR Rights (EEA and UK Users)">
+          <p>If you are in the European Economic Area or United Kingdom, you have additional rights under GDPR:</p>
+          <Ul items={[
+            "Right to access — obtain a copy of your personal data",
+            "Right to rectification — correct inaccurate or incomplete data",
+            "Right to erasure — request deletion ('right to be forgotten')",
+            "Right to restriction — limit how we process your data",
+            "Right to portability — receive your data in a machine-readable format",
+            "Right to object — object to processing based on legitimate interests",
+          ]} />
+          <p>Our legal basis for processing: (a) contract performance — to provide the service; (b) legitimate interests — to improve and secure the service; (c) consent — for Google Calendar access. To exercise rights, contact <a href={`mailto:${EMAIL}`} style={{ color: "var(--green)", fontWeight: 500 }}>{EMAIL}</a>.</p>
+        </Section>
+
+        <Section title="10. CCPA Rights (California Residents)">
+          <p>California residents have rights under the CCPA, as amended by the CPRA:</p>
+          <Ul items={[
+            "Right to know what personal information we collect, use, disclose, and sell",
+            "Right to delete your personal information",
+            "Right to opt-out of sale or sharing of personal information",
+            "Right to correct inaccurate personal information",
+            "Right to non-discrimination for exercising your rights",
+          ]} />
+          <p>We do not sell or share personal information as defined by the CCPA. To submit a request, contact <a href={`mailto:${EMAIL}`} style={{ color: "var(--green)", fontWeight: 500 }}>{EMAIL}</a>.</p>
+        </Section>
+
+        <Section title="11. Children's Privacy">
+          <p>Kin is designed for use by adults managing family schedules. The Service is not directed to children under 13. We do not knowingly collect personal information from children under 13.</p>
+          <p>Parents may enter information about their children (such as names and activities) as part of managing household schedules. This data is managed by the adult account holder.</p>
+        </Section>
+
+        <Section title="12. Security">
+          <p>We implement encryption in transit (TLS), encryption at rest, access controls, and security monitoring to protect your data. We use Sentry for error tracking to identify and respond to issues promptly.</p>
+          <p>If you discover a security vulnerability, contact <a href={`mailto:${EMAIL}`} style={{ color: "var(--green)", fontWeight: 500 }}>{EMAIL}</a>.</p>
+        </Section>
+
+        <Section title="13. Changes to This Policy">
+          <p>We may update this Privacy Policy from time to time. We will notify you of material changes by posting the updated policy in the app and, where required by law, by email.</p>
+          <p>This policy was last updated on {LAST_UPDATED}.</p>
+        </Section>
+
+        <Section title="14. Contact">
+          <p><strong style={{ color: "var(--ink)" }}>{COMPANY}</strong><br /><a href={`mailto:${EMAIL}`} style={{ color: "var(--green)", fontWeight: 500 }}>{EMAIL}</a></p>
+        </Section>
+      </article>
+
+      <footer style={{ borderTop: "1px solid var(--border)", background: "var(--bg-deep)", padding: "28px 24px", textAlign: "center" }}>
+        <p style={{ fontSize: "12px", color: "var(--ink-3)" }}>
+          © 2026 {COMPANY} · <Link href="/terms" style={{ color: "var(--green)", fontWeight: 500 }}>Terms</Link> · <a href={`mailto:${EMAIL}`} style={{ color: "var(--green)", fontWeight: 500 }}>{EMAIL}</a>
+        </p>
+      </footer>
+    </div>
   );
 }

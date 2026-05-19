@@ -7,13 +7,6 @@
       "runtimeArgs": ["run", "dev:web"],
       "port": 3000,
       "autoPort": true
-    },
-    {
-      "name": "kin-marketing",
-      "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "dev:marketing"],
-      "port": 3002,
-      "autoPort": true
     }
   ]
 }

@@ -1,7 +1,4 @@
-"use client";
-
-import { motion, useInView } from "framer-motion";
-import { useRef } from "react";
+import type { CSSProperties } from "react";
 
 const words = [
   "pickup",
@@ -12,12 +9,7 @@ const words = [
   "and everything in between",
 ];
 
-const ease = [0.22, 1, 0.36, 1] as const;
-
 export function Relatability() {
-  const ref = useRef<HTMLDivElement>(null);
-  const isInView = useInView(ref, { once: true, margin: "-100px" });
-
   return (
     <section
       style={{
@@ -27,11 +19,8 @@ export function Relatability() {
         textAlign: "center",
       }}
     >
-      <motion.h2
-        initial={{ opacity: 0, y: 18 }}
-        whileInView={{ opacity: 1, y: 0 }}
-        viewport={{ once: true, margin: "-80px" }}
-        transition={{ duration: 0.7, ease }}
+      <h2
+        className="kin-reveal"
         style={{
           fontSize: "clamp(28px, 4.6vw, 42px)",
           fontWeight: 600,
@@ -39,13 +28,13 @@ export function Relatability() {
           letterSpacing: "-1px",
           lineHeight: 1.14,
           marginBottom: "40px",
-        }}
+          "--kin-reveal-y": "18px",
+        } as CSSProperties}
       >
         You&apos;re keeping track of everything.
-      </motion.h2>
+      </h2>
 
       <div
-        ref={ref}
         style={{
           display: "flex",
           flexDirection: "column",
@@ -54,11 +43,9 @@ export function Relatability() {
         }}
       >
         {words.map((word, i) => (
-          <motion.div
+          <div
             key={word}
-            initial={{ opacity: 0, y: 8 }}
-            animate={isInView ? { opacity: 1, y: 0 } : {}}
-            transition={{ duration: 0.55, delay: i * 0.11, ease }}
+            className="kin-reveal"
             style={{
               fontSize:
                 i < 3
@@ -69,41 +56,40 @@ export function Relatability() {
               fontWeight: i < 3 ? 500 : 400,
               color: i < 3 ? "var(--ink)" : i < 5 ? "var(--ink-2)" : "var(--ink-3)",
               letterSpacing: i < 3 ? "-0.5px" : "-0.2px",
-            }}
+              animationDelay: `${i * 0.11}s`,
+              "--kin-reveal-y": "8px",
+            } as CSSProperties}
           >
             {word}
-          </motion.div>
+          </div>
         ))}
       </div>
 
-      <motion.p
-        initial={{ opacity: 0 }}
-        whileInView={{ opacity: 1 }}
-        viewport={{ once: true }}
-        transition={{ duration: 0.8, delay: 0.5 }}
+      <p
+        className="kin-fade"
         style={{
           fontSize: "17px",
           fontStyle: "italic",
           color: "var(--ink-2)",
           marginBottom: "30px",
           letterSpacing: "-0.2px",
+          animationDelay: "0.5s",
         }}
       >
         And somehow… it still falls through sometimes.
-      </motion.p>
+      </p>
 
-      <motion.div
-        initial={{ opacity: 0, y: 12 }}
-        whileInView={{ opacity: 1, y: 0 }}
-        viewport={{ once: true }}
-        transition={{ duration: 0.7, delay: 0.65, ease }}
+      <div
+        className="kin-reveal"
         style={{
           display: "inline-block",
           background: "var(--green-soft)",
           border: "1px solid var(--green-line)",
           borderRadius: "100px",
           padding: "11px 24px",
-        }}
+          animationDelay: "0.65s",
+          "--kin-reveal-y": "12px",
+        } as CSSProperties}
       >
         <span
           style={{
@@ -115,7 +101,7 @@ export function Relatability() {
         >
           Kin takes that off your plate.
         </span>
-      </motion.div>
+      </div>
     </section>
   );
 }

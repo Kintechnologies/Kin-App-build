@@ -1,12 +1,11 @@
 "use client";
 
-import { motion, AnimatePresence, useInView } from "framer-motion";
+import type { CSSProperties } from "react";
+import { useInView } from "framer-motion";
 import { useEffect, useRef, useState } from "react";
 import { KinMark } from "./KinMark";
 import { Reveal } from "./Reveal";
 import { WaitlistForm } from "./WaitlistForm";
-
-const ease = [0.22, 1, 0.36, 1] as const;
 
 // A realistic Kin morning briefing, split into the sections that arrive
 // one after another — the way a real text lands on your phone.
@@ -30,16 +29,15 @@ function TypingDots() {
       }}
     >
       {[0, 1, 2].map((i) => (
-        <motion.span
+        <span
           key={i}
-          animate={{ opacity: [0.3, 0.85, 0.3], y: [0, -2, 0] }}
-          transition={{ duration: 1, repeat: Infinity, delay: i * 0.18 }}
           style={{
             width: "7px",
             height: "7px",
             borderRadius: "50%",
             background: "#9A9488",
             display: "block",
+            animation: `kinTypingDot 1s ease-in-out ${i * 0.18}s infinite`,
           }}
         />
       ))}
@@ -132,12 +130,9 @@ export function BriefingDemo() {
       </Reveal>
 
       {/* Phone */}
-      <motion.div
+      <div
         ref={phoneRef}
-        initial={{ opacity: 0, y: 36 }}
-        whileInView={{ opacity: 1, y: 0 }}
-        viewport={{ once: true, margin: "-90px" }}
-        transition={{ duration: 0.8, ease }}
+        className="kin-reveal"
         style={{
           width: "340px",
           maxWidth: "100%",
@@ -146,7 +141,8 @@ export function BriefingDemo() {
           padding: "12px",
           boxShadow:
             "0 2px 6px rgba(43,38,30,0.12), 0 30px 70px rgba(43,38,30,0.28)",
-        }}
+          "--kin-reveal-y": "36px",
+        } as CSSProperties}
       >
         <div
           style={{
@@ -272,11 +268,9 @@ export function BriefingDemo() {
             </span>
 
             {briefing.slice(0, visibleCount).map((text, i) => (
-              <motion.div
+              <div
                 key={i}
-                initial={{ opacity: 0, y: 10, scale: 0.96 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                transition={{ duration: 0.4, ease }}
+                className="kin-reveal"
                 style={{
                   alignSelf: "flex-start",
                   maxWidth: "82%",
@@ -286,39 +280,33 @@ export function BriefingDemo() {
                   padding: "9px 14px",
                   fontSize: "13.5px",
                   lineHeight: 1.5,
-                }}
+                  animationDuration: "0.4s",
+                  "--kin-reveal-y": "10px",
+                } as CSSProperties}
               >
                 {text}
-              </motion.div>
+              </div>
             ))}
 
-            <AnimatePresence>
-              {typing && (
-                <motion.div
-                  initial={{ opacity: 0, y: 6 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0 }}
-                  transition={{ duration: 0.25 }}
-                >
-                  <TypingDots />
-                </motion.div>
-              )}
-            </AnimatePresence>
+            {typing && (
+              <div className="kin-fade">
+                <TypingDots />
+              </div>
+            )}
 
             {visibleCount === briefing.length && !typing && (
-              <motion.span
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: 0.3 }}
+              <span
+                className="kin-fade"
                 style={{
                   alignSelf: "flex-end",
                   fontSize: "10px",
                   color: "#9A9488",
                   paddingRight: "4px",
+                  animationDelay: "0.3s",
                 }}
               >
                 Delivered
-              </motion.span>
+              </span>
             )}
           </div>
 
@@ -355,7 +343,7 @@ export function BriefingDemo() {
             />
           </div>
         </div>
-      </motion.div>
+      </div>
 
       {/* Phone CTA #2 */}
       <Reveal delay={0.1}>

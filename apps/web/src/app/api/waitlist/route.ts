@@ -1,170 +1,150 @@
-import { NextResponse } from "next/server";
-import { createAdminClient } from "@/lib/supabase/admin";
-import { logActivity } from "@/lib/activity-log";
 import * as Sentry from "@sentry/nextjs";
+import { createClient } from "@supabase/supabase-js";
+import { NextRequest, NextResponse } from "next/server";
+import { Ratelimit } from "@upstash/ratelimit";
+import { Redis } from "@upstash/redis";
+import { sendSms } from "@/lib/twilio";
 
-/**
- * POST /api/waitlist
- * Public endpoint — no auth required.
- * Stores a row in the `waitlist` table.
- *
- * Body: {
- *   email:           string;       // required
- *   phone?:          string;       // optional — if present, normalized to E.164
- *   smsConsent?:     boolean;      // optional — opt-in to SMS coordination
- *   smsConsentText?: string;       // exact opt-in copy shown to the user
- *   firstName?:      string;       // optional (collected by expanded form)
- *   lastName?:       string;       // optional
- *   situation?:      'co-parent' | 'dual-parent' | 'caregiver' | 'other';
- *   source?:         string;       // defaults to 'landing_page'
- * }
- *
- * Note on Twilio A2P/10DLC: SMS consent must NOT be a required condition
- * for joining the waitlist (carrier rule 30923). Phone + consent are
- * stored when provided but the submission succeeds without them.
- *
- * Responses:
- *   201 { success: true }                       — newly added
- *   200 { success: true, existing: true }       — email already on the list
- *   400 { error: string }                       — invalid input
- *   503 { error: string }                       — service unavailable (env missing)
- *   500 { error: string }                       — unexpected error
- *
- * ──────────────────────────────────────────────────────────────────────────
- * How to see who has signed up
- * ──────────────────────────────────────────────────────────────────────────
- * REST (service role key — never expose to browser):
- *
- *   curl -H "apikey: $SUPABASE_SERVICE_ROLE_KEY" \
- *        -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" \
- *        "$NEXT_PUBLIC_SUPABASE_URL/rest/v1/waitlist?select=*&order=created_at.desc"
- *
- * Supabase Studio (https://supabase.com/dashboard/project/coxqdpcffmsncvisfyvj):
- *
- *   SELECT email, phone, first_name, last_name, situation, sms_consent, created_at
- *   FROM waitlist
- *   ORDER BY created_at DESC;
- */
+// The exact opt-in copy shown beneath every waitlist form. Snapshotted
+// onto each row (sms_consent_text) so we can replay it verbatim during a
+// carrier A2P/10DLC audit. Must stay in sync with <WaitlistForm>.
+const SMS_CONSENT_TEXT =
+  "By submitting, you agree to receive SMS messages from Kin. Msg & data rates may apply.";
 
-const VALID_SITUATIONS = ["co-parent", "dual-parent", "caregiver", "other"] as const;
-type Situation = (typeof VALID_SITUATIONS)[number];
+// The confirmation SMS sent the moment a number joins the waitlist. It asks
+// for the name + email that the inbound webhook (apps/web /api/sms/inbound)
+// parses out of the reply and writes back onto the row.
+//
+// TCPA / A2P 10DLC: as the first message to this number it must name the
+// sender (Kin), state what they signed up for (the waitlist), and carry
+// opt-out instructions. Every later waitlist SMS repeats "Reply STOP".
+const CONFIRMATION_SMS =
+  "Hey! This is Kin — thanks for joining our waitlist! 🤙 " +
+  "What's your name and email so we can keep you in the loop? " +
+  "Just reply here. Reply STOP to opt out.";
 
-function clean(value: unknown, max: number): string | null {
-  if (typeof value !== "string") return null;
-  const trimmed = value.trim();
-  if (!trimmed) return null;
-  return trimmed.slice(0, max);
+// Identifies where the SMS opt-in was captured (waitlist.sms_consent_source).
+const SMS_CONSENT_SOURCE = "website_waitlist_form";
+
+// Rate limiter: 3 submissions per IP per hour.
+// Gracefully disabled when UPSTASH env vars are absent (dev/CI).
+let ratelimit: Ratelimit | null = null;
+function getRatelimit(): Ratelimit | null {
+  if (ratelimit) return ratelimit;
+  const url = process.env.UPSTASH_REDIS_REST_URL;
+  const token = process.env.UPSTASH_REDIS_REST_TOKEN;
+  if (!url || !token) return null;
+  ratelimit = new Ratelimit({
+    redis: new Redis({ url, token }),
+    limiter: Ratelimit.slidingWindow(3, "1 h"),
+    prefix: "rl:waitlist",
+  });
+  return ratelimit;
 }
 
-// Normalize a user-entered phone number into something close to E.164.
-// Strips formatting, keeps a leading "+" if the user typed one, and
-// assumes US (+1) when no country code is present so we have a complete
-// number for downstream A2P sending. Returns null if the digit count
-// doesn't fit a plausible international range.
+// Normalize a user-typed phone number to E.164. Assumes a US/Canada
+// number when no country code is present — the form's audience is
+// North American. Returns null if the input can't be made valid.
 function normalizePhone(raw: string): string | null {
   const trimmed = raw.trim();
-  if (!trimmed) return null;
   const hasPlus = trimmed.startsWith("+");
-  const digits = trimmed.replace(/[^\d]/g, "");
-  if (digits.length < 10 || digits.length > 15) return null;
-  if (hasPlus) return `+${digits}`;
-  if (digits.length === 10) return `+1${digits}`;
-  if (digits.length === 11 && digits.startsWith("1")) return `+${digits}`;
-  return `+${digits}`;
+  const digits = trimmed.replace(/\D/g, "");
+
+  let e164: string;
+  if (hasPlus) {
+    e164 = "+" + digits;
+  } else if (digits.length === 10) {
+    e164 = "+1" + digits;
+  } else if (digits.length === 11 && digits.startsWith("1")) {
+    e164 = "+" + digits;
+  } else {
+    e164 = "+" + digits;
+  }
+
+  return /^\+[1-9]\d{7,14}$/.test(e164) ? e164 : null;
 }
 
-export async function POST(request: Request) {
+export async function POST(req: NextRequest) {
   try {
-    const body = (await request.json()) as {
-      email?: string;
-      phone?: string;
-      smsConsent?: boolean;
-      smsConsentText?: string;
-      firstName?: string;
-      lastName?: string;
-      situation?: string;
-      source?: string;
-    };
+    // Rate limit by IP — public endpoint, no user auth.
+    const ip =
+      req.headers.get("x-forwarded-for")?.split(",")[0].trim() ?? "unknown";
+    const limiter = getRatelimit();
+    if (limiter) {
+      const { success, reset } = await limiter.limit(ip);
+      if (!success) {
+        const retryAfter = Math.ceil((reset - Date.now()) / 1000);
+        return NextResponse.json(
+          { error: "Too many requests. Please try again later." },
+          {
+            status: 429,
+            headers: { "Retry-After": String(Math.max(retryAfter, 1)) },
+          }
+        );
+      }
+    }
 
-    const email = body.email?.trim().toLowerCase();
-    const source = body.source?.trim() || "landing_page";
-    const firstName = clean(body.firstName, 100);
-    const lastName = clean(body.lastName, 100);
-    const phone = body.phone ? normalizePhone(body.phone) : null;
-    const smsConsent = body.smsConsent === true;
-    const smsConsentText = clean(body.smsConsentText, 1000);
-    const situationRaw = body.situation?.trim().toLowerCase();
-    const situation: Situation | null =
-      situationRaw && (VALID_SITUATIONS as readonly string[]).includes(situationRaw)
-        ? (situationRaw as Situation)
-        : null;
+    const { phone } = await req.json();
 
-    if (!email) {
-      return NextResponse.json({ error: "Email is required" }, { status: 400 });
-    }
-    if (!email.includes("@") || !email.includes(".")) {
+    if (!phone || typeof phone !== "string") {
       return NextResponse.json(
-        { error: "Please enter a valid email address" },
-        { status: 400 }
-      );
-    }
-    if (body.phone && body.phone.trim() && !phone) {
-      return NextResponse.json(
-        { error: "Please enter a valid mobile phone number, or leave it blank" },
-        { status: 400 }
-      );
-    }
-    if (situationRaw && !situation) {
-      return NextResponse.json(
-        { error: "Please pick one of the listed situations" },
+        { error: "Phone number is required" },
         { status: 400 }
       );
     }
 
-    let supabase;
-    try {
-      supabase = createAdminClient();
-    } catch {
+    const normalizedPhone = normalizePhone(phone);
+    if (!normalizedPhone) {
       return NextResponse.json(
-        { error: "Service temporarily unavailable" },
-        { status: 503 }
+        { error: "Please enter a valid phone number" },
+        { status: 400 }
       );
     }
 
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+    if (!supabaseUrl || !supabaseKey) {
+      Sentry.captureMessage("Supabase env vars not configured in marketing app");
+      return NextResponse.json({ error: "Service unavailable" }, { status: 503 });
+    }
+
+    const supabase = createClient(supabaseUrl, supabaseKey, {
+      auth: { persistSession: false },
+    });
+
+    // Store the number and the consent record. Submitting this form — which
+    // always shows SMS_CONSENT_TEXT — IS the TCPA opt-in, so we snapshot the
+    // verbatim copy, the timestamp, and the source onto the row.
     const { error } = await supabase.from("waitlist").insert({
-      email,
-      phone,
-      source,
-      first_name: firstName,
-      last_name: lastName,
-      situation,
-      sms_consent: smsConsent,
-      sms_consent_at: smsConsent ? new Date().toISOString() : null,
-      sms_consent_text: smsConsent ? smsConsentText : null,
+      phone: normalizedPhone,
+      sms_consent: true,
+      sms_consent_at: new Date().toISOString(),
+      sms_consent_text: SMS_CONSENT_TEXT,
+      sms_consent_source: SMS_CONSENT_SOURCE,
     });
 
     if (error) {
+      // Duplicate phone — treat as success. Don't re-send the confirmation.
       if (error.code === "23505") {
-        await logActivity({
-          eventType: "waitlist_existing",
-          email,
-          metadata: { source },
-        });
-        return NextResponse.json({ success: true, existing: true }, { status: 200 });
+        return NextResponse.json({ success: true, message: "Already on the list" });
       }
       Sentry.captureException(error);
-      return NextResponse.json({ error: "Could not save your email" }, { status: 500 });
+      return NextResponse.json({ error: "Failed to join waitlist" }, { status: 500 });
     }
 
-    await logActivity({
-      eventType: "waitlist_join",
-      email,
-      metadata: { source },
-    });
+    // Text the confirmation that asks for their name + email. A delivery
+    // failure must not fail the signup — the number is already saved — so we
+    // log it and still return success.
+    try {
+      await sendSms(normalizedPhone, CONFIRMATION_SMS);
+    } catch (smsErr) {
+      Sentry.captureException(smsErr);
+    }
 
-    return NextResponse.json({ success: true }, { status: 201 });
+    return NextResponse.json({ success: true });
   } catch (err) {
     Sentry.captureException(err);
-    return NextResponse.json({ error: "Unexpected error" }, { status: 500 });
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { motion } from "framer-motion";
+import type { CSSProperties } from "react";
 import { useState } from "react";
 import { Reveal } from "./Reveal";
 
@@ -14,8 +14,6 @@ const features = [
   "Household memory — learns your routines and gets sharper over time",
   "Ask Kin anything — AI chat with full family context",
 ];
-
-const ease = [0.22, 1, 0.36, 1] as const;
 
 export function Pricing() {
   const [period, setPeriod] = useState<"monthly" | "annual">("monthly");
@@ -139,11 +137,8 @@ export function Pricing() {
       </Reveal>
 
       {/* Pricing card */}
-      <motion.div
-        initial={{ opacity: 0, y: 26 }}
-        whileInView={{ opacity: 1, y: 0 }}
-        viewport={{ once: true, margin: "-60px" }}
-        transition={{ duration: 0.7, delay: 0.1, ease }}
+      <div
+        className="kin-reveal"
         style={{
           background: "var(--paper)",
           border: "1px solid var(--green-line)",
@@ -151,8 +146,11 @@ export function Pricing() {
           padding: "34px",
           position: "relative",
           overflow: "hidden",
-          boxShadow: "0 2px 4px rgba(43,38,30,0.05), 0 18px 44px rgba(43,38,30,0.1)",
-        }}
+          boxShadow:
+            "0 2px 4px rgba(43,38,30,0.05), 0 18px 44px rgba(43,38,30,0.1)",
+          animationDelay: "0.1s",
+          "--kin-reveal-y": "26px",
+        } as CSSProperties}
       >
         <div
           style={{
@@ -197,11 +195,9 @@ export function Pricing() {
         </h3>
 
         <div style={{ marginTop: "20px", marginBottom: "4px" }}>
-          <motion.div
+          <div
             key={`price-${period}`}
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.3 }}
+            className="kin-fade"
             style={{ display: "flex", alignItems: "flex-end", gap: "5px" }}
           >
             <span
@@ -225,7 +221,7 @@ export function Pricing() {
             >
               {period === "monthly" ? "/mo" : "/yr"}
             </span>
-          </motion.div>
+          </div>
         </div>
 
         <div
@@ -252,12 +248,9 @@ export function Pricing() {
           }}
         >
           {features.map((feature, i) => (
-            <motion.li
+            <li
               key={feature}
-              initial={{ opacity: 0, x: -8 }}
-              whileInView={{ opacity: 1, x: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.4, delay: 0.2 + i * 0.05 }}
+              className="kin-reveal"
               style={{
                 display: "flex",
                 alignItems: "flex-start",
@@ -265,7 +258,9 @@ export function Pricing() {
                 fontSize: "13.5px",
                 color: "var(--ink-2)",
                 lineHeight: 1.45,
-              }}
+                animationDelay: `${0.2 + i * 0.05}s`,
+                "--kin-reveal-y": "8px",
+              } as CSSProperties}
             >
               <div
                 style={{
@@ -291,7 +286,7 @@ export function Pricing() {
                 </svg>
               </div>
               <span>{feature}</span>
-            </motion.li>
+            </li>
           ))}
         </ul>
 
@@ -350,7 +345,7 @@ export function Pricing() {
           />
           Early access price — locked in forever
         </div>
-      </motion.div>
+      </div>
     </section>
   );
 }

@@ -2,6 +2,9 @@ import { type NextRequest, NextResponse } from "next/server";
 import { updateSession } from "@/lib/supabase/middleware";
 import { createServerClient } from "@supabase/ssr";
 
+// Only these routes require auth. Everything else — including the public
+// marketing surface ("/", /privacy, /terms) and the /api/waitlist signup
+// endpoint — is reachable without a session.
 const protectedRoutes = ["/dashboard", "/onboarding"];
 const authRoutes = ["/signin", "/signup"];
 
