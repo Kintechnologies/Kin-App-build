@@ -93,12 +93,34 @@ export async function saveOnboardingData(
       };
     }
 
+    // Idempotency guard: saveOnboardingData can run more than once for the
+    // same profile — a retried save after a transient failure — and
+    // family_members carries no unique constraint, so a naive insert silently
+    // duplicates every child. Pull the children already on file and skip any
+    // incoming child whose name is already present (case-insensitive).
+    const { data: existingChildren } = await supabase
+      .from("family_members")
+      .select("name")
+      .eq("profile_id", profileId)
+      .eq("member_type", "child");
+
+    const seenChildNames = new Set(
+      (existingChildren ?? []).map((m: { name: string }) =>
+        m.name.trim().toLowerCase()
+      )
+    );
+
     // 4 & 5. Insert family_members for each child and their allergies
     for (const child of data.children) {
+      const childKey = child.name.trim().toLowerCase();
+      if (seenChildNames.has(childKey)) continue;
+      seenChildNames.add(childKey);
+
       const { data: childData, error: childError } = await supabase
         .from("family_members")
         .insert({
           profile_id: profileId,
+          household_id: profileId,
           name: child.name,
           age: child.age ? parseInt(child.age, 10) : null,
           member_type: "child",
@@ -140,6 +162,7 @@ export async function saveOnboardingData(
         .from("family_members")
         .insert({
           profile_id: profileId,
+          household_id: profileId,
           name: pet.name,
           member_type: "pet",
         })

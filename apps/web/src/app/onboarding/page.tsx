@@ -76,14 +76,43 @@ export default function OnboardingPage() {
       .eq("id", user.id);
 
     if (members.length > 0) {
-      await supabase.from("family_members").insert(
-        members.map((m) => ({
-          profile_id: user.id,
-          name: m.name,
-          age: m.age,
-          member_type: m.type,
-        }))
+      // Idempotency guard: handleSubmit can run more than once for the same
+      // profile — a double-tapped finish button or a retried submit — and
+      // family_members carries no unique constraint, so a naive insert
+      // silently duplicates every member. Skip any member already on file for
+      // this profile (case-insensitive, keyed by member_type + name).
+      const { data: existing } = await supabase
+        .from("family_members")
+        .select("name, member_type")
+        .eq("profile_id", user.id);
+
+      const seen = new Set(
+        (existing ?? []).map(
+          (m: { name: string; member_type: string }) =>
+            `${m.member_type}:${m.name.trim().toLowerCase()}`
+        )
       );
+      const fresh = members.filter((m) => {
+        const key = `${m.type}:${m.name.trim().toLowerCase()}`;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+
+      if (fresh.length > 0) {
+        // household_id, not just profile_id: the morning briefing and household
+        // memory layer scope family_members by household. This onboarding user
+        // is the primary parent, so the household id is their own profile id.
+        await supabase.from("family_members").insert(
+          fresh.map((m) => ({
+            profile_id: user.id,
+            household_id: user.id,
+            name: m.name,
+            age: m.age,
+            member_type: m.type,
+          }))
+        );
+      }
     }
 
     await supabase.from("onboarding_preferences").upsert({
