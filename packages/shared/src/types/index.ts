@@ -78,6 +78,7 @@ export interface Transaction {
 export type CalendarProvider = "google" | "apple";
 export type CalendarEventSource = "google" | "apple" | "kin";
 export type SyncStatus = "synced" | "pending_push" | "pending_pull" | "error" | "conflict";
+export type CalendarEventVisibility = "default" | "public" | "private" | "confidential";
 export type ConflictType = "time_overlap" | "kid_conflict" | "meal_conflict";
 
 export interface CalendarConnection {
@@ -117,6 +118,7 @@ export interface CalendarEvent {
   external_source: CalendarEventSource;
   external_calendar_id?: string;
   external_etag?: string;
+  visibility?: CalendarEventVisibility;
   last_synced_at?: string;
   sync_status: SyncStatus;
   owner_parent_id: string;

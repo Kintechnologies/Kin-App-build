@@ -1,5 +1,5 @@
 import { google, calendar_v3 } from "googleapis";
-import type { CalendarEvent } from "@/types";
+import type { CalendarEvent, CalendarEventVisibility } from "@/types";
 
 // ── OAuth Client ──
 
@@ -153,12 +153,28 @@ export function googleEventToKinEvent(
 ): Partial<CalendarEvent> {
   const isAllDay = !!gEvent.start?.date;
 
+  // Google reports visibility as 'default' | 'public' | 'private' |
+  // 'confidential'. Persisted so the briefing layer can strip details from
+  // private/confidential events before they reach the AI prompt.
+  const allowedVisibility: CalendarEventVisibility[] = [
+    "default",
+    "public",
+    "private",
+    "confidential",
+  ];
+  const visibility: CalendarEventVisibility = allowedVisibility.includes(
+    gEvent.visibility as CalendarEventVisibility
+  )
+    ? (gEvent.visibility as CalendarEventVisibility)
+    : "default";
+
   return {
     profile_id: profileId,
     owner_parent_id: profileId,
     title: gEvent.summary || "(No title)",
     description: gEvent.description || undefined,
     location: gEvent.location || undefined,
+    visibility,
     start_time: isAllDay
       ? new Date(gEvent.start!.date!).toISOString()
       : gEvent.start!.dateTime!,

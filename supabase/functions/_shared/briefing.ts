@@ -397,7 +397,7 @@ async function buildBriefingContext(
   ] = await Promise.all([
     supabase
       .from("calendar_events")
-      .select("title, start_time, location")
+      .select("title, start_time, location, visibility")
       .eq("profile_id", profileId)
       .gte("start_time", `${today}T00:00:00Z`)
       .lte("start_time", `${today}T23:59:59Z`)
@@ -421,14 +421,22 @@ async function buildBriefingContext(
     day: "numeric",
   });
 
-  const events = (todayEvents ?? []).map((e: any) => ({
-    time: new Date(e.start_time).toLocaleTimeString("en-US", {
-      hour: "numeric",
-      minute: "2-digit",
-    }),
-    title: e.title,
-    location: e.location,
-  }));
+  // Private/confidential events (Google visibility) keep their time slot but
+  // lose every identifying detail — title, description, location. A morning
+  // briefing can be read by anyone in the household, so a therapy appointment
+  // or job interview must show only as a blocked slot, never by name.
+  const events = (todayEvents ?? []).map((e: any) => {
+    const isPrivate =
+      e.visibility === "private" || e.visibility === "confidential";
+    return {
+      time: new Date(e.start_time).toLocaleTimeString("en-US", {
+        hour: "numeric",
+        minute: "2-digit",
+      }),
+      title: isPrivate ? "Private event" : e.title,
+      location: isPrivate ? null : e.location,
+    };
+  });
 
   const naming = resolveFamilyNaming(familyName, lastName);
   let ctx = "";
