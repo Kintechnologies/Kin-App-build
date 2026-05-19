@@ -6,37 +6,30 @@ export function Footer() {
   return (
     <footer
       style={{
-        borderTop: "1px solid rgba(255,255,255,0.06)",
-        padding: "32px 24px",
+        borderTop: "1px solid var(--border)",
+        background: "var(--bg-deep)",
+        padding: "44px 24px",
         display: "flex",
         flexDirection: "column",
         alignItems: "center",
-        gap: "20px",
+        gap: "22px",
       }}
     >
-      {/* Logo */}
-      <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-        <KinMark size={22} />
+      <div style={{ display: "flex", alignItems: "center", gap: "9px" }}>
+        <KinMark size={24} color="#3C4A33" />
         <span
           style={{
-            fontSize: "15px",
-            fontWeight: 500,
-            color: "rgba(240,237,230,0.6)",
-            letterSpacing: "-0.2px",
+            fontSize: "16px",
+            fontWeight: 600,
+            color: "var(--ink-2)",
+            letterSpacing: "-0.3px",
           }}
         >
           Kin
         </span>
       </div>
 
-      {/* Links */}
-      <div
-        style={{
-          display: "flex",
-          gap: "24px",
-          alignItems: "center",
-        }}
-      >
+      <div style={{ display: "flex", gap: "26px", alignItems: "center" }}>
         {[
           { label: "Privacy", href: "/privacy" },
           { label: "Terms", href: "/terms" },
@@ -47,14 +40,14 @@ export function Footer() {
             href={link.href}
             style={{
               fontSize: "13px",
-              color: "rgba(240,237,230,0.35)",
+              color: "var(--ink-3)",
               transition: "color 150ms ease",
             }}
             onMouseEnter={(e) => {
-              (e.target as HTMLAnchorElement).style.color = "rgba(240,237,230,0.7)";
+              (e.currentTarget as HTMLAnchorElement).style.color = "var(--ink)";
             }}
             onMouseLeave={(e) => {
-              (e.target as HTMLAnchorElement).style.color = "rgba(240,237,230,0.35)";
+              (e.currentTarget as HTMLAnchorElement).style.color = "var(--ink-3)";
             }}
           >
             {link.label}
@@ -62,11 +55,10 @@ export function Footer() {
         ))}
       </div>
 
-      {/* Copyright */}
       <p
         style={{
           fontSize: "12px",
-          color: "rgba(240,237,230,0.2)",
+          color: "var(--ink-3)",
           fontFamily: "var(--font-geist-mono), monospace",
         }}
       >

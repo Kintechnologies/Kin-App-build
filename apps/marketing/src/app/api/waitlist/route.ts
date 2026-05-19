@@ -4,6 +4,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { Ratelimit } from "@upstash/ratelimit";
 import { Redis } from "@upstash/redis";
 
+// The exact opt-in copy shown beneath every waitlist form. Snapshotted
+// onto each row (sms_consent_text) so we can replay it verbatim during a
+// carrier A2P/10DLC audit. Must stay in sync with <WaitlistForm>.
+const SMS_CONSENT_TEXT =
+  "By submitting, you agree to receive SMS messages from Kin. Msg & data rates may apply.";
+
 // Rate limiter: 3 submissions per IP per hour.
 // Gracefully disabled when UPSTASH env vars are absent (dev/CI).
 let ratelimit: Ratelimit | null = null;
@@ -18,6 +24,28 @@ function getRatelimit(): Ratelimit | null {
     prefix: "rl:waitlist",
   });
   return ratelimit;
+}
+
+// Normalize a user-typed phone number to E.164. Assumes a US/Canada
+// number when no country code is present — the form's audience is
+// North American. Returns null if the input can't be made valid.
+function normalizePhone(raw: string): string | null {
+  const trimmed = raw.trim();
+  const hasPlus = trimmed.startsWith("+");
+  const digits = trimmed.replace(/\D/g, "");
+
+  let e164: string;
+  if (hasPlus) {
+    e164 = "+" + digits;
+  } else if (digits.length === 10) {
+    e164 = "+1" + digits;
+  } else if (digits.length === 11 && digits.startsWith("1")) {
+    e164 = "+" + digits;
+  } else {
+    e164 = "+" + digits;
+  }
+
+  return /^\+[1-9]\d{7,14}$/.test(e164) ? e164 : null;
 }
 
 export async function POST(req: NextRequest) {
@@ -40,15 +68,21 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    const { email } = await req.json();
+    const { phone } = await req.json();
 
-    if (!email || typeof email !== "string") {
-      return NextResponse.json({ error: "Email is required" }, { status: 400 });
+    if (!phone || typeof phone !== "string") {
+      return NextResponse.json(
+        { error: "Phone number is required" },
+        { status: 400 }
+      );
     }
 
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
-      return NextResponse.json({ error: "Invalid email address" }, { status: 400 });
+    const normalizedPhone = normalizePhone(phone);
+    if (!normalizedPhone) {
+      return NextResponse.json(
+        { error: "Please enter a valid phone number" },
+        { status: 400 }
+      );
     }
 
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -63,12 +97,17 @@ export async function POST(req: NextRequest) {
       auth: { persistSession: false },
     });
 
-    const { error } = await supabase
-      .from("waitlist")
-      .insert({ email: email.toLowerCase().trim() });
+    // Store the number and the consent record. We do NOT send any SMS
+    // here — the number sits in the waitlist until a beta invite goes out.
+    const { error } = await supabase.from("waitlist").insert({
+      phone: normalizedPhone,
+      sms_consent: true,
+      sms_consent_at: new Date().toISOString(),
+      sms_consent_text: SMS_CONSENT_TEXT,
+    });
 
     if (error) {
-      // Duplicate email — treat as success
+      // Duplicate phone — treat as success.
       if (error.code === "23505") {
         return NextResponse.json({ success: true, message: "Already on the list" });
       }

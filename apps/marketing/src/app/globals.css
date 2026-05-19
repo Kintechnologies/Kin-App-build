@@ -3,22 +3,31 @@
 @tailwind utilities;
 
 :root {
-  --bg:          #0C0F0A;
-  --surface:     #141810;
-  --surface2:    #1c211a;
-  --border:      rgba(255, 255, 255, 0.07);
-  --border2:     rgba(255, 255, 255, 0.13);
-  --text:        #F0EDE6;
-  --text2:       rgba(240, 237, 230, 0.55);
-  --text3:       rgba(240, 237, 230, 0.28);
-  --green:       #7CB87A;
-  --green-dim:   rgba(124, 184, 122, 0.12);
-  --green-glow:  rgba(124, 184, 122, 0.25);
-  --amber:       #D4A843;
-  --purple:      #A07EC8;
-  --blue:        #7AADCE;
-  --rose:        #D4748A;
-  --orange:      #E07B5A;
+  /* Font fallbacks. next/font overrides these on <html> with the real
+     Geist faces; this keeps a clean sans-serif if that CSS hasn't loaded
+     (an undefined var() otherwise collapses font-family to UA serif). */
+  --font-geist-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI",
+    Roboto, Helvetica, Arial, sans-serif;
+  --font-geist-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+
+  /* Warm, elevated, understated — Aimé Leon Dore-inspired palette. */
+  --bg:          #ECE4D2;
+  --bg-deep:     #E3D9C1;
+  --paper:       #F7F2E6;
+  --paper-2:     #EFE7D4;
+  --border:      rgba(43, 38, 30, 0.12);
+  --border-2:    rgba(43, 38, 30, 0.22);
+  --ink:         #2B261E;
+  --ink-2:       rgba(43, 38, 30, 0.62);
+  --ink-3:       rgba(43, 38, 30, 0.4);
+  --green:       #3C4A33;
+  --green-2:     #4A5B3F;
+  --green-soft:  rgba(60, 74, 51, 0.1);
+  --green-line:  rgba(60, 74, 51, 0.28);
+  --clay:        #AC6A45;
+  --ochre:       #A98230;
+  --olive:       #6E7757;
+  --dusk:        #5C6B73;
 }
 
 * {
@@ -33,7 +42,8 @@ html {
 
 body {
   background-color: var(--bg);
-  color: var(--text);
+  color: var(--ink);
+  font-family: var(--font-geist-sans);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   font-size: 15px;
@@ -53,17 +63,17 @@ button {
 }
 
 ::-webkit-scrollbar {
-  width: 5px;
+  width: 6px;
 }
 ::-webkit-scrollbar-track {
   background: var(--bg);
 }
 ::-webkit-scrollbar-thumb {
-  background: var(--border2);
+  background: var(--border-2);
   border-radius: 3px;
 }
 
 ::selection {
-  background: var(--green-dim);
-  color: var(--text);
+  background: var(--green-soft);
+  color: var(--ink);
 }

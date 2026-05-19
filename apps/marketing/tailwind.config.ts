@@ -9,30 +9,22 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        bg: "#0C0F0A",
-        surface: "#141810",
-        surface2: "#1c211a",
-        green: "#7CB87A",
-        amber: "#D4A843",
-        purple: "#A07EC8",
-        blue: "#7AADCE",
-        rose: "#D4748A",
-        orange: "#E07B5A",
+        bg: "#ECE4D2",
+        paper: "#F7F2E6",
+        paper2: "#EFE7D4",
+        green: "#3C4A33",
+        clay: "#AC6A45",
+        ochre: "#A98230",
+        olive: "#6E7757",
+        dusk: "#5C6B73",
       },
       fontFamily: {
         sans: ["var(--font-geist-sans)", "system-ui", "sans-serif"],
         mono: ["var(--font-geist-mono)", "monospace"],
       },
       boxShadow: {
-        "neuro-sm":
-          "-2px -2px 4px rgba(255,255,255,0.025), 2px 2px 8px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.04)",
-        "neuro-md":
-          "-3px -3px 8px rgba(255,255,255,0.025), 4px 4px 14px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.05)",
-        "neuro-inset":
-          "inset -2px -2px 4px rgba(255,255,255,0.025), inset 2px 2px 6px rgba(0,0,0,0.5)",
-        "glow-green":
-          "0 0 20px rgba(124,184,122,0.2), 0 0 40px rgba(124,184,122,0.08)",
-        "glow-green-sm": "0 0 12px rgba(124,184,122,0.18)",
+        "card-sm": "0 1px 2px rgba(43,38,30,0.06), 0 6px 16px rgba(43,38,30,0.06)",
+        "card-md": "0 2px 4px rgba(43,38,30,0.06), 0 14px 36px rgba(43,38,30,0.1)",
       },
       animation: {
         "fade-up": "fadeUp 0.6s ease forwards",

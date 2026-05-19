@@ -28,64 +28,56 @@ export function Nav() {
         alignItems: "center",
         justifyContent: "space-between",
         padding: "0 24px",
-        height: "60px",
-        background: scrolled
-          ? "rgba(12, 15, 10, 0.88)"
-          : "transparent",
-        backdropFilter: scrolled ? "blur(12px)" : "none",
-        WebkitBackdropFilter: scrolled ? "blur(12px)" : "none",
+        height: "64px",
+        background: scrolled ? "rgba(236, 228, 210, 0.85)" : "transparent",
+        backdropFilter: scrolled ? "blur(14px)" : "none",
+        WebkitBackdropFilter: scrolled ? "blur(14px)" : "none",
         borderBottom: scrolled
-          ? "1px solid rgba(255,255,255,0.06)"
+          ? "1px solid var(--border)"
           : "1px solid transparent",
-        transition: "background 300ms ease, border-color 300ms ease, backdrop-filter 300ms ease",
+        transition:
+          "background 300ms ease, border-color 300ms ease, backdrop-filter 300ms ease",
       }}
     >
-      {/* Logo */}
-      <a
-        href="/"
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: "8px",
-        }}
-      >
-        <KinMark size={26} />
+      <a href="/" style={{ display: "flex", alignItems: "center", gap: "9px" }}>
+        <KinMark size={26} color="#3C4A33" />
         <span
           style={{
-            fontSize: "17px",
-            fontWeight: 500,
-            color: "#F0EDE6",
-            letterSpacing: "-0.3px",
+            fontSize: "18px",
+            fontWeight: 600,
+            color: "var(--ink)",
+            letterSpacing: "-0.4px",
           }}
         >
           Kin
         </span>
       </a>
 
-      {/* CTA */}
       <button
         onClick={scrollToWaitlist}
         style={{
           fontSize: "13px",
-          fontWeight: 500,
-          color: "#0C0F0A",
-          background: "#7CB87A",
-          padding: "7px 16px",
-          borderRadius: "8px",
+          fontWeight: 600,
+          color: "var(--paper)",
+          background: "var(--green)",
+          padding: "8px 18px",
+          borderRadius: "9px",
           letterSpacing: "-0.1px",
-          boxShadow: "0 0 12px rgba(124,184,122,0.2)",
-          transition: "opacity 150ms ease, box-shadow 150ms ease",
+          boxShadow: "0 3px 10px rgba(60,74,51,0.2)",
+          transition: "transform 150ms ease, box-shadow 150ms ease",
         }}
         onMouseEnter={(e) => {
-          (e.target as HTMLButtonElement).style.opacity = "0.88";
-          (e.target as HTMLButtonElement).style.boxShadow = "0 0 20px rgba(124,184,122,0.35)";
+          (e.currentTarget as HTMLButtonElement).style.transform = "translateY(-1px)";
+          (e.currentTarget as HTMLButtonElement).style.boxShadow =
+            "0 5px 16px rgba(60,74,51,0.3)";
         }}
         onMouseLeave={(e) => {
-          (e.target as HTMLButtonElement).style.opacity = "1";
-          (e.target as HTMLButtonElement).style.boxShadow = "0 0 12px rgba(124,184,122,0.2)";
+          (e.currentTarget as HTMLButtonElement).style.transform = "translateY(0)";
+          (e.currentTarget as HTMLButtonElement).style.boxShadow =
+            "0 3px 10px rgba(60,74,51,0.2)";
         }}
       >
-        Get early access
+        Get Early Access
       </button>
     </nav>
   );

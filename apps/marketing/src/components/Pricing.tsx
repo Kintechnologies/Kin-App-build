@@ -2,6 +2,7 @@
 
 import { motion } from "framer-motion";
 import { useState } from "react";
+import { Reveal } from "./Reveal";
 
 const features = [
   "Daily morning briefing — one sharp coordination insight, every day",
@@ -14,12 +15,14 @@ const features = [
   "Ask Kin anything — AI chat with full family context",
 ];
 
+const ease = [0.22, 1, 0.36, 1] as const;
+
 export function Pricing() {
   const [period, setPeriod] = useState<"monthly" | "annual">("monthly");
 
   const monthlyPrice = 39;
   const annualPrice = 349;
-  const annualSavings = (monthlyPrice * 12) - annualPrice; // $119
+  const annualSavings = monthlyPrice * 12 - annualPrice;
 
   return (
     <section
@@ -29,189 +32,163 @@ export function Pricing() {
         margin: "0 auto",
       }}
     >
-      {/* Section label */}
-      <motion.p
-        initial={{ opacity: 0, y: 8 }}
-        whileInView={{ opacity: 1, y: 0 }}
-        viewport={{ once: true }}
-        transition={{ duration: 0.5 }}
-        style={{
-          fontSize: "11px",
-          fontWeight: 500,
-          color: "rgba(240,237,230,0.35)",
-          fontFamily: "var(--font-geist-mono), monospace",
-          letterSpacing: "1.5px",
-          textTransform: "uppercase",
-          textAlign: "center",
-          marginBottom: "24px",
-        }}
-      >
-        Pricing
-      </motion.p>
-
-      {/* Heading */}
-      <motion.h2
-        initial={{ opacity: 0, y: 14 }}
-        whileInView={{ opacity: 1, y: 0 }}
-        viewport={{ once: true }}
-        transition={{ duration: 0.65, delay: 0.1, ease: [0.22, 1, 0.36, 1] }}
-        style={{
-          fontSize: "clamp(28px, 4.5vw, 40px)",
-          fontWeight: 600,
-          color: "#F0EDE6",
-          textAlign: "center",
-          letterSpacing: "-0.8px",
-          lineHeight: 1.15,
-          marginBottom: "14px",
-        }}
-      >
-        Simple pricing. No surprises.
-      </motion.h2>
-
-      {/* Subheading */}
-      <motion.p
-        initial={{ opacity: 0, y: 10 }}
-        whileInView={{ opacity: 1, y: 0 }}
-        viewport={{ once: true }}
-        transition={{ duration: 0.6, delay: 0.15 }}
-        style={{
-          fontSize: "15px",
-          fontStyle: "italic",
-          color: "rgba(240,237,230,0.55)",
-          textAlign: "center",
-          marginBottom: "36px",
-          letterSpacing: "-0.2px",
-        }}
-      >
-        Early access members lock in this price forever.
-      </motion.p>
-
-      {/* Toggle */}
-      <motion.div
-        initial={{ opacity: 0, y: 12 }}
-        whileInView={{ opacity: 1, y: 0 }}
-        viewport={{ once: true }}
-        transition={{ duration: 0.6, delay: 0.2 }}
-        style={{
-          display: "flex",
-          justifyContent: "center",
-          marginBottom: "48px",
-        }}
-      >
-        <div
+      <Reveal>
+        <p
           style={{
-            display: "inline-flex",
-            background: "#141810",
-            border: "1px solid rgba(255,255,255,0.07)",
-            borderRadius: "10px",
-            padding: "3px",
-            gap: "0",
+            fontSize: "11px",
+            fontWeight: 500,
+            color: "var(--ink-3)",
+            fontFamily: "var(--font-geist-mono), monospace",
+            letterSpacing: "1.6px",
+            textTransform: "uppercase",
+            textAlign: "center",
+            marginBottom: "24px",
           }}
         >
-          {(["monthly", "annual"] as const).map((p) => (
-            <button
-              key={p}
-              onClick={() => setPeriod(p)}
-              style={{
-                padding: "7px 18px",
-                borderRadius: "7px",
-                fontSize: "13px",
-                fontWeight: 500,
-                border: "none",
-                background: p === period ? "#1c211a" : "transparent",
-                color: p === period ? "#F0EDE6" : "rgba(240,237,230,0.55)",
-                cursor: "pointer",
-                transition: "all 0.2s ease",
-                boxShadow:
-                  p === period ? "0 1px 4px rgba(0,0,0,0.3)" : "none",
-              }}
-            >
-              {p === "monthly" ? "Monthly" : "Annual"}
-              {p === "annual" && (
-                <span
-                  style={{
-                    marginLeft: "6px",
-                    padding: "2px 7px",
-                    background: "rgba(124,184,122,0.15)",
-                    borderRadius: "100px",
-                    fontSize: "10px",
-                    fontFamily: "var(--font-geist-mono), monospace",
-                    color: "#7CB87A",
-                    letterSpacing: "0.5px",
-                    display: "inline-block",
-                  }}
-                >
-                  save ${annualSavings}
-                </span>
-              )}
-            </button>
-          ))}
+          Pricing
+        </p>
+      </Reveal>
+
+      <Reveal delay={0.06}>
+        <h2
+          style={{
+            fontSize: "clamp(28px, 4.6vw, 42px)",
+            fontWeight: 600,
+            color: "var(--ink)",
+            textAlign: "center",
+            letterSpacing: "-1px",
+            lineHeight: 1.14,
+            marginBottom: "14px",
+          }}
+        >
+          Simple pricing. No surprises.
+        </h2>
+      </Reveal>
+
+      <Reveal delay={0.12}>
+        <p
+          style={{
+            fontSize: "15px",
+            fontStyle: "italic",
+            color: "var(--ink-2)",
+            textAlign: "center",
+            marginBottom: "36px",
+            letterSpacing: "-0.2px",
+          }}
+        >
+          Early access members lock in this price forever.
+        </p>
+      </Reveal>
+
+      {/* Toggle */}
+      <Reveal delay={0.16}>
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "center",
+            marginBottom: "44px",
+          }}
+        >
+          <div
+            style={{
+              display: "inline-flex",
+              background: "var(--paper2)",
+              border: "1px solid var(--border)",
+              borderRadius: "11px",
+              padding: "3px",
+            }}
+          >
+            {(["monthly", "annual"] as const).map((p) => (
+              <button
+                key={p}
+                onClick={() => setPeriod(p)}
+                style={{
+                  padding: "8px 18px",
+                  borderRadius: "8px",
+                  fontSize: "13px",
+                  fontWeight: 600,
+                  background: p === period ? "var(--paper)" : "transparent",
+                  color: p === period ? "var(--ink)" : "var(--ink-3)",
+                  cursor: "pointer",
+                  transition: "all 0.2s ease",
+                  boxShadow:
+                    p === period ? "0 1px 4px rgba(43,38,30,0.1)" : "none",
+                }}
+              >
+                {p === "monthly" ? "Monthly" : "Annual"}
+                {p === "annual" && (
+                  <span
+                    style={{
+                      marginLeft: "6px",
+                      padding: "2px 7px",
+                      background: "var(--green-soft)",
+                      borderRadius: "100px",
+                      fontSize: "10px",
+                      fontFamily: "var(--font-geist-mono), monospace",
+                      color: "var(--green)",
+                      letterSpacing: "0.4px",
+                    }}
+                  >
+                    save ${annualSavings}
+                  </span>
+                )}
+              </button>
+            ))}
+          </div>
         </div>
-      </motion.div>
+      </Reveal>
 
       {/* Pricing card */}
       <motion.div
-        initial={{ opacity: 0, y: 20 }}
+        initial={{ opacity: 0, y: 26 }}
         whileInView={{ opacity: 1, y: 0 }}
-        viewport={{ once: true }}
-        transition={{
-          duration: 0.55,
-          delay: 0.25,
-          ease: [0.22, 1, 0.36, 1],
-        }}
+        viewport={{ once: true, margin: "-60px" }}
+        transition={{ duration: 0.7, delay: 0.1, ease }}
         style={{
-          background: "linear-gradient(145deg, #1a201a 0%, #141a12 100%)",
-          border: "1px solid rgba(124,184,122,0.25)",
-          borderRadius: "18px",
-          padding: "32px",
+          background: "var(--paper)",
+          border: "1px solid var(--green-line)",
+          borderRadius: "20px",
+          padding: "34px",
           position: "relative",
           overflow: "hidden",
+          boxShadow: "0 2px 4px rgba(43,38,30,0.05), 0 18px 44px rgba(43,38,30,0.1)",
         }}
       >
-        {/* Top accent line */}
         <div
           style={{
             position: "absolute",
             top: 0,
             left: 0,
             right: 0,
-            height: "1px",
-            background:
-              "linear-gradient(to right, transparent, rgba(124,184,122,0.4), transparent)",
+            height: "3px",
+            background: "var(--green)",
           }}
         />
 
-        {/* Badge */}
-        <motion.div
-          initial={{ opacity: 0, scale: 0.9 }}
-          whileInView={{ opacity: 1, scale: 1 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.4, delay: 0.35 }}
+        <div
           style={{
             display: "inline-flex",
             alignItems: "center",
-            gap: "5px",
-            padding: "3px 10px",
-            background: "rgba(124,184,122,0.12)",
-            border: "1px solid rgba(124,184,122,0.2)",
+            padding: "4px 11px",
+            background: "var(--green-soft)",
+            border: "1px solid var(--green-line)",
             borderRadius: "100px",
             fontSize: "10px",
             fontFamily: "var(--font-geist-mono), monospace",
             letterSpacing: "1px",
             textTransform: "uppercase",
-            color: "#7CB87A",
+            color: "var(--green)",
             marginBottom: "20px",
           }}
         >
           Early Access
-        </motion.div>
+        </div>
 
-        {/* Card name */}
         <h3
           style={{
-            fontSize: "15px",
+            fontSize: "16px",
             fontWeight: 600,
-            color: "#F0EDE6",
+            color: "var(--ink)",
             marginBottom: "8px",
             letterSpacing: "-0.2px",
           }}
@@ -219,31 +196,20 @@ export function Pricing() {
           Everything Kin does — for your whole family.
         </h3>
 
-        {/* Price */}
-        <div
-          style={{
-            marginTop: "20px",
-            marginBottom: "6px",
-          }}
-        >
+        <div style={{ marginTop: "20px", marginBottom: "4px" }}>
           <motion.div
             key={`price-${period}`}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
             transition={{ duration: 0.3 }}
-            style={{
-              display: "flex",
-              alignItems: "flex-end",
-              gap: "4px",
-            }}
+            style={{ display: "flex", alignItems: "flex-end", gap: "5px" }}
           >
             <span
               style={{
-                fontSize: "clamp(32px, 4vw, 44px)",
+                fontSize: "clamp(34px, 4vw, 46px)",
                 fontWeight: 600,
-                color: "#F0EDE6",
-                letterSpacing: "-1px",
+                color: "var(--ink)",
+                letterSpacing: "-1.4px",
                 lineHeight: 1,
               }}
             >
@@ -252,7 +218,7 @@ export function Pricing() {
             <span
               style={{
                 fontSize: "13px",
-                color: "rgba(240,237,230,0.28)",
+                color: "var(--ink-3)",
                 marginBottom: "6px",
                 fontFamily: "var(--font-geist-mono), monospace",
               }}
@@ -262,16 +228,10 @@ export function Pricing() {
           </motion.div>
         </div>
 
-        {/* Annual note */}
-        <motion.div
-          key={`note-${period}`}
-          initial={{ opacity: 0, height: 0 }}
-          animate={{ opacity: 1, height: "auto" }}
-          exit={{ opacity: 0, height: 0 }}
-          transition={{ duration: 0.3 }}
+        <div
           style={{
             fontSize: "12px",
-            color: "rgba(240,237,230,0.28)",
+            color: "var(--ink-3)",
             marginBottom: "28px",
             fontStyle: "italic",
             minHeight: "16px",
@@ -280,15 +240,14 @@ export function Pricing() {
           {period === "annual"
             ? `Billed once yearly (that's $${(annualPrice / 12).toFixed(0)}/mo)`
             : ""}
-        </motion.div>
+        </div>
 
-        {/* Features list */}
         <ul
           style={{
             listStyle: "none",
             display: "flex",
             flexDirection: "column",
-            gap: "10px",
+            gap: "11px",
             marginBottom: "28px",
           }}
         >
@@ -298,26 +257,23 @@ export function Pricing() {
               initial={{ opacity: 0, x: -8 }}
               whileInView={{ opacity: 1, x: 0 }}
               viewport={{ once: true }}
-              transition={{
-                duration: 0.35,
-                delay: 0.35 + i * 0.04,
-              }}
+              transition={{ duration: 0.4, delay: 0.2 + i * 0.05 }}
               style={{
                 display: "flex",
                 alignItems: "flex-start",
                 gap: "10px",
-                fontSize: "13px",
-                color: "rgba(240,237,230,0.55)",
-                lineHeight: 1.4,
+                fontSize: "13.5px",
+                color: "var(--ink-2)",
+                lineHeight: 1.45,
               }}
             >
               <div
                 style={{
-                  width: "16px",
-                  height: "16px",
+                  width: "17px",
+                  height: "17px",
                   borderRadius: "50%",
-                  background: "rgba(124,184,122,0.15)",
-                  border: "1px solid rgba(124,184,122,0.25)",
+                  background: "var(--green-soft)",
+                  border: "1px solid var(--green-line)",
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
@@ -325,17 +281,11 @@ export function Pricing() {
                   marginTop: "1px",
                 }}
               >
-                <svg
-                  width="8"
-                  height="8"
-                  viewBox="0 0 8 8"
-                  fill="none"
-                  style={{ opacity: 0.9 }}
-                >
+                <svg width="9" height="9" viewBox="0 0 8 8" fill="none">
                   <path
                     d="M1 4l2 2 4-4"
-                    stroke="#7CB87A"
-                    strokeWidth="1.5"
+                    stroke="#3C4A33"
+                    strokeWidth="1.6"
                     strokeLinecap="round"
                   />
                 </svg>
@@ -345,47 +295,38 @@ export function Pricing() {
           ))}
         </ul>
 
-        {/* CTA button */}
-        <motion.a
+        <a
           href="#waitlist"
-          initial={{ opacity: 0, y: 8 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.5, delay: 0.65 }}
-          whileHover={{ y: -1 }}
           style={{
             display: "block",
             width: "100%",
-            padding: "12px",
+            padding: "13px",
             textAlign: "center",
-            borderRadius: "10px",
+            borderRadius: "11px",
             fontSize: "14px",
             fontWeight: 600,
-            background: "#7CB87A",
-            color: "#0C0F0A",
-            textDecoration: "none",
+            background: "var(--green)",
+            color: "var(--paper)",
             cursor: "pointer",
-            marginTop: "4px",
-            position: "relative",
-            overflow: "hidden",
-            transition: "all 0.2s ease",
-            boxShadow: "0 0 20px rgba(124,184,122,0.25)",
+            transition: "transform 0.2s ease, box-shadow 0.2s ease",
+            boxShadow: "0 4px 14px rgba(60,74,51,0.22)",
           }}
           onMouseEnter={(e) => {
-            (e.target as HTMLAnchorElement).style.opacity = "0.9";
-            (e.target as HTMLAnchorElement).style.boxShadow =
-              "0 6px 20px rgba(124,184,122,0.24)";
+            (e.currentTarget as HTMLAnchorElement).style.transform =
+              "translateY(-1px)";
+            (e.currentTarget as HTMLAnchorElement).style.boxShadow =
+              "0 6px 18px rgba(60,74,51,0.3)";
           }}
           onMouseLeave={(e) => {
-            (e.target as HTMLAnchorElement).style.opacity = "1";
-            (e.target as HTMLAnchorElement).style.boxShadow =
-              "0 0 20px rgba(124,184,122,0.25)";
+            (e.currentTarget as HTMLAnchorElement).style.transform =
+              "translateY(0)";
+            (e.currentTarget as HTMLAnchorElement).style.boxShadow =
+              "0 4px 14px rgba(60,74,51,0.22)";
           }}
         >
           Claim your spot
-        </motion.a>
+        </a>
 
-        {/* Early access note */}
         <div
           style={{
             display: "flex",
@@ -394,7 +335,7 @@ export function Pricing() {
             marginTop: "14px",
             fontSize: "11px",
             fontFamily: "var(--font-geist-mono), monospace",
-            color: "rgba(124,184,122,0.5)",
+            color: "var(--ink-3)",
             letterSpacing: "0.3px",
             justifyContent: "center",
           }}
@@ -404,7 +345,7 @@ export function Pricing() {
               width: "5px",
               height: "5px",
               borderRadius: "50%",
-              background: "rgba(124,184,122,0.4)",
+              background: "var(--clay)",
             }}
           />
           Early access price — locked in forever
