@@ -1,5 +1,5 @@
 -- ═══════════════════════════════════════════════════════════════
--- 054 · Waitlist SMS compliance (TCPA / A2P 10DLC, 2026-05-18)
+-- 057 · Waitlist SMS compliance (TCPA / A2P 10DLC, 2026-05-18)
 -- ═══════════════════════════════════════════════════════════════
 -- The phone-first waitlist texts each signup a confirmation SMS.
 -- TCPA and Twilio's A2P 10DLC rules require a provable consent trail

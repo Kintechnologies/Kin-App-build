@@ -1,5 +1,5 @@
 -- ═══════════════════════════════════════════════════════════════
--- 050 · Waitlist phone-first signup (landing page revamp, 2026-05-18)
+-- 056 · Waitlist phone-first signup (landing page revamp, 2026-05-18)
 -- ═══════════════════════════════════════════════════════════════
 -- The kinai.family landing page is now SMS-first: the waitlist form
 -- collects a phone number, not an email. This migration:
