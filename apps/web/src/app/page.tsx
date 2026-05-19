@@ -3,6 +3,7 @@ import { Nav } from "@/components/Nav";
 import { Hero } from "@/components/Hero";
 import { Relatability } from "@/components/Relatability";
 import { OutcomeCards } from "@/components/OutcomeCards";
+import { HouseholdMemory } from "@/components/HouseholdMemory";
 import { WhyDifferent } from "@/components/WhyDifferent";
 import { BriefingDemo } from "@/components/BriefingDemo";
 import { Capabilities } from "@/components/Capabilities";
@@ -38,6 +39,7 @@ export default function Home() {
       <Hero />
       <Relatability />
       <OutcomeCards />
+      <HouseholdMemory />
       <WhyDifferent />
       <BriefingDemo />
       <Capabilities />

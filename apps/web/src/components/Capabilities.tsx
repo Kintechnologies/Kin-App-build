@@ -10,7 +10,6 @@ type IconName =
   | "sync"
   | "activities"
   | "reminders"
-  | "memory"
   | "ask";
 
 function Icon({ name }: { name: IconName }) {
@@ -70,14 +69,6 @@ function Icon({ name }: { name: IconName }) {
           <path d="M12 7v5.3L15.5 15" />
         </svg>
       );
-    case "memory":
-      return (
-        <svg {...common}>
-          <path d="M4 10.5 12 4l8 6.5" />
-          <path d="M6 9.5V20h12V9.5" />
-          <path d="M10 20v-5h4v5" />
-        </svg>
-      );
     case "ask":
       return (
         <svg {...common}>
@@ -131,12 +122,6 @@ const capabilities: {
     title: "Escalating reminders",
     body: "From a gentle heads-up to “leave now” as the clock closes in.",
     accent: "#3C4A33",
-  },
-  {
-    icon: "memory",
-    title: "Household memory",
-    body: "Kin learns your family's routines and gets sharper every week.",
-    accent: "#AC6A45",
   },
   {
     icon: "ask",

@@ -7,25 +7,32 @@ import { KinMark } from "./KinMark";
 import { Reveal } from "./Reveal";
 import { WaitlistForm } from "./WaitlistForm";
 
-// A day with Kin, told in two real text messages. The morning briefing
-// arrives as ONE continuous SMS — the way a text actually lands. Then,
-// hours later, Kin catches a change in real time and sends the save.
+// One continuous day with Kin, told as a single SMS thread. The morning
+// briefing lands as one calm text and sets up the day. Hours later the day
+// shifts — a meeting slides into a pickup — and Kin catches it, texts both
+// parents a fix, and closes the loop, all before anyone has to scramble.
+// Messages sharing a divider render as one unbroken moment in the thread.
 type Message = {
-  time: string;
-  label: string;
+  divider: string;
   text: string;
 };
 
 const messages: Message[] = [
   {
-    time: "7:03 AM",
-    label: "Today 7:03 AM",
+    divider: "Today 7:03 AM",
     text: "Good morning, Sarah. Here's your family's day. ☀️\n\nMaya has soccer at 4:30 — you're on pickup. Tom's got a 5:00 call he can't move, so today's on you.\n\nHeads up: your 3:00 meeting runs right up against pickup. Worth building in a buffer.\n\nOne to remember — Leo's field-trip slip is due tomorrow.\n\nThat's everything. Have a good one. 💚",
   },
   {
-    time: "3:47 PM",
-    label: "Today 3:47 PM",
-    text: "Quick one, Sarah. Your 3:00 just moved to 4:15 — that now collides with Maya's 4:30 soccer pickup. Tom's call wraps at 5:00. Want me to ask him to grab Maya so you can keep the meeting?",
+    divider: "Today 3:47 PM",
+    text: "Quick one, Sarah — your 3:00 just slid to 4:15. That lands right on top of Maya's 4:30 soccer pickup.",
+  },
+  {
+    divider: "Today 3:47 PM",
+    text: "Already on it. Maya's coach can keep her until 5:15, and Tom can break free by 4:45. I've texted you both — Tom grabs Maya, you keep your meeting.",
+  },
+  {
+    divider: "Today 3:47 PM",
+    text: "Tom's confirmed. 👍 Pickup's covered and your 4:15 is safe — sorted before it ever became a scramble. 💚",
   },
 ];
 
@@ -85,12 +92,16 @@ export function BriefingDemo() {
     if (!inView) return;
     const timers: ReturnType<typeof setTimeout>[] = [];
     let t = 500;
-    messages.forEach((_, i) => {
-      // A longer pause before the afternoon save — time passing in the day.
-      if (i > 0) t += 1400;
+    messages.forEach((message, i) => {
+      if (i > 0) {
+        // A long beat when the day jumps forward; a short one between
+        // texts that belong to the same moment.
+        const newMoment = messages[i - 1].divider !== message.divider;
+        t += newMoment ? 1600 : 350;
+      }
       timers.push(setTimeout(() => setTypingIndex(i), t));
       // The morning briefing is long; let the typing indicator linger.
-      t += i === 0 ? 1700 : 1300;
+      t += i === 0 ? 1700 : 1150;
       timers.push(
         setTimeout(() => {
           setTypingIndex(null);
@@ -148,9 +159,9 @@ export function BriefingDemo() {
             marginBottom: "14px",
           }}
         >
-          One calm text to start the day.{" "}
+          One calm morning text.{" "}
           <span style={{ color: "var(--green)" }}>
-            Then Kin keeps watch.
+            Then Kin handles the rest.
           </span>
         </h2>
       </Reveal>
@@ -166,8 +177,8 @@ export function BriefingDemo() {
             marginBottom: "56px",
           }}
         >
-          No dashboard. No app to open. A briefing every morning — and a
-          heads-up the moment the day actually changes.
+          No dashboard. No app to open. A calm briefing every morning — and
+          when the day shifts, Kin sorts it before it becomes a scramble.
         </p>
       </Reveal>
 
@@ -209,7 +220,7 @@ export function BriefingDemo() {
               color: "#2B261E",
             }}
           >
-            <span>7:03</span>
+            <span>3:52</span>
             <div
               style={{
                 position: "absolute",
@@ -311,7 +322,10 @@ export function BriefingDemo() {
                     gap: "8px",
                   }}
                 >
-                  <DayDivider label={message.label} />
+                  {(i === 0 ||
+                    messages[i - 1].divider !== message.divider) && (
+                    <DayDivider label={message.divider} />
+                  )}
                   {i < visibleCount ? (
                     <div
                       className="kin-reveal"
