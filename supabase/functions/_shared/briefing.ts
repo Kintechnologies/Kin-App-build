@@ -58,6 +58,79 @@ export function getLocalDate(timezone: string): string {
   }).format(new Date());
 }
 
+// The timezone applied when a profile has none on file, or an unrecognized
+// one. See resolveTimezone.
+const DEFAULT_TIMEZONE = "America/Los_Angeles";
+
+// Validates an IANA timezone name, falling back to DEFAULT_TIMEZONE when it is
+// missing or unrecognized. Intl throws a RangeError on an unknown zone — and
+// getLocalHour runs in the hourly fan-out loop *before* the per-profile
+// try/catch in deliverBriefing, so an unguarded throw there takes down the
+// whole morning-briefing batch (every user then misses the 6am send and only
+// gets the 9am-CT audit backstop). Every place that feeds profiles.timezone
+// into a date API must route through here first.
+export function resolveTimezone(timezone: string | null | undefined): string {
+  if (timezone) {
+    try {
+      new Intl.DateTimeFormat("en-US", { timeZone: timezone });
+      return timezone;
+    } catch {
+      console.error(
+        `resolveTimezone: unrecognized timezone "${timezone}" — using ${DEFAULT_TIMEZONE}`
+      );
+    }
+  }
+  return DEFAULT_TIMEZONE;
+}
+
+// Offset of `timezone` from UTC at instant `at`, in milliseconds, signed so
+// that utcInstant + offset = local wall-clock. EDT (UTC-4) yields -14_400_000.
+function tzOffsetMs(timezone: string, at: Date): number {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: timezone,
+    hour12: false,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  }).formatToParts(at);
+  const p: Record<string, number> = {};
+  for (const part of parts) {
+    if (part.type !== "literal") p[part.type] = parseInt(part.value, 10);
+  }
+  const asUtc = Date.UTC(
+    p.year,
+    p.month - 1,
+    p.day,
+    p.hour % 24,
+    p.minute,
+    p.second
+  );
+  return asUtc - at.getTime();
+}
+
+// The UTC instant range [startUtc, endUtc) spanning the user's local calendar
+// day. calendar_events.start_time is stored in UTC (Google Calendar's native
+// format), so filtering on a UTC-date window pulls the wrong slice: for an EDT
+// user it runs 8pm-yesterday to 8pm-today, dropping tonight's events and
+// pulling in last night's. Anchoring the window to the user's timezone keeps
+// "today" meaning their today.
+export function localDayRangeUtc(timezone: string): {
+  startUtc: string;
+  endUtc: string;
+} {
+  const localDate = getLocalDate(timezone);
+  // Midnight of the local date read naively as a UTC instant is off by exactly
+  // the zone offset; subtracting it lands on the true local midnight.
+  const naiveMidnight = new Date(`${localDate}T00:00:00Z`);
+  const offsetMs = tzOffsetMs(timezone, naiveMidnight);
+  const startUtc = new Date(naiveMidnight.getTime() - offsetMs);
+  const endUtc = new Date(startUtc.getTime() + 24 * 60 * 60 * 1000);
+  return { startUtc: startUtc.toISOString(), endUtc: endUtc.toISOString() };
+}
+
 // Pulls a single "label: value" line out of profiles.context_notes — the
 // newline-delimited blob of answers SMS onboarding accumulates (see
 // sms-onboarding.ts appendNote). Returns null when the note is absent. Used to
@@ -377,7 +450,10 @@ async function buildBriefingContext(
   lastName: string | null,
   timezone: string
 ): Promise<BriefingContext> {
-  const today = new Date().toISOString().split("T")[0];
+  // The day window is anchored to the user's timezone, not UTC — see
+  // localDayRangeUtc. calendar_events.start_time is UTC, so a UTC-date filter
+  // would straddle two of the user's local days.
+  const { startUtc, endUtc } = localDayRangeUtc(timezone);
 
   // Resolve the household and onboarding context first — the family_members
   // query below is scoped by household id. household_id = the primary parent's
@@ -400,8 +476,8 @@ async function buildBriefingContext(
       .from("calendar_events")
       .select("title, start_time, location, visibility")
       .eq("profile_id", profileId)
-      .gte("start_time", `${today}T00:00:00Z`)
-      .lte("start_time", `${today}T23:59:59Z`)
+      .gte("start_time", startUtc)
+      .lt("start_time", endUtc)
       .order("start_time", { ascending: true }),
     // Household members — kids, partners, pets. SMS onboarding inserts kids
     // with profile_id set; the conversation-learning layer writes household_id
@@ -426,6 +502,7 @@ async function buildBriefingContext(
   ]);
 
   const dateLabel = new Date().toLocaleDateString("en-US", {
+    timeZone: timezone,
     weekday: "long",
     month: "long",
     day: "numeric",
@@ -440,6 +517,7 @@ async function buildBriefingContext(
       e.visibility === "private" || e.visibility === "confidential";
     return {
       time: new Date(e.start_time).toLocaleTimeString("en-US", {
+        timeZone: timezone,
         hour: "numeric",
         minute: "2-digit",
       }),
@@ -631,7 +709,7 @@ export async function deliverBriefing(
   briefingDate: string,
   source: string
 ): Promise<DeliveryResult> {
-  const tz = profile.timezone ?? "America/Los_Angeles";
+  const tz = resolveTimezone(profile.timezone);
 
   // Trial payment nudge: append the payment prompt once a profile is 14+ days
   // old, but only while they're still on the trial. Paid, past-due, and

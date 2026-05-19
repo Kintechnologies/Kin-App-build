@@ -18,6 +18,7 @@ import {
   supabase,
   getLocalHour,
   getLocalDate,
+  resolveTimezone,
   deliverBriefing,
   notifySlack,
   type BriefingProfile,
@@ -58,7 +59,7 @@ serve(async (req) => {
   const missedNames: string[] = [];
 
   for (const profile of (profiles ?? []) as BriefingProfile[]) {
-    const tz = profile.timezone ?? "America/Los_Angeles";
+    const tz = resolveTimezone(profile.timezone);
 
     // Skip users whose 6am send window hasn't fully passed yet. At 14:00 UTC a
     // far-west timezone (e.g. Hawaii) may still be pre-6am local — their

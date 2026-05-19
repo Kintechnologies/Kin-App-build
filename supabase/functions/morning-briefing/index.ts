@@ -22,6 +22,7 @@ import {
   supabase,
   getLocalHour,
   getLocalDate,
+  resolveTimezone,
   deliverBriefing,
   notifySlack,
   type BriefingProfile,
@@ -68,7 +69,7 @@ serve(async (req) => {
   };
 
   for (const profile of profiles as BriefingProfile[]) {
-    const tz = profile.timezone ?? "America/Los_Angeles";
+    const tz = resolveTimezone(profile.timezone);
 
     // Only send during the 6am hour in the user's timezone
     if (getLocalHour(tz) !== 6) {
