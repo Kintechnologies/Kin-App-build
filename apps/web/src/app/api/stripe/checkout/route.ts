@@ -4,8 +4,8 @@
  * Creates a Stripe Checkout session for the $39/mo Kin Premium subscription
  * and returns the session URL for the client to redirect to.
  *
- * The 7-day free trial is tracked at the app level (profiles.trial_ends_at),
- * so the subscription created here bills immediately on day 7 — no extra
+ * The 14-day free trial is tracked at the app level (profiles.trial_ends_at),
+ * so the subscription created here bills immediately on day 14 — no extra
  * Stripe-side trial.
  */
 

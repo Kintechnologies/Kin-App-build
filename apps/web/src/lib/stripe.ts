@@ -14,7 +14,7 @@ export function getStripe() {
   return stripeInstance;
 }
 
-// Kin Premium — a single $39/mo plan. The 7-day trial is tracked at the app
+// Kin Premium — a single $39/mo plan. The 14-day trial is tracked at the app
 // level (profiles.trial_ends_at), so the Stripe subscription bills immediately.
 export const PREMIUM_MONTHLY_PRICE = 39;
 

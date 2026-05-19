@@ -1,5 +1,5 @@
 -- Subscription lifecycle status for the Stripe billing flow.
--- trial: 7-day app-level trial (default at signup)
+-- trial: 14-day app-level trial (default at signup)
 -- active: paying subscriber
 -- past_due: a recurring payment failed; Stripe is retrying
 -- canceled: subscription ended

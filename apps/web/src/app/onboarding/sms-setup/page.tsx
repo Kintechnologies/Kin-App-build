@@ -217,7 +217,7 @@ function TrialStep({ onNext: _onNext }: { onNext: () => void }) {
         Start your free trial
       </h2>
       <p className="text-warm-white/45 text-sm text-center mb-6">
-        7 days free, then $39/mo for your entire family. Cancel anytime.
+        14 days free, then $39/mo for your entire family. Cancel anytime.
       </p>
 
       <div className="glass rounded-2xl px-5 py-4 mb-6 space-y-2.5">
@@ -242,7 +242,7 @@ function TrialStep({ onNext: _onNext }: { onNext: () => void }) {
         className="w-full bg-primary text-background py-3.5 rounded-xl font-semibold hover:shadow-lg hover:shadow-primary/30 hover:scale-[1.02] active:scale-95 transition-all duration-300 disabled:opacity-60 flex items-center justify-center gap-2"
       >
         {loading ? <Loader2 size={16} className="animate-spin" /> : null}
-        Start 7-day free trial <ArrowRight size={16} />
+        Start 14-day free trial <ArrowRight size={16} />
       </button>
 
       <p className="text-warm-white/25 text-xs text-center mt-3">

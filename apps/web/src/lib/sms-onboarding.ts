@@ -67,7 +67,7 @@ const CONSENT_MESSAGE =
   "with a daily briefing made just for them. Quick bit of housekeeping first: " +
   "by continuing to text, you agree to receive SMS messages from Kin. Msg & " +
   "data rates apply. Reply STOP to opt out anytime, or HELP for help. " +
-  "You're starting a 7-day free trial — after that it's $39/mo. No card needed to get started.";
+  "You're starting a 14-day free trial — after that it's $39/mo. No card needed to get started.";
 
 const NAME_QUESTION =
   "Okay — the fun part. What should I call you? First name's perfect.";
@@ -372,7 +372,7 @@ export async function handleSmsOnboarding(
         `${summary}\n\n${calendarLine}\n\n` +
         "We're officially a team now — I'm always one text away, so ask me " +
         '"who\'s got pickup today?" or "what\'s this week look like?" anytime.\n\n' +
-        "You're on your 7-day free trial. On day 7, I'll send you a link to your " +
+        "You're on your 14-day free trial. On day 14, I'll send you a link to your " +
         "dashboard where you can enter payment details and add any other family " +
         "members or caregivers. No surprises. So glad you're here.";
 
@@ -497,7 +497,7 @@ const ONBOARDING_QA_SYSTEM_PROMPT = `You are Kin, a family coordination assistan
 - A user can connect multiple calendars (work, personal, several Google accounts) — as many as they like.
 - Connecting a calendar is how Kin spots conflicts. When a schedule changes, Kin sees the calendar update and re-checks for new conflicts automatically.
 - A partner or co-parent can be looped in so both parents stay in sync.
-- Pricing: a 7-day free trial, no credit card needed to start, then $39/month.
+- Pricing: a 14-day free trial, no credit card needed to start, then $39/month.
 - Kin handles family scheduling and coordination only — not general chat, recipes, news, or trivia.
 - A user can reply STOP anytime to opt out.
 

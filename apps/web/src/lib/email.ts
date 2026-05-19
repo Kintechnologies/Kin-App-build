@@ -285,7 +285,7 @@ export function trialDay4Email(firstName?: string | null): EmailTemplate {
     preheader: "Week 2, month 2 — Kin keeps getting sharper.",
     heading: "What Kin learns over time",
     paragraphs: [
-      `${greeting(firstName)} you're halfway through your first week. Here's what makes Kin different from a calendar app: it gets smarter the longer it knows you.`,
+      `${greeting(firstName)} you're a few days into your trial. Here's what makes Kin different from a calendar app: it gets smarter the longer it knows you.`,
       "Right now Kin is learning your routines — who does drop-off, when practice runs late, which days are quietly chaos. That's just the start:",
     ],
     bullets: [
@@ -330,10 +330,10 @@ export function trialDay6Email(firstName?: string | null): EmailTemplate {
 export function trialExpiryEmail(firstName?: string | null): EmailTemplate {
   return buildEmail({
     subject: "Your Kin trial is complete",
-    preheader: "Your first week's done — keep Kin going for $39/mo.",
+    preheader: "Your two weeks are done — keep Kin going for $39/mo.",
     heading: "Your Kin trial is complete",
     paragraphs: [
-      `${greeting(firstName)} that's your first week with Kin.`,
+      `${greeting(firstName)} that's your two weeks with Kin.`,
       "If Kin's been useful — if your mornings have felt a little more handled — keep it going for $39/mo. As a beta member, you lock in founding pricing for as long as you stay.",
       "Nothing changes when you do: same morning briefings, same number, same Kin. Just add your payment details and it keeps going without missing a day.",
     ],

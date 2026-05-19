@@ -5,10 +5,10 @@
  * still in its trial, it sends the email matching how many days ago the profile
  * was created:
  *
- *   day 2 → "Getting the most out of Kin"
- *   day 4 → "What Kin learns over time"
- *   day 6 → "Your trial wraps up tomorrow"
- *   day 7+ → "Your Kin trial is complete"  (the expiry email)
+ *   day 2  → "Getting the most out of Kin"
+ *   day 4  → "What Kin learns over time"
+ *   day 13 → "Your trial wraps up tomorrow"
+ *   day 14+ → "Your Kin trial is complete"  (the expiry email)
  *
  * At most one email is sent per profile per run. Each send is guarded by a
  * profiles.*_email_sent_at column so a profile never receives the same drip
@@ -60,10 +60,10 @@ function pickDripEmail(
 ): { column: SentColumn; template: EmailTemplate } | null {
   const firstName = (p.family_name ?? "").split(/\s+/)[0] || null;
 
-  if (daysSinceCreated >= 7 && !p.trial_expiry_email_sent_at) {
+  if (daysSinceCreated >= 14 && !p.trial_expiry_email_sent_at) {
     return { column: "trial_expiry_email_sent_at", template: trialExpiryEmail(firstName) };
   }
-  if (daysSinceCreated === 6 && !p.trial_day6_email_sent_at) {
+  if (daysSinceCreated === 13 && !p.trial_day6_email_sent_at) {
     return { column: "trial_day6_email_sent_at", template: trialDay6Email(firstName) };
   }
   if (daysSinceCreated >= 4 && daysSinceCreated <= 5 && !p.trial_day4_email_sent_at) {

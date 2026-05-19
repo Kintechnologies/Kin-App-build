@@ -11,6 +11,14 @@
     {
       "path": "/api/cron/sunday-checkin",
       "schedule": "0 * * * *"
+    },
+    {
+      "path": "/api/cron/engagement-nudges?mode=onboarding",
+      "schedule": "0 * * * *"
+    },
+    {
+      "path": "/api/cron/engagement-nudges?mode=trial",
+      "schedule": "0 16 * * *"
     }
   ]
 }

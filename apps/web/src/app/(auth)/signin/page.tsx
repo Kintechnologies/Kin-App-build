@@ -581,7 +581,7 @@ function SignInForm() {
           href={inviteCode ? `/signup?invite=${inviteCode}` : "/signup"}
           style={{ color: T.sage, textDecoration: "none" }}
         >
-          Start a 7-day trial
+          Start a 14-day trial
         </Link>
       </div>
     </div>
@@ -727,7 +727,7 @@ function LeftRail() {
           {[
             { k: "Cost", v: "$1.30 / day" },
             { k: "Plan", v: "$39 / month" },
-            { k: "Trial", v: "7-day free" },
+            { k: "Trial", v: "14-day free" },
           ].map((row, i) => (
             <div
               key={row.k}

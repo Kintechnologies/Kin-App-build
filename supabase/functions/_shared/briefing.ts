@@ -633,7 +633,7 @@ export async function deliverBriefing(
 ): Promise<DeliveryResult> {
   const tz = profile.timezone ?? "America/Los_Angeles";
 
-  // Trial payment nudge: append the payment prompt once a profile is 7+ days
+  // Trial payment nudge: append the payment prompt once a profile is 14+ days
   // old, but only while they're still on the trial. Paid, past-due, and
   // canceled accounts don't get it, and billing-exempt profiles never do.
   let daysSinceCreated = 0;
@@ -645,7 +645,7 @@ export async function deliverBriefing(
   const appendPaymentNudge =
     !profile.billing_exempt &&
     profile.subscription_status === "trial" &&
-    daysSinceCreated >= 7;
+    daysSinceCreated >= 14;
 
   try {
     const { text, degraded } = await generateBriefing(

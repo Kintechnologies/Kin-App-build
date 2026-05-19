@@ -220,7 +220,7 @@ function SignUpForm() {
         <div style={{ fontSize: 13.5, color: T.warm56 }}>
           {inviteCode
             ? "Verify your number to connect with your partner on Kin."
-            : "7-day free trial · ~90 seconds to set up · no password needed."}
+            : "14-day free trial · ~90 seconds to set up · no password needed."}
         </div>
       </div>
 
@@ -355,7 +355,7 @@ function SignUpForm() {
         display: "flex",
         gap: 8,
       }}>
-        {[["$1.30/day", "less than a coffee"], ["$39/mo", "per family"], ["7-day", "free trial"]].map(([k, v]) => (
+        {[["$1.30/day", "less than a coffee"], ["$39/mo", "per family"], ["14-day", "free trial"]].map(([k, v]) => (
           <div key={k} style={{ flex: 1, minWidth: 0, textAlign: "center" }}>
             <div style={{ fontFamily: T.mono, fontSize: 14, color: T.warm, fontWeight: 500 }}>{k}</div>
             <div style={{ fontSize: 11, color: T.warm40, marginTop: 2 }}>{v}</div>
