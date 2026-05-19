@@ -3,12 +3,21 @@ import { createClient } from "@supabase/supabase-js";
 import { NextRequest, NextResponse } from "next/server";
 import { Ratelimit } from "@upstash/ratelimit";
 import { Redis } from "@upstash/redis";
+import { sendSms } from "@/lib/twilio";
 
 // The exact opt-in copy shown beneath every waitlist form. Snapshotted
 // onto each row (sms_consent_text) so we can replay it verbatim during a
 // carrier A2P/10DLC audit. Must stay in sync with <WaitlistForm>.
 const SMS_CONSENT_TEXT =
   "By submitting, you agree to receive SMS messages from Kin. Msg & data rates may apply.";
+
+// The confirmation SMS sent the moment a number joins the waitlist. It asks
+// for the name + email that the inbound webhook (apps/web /api/sms/inbound)
+// parses out of the reply and writes back onto the row.
+const CONFIRMATION_SMS =
+  "Welcome to the Kin waitlist! We're excited to have you. " +
+  "Quick — what's your name and email so we can keep you updated? " +
+  "Just reply with your name and email.";
 
 // Rate limiter: 3 submissions per IP per hour.
 // Gracefully disabled when UPSTASH env vars are absent (dev/CI).
@@ -97,8 +106,7 @@ export async function POST(req: NextRequest) {
       auth: { persistSession: false },
     });
 
-    // Store the number and the consent record. We do NOT send any SMS
-    // here — the number sits in the waitlist until a beta invite goes out.
+    // Store the number and the consent record.
     const { error } = await supabase.from("waitlist").insert({
       phone: normalizedPhone,
       sms_consent: true,
@@ -107,12 +115,21 @@ export async function POST(req: NextRequest) {
     });
 
     if (error) {
-      // Duplicate phone — treat as success.
+      // Duplicate phone — treat as success. Don't re-send the confirmation.
       if (error.code === "23505") {
         return NextResponse.json({ success: true, message: "Already on the list" });
       }
       Sentry.captureException(error);
       return NextResponse.json({ error: "Failed to join waitlist" }, { status: 500 });
+    }
+
+    // Text the confirmation that asks for their name + email. A delivery
+    // failure must not fail the signup — the number is already saved — so we
+    // log it and still return success.
+    try {
+      await sendSms(normalizedPhone, CONFIRMATION_SMS);
+    } catch (smsErr) {
+      Sentry.captureException(smsErr);
     }
 
     return NextResponse.json({ success: true });

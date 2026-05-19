@@ -104,7 +104,8 @@ export function WaitlistForm({
                 lineHeight: 1.5,
               }}
             >
-              You&apos;re on the list! We&apos;ll text you when it&apos;s your turn.
+              Check your phone — we just texted you. Reply with your name and
+              email to lock in your spot.
             </p>
           </motion.div>
         ) : (

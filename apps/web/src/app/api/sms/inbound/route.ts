@@ -38,6 +38,10 @@ import {
   recordWaitlistContact,
   WAITLIST_MESSAGE,
 } from "@/lib/sms-access";
+import {
+  findPendingWaitlistReply,
+  handleWaitlistReply,
+} from "@/lib/waitlist-sms";
 import type Anthropic from "@anthropic-ai/sdk";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -186,6 +190,16 @@ export async function POST(request: Request) {
   // be on the approved list to onboard; anyone else gets a warm waitlist reply
   // and has their number saved to sms_waitlist for an admin to approve later.
   if (!profileRow) {
+    // Phone-first kinai.family waitlist reply? Such a signup texts only their
+    // phone on the marketing site, gets a confirmation SMS, then replies here
+    // with their name + email. They have no profile — this is checked before
+    // the SMS-beta allowlist so a waitlist reply isn't mistaken for a cold
+    // inbound to the beta.
+    const pendingWaitlist = await findPendingWaitlistReply(supabase, fromNumber);
+    if (pendingWaitlist) {
+      return handleWaitlistReply(supabase, pendingWaitlist, messageBody);
+    }
+
     const approved = await isNumberApproved(supabase, fromNumber);
     if (!approved) {
       await recordWaitlistContact(supabase, fromNumber, messageBody);
