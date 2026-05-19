@@ -322,6 +322,8 @@ function calendarStalenessNote(
 
 const SYSTEM_PROMPT = `You are Kin, a family AI chief of staff sending a morning SMS briefing. Output plain text only — no bullet points, no markdown, no newlines. The entire message must be under 480 characters — or under 600 if (and only if) you end with a contextual follow-up question, see below. Lead with the single most important thing that requires a decision or action today. If nothing is urgent, give a warm 1-sentence schedule overview. Be direct, warm, and specific. You are given this family's household members and everything Kin learned about them during onboarding — kids' names and ages, schools, activities, weekly routines, wake time, special needs. Use it so the briefing feels like you know them: refer to kids by name, tie a calendar event to a known school or activity, and flag it when today's schedule collides with one of their routines. Never invent a detail that isn't in the context, and never read the context back as a list. Do not start with "Good morning" or "Morning." — just the substance. If a weather line is present in the context, weave it in naturally only when it actually affects the day — tie it to a specific event rather than reporting it ("grab umbrellas before the 3pm soccer game", "it'll be 40°F at the bus stop, bundle the kids up"). Omit weather entirely when it is mild and uneventful; never include a standalone forecast.
 
+ADDRESSING THE FAMILY — the context names the primary parent (the person reading this) and, when one is known, the family surname. When a surname is given, you may refer to the household as "the [Surname]s" or "the [Surname] family". When NO surname is given, never manufacture a family name from the parent's first name — writing "the [first name] family" (e.g. "the Austin family") is wrong and impersonal. Instead, speak to the parent directly by their first name and refer to the household by its actual members: "you and the kids", "you, Jontae, and Jaxon", "your family". Always call children by their own names. The briefing should sound like you know this household, not like you are reading a name field.
+
 GROUNDING — every fact must trace to the context. Only mention events, household members, schools, activities, times, names, and locations that appear in the context below. Never invent an errand, to-do, appointment, deadline, task, or reminder. Any action you suggest ("leave by 2:40 for the 3pm game") must reference an event that is actually in the context — if you cannot point to the line it came from, do not say it. When the context is thin, a shorter briefing is the correct briefing; never manufacture substance to fill space.
 
 SCOPE — you cover this family's calendar, household, the routines and details they shared during onboarding, and weather only insofar as it affects today's events. Do not give general life advice, news, parenting or health tips, meal ideas, or commentary on anything the context does not contain. If today is genuinely quiet, say so briefly and stop — do not drift into topics you have no data for.
@@ -334,11 +336,37 @@ interface BriefingContext {
   ctx: string;
   events: { time: string; title: string; location?: string | null }[];
   dateLabel: string;
+  parentFirstName: string | null;
+}
+
+// SMS onboarding asks only for a first name ("What should I call you? First
+// name's perfect."), so profiles.family_name almost always holds just that —
+// "Austin", not "Ford" or "the Ford family". Feeding that straight into the
+// prompt as the family's name produced "the Austin family", which reads like a
+// database field. We split the stored value: a single token is the parent's
+// first name with no surname; a multi-word value ("Sarah Ford") yields both.
+// When there is no surname the briefing addresses the household by its members
+// instead of inventing a family name.
+interface FamilyNaming {
+  parentFirstName: string | null;
+  surname: string | null;
+}
+
+function resolveFamilyNaming(rawName: string | null): FamilyNaming {
+  const cleaned = (rawName ?? "").trim();
+  if (!cleaned || cleaned.toLowerCase() === "family") {
+    return { parentFirstName: null, surname: null };
+  }
+  const tokens = cleaned.split(/\s+/);
+  if (tokens.length === 1) {
+    return { parentFirstName: tokens[0], surname: null };
+  }
+  return { parentFirstName: tokens[0], surname: tokens.slice(1).join(" ") };
 }
 
 async function buildBriefingContext(
   profileId: string,
-  familyName: string,
+  familyName: string | null,
   timezone: string
 ): Promise<BriefingContext> {
   const today = new Date().toISOString().split("T")[0];
@@ -394,7 +422,17 @@ async function buildBriefingContext(
     location: e.location,
   }));
 
-  let ctx = `Family: ${familyName}\nDate: ${dateLabel}\n\n`;
+  const naming = resolveFamilyNaming(familyName);
+  let ctx = "";
+  if (naming.parentFirstName) {
+    ctx += `Primary parent (the person reading this briefing): ${naming.parentFirstName}\n`;
+  }
+  if (naming.surname) {
+    ctx += `Family surname: ${naming.surname}\n`;
+  } else {
+    ctx += "Family surname: not on file — address the household by its members, not a made-up family name\n";
+  }
+  ctx += `Date: ${dateLabel}\n\n`;
 
   const stalenessNote = calendarStalenessNote(calendarConnections);
   if (stalenessNote) {
@@ -429,7 +467,7 @@ async function buildBriefingContext(
   const weather = await fetchWeather(getContextNote(contextNotes, "home_location"), timezone);
   if (weather) ctx += `\n${weather}\n`;
 
-  return { ctx, events, dateLabel };
+  return { ctx, events, dateLabel, parentFirstName: naming.parentFirstName };
 }
 
 // Calls Claude with 3 attempts and exponential backoff. Throws if all fail.
@@ -476,11 +514,12 @@ async function callAnthropicWithRetry(ctx: string): Promise<string> {
 
 // Plaintext fallback when the AI call fails after retries. No summary — just a
 // simple, useful list of the day's calendar so the user still gets something.
-function buildPlaintextBriefing(c: BriefingContext, familyName: string): string {
+function buildPlaintextBriefing(c: BriefingContext): string {
+  const greeting = c.parentFirstName ? `Good morning, ${c.parentFirstName}.` : "Good morning.";
   if (c.events.length === 0) {
-    return `Good morning, ${familyName}. Nothing on the calendar today — an open day.`;
+    return `${greeting} Nothing on the calendar today — an open day.`;
   }
-  const parts: string[] = [`Good morning, ${familyName}. Here's ${c.dateLabel}:`];
+  const parts: string[] = [`${greeting} Here's ${c.dateLabel}:`];
   parts.push(
     c.events
       .map((e) => `${e.time} ${e.title}${e.location ? ` at ${e.location}` : ""}`)
@@ -498,7 +537,7 @@ export interface GeneratedBriefing {
 // degrades gracefully to a plaintext calendar list rather than giving up.
 export async function generateBriefing(
   profileId: string,
-  familyName: string,
+  familyName: string | null,
   timezone: string,
   appendPaymentNudge: boolean
 ): Promise<GeneratedBriefing> {
@@ -514,10 +553,10 @@ export async function generateBriefing(
     const msg = err instanceof Error ? err.message : String(err);
     console.error(`generateBriefing: AI failed for ${profileId}, using plaintext fallback:`, msg);
     await notifySlack(
-      `AI briefing generation failed for ${familyName} (${profileId}) after retries — sent plaintext fallback. ${msg}`,
+      `AI briefing generation failed for ${familyName ?? profileId} (${profileId}) after retries — sent plaintext fallback. ${msg}`,
       "warning"
     );
-    text = buildPlaintextBriefing(context, familyName);
+    text = buildPlaintextBriefing(context);
   }
 
   return {
@@ -573,7 +612,7 @@ export async function deliverBriefing(
   try {
     const { text, degraded } = await generateBriefing(
       profile.id,
-      profile.family_name ?? "Family",
+      profile.family_name,
       tz,
       appendPaymentNudge
     );
