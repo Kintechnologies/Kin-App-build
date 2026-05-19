@@ -14,11 +14,11 @@
 --
 -- The daily jobs (cleanup, engagement-nudges?mode=trial) stay in vercel.json.
 --
--- Why the edge-function hop: the Next.js cron routes require an
--- `Authorization: Bearer <CRON_SECRET>` header. cron-dispatch holds that
--- secret as an edge-function secret and injects it server-side, so no secret
--- is committed here. cron-dispatch has verify_jwt = false (see config.toml),
--- so the pg_cron POST below needs no Authorization header itself.
+-- Why the edge-function hop: the Next.js cron routes require a Bearer token.
+-- cron-dispatch authenticates to them with the project's service-role key,
+-- which Supabase auto-injects into the function — so no secret is committed
+-- here. cron-dispatch has verify_jwt = false (see config.toml), so the
+-- pg_cron POST below needs no Authorization header itself.
 --
 -- This mirrors the morning-briefing pattern (046_morning_briefing_cron.sql).
 -- ─────────────────────────────────────────────────────────────────────────────

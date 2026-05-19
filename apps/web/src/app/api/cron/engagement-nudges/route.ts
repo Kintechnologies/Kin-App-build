@@ -32,6 +32,7 @@ import { NextResponse } from "next/server";
 import { randomBytes } from "crypto";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { sendSms } from "@/lib/twilio";
+import { isAuthorizedCron } from "@/lib/cron-auth";
 
 type AdminClient = ReturnType<typeof createAdminClient>;
 
@@ -315,8 +316,7 @@ async function runTrialNudges(
 // ─── Route ──────────────────────────────────────────────────────────────────
 
 export async function GET(request: Request) {
-  const authHeader = request.headers.get("authorization");
-  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+  if (!isAuthorizedCron(request)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

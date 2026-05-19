@@ -12,8 +12,8 @@ verify_jwt = false
 # engagement-nudges onboarding) to their Vercel-hosted Next.js routes. Moved
 # off Vercel Cron because the Hobby plan only allows daily schedules; the
 # pg_cron jobs live in 058_subdaily_crons.sql. verify_jwt = false so the
-# pg_cron POST needs no Authorization header — the CRON_SECRET that the
-# Next.js routes require is injected by the function itself.
+# pg_cron POST needs no Authorization header — the function authenticates to
+# the Next.js routes with the auto-injected SUPABASE_SERVICE_ROLE_KEY.
 [functions.cron-dispatch]
 verify_jwt = false
 
