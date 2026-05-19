@@ -161,6 +161,7 @@ export default function TermsPage() {
             "The accuracy of AI Content depends on the accuracy of your calendar data and account information",
           ]} />
           <p>You are solely responsible for verifying time-sensitive information (such as pickup times, appointment details, and deadlines) against your original calendar and other sources.</p>
+          <p><strong style={{ color: "#F0EDE6" }}>Reliance on Kin.</strong> Kin is an assistant tool, not a system of record, and can sit in the critical path of family logistics — pickups, drop-offs, appointments, and medication timing. A briefing can be wrong: a connected calendar may be out of date, an event may have changed since the last sync, or the AI may misread the context. Always verify time-sensitive logistics independently before acting on them. To the fullest extent permitted by law, {COMPANY} is not responsible for missed events, missed pickups or drop-offs, scheduling conflicts, missed appointments or medications, or any other outcome arising from action or inaction taken in reliance on AI Content.</p>
         </Section>
 
         <Section title="8. Household and Partner Features">

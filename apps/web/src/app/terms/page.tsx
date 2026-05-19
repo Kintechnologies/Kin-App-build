@@ -169,7 +169,32 @@ export default function TermsPage() {
         </LegalP>
       </LegalSection>
 
-      <LegalSection n="06" title="Google Calendar integration">
+      <LegalSection n="06" title="Reliance on Kin">
+        <LegalP>
+          Kin is an assistant tool, not a system of record. It surfaces and
+          summarizes information drawn from you and your connected calendars; it
+          does not replace your own calendar, your co-parent, your child&apos;s
+          school or care provider, or your own judgment.
+        </LegalP>
+        <LegalCallout tone="rose" title="Always verify time-sensitive logistics">
+          Kin can sit in the critical path of family logistics — pickups,
+          drop-offs, appointments, and medication timing. A briefing can be
+          wrong: a connected calendar may be out of date, an event may have
+          changed since the last sync, or the AI may misread the context.
+          Always verify time-sensitive logistics independently before you act
+          on them.
+        </LegalCallout>
+        <LegalP>
+          To the fullest extent permitted by law, Kin Technologies LLC is not
+          responsible for missed events, missed pickups or drop-offs, scheduling
+          conflicts, missed appointments or medications, or any other outcome
+          arising from action or inaction taken in reliance on a briefing,
+          reply, or other content Kin sends you. You are solely responsible for
+          confirming time-critical information against authoritative sources.
+        </LegalP>
+      </LegalSection>
+
+      <LegalSection n="07" title="Google Calendar integration">
         <LegalP>
           If you choose to connect a Google Calendar, you authorize Kin to read
           events from the calendars you select. We use Google&apos;s OAuth flow
@@ -183,7 +208,7 @@ export default function TermsPage() {
         </LegalP>
       </LegalSection>
 
-      <LegalSection n="07" title="Acceptable use">
+      <LegalSection n="08" title="Acceptable use">
         <LegalP>
           You may use Kin only for personal, family, non-commercial scheduling
           and coordination. You agree not to:
@@ -223,7 +248,7 @@ export default function TermsPage() {
         </LegalUL>
       </LegalSection>
 
-      <LegalSection n="08" title="Privacy">
+      <LegalSection n="09" title="Privacy">
         <LegalP>
           Your use of Kin is also governed by our{" "}
           <LegalInlineLink href="/privacy">Privacy Policy</LegalInlineLink>,
@@ -234,7 +259,7 @@ export default function TermsPage() {
         </LegalP>
       </LegalSection>
 
-      <LegalSection n="09" title="Disclaimers">
+      <LegalSection n="10" title="Disclaimers">
         <p
           style={{
             margin: "0 0 12px",
@@ -258,7 +283,7 @@ export default function TermsPage() {
         </p>
       </LegalSection>
 
-      <LegalSection n="10" title="Limitation of liability">
+      <LegalSection n="11" title="Limitation of liability">
         <p
           style={{
             margin: "0 0 12px",
@@ -283,7 +308,7 @@ export default function TermsPage() {
         </p>
       </LegalSection>
 
-      <LegalSection n="11" title="Dispute resolution">
+      <LegalSection n="12" title="Dispute resolution">
         <LegalP>
           Before filing any legal claim, contact us at{" "}
           <LegalEmail address="hello@kinai.family" /> and attempt to resolve
@@ -300,7 +325,7 @@ export default function TermsPage() {
         </LegalP>
       </LegalSection>
 
-      <LegalSection n="12" title="Termination">
+      <LegalSection n="13" title="Termination">
         <LegalP>
           You may stop using Kin and request deletion of your account or
           waitlist entry at any time by replying STOP to opt out of SMS or by
@@ -313,7 +338,7 @@ export default function TermsPage() {
         </LegalP>
       </LegalSection>
 
-      <LegalSection n="13" title="Changes to these terms">
+      <LegalSection n="14" title="Changes to these terms">
         <LegalP>
           We may update these Terms from time to time. If we make material
           changes, we will notify you by email or SMS and update the
@@ -323,7 +348,7 @@ export default function TermsPage() {
         </LegalP>
       </LegalSection>
 
-      <LegalSection n="14" title="Contact">
+      <LegalSection n="15" title="Contact">
         <LegalP>Kin Technologies LLC</LegalP>
         <LegalP>
           Email: <LegalEmail address="hello@kinai.family" />
