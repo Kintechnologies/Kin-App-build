@@ -10,7 +10,8 @@ type IconName =
   | "sync"
   | "activities"
   | "reminders"
-  | "ask";
+  | "ask"
+  | "weather";
 
 function Icon({ name }: { name: IconName }) {
   const common = {
@@ -78,6 +79,15 @@ function Icon({ name }: { name: IconName }) {
           <line x1="15.5" y1="10.5" x2="15.5" y2="10.6" />
         </svg>
       );
+    case "weather":
+      return (
+        <svg {...common}>
+          <path d="M7 15a4 4 0 0 1 .6-7.95A5.5 5.5 0 0 1 18.4 8 3.6 3.6 0 0 1 18 15H7Z" />
+          <line x1="9" y1="18" x2="8" y2="21" />
+          <line x1="13" y1="18" x2="12" y2="21" />
+          <line x1="17" y1="18" x2="16" y2="21" />
+        </svg>
+      );
   }
 }
 
@@ -128,6 +138,12 @@ const capabilities: {
     title: "Ask Kin anything",
     body: "Text a question, get an answer — with your whole family's context behind it.",
     accent: "#A98230",
+  },
+  {
+    icon: "weather",
+    title: "Weather & traffic aware",
+    body: "Rain at pickup, heavy traffic to practice — Kin folds it into the plan before you ask.",
+    accent: "#5C6B73",
   },
 ];
 
