@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { useTheme } from "@/components/ThemeProvider";
 import {
@@ -13,7 +12,6 @@ import {
   Moon,
   Sun,
   Check,
-  ArrowUpRight,
   LogOut,
   Loader2,
 } from "lucide-react";
@@ -402,38 +400,6 @@ export default function DashboardSettingsPage() {
               </button>
             </div>
           </SectionCard>
-
-          <Link
-            href="/settings"
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "12px",
-              padding: "16px 18px",
-              background: "#FDFBF7",
-              border: "0.5px solid var(--hair)",
-              borderRadius: "8px",
-              textDecoration: "none",
-              transition: "border-color 180ms ease",
-            }}
-          >
-            <div style={{ flex: 1 }}>
-              <div
-                style={{
-                  fontSize: "14px",
-                  color: "var(--warm)",
-                  fontWeight: 500,
-                  marginBottom: "2px",
-                }}
-              >
-                More account settings
-              </div>
-              <div style={{ fontSize: "12.5px", color: "var(--warm-56)" }}>
-                Plan, referrals, and household details.
-              </div>
-            </div>
-            <ArrowUpRight size={16} style={{ color: "var(--warm-40)" }} />
-          </Link>
 
           <button
             onClick={handleSignOut}

@@ -14,7 +14,7 @@ import * as Sentry from "@sentry/nextjs";
 
 export async function POST(request: Request) {
   try {
-    const { returnPath = "/settings" } = (await request
+    const { returnPath = "/dashboard/billing" } = (await request
       .json()
       .catch(() => ({}))) as { returnPath?: string };
 

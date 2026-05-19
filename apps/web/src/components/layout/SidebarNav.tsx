@@ -4,8 +4,6 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import {
-  Home,
-  CalendarDays,
   CalendarCheck,
   Users,
   CreditCard,
@@ -28,11 +26,9 @@ type NavItem = {
 };
 
 const NAV: NavItem[] = [
-  { href: "/dashboard", label: "Home", icon: Home, enabled: true },
-  { href: "/calendar", label: "This week", icon: CalendarDays, enabled: true },
+  { href: "/dashboard/family", label: "Household", icon: Users, enabled: true },
   { href: "/dashboard/calendars", label: "Calendars", icon: CalendarCheck, enabled: true },
-  { href: "/dashboard/family", label: "Family", icon: Users, enabled: true },
-  { href: "/dashboard/billing", label: "Billing", icon: CreditCard, enabled: true },
+  { href: "/dashboard/billing", label: "Payments", icon: CreditCard, enabled: true },
   { href: "/dashboard/settings", label: "Settings", icon: SettingsIcon, enabled: true },
 ];
 
@@ -101,9 +97,7 @@ export default function SidebarNav() {
   const NavList = (
     <nav style={{ display: "flex", flexDirection: "column", gap: 2 }} aria-label="Main">
       {NAV.map(({ href, label, icon: Icon }) => {
-        const isActive =
-          pathname === href ||
-          (href !== "/dashboard" && pathname?.startsWith(href));
+        const isActive = pathname === href || pathname?.startsWith(`${href}/`);
         return (
           <Link
             key={href}
