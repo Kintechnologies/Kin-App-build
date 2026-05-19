@@ -828,11 +828,33 @@ async function insertKids(
   kids: { name: string; age: number | null }[]
 ): Promise<void> {
   try {
+    // Idempotency guard: step 2 can run more than once for the same profile —
+    // a Twilio webhook retry, or a texter re-sending their kids — and
+    // family_members carries no unique constraint, so a naive insert silently
+    // duplicates every child. Skip any kid already on file for this profile
+    // (case-insensitive by name), and dedup the incoming batch against itself.
+    const { data: existing } = await supabase
+      .from("family_members")
+      .select("name")
+      .eq("profile_id", profileId)
+      .eq("member_type", "child");
+
+    const seen = new Set(
+      (existing ?? []).map((m: { name: string }) => m.name.trim().toLowerCase())
+    );
+    const fresh = kids.filter((k) => {
+      const key = k.name.trim().toLowerCase();
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+    if (fresh.length === 0) return;
+
     // household_id, not just profile_id: the morning briefing and household
     // memory layer scope family_members by household. A new SMS texter is the
     // primary parent, so the household id is their own profile id.
     await supabase.from("family_members").insert(
-      kids.map((k) => ({
+      fresh.map((k) => ({
         profile_id: profileId,
         household_id: profileId,
         name: k.name,
