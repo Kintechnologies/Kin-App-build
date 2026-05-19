@@ -3,15 +3,16 @@
  *
  * Cron job: run pickup-risk detection for every household.
  *
- * Runs every 30 minutes (see apps/web/vercel.json). detectPickupRisk is the
- * intra-day proactive alert engine: each tick re-detects pickup conflicts and
- * texts the household a heads-up for any conflict whose pickup is ~30 minutes
- * out. The work is idempotent — coordination_issues dedupe by window and the
- * SMS dedupes via coordination_issues.alert_sms_sent_at.
+ * Runs every 30 minutes. The Vercel Hobby plan only allows daily crons, so the
+ * schedule lives in pg_cron (supabase/migrations/058_subdaily_crons.sql) and
+ * reaches this route via the cron-dispatch edge function. detectPickupRisk is
+ * the intra-day proactive alert engine: each tick re-detects pickup conflicts
+ * and texts the household a heads-up for any conflict whose pickup is ~30
+ * minutes out. The work is idempotent — coordination_issues dedupe by window
+ * and the SMS dedupes via coordination_issues.alert_sms_sent_at.
  *
- * Vercel Cron invokes scheduled routes with GET and an
- * `Authorization: Bearer <CRON_SECRET>` header — same pattern as the other
- * cron routes.
+ * Invoked with GET and an `Authorization: Bearer <CRON_SECRET>` header — same
+ * pattern as the other cron routes.
  *
  * Each household is processed independently; partial failures are logged but
  * do not abort the run. Returns a summary of issues created.

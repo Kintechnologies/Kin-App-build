@@ -8,6 +8,15 @@ verify_jwt = false
 [functions.briefing-audit]
 verify_jwt = false
 
+# Proxies the sub-daily cron jobs (pickup-risk, sunday-checkin,
+# engagement-nudges onboarding) to their Vercel-hosted Next.js routes. Moved
+# off Vercel Cron because the Hobby plan only allows daily schedules; the
+# pg_cron jobs live in 058_subdaily_crons.sql. verify_jwt = false so the
+# pg_cron POST needs no Authorization header — the CRON_SECRET that the
+# Next.js routes require is injected by the function itself.
+[functions.cron-dispatch]
+verify_jwt = false
+
 [auth]
 enable_signup = true
 

@@ -1,10 +1,14 @@
 /**
  * GET /api/cron/sunday-checkin
  *
- * Weekly Sunday check-in. Runs hourly (see apps/web/vercel.json) and fans out
- * internally to users whose local time is currently the 2pm hour on a Sunday —
- * the same per-user-timezone fan-out pattern the morning-briefing edge function
- * uses, since Vercel cron itself has no timezone awareness.
+ * Weekly Sunday check-in. Runs hourly and fans out internally to users whose
+ * local time is currently the 2pm hour on a Sunday — the same per-user-timezone
+ * fan-out pattern the morning-briefing edge function uses, since the cron
+ * itself has no timezone awareness.
+ *
+ * The Vercel Hobby plan only allows daily crons, so the hourly schedule lives
+ * in pg_cron (supabase/migrations/058_subdaily_crons.sql) and reaches this
+ * route via the cron-dispatch edge function.
  *
  * Each matching user gets one casual text asking what's coming up this week.
  * Their reply is captured by the inbound SMS webhook (/api/sms/inbound) into

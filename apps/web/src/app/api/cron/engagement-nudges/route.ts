@@ -1,14 +1,18 @@
 /**
  * GET /api/cron/engagement-nudges
  *
- * Engagement + trial nudge SMS. Two modes, selected by the ?mode= query param
- * so one route backs two Vercel Cron schedules (see apps/web/vercel.json):
+ * Engagement + trial nudge SMS. Two modes, selected by the ?mode= query param,
+ * each on its own schedule:
  *
  *   ?mode=onboarding — hourly. Two onboarding nudges:
  *     • completed SMS onboarding but no calendar connected 24h+ later
  *     • started onboarding but went silent before finishing, 24h+ ago
+ *     The Vercel Hobby plan only allows daily crons, so this hourly schedule
+ *     lives in pg_cron (supabase/migrations/058_subdaily_crons.sql) and
+ *     reaches this route via the cron-dispatch edge function.
  *
- *   ?mode=trial — daily. The trial drip sequence, by days since signup:
+ *   ?mode=trial — daily, scheduled by Vercel Cron (apps/web/vercel.json). The
+ *     trial drip sequence, by days since signup:
  *     • day 3  — check-in on the first briefings
  *     • day 7  — one-week encouragement
  *     • day 12 — "trial ends in 2 days" + payment link
