@@ -55,10 +55,13 @@ export async function pullGoogleEvents(
   const calendar = getCalendarClient(accessToken);
 
   try {
+    // NOTE: orderBy is intentionally never set. Google omits nextSyncToken
+    // from any response that uses orderBy, and rejects (400) syncToken
+    // requests that include orderBy/timeMin/timeMax. Events are upserted
+    // regardless of order, so sorting here has no value.
     const params: calendar_v3.Params$Resource$Events$List = {
       calendarId,
       singleEvents: true,
-      orderBy: "startTime",
       maxResults: 2500,
     };
 
