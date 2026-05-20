@@ -27,6 +27,7 @@ const geistMono = localFont({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://kinai.family"),
   title: "Kin — The AI that runs your household",
   description:
     "Kin is your family's AI assistant. It learns your family's patterns, coordinates everyone's schedules, and keeps you in sync — starting with a morning text.",

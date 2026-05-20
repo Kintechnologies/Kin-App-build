@@ -118,13 +118,13 @@ export default function TermsPage() {
         </div>
 
         <Section title="1. Agreement to Terms">
-          <p>These Terms of Service (&ldquo;Terms&rdquo;) are a binding legal agreement between you and {COMPANY} (&ldquo;Kin,&rdquo; &ldquo;we,&rdquo; &ldquo;us,&rdquo; or &ldquo;our&rdquo;) governing your access to and use of the {APP} mobile application, website (kinai.family), and related services (collectively, the &ldquo;Service&rdquo;).</p>
+          <p>These Terms of Service (&ldquo;Terms&rdquo;) are a binding legal agreement between you and {COMPANY} (&ldquo;Kin,&rdquo; &ldquo;we,&rdquo; &ldquo;us,&rdquo; or &ldquo;our&rdquo;) governing your access to and use of the {APP} website (kinai.family), text messaging service, and related services (collectively, the &ldquo;Service&rdquo;).</p>
           <p>By creating an account or using the Service, you confirm that you are at least 18 years old, have the legal capacity to enter into this agreement, and agree to be bound by these Terms and our <Link href="/privacy" style={{ color: "var(--green)", fontWeight: 500 }}>Privacy Policy</Link>.</p>
           <p>If you do not agree to these Terms, do not use the Service.</p>
         </Section>
 
         <Section title="2. The Service">
-          <p>{APP} is a family scheduling assistant that connects to your calendar, analyzes your schedule, and proactively tells you what you need to know — including pickup responsibilities, schedule conflicts, and time-sensitive tasks. The Service uses AI to generate briefings and suggestions.</p>
+          <p>{APP} is a family scheduling assistant that connects to your calendar, analyzes your schedule, and proactively texts you what you need to know — including a morning briefing, pickup responsibilities, schedule conflicts, and time-sensitive tasks. The Service uses AI to generate briefings and suggestions.</p>
           <p>We reserve the right to modify, suspend, or discontinue any part of the Service at any time. We will provide reasonable notice of material changes where possible.</p>
         </Section>
 
@@ -135,12 +135,12 @@ export default function TermsPage() {
         </Section>
 
         <Section title="4. Subscriptions and Billing">
-          <p>{APP} is offered on a subscription basis. Subscriptions are available on a monthly or annual basis. Pricing is displayed in the App Store and Google Play Store at the time of purchase.</p>
-          <p><strong style={{ color: "var(--ink)" }}>Billing.</strong> Subscriptions are billed through Apple App Store or Google Play, managed by RevenueCat. By subscribing, you authorize the applicable app store to charge your payment method on a recurring basis at the start of each billing period.</p>
+          <p>{APP} is offered on a subscription basis. Subscriptions are available on a monthly or annual basis. Pricing is displayed on our website at the time of purchase.</p>
+          <p><strong style={{ color: "var(--ink)" }}>Billing.</strong> Subscriptions are billed through Stripe via Stripe Checkout. By subscribing, you authorize Stripe to charge your payment method on a recurring basis at the start of each billing period until you cancel.</p>
           <p><strong style={{ color: "var(--ink)" }}>Free trials.</strong> If a free trial is offered, your subscription will automatically begin at the end of the trial period unless you cancel before the trial ends.</p>
-          <p><strong style={{ color: "var(--ink)" }}>Cancellations.</strong> You may cancel your subscription at any time through your App Store or Google Play account settings. Cancellation takes effect at the end of the current billing period. We do not provide refunds for partial billing periods except as required by applicable law.</p>
+          <p><strong style={{ color: "var(--ink)" }}>Cancellations.</strong> You may cancel your subscription at any time from your dashboard at /dashboard/billing, which opens the Stripe Customer Portal. Cancellation takes effect at the end of the current billing period. We do not provide refunds for partial billing periods except as required by applicable law.</p>
           <p><strong style={{ color: "var(--ink)" }}>Price changes.</strong> We may change subscription pricing with reasonable advance notice. Continued use of the Service after a price change constitutes acceptance of the new pricing.</p>
-          <p><strong style={{ color: "var(--ink)" }}>Refunds.</strong> Refund requests are subject to the refund policies of Apple App Store and Google Play. Contact <a href={`mailto:${EMAIL}`} style={{ color: "var(--green)", fontWeight: 500 }}>{EMAIL}</a> if you have billing questions.</p>
+          <p><strong style={{ color: "var(--ink)" }}>Refunds.</strong> Contact <a href={`mailto:${EMAIL}`} style={{ color: "var(--green)", fontWeight: 500 }}>{EMAIL}</a> if you have billing questions or wish to request a refund.</p>
         </Section>
 
         <Section title="5. Acceptable Use">
@@ -231,7 +231,7 @@ export default function TermsPage() {
         </Section>
 
         <Section title="14. Termination">
-          <p>You may terminate your account at any time by deleting your account from Settings → Account → Delete Account.</p>
+          <p>You may terminate your account at any time from your dashboard at /dashboard/account. To stop billing without deleting your account, cancel your subscription from /dashboard/billing.</p>
           <p>We may suspend or terminate your access to the Service at any time, with or without notice, if we believe you have violated these Terms, engaged in fraudulent activity, or for any other reason at our sole discretion.</p>
           <p>Upon termination, your right to use the Service will immediately cease. Sections that by their nature should survive termination (including Sections 9–16) will survive.</p>
         </Section>

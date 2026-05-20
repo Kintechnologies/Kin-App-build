@@ -118,7 +118,7 @@ export default function PrivacyPage() {
         </div>
 
         <Section title="1. Who We Are">
-          <p>{APP} is operated by {COMPANY} (&ldquo;Kin,&rdquo; &ldquo;we,&rdquo; &ldquo;us,&rdquo; or &ldquo;our&rdquo;). This Privacy Policy explains how we collect, use, disclose, and protect information about you when you use our mobile application, website (kinai.family), and related services (collectively, the &ldquo;Service&rdquo;).</p>
+          <p>{APP} is operated by {COMPANY} (&ldquo;Kin,&rdquo; &ldquo;we,&rdquo; &ldquo;us,&rdquo; or &ldquo;our&rdquo;). This Privacy Policy explains how we collect, use, disclose, and protect information about you when you use our website (kinai.family), text messaging service, and related services (collectively, the &ldquo;Service&rdquo;).</p>
           <p>Questions? Contact us at <a href={`mailto:${EMAIL}`} style={{ color: "var(--green)", fontWeight: 500 }}>{EMAIL}</a>.</p>
         </Section>
 
@@ -126,9 +126,9 @@ export default function PrivacyPage() {
           <p><strong style={{ color: "var(--ink)" }}>Account information.</strong> When you create an account, we collect your name, email address, and any profile information you provide.</p>
           <p><strong style={{ color: "var(--ink)" }}>Calendar data.</strong> With your explicit permission, we access your Google Calendar with read-only permission. We read your calendar to understand your schedule and build your briefings — Kin never writes to, modifies, or deletes events on your calendar. We do not access your calendar without your consent.</p>
           <p><strong style={{ color: "var(--ink)" }}>Household data.</strong> You may optionally add information about your household including partner details, children&apos;s names, ages, and activities, and other family members. This information is used only to personalize your Kin experience.</p>
-          <p><strong style={{ color: "var(--ink)" }}>Usage data.</strong> We automatically collect information about how you use the Service, including features accessed, interactions with Kin&apos;s AI, app session data, and diagnostic information.</p>
-          <p><strong style={{ color: "var(--ink)" }}>Device information.</strong> We collect device type, operating system, and app version to provide support and improve the Service.</p>
-          <p><strong style={{ color: "var(--ink)" }}>Payment information.</strong> Subscription billing is handled entirely by RevenueCat and Apple/Google. We do not store your payment card details.</p>
+          <p><strong style={{ color: "var(--ink)" }}>Usage data.</strong> We automatically collect information about how you use the Service, including features accessed, interactions with Kin&apos;s AI, session data, and diagnostic information.</p>
+          <p><strong style={{ color: "var(--ink)" }}>Device information.</strong> We collect device type, operating system, and browser version to provide support and improve the Service.</p>
+          <p><strong style={{ color: "var(--ink)" }}>Payment information.</strong> Subscription billing is handled entirely by Stripe. Payment card details are collected and stored by Stripe — we never see or store your full card number.</p>
         </Section>
 
         <Section title="3. How We Use Your Information">
@@ -159,7 +159,8 @@ export default function PrivacyPage() {
             "Supabase — database and authentication infrastructure. Data stored in the United States.",
             "Google — calendar access via Google OAuth. Subject to Google's Privacy Policy.",
             "Anthropic — AI inference for generating schedule briefings and insights.",
-            "RevenueCat — subscription management and billing. No payment card data is shared with us.",
+            "Stripe — subscription billing via Stripe Checkout and the Stripe Customer Portal. Payment card data is collected and stored by Stripe; we never see or store full card numbers.",
+            "Twilio — SMS delivery for your morning briefing and reminders.",
             "Sentry — error tracking and crash reporting. Anonymized diagnostic data only.",
           ]} />
           <p>We may also disclose your information if required by law, to protect the safety of our users, or in connection with a merger or acquisition (in which case you will be notified).</p>
@@ -178,8 +179,9 @@ export default function PrivacyPage() {
         </Section>
 
         <Section title="8. Your Rights and Controls">
-          <p><strong style={{ color: "var(--ink)" }}>Access and correction.</strong> You can view and update your account information within the Kin app at any time.</p>
-          <p><strong style={{ color: "var(--ink)" }}>Deletion.</strong> You can delete your account from Settings → Account → Delete Account. This will permanently remove your profile, household data, and calendar access.</p>
+          <p><strong style={{ color: "var(--ink)" }}>Access and correction.</strong> You can view and update your account information in your dashboard at any time.</p>
+          <p><strong style={{ color: "var(--ink)" }}>Deletion.</strong> You can delete your account from your dashboard at /dashboard/account. This will permanently remove your profile, household data, and calendar access.</p>
+          <p><strong style={{ color: "var(--ink)" }}>Subscription management.</strong> You can manage or cancel your subscription at any time from /dashboard/billing, which opens the Stripe Customer Portal.</p>
           <p><strong style={{ color: "var(--ink)" }}>Data export.</strong> You may request a copy of your data by contacting us at <a href={`mailto:${EMAIL}`} style={{ color: "var(--green)", fontWeight: 500 }}>{EMAIL}</a>. We will provide your data in a machine-readable format within 30 days.</p>
           <p><strong style={{ color: "var(--ink)" }}>Calendar access.</strong> You can revoke Google Calendar access without deleting your account. Some features will be unavailable without calendar access.</p>
         </Section>
@@ -220,7 +222,7 @@ export default function PrivacyPage() {
         </Section>
 
         <Section title="13. Changes to This Policy">
-          <p>We may update this Privacy Policy from time to time. We will notify you of material changes by posting the updated policy in the app and, where required by law, by email.</p>
+          <p>We may update this Privacy Policy from time to time. We will notify you of material changes by posting the updated policy on the website and, where required by law, by email.</p>
           <p>This policy was last updated on {LAST_UPDATED}.</p>
         </Section>
 

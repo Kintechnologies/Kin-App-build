@@ -7,7 +7,7 @@ import { ArrowRight } from "lucide-react";
 import KinWordmark from "@/components/KinWordmark";
 import { createClient } from "@/lib/supabase/client";
 
-// ── Dietary options (mirrored from StepDietary.tsx) ───────────────────────────
+// ── Dietary options ───────────────────────────────────────────────────────────
 
 const DIETARY_OPTIONS = [
   "Vegetarian",

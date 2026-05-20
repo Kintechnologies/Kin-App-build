@@ -2,9 +2,9 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import KinWordmark from "@/components/KinWordmark";
 import { useParams, useRouter } from "next/navigation";
-import { Home, Loader2, AlertCircle, CheckCircle, Users } from "lucide-react";
+import { Loader2, AlertCircle, CheckCircle, Users } from "lucide-react";
+import { KinMark } from "@/components/KinMark";
 
 interface InviteData {
   valid: true;
@@ -67,11 +67,6 @@ export default function InviteLandingPage() {
 
   async function handleJoin() {
     if (state.status !== "valid") return;
-
-    // Route to sign-up/sign-in with the invite code in the query string.
-    // After auth, the /signup and /signin pages should consume this code via
-    // POST /api/invite/[code]/accept on successful authentication.
-    // For now, we redirect to /signup with the invite code so it's preserved.
     router.push(`/signup?invite=${code}`);
   }
 
@@ -79,9 +74,9 @@ export default function InviteLandingPage() {
   if (state.status === "loading") {
     return (
       <PageShell>
-        <div className="flex flex-col items-center gap-4 py-16">
-          <Loader2 size={32} className="text-primary animate-spin" />
-          <p className="text-warm-white/50 text-sm">Loading your invite…</p>
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "16px", padding: "64px 0" }}>
+          <Loader2 size={28} className="animate-spin" style={{ color: "var(--green)" }} />
+          <p style={{ fontSize: "14px", color: "var(--ink-3)" }}>Loading your invite…</p>
         </div>
       </PageShell>
     );
@@ -92,15 +87,41 @@ export default function InviteLandingPage() {
     const { title, body } = invalidMessages[state.reason];
     return (
       <PageShell>
-        <div className="flex flex-col items-center text-center gap-4 py-8">
-          <div className="w-14 h-14 rounded-full bg-rose/15 flex items-center justify-center">
-            <AlertCircle size={24} className="text-rose" />
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center", gap: "18px", padding: "24px 0" }}>
+          <div
+            style={{
+              width: "56px",
+              height: "56px",
+              borderRadius: "999px",
+              background: "rgba(172, 106, 69, 0.12)",
+              border: "1px solid rgba(172, 106, 69, 0.28)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <AlertCircle size={24} style={{ color: "var(--clay)" }} />
           </div>
-          <h1 className="font-serif italic text-2xl text-warm-white">{title}</h1>
-          <p className="text-warm-white/50 text-sm max-w-sm leading-relaxed">{body}</p>
+          <h1 style={{ fontFamily: "var(--font-instrument-serif), serif", fontStyle: "italic", fontSize: "26px", color: "var(--ink)", letterSpacing: "-0.5px" }}>
+            {title}
+          </h1>
+          <p style={{ fontSize: "15px", color: "var(--ink-2)", maxWidth: "26rem", lineHeight: 1.65 }}>{body}</p>
           <Link
             href="/signup"
-            className="mt-4 inline-flex items-center gap-2 px-6 py-3 rounded-2xl bg-surface-raised border border-warm-white/10 text-warm-white/70 hover:text-warm-white text-sm transition-colors"
+            style={{
+              marginTop: "12px",
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "8px",
+              padding: "12px 24px",
+              borderRadius: "999px",
+              background: "var(--paper)",
+              border: "1px solid var(--border)",
+              color: "var(--ink)",
+              fontSize: "14px",
+              fontWeight: 500,
+              textDecoration: "none",
+            }}
           >
             Create a new account
           </Link>
@@ -113,19 +134,48 @@ export default function InviteLandingPage() {
   if (state.status === "accepted") {
     return (
       <PageShell>
-        <div className="flex flex-col items-center text-center gap-4 py-8">
-          <div className="w-14 h-14 rounded-full bg-primary/15 flex items-center justify-center">
-            <CheckCircle size={24} className="text-primary" />
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center", gap: "18px", padding: "24px 0" }}>
+          <div
+            style={{
+              width: "56px",
+              height: "56px",
+              borderRadius: "999px",
+              background: "var(--green-soft)",
+              border: "1px solid var(--green-line)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <CheckCircle size={24} style={{ color: "var(--green)" }} />
           </div>
-          <h1 className="font-serif italic text-2xl text-warm-white">You&apos;re connected!</h1>
-          <p className="text-warm-white/50 text-sm">
-            Your household is now linked. Head to your dashboard to see the shared family view.
+          <h1 style={{ fontFamily: "var(--font-instrument-serif), serif", fontStyle: "italic", fontSize: "26px", color: "var(--ink)", letterSpacing: "-0.5px" }}>
+            You&apos;re connected.
+          </h1>
+          <p style={{ fontSize: "15px", color: "var(--ink-2)", maxWidth: "26rem", lineHeight: 1.65 }}>
+            Your household is linked. Head to your dashboard to see your shared family view.
           </p>
           <Link
             href="/dashboard"
-            className="mt-4 inline-flex items-center justify-center gap-2 w-full max-w-sm py-4 rounded-2xl bg-primary text-background font-semibold text-base hover:shadow-lg hover:shadow-primary/25 hover:scale-[1.02] active:scale-[0.98] transition-all"
+            style={{
+              marginTop: "12px",
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: "8px",
+              width: "100%",
+              maxWidth: "22rem",
+              padding: "16px 24px",
+              borderRadius: "999px",
+              background: "var(--green)",
+              color: "var(--paper)",
+              fontSize: "15px",
+              fontWeight: 600,
+              textDecoration: "none",
+              letterSpacing: "-0.2px",
+            }}
           >
-            <Home size={18} /> Go to dashboard
+            Go to dashboard
           </Link>
         </div>
       </PageShell>
@@ -138,38 +188,80 @@ export default function InviteLandingPage() {
 
     return (
       <PageShell>
-        <div className="flex flex-col items-center text-center gap-6">
-          {/* Icon */}
-          <div className="w-16 h-16 rounded-full bg-primary/15 border border-primary/20 flex items-center justify-center">
-            <Users size={28} className="text-primary" />
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center", gap: "28px" }}>
+          <div
+            style={{
+              width: "64px",
+              height: "64px",
+              borderRadius: "999px",
+              background: "var(--green-soft)",
+              border: "1px solid var(--green-line)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <Users size={28} style={{ color: "var(--green)" }} />
           </div>
 
-          {/* Headline */}
           <div>
-            <h1 className="font-serif italic text-3xl md:text-4xl text-warm-white mb-2 leading-tight">
-              {inviterName} has invited you to Kin
+            <p
+              style={{
+                fontSize: "11px",
+                fontWeight: 500,
+                fontFamily: "var(--font-geist-mono), monospace",
+                letterSpacing: "1.6px",
+                textTransform: "uppercase",
+                color: "var(--ink-3)",
+                marginBottom: "14px",
+              }}
+            >
+              You&apos;ve been invited
+            </p>
+            <h1
+              style={{
+                fontFamily: "var(--font-instrument-serif), serif",
+                fontStyle: "italic",
+                fontSize: "clamp(28px, 5vw, 36px)",
+                color: "var(--ink)",
+                letterSpacing: "-0.6px",
+                lineHeight: 1.15,
+                marginBottom: "14px",
+              }}
+            >
+              {inviterName} wants to run your family on Kin together.
             </h1>
-            <p className="text-warm-white/50 text-base">
-              Join {familyName} and start managing your family together.
+            <p style={{ fontSize: "15px", color: "var(--ink-2)", lineHeight: 1.65, maxWidth: "30rem", margin: "0 auto" }}>
+              Join the {familyName} household and you&apos;ll both wake up to the same calm morning briefing — what&apos;s on today, who&apos;s doing pickup, what needs to be packed.
             </p>
           </div>
 
           {/* Value card */}
-          <div className="w-full bg-surface-raised rounded-2xl p-5 border border-warm-white/5 text-left space-y-3">
-            <p className="text-warm-white/60 text-sm leading-relaxed">
-              Kin is your family&apos;s AI operating system — meal planning, budgets, calendars, and
-              a private AI chat for each parent. Both of you in one shared household, each with your
-              own private profile.
+          <div
+            style={{
+              width: "100%",
+              maxWidth: "30rem",
+              background: "var(--paper)",
+              border: "1px solid var(--border)",
+              borderLeft: "2px solid var(--green)",
+              borderRadius: "0 12px 12px 0",
+              padding: "20px 22px",
+              textAlign: "left",
+              boxShadow: "0 1px 2px rgba(43,38,30,0.06), 0 6px 16px rgba(43,38,30,0.06)",
+            }}
+          >
+            <p style={{ fontSize: "14px", color: "var(--ink-2)", lineHeight: 1.7, marginBottom: "12px" }}>
+              Kin is a Family OS that texts you one calm morning briefing — calendar, conflicts, pickups, what each kid needs that day. No new app to open. No new habit to build.
             </p>
-            <ul className="space-y-2 text-sm">
+            <ul style={{ paddingLeft: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: "8px", fontSize: "14px" }}>
               {[
-                "Shared meal plan & grocery list",
-                "50/30/20 budget, together",
-                "Family calendar coordination",
-                "Private AI chat for each parent",
+                "One shared family view of the week",
+                "A morning text built around your household",
+                "Conflict and pickup detection across both calendars",
+                "Private memory: who likes what, who needs what",
               ].map((item) => (
-                <li key={item} className="flex items-center gap-2 text-warm-white/70">
-                  <span className="w-1.5 h-1.5 rounded-full bg-primary shrink-0" />
+                <li key={item} style={{ display: "flex", alignItems: "center", gap: "10px", color: "var(--ink-2)" }}>
+                  <span style={{ width: "5px", height: "5px", borderRadius: "999px", background: "var(--green)", flexShrink: 0 }} />
                   {item}
                 </li>
               ))}
@@ -179,30 +271,37 @@ export default function InviteLandingPage() {
           {/* CTA */}
           <button
             onClick={handleJoin}
-            className="w-full py-4 rounded-2xl bg-primary text-background font-semibold text-base hover:shadow-lg hover:shadow-primary/25 hover:scale-[1.02] active:scale-[0.98] transition-all"
+            style={{
+              width: "100%",
+              maxWidth: "22rem",
+              padding: "16px 24px",
+              borderRadius: "999px",
+              background: "var(--green)",
+              color: "var(--paper)",
+              fontSize: "15px",
+              fontWeight: 600,
+              border: "none",
+              cursor: "pointer",
+              letterSpacing: "-0.2px",
+            }}
           >
-            Join the {familyName}
+            Join the {familyName} household
           </button>
 
-          <p className="text-warm-white/30 text-xs">
-            You&apos;ll create your own account and set your preferences. Takes 2 minutes.
+          <p style={{ fontSize: "12px", color: "var(--ink-3)" }}>
+            You&apos;ll create your own account and set your preferences. Takes about two minutes.
           </p>
 
-          {/* Existing-user sign-in path */}
-          <p className="text-warm-white/40 text-sm">
+          <p style={{ fontSize: "14px", color: "var(--ink-2)" }}>
             Already have a Kin account?{" "}
-            <Link
-              href={`/signin?invite=${code}`}
-              className="text-primary hover:underline"
-            >
+            <Link href={`/signin?invite=${code}`} style={{ color: "var(--green)", fontWeight: 500 }}>
               Sign in →
             </Link>
           </p>
 
-          {/* Footer links */}
-          <div className="flex justify-center gap-4 mt-4">
-            <Link href="/privacy" className="text-warm-white/20 text-xs hover:text-warm-white/40 transition-colors">Privacy</Link>
-            <Link href="/terms" className="text-warm-white/20 text-xs hover:text-warm-white/40 transition-colors">Terms</Link>
+          <div style={{ display: "flex", justifyContent: "center", gap: "18px", marginTop: "12px" }}>
+            <Link href="/privacy" style={{ fontSize: "12px", color: "var(--ink-3)", textDecoration: "none" }}>Privacy</Link>
+            <Link href="/terms" style={{ fontSize: "12px", color: "var(--ink-3)", textDecoration: "none" }}>Terms</Link>
           </div>
         </div>
       </PageShell>
@@ -212,13 +311,15 @@ export default function InviteLandingPage() {
   // ── Generic error ─────────────────────────────────────────────────────────
   return (
     <PageShell>
-      <div className="flex flex-col items-center text-center gap-4 py-8">
-        <AlertCircle size={32} className="text-rose" />
-        <h1 className="font-serif italic text-2xl text-warm-white">Something went wrong</h1>
-        <p className="text-warm-white/50 text-sm">
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center", gap: "16px", padding: "24px 0" }}>
+        <AlertCircle size={28} style={{ color: "var(--clay)" }} />
+        <h1 style={{ fontFamily: "var(--font-instrument-serif), serif", fontStyle: "italic", fontSize: "24px", color: "var(--ink)" }}>
+          Something went wrong
+        </h1>
+        <p style={{ fontSize: "14px", color: "var(--ink-2)" }}>
           {state.status === "error" ? state.message : "Please try again or ask your partner to resend the invite."}
         </p>
-        <Link href="/signup" className="text-primary text-sm hover:underline">
+        <Link href="/signup" style={{ fontSize: "14px", color: "var(--green)", fontWeight: 500 }}>
           Create a new account
         </Link>
       </div>
@@ -230,19 +331,36 @@ export default function InviteLandingPage() {
 
 function PageShell({ children }: { children: React.ReactNode }) {
   return (
-    <main className="min-h-screen px-6 py-16 relative overflow-hidden">
-      {/* Ambient glows */}
-      <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] rounded-full bg-primary/5 blur-[120px] pointer-events-none" />
-      <div className="absolute bottom-1/4 right-1/4 w-[300px] h-[300px] rounded-full bg-amber/5 blur-[100px] pointer-events-none" />
-
-      <div className="max-w-lg mx-auto relative">
-        {/* Logo */}
-        <div className="text-center mb-10">
-          <Link href="/" style={{ textDecoration: "none", display: "inline-block" }}>
-            <KinWordmark size={24} tone="warm" />
+    <main
+      className="marketing"
+      style={{
+        minHeight: "100vh",
+        backgroundColor: "var(--bg)",
+        color: "var(--ink)",
+        padding: "32px 24px 80px",
+        position: "relative",
+        overflow: "hidden",
+      }}
+    >
+      <div
+        style={{
+          position: "absolute",
+          top: "10%",
+          left: "50%",
+          transform: "translateX(-50%)",
+          width: "640px",
+          height: "440px",
+          background: "radial-gradient(ellipse at center, rgba(60,74,51,0.08) 0%, transparent 70%)",
+          pointerEvents: "none",
+        }}
+      />
+      <div style={{ maxWidth: "560px", margin: "0 auto", position: "relative" }}>
+        <div style={{ textAlign: "center", marginBottom: "56px" }}>
+          <Link href="/" style={{ display: "inline-flex", alignItems: "center", gap: "9px", textDecoration: "none" }}>
+            <KinMark size={26} color="#3C4A33" />
+            <span style={{ fontSize: "18px", fontWeight: 600, letterSpacing: "-0.4px", color: "var(--ink)" }}>Kin</span>
           </Link>
         </div>
-
         {children}
       </div>
     </main>
