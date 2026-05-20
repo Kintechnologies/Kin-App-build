@@ -4,7 +4,17 @@ export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 export const alt = "Kin — Stop keeping your family schedule in your head.";
 
+// Strip protocol and trailing slash so the OG footer shows the bare host
+// regardless of how NEXT_PUBLIC_APP_URL is configured ("https://kinai.family",
+// "https://kinai.family/", "https://staging.kinai.family"). Defaulting here
+// matches every other lib in the codebase that reads NEXT_PUBLIC_APP_URL.
+function getDisplayHost(): string {
+  const raw = process.env.NEXT_PUBLIC_APP_URL ?? "https://kinai.family";
+  return raw.replace(/^https?:\/\//, "").replace(/\/$/, "");
+}
+
 export default function OpengraphImage() {
+  const displayHost = getDisplayHost();
   return new ImageResponse(
     (
       <div
@@ -106,7 +116,7 @@ export default function OpengraphImage() {
             letterSpacing: "0.4px",
           }}
         >
-          kinai.family
+          {displayHost}
         </div>
       </div>
     ),
