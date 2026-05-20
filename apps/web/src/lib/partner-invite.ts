@@ -118,6 +118,20 @@ async function sendInviteSms(
   const body = `${inviterFirstName} set up Kin — a daily 6am briefing that keeps your family's schedule coordinated. Join their household to share calendars: ${inviteUrl}`;
   const fromNumber = process.env.TWILIO_PHONE_NUMBER ?? "";
 
+  // Honor opt-out: if the partner's phone is on a profile that texted STOP,
+  // skip silently. Twilio also blocks it (error 21610), but checking first
+  // avoids an outbound API call and a misleading "outbound_failed" log row.
+  const { data: optedOutProfile } = await db
+    .from("profiles")
+    .select("sms_opted_out_at")
+    .eq("phone_number", partnerPhone)
+    .not("sms_opted_out_at", "is", null)
+    .maybeSingle();
+  if (optedOutProfile) {
+    console.warn(`Partner invite SMS skipped — recipient opted out: ${partnerPhone}`);
+    return false;
+  }
+
   try {
     await sendSms(partnerPhone, body);
     await logSms(db, inviterProfileId, "outbound", body, fromNumber, partnerPhone);
