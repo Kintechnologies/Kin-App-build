@@ -15,6 +15,9 @@ import Stripe from "stripe";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import * as Sentry from "@sentry/nextjs";
 
+// Stripe SDK relies on Node's crypto for webhook signature verification.
+export const runtime = "nodejs";
+
 function getAdminSupabase() {
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!key) {
