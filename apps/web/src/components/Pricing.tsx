@@ -15,7 +15,7 @@ export function Pricing() {
   const [period, setPeriod] = useState<"monthly" | "annual">("monthly");
 
   const monthlyPrice = 39;
-  const annualPrice = 349;
+  const annualPrice = 299;
   const annualSavings = monthlyPrice * 12 - annualPrice;
 
   return (
