@@ -1,13 +1,21 @@
 /**
  * SMS-tuned system prompt for the Kin inbound SMS handler.
  *
- * Distilled from the personal-thread CHAT_SYSTEM_PROMPT (apps/web/src/app/api/chat/route.ts)
- * — same personality, tone, forbidden openers, and confidence rules — adapted for the
- * SMS surface (no markdown, single-message length, no bulleted lists).
+ * Voice/tone/forbidden-openers/relief-language are pulled from kin-voice.ts —
+ * the single source of truth shared with the morning briefing, alert content,
+ * and outbound nudges. SMS-surface-specific rules (read-only calendar, scope
+ * gates, sync staleness handling) live here.
  *
  * Family context, partner context, today's calendar, and the morning briefing are
  * passed in and rendered in the prompt so Kin can reference them naturally.
  */
+
+import {
+  KIN_VOICE_CORE,
+  KIN_FORBIDDEN_OPENERS,
+  KIN_RELIEF_LANGUAGE,
+  KIN_SMS_FORMAT,
+} from "@/lib/kin-voice";
 
 export interface SmsPromptContext {
   family_name: string;
@@ -27,9 +35,8 @@ export function buildSmsSystemPrompt(ctx: SmsPromptContext): string {
   const parts: string[] = [];
 
   parts.push(
-    `You are Kin, a family coordination AI for the ${ctx.family_name} family. ` +
-      `You are replying via SMS to ${ctx.speaking_to_name}${ctx.partner_name ? ` (partner: ${ctx.partner_name})` : ""}. ` +
-      `Today is ${ctx.today_date}.`
+    `${KIN_VOICE_CORE} You are replying via SMS to ${ctx.speaking_to_name}${ctx.partner_name ? ` (partner: ${ctx.partner_name})` : ""} ` +
+      `of the ${ctx.family_name} family. Today is ${ctx.today_date}.`
   );
 
   parts.push(
@@ -64,31 +71,12 @@ export function buildSmsSystemPrompt(ctx: SmsPromptContext): string {
       `keeping your family's day on track. Want me to check today's schedule?"`
   );
 
-  parts.push(
-    `\n## SMS FORMATTING RULES — NON-NEGOTIABLE\n` +
-      `- Plain text only. No markdown, no bullets, no numbered lists, no asterisks.\n` +
-      `- 1–3 short sentences. Stay under 320 characters when possible (≤ 2 SMS segments).\n` +
-      `- Never split into multiple paragraphs unless absolutely necessary.\n` +
-      `- Use specific times and names ("3:15 pickup at Lincoln") not vague summaries.\n` +
-      `- One question per response, maximum.`
-  );
+  parts.push(`\n${KIN_SMS_FORMAT}`);
 
+  // Forbidden openers — shared list plus one SMS-thread-specific opener
+  // (no "Hi <name>" salutation, since SMS replies live in an ongoing thread).
   parts.push(
-    `\n## TONE\n` +
-      `Candid, efficient, kind. Not clinical. Not a chatbot. Imagine a trusted coordinator who has known the ` +
-      `${ctx.family_name} family for years. Warm but not cutesy. Confident but not arrogant. Direct, specific, human.`
-  );
-
-  parts.push(
-    `\n## NEVER OPEN A MESSAGE WITH\n` +
-      `- "Based on your calendar…"\n` +
-      `- "It looks like…"\n` +
-      `- "You may want to consider…"\n` +
-      `- "Just a heads up…"\n` +
-      `- "I noticed that…"\n` +
-      `- "Great question!"\n` +
-      `- "Certainly!" / "Of course!" / "Absolutely!"\n` +
-      `- A greeting like "Hi" or "Hey ${ctx.speaking_to_name}" (this is an ongoing thread — skip the salutation)`
+    `\n${KIN_FORBIDDEN_OPENERS}\n- A greeting like "Hi" or "Hey ${ctx.speaking_to_name}" (this is an ongoing thread — skip the salutation)`
   );
 
   parts.push(
@@ -122,12 +110,7 @@ export function buildSmsSystemPrompt(ctx: SmsPromptContext): string {
       `data could be stale. See CALENDAR SYNC STATUS below for how fresh today's data is.`
   );
 
-  parts.push(
-    `\n## RELIEF LANGUAGE — exact phrases only, max one per reply\n` +
-      `- "I'll remind you when it's time to leave." (when there's a specific departure time)\n` +
-      `- "I'll keep an eye on it." (when an issue is unresolved and Kin is actively watching)\n` +
-      `- "I'll flag it if anything changes." (when state is adequate but dynamic)`
-  );
+  parts.push(`\n${KIN_RELIEF_LANGUAGE}`);
 
   // ── Per-message context block ────────────────────────────────────────────
   const contextLines: string[] = [];

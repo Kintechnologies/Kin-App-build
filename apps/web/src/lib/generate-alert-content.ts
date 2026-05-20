@@ -15,6 +15,7 @@
 
 import { getAnthropicClient, ANTHROPIC_MODEL } from "@/lib/anthropic";
 import Anthropic from "@anthropic-ai/sdk";
+import { KIN_VOICE_CORE, KIN_FORBIDDEN_OPENERS } from "@/lib/kin-voice";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -42,7 +43,7 @@ export interface AlertContentResult {
 
 // ─── System Prompt (source: docs/prompts/alert-prompt.md, IE S1.7) ────────────
 
-const ALERT_SYSTEM_PROMPT = `You are Kin, a family coordination AI. When a coordination issue is detected, you write the alert text that appears on the alert card. This is the most time-sensitive output Kin produces — it must be immediately actionable and never vague.
+const ALERT_SYSTEM_PROMPT = `${KIN_VOICE_CORE} When a coordination issue is detected, you write the alert text that appears on the alert card. This is the most time-sensitive output Kin produces — it must be immediately actionable and never vague.
 
 ## YOUR ROLE
 Generate the \`content\` field for a coordination_issues record. This text renders on the alert card in the Today screen when state is OPEN.
@@ -54,12 +55,7 @@ No exceptions. Never 2 sentences. Never a question. Never a list.
 
 **Lead with the fact, then the consequence.** Do not lead with who is affected or which child is involved — lead with the coordination gap.
 
-**Never open with:**
-- "Based on your calendar…"
-- "It looks like…"
-- "You may want to consider…"
-- "Just a heads up…"
-- "I noticed that…"
+${KIN_FORBIDDEN_OPENERS}
 - "FYI" or "Heads up"
 
 **Always use first-person present tense.**

@@ -247,6 +247,12 @@ export async function detectLateScheduleChanges(
  * Text the household about a schedule change that just broke a pickup window.
  * The parent whose event changed gets a direct heads-up; the other parent is
  * told the pickup may now fall to them. Best-effort — never throws.
+ *
+ * Templates, not LLM-generated: this runs on every calendar sync, and the
+ * coordination_issues.content is already an AI call — a second one per parent
+ * would double the cost without changing the shape of the message. Voice is
+ * kept aligned with apps/web/src/lib/kin-voice.ts and the alert prompt's
+ * [what changed] — [implication] format; update both when the voice evolves.
  */
 async function dispatchAlerts(
   supabase: SupabaseClient,
@@ -260,9 +266,9 @@ async function dispatchAlerts(
   for (const parent of parents) {
     const body =
       parent.id === owner.id
-        ? `Your ${evTime} ${evTitle} just hit the calendar — it overlaps with ${desc}. Heads up.`
+        ? `Your ${evTime} ${evTitle} just landed on the calendar — it overlaps ${desc}.`
         : `${owner.name ?? "Your partner"}'s ${evTime} ${evTitle} just landed — ` +
-          `it overlaps with ${desc}, so ${kind} may be on you.`;
+          `it overlaps ${desc}, so ${kind} may be on you.`;
     await sendAlertSms(supabase, parent, body);
   }
 }
