@@ -15,6 +15,8 @@
 //   TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_MESSAGING_SERVICE_SID, TWILIO_PHONE_NUMBER
 // Optional:
 //   OPENWEATHER_API_KEY — weather enrichment; absent keys degrade silently.
+//   GOOGLE_MAPS_API_KEY — live drive-time estimates via Distance Matrix API.
+//                         Key must have the Distance Matrix API enabled.
 //   SLACK_BRIEFING_WEBHOOK_URL / ADMIN_PHONE — reliability alerting (see _shared/briefing.ts).
 
 import { serve } from "https://deno.land/std@0.208.0/http/server.ts";
