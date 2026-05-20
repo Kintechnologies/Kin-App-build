@@ -1,3 +1,20 @@
+/**
+ * GET /api/morning-briefing — USER-FACING, ON-DEMAND briefing for the
+ * authenticated user, surfaced by the web dashboard. NOT a cron route.
+ *
+ * Three morning-briefing routes exist; do not confuse them:
+ *
+ *   /api/morning-briefing           ← THIS FILE: web dashboard, signed-in user
+ *   /api/cron/morning-briefing      ← legacy Vercel cron fan-out (deprecated;
+ *                                     SMS briefings now fan out from a Supabase
+ *                                     edge function in per-user local time)
+ *   /api/test/morning-briefing      ← dev-only single-phone test endpoint
+ *                                     gated by CRON_SECRET
+ *
+ * This route returns today's briefing if one was already generated, otherwise
+ * generates a new one for the calling user via Claude and persists it.
+ */
+
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";

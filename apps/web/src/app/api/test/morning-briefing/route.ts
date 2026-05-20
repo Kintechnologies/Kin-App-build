@@ -1,6 +1,16 @@
 /**
  * Test-only endpoint: fire a single-user morning briefing on demand.
  *
+ * Three morning-briefing routes exist; do not confuse them:
+ *
+ *   /api/morning-briefing           ← user-facing on-demand briefing for the
+ *                                     authenticated web dashboard user
+ *   /api/cron/morning-briefing      ← legacy Vercel cron fan-out (SMS briefings
+ *                                     now fan out from a Supabase edge function
+ *                                     in per-user local time)
+ *   /api/test/morning-briefing      ← THIS FILE: single-phone dev test, gated
+ *                                     by CRON_SECRET, defaults to a dry run
+ *
  * Unlike /api/cron/morning-briefing (which fans out to every active user),
  * this targets ONE profile looked up by phone number, and only sends an SMS
  * when `send=true`. The default is a dry run that returns the generated
