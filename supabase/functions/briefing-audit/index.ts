@@ -29,10 +29,15 @@ serve(async (req) => {
     return new Response("Method not allowed", { status: 405 });
   }
 
+  // TCPA: sms_opted_out_at IS NULL drops any user who replied STOP. The
+  // backstop must respect the opt-out exactly as the 6am cron does — a
+  // "by-any-means-necessary" recovery that re-texted an unsubscribed user
+  // would be a TCPA violation, not reliability.
   const { data: profiles, error } = await supabase
     .from("profiles")
-    .select("id, family_name, last_name, phone_number, timezone, created_at, subscription_status, billing_exempt")
+    .select("id, family_name, last_name, phone_number, timezone, created_at, subscription_status, billing_exempt, sms_opted_out_at")
     .not("phone_number", "is", null)
+    .is("sms_opted_out_at", null)
     .eq("onboarding_completed", true);
 
   if (error) {
@@ -93,6 +98,12 @@ serve(async (req) => {
     const result = await deliverBriefing(profile, briefingDate, "audit-backstop");
     if (result.status === "sent") {
       results.recovered++;
+    } else if (result.status === "skipped") {
+      // Defensive — the query already filters opt-outs, so this branch
+      // should never fire. Decrement missed so the run isn't reported as
+      // having unresolved gaps.
+      results.missed--;
+      missedNames.pop();
     } else {
       results.stillFailed++;
       results.errors.push(`${profile.id}: ${result.error}`);

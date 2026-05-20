@@ -693,12 +693,15 @@ export interface BriefingProfile {
   created_at: string | null;
   subscription_status: string | null;
   billing_exempt: boolean | null;
+  // TCPA: non-NULL means the user replied STOP — never auto-send.
+  sms_opted_out_at: string | null;
 }
 
 export interface DeliveryResult {
-  status: "sent" | "failed";
+  status: "sent" | "failed" | "skipped";
   degraded?: boolean;
   error?: string;
+  reason?: string;
 }
 
 // Generates and delivers a briefing to one profile, with Twilio retry, AI
@@ -709,6 +712,17 @@ export async function deliverBriefing(
   briefingDate: string,
   source: string
 ): Promise<DeliveryResult> {
+  // TCPA hard gate: a profile that replied STOP must never receive an
+  // automated briefing. The hourly + audit fan-outs already filter this
+  // column at query time; this check is the last line of defense for any
+  // caller (manual invocation, future code path) that forgets to.
+  if (profile.sms_opted_out_at) {
+    console.log(
+      `[${source}] Skipping ${profile.id} — opted out at ${profile.sms_opted_out_at}`
+    );
+    return { status: "skipped", reason: "sms_opted_out" };
+  }
+
   const tz = resolveTimezone(profile.timezone);
 
   // Trial payment nudge: append the payment prompt once a profile is 14+ days

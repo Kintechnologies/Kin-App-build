@@ -33,11 +33,15 @@ serve(async (req) => {
     return new Response("Method not allowed", { status: 405 });
   }
 
-  // Fan-out: only profiles whose local hour is 6:xx and have a phone number
+  // Fan-out: only profiles whose local hour is 6:xx and have a phone number.
+  // TCPA: sms_opted_out_at IS NULL drops any user who replied STOP — the
+  // inbound webhook stamps that column on opt-out, and we treat non-NULL
+  // as a hard suppression for every automated briefing path.
   const { data: profiles, error: profileError } = await supabase
     .from("profiles")
-    .select("id, family_name, last_name, phone_number, timezone, created_at, subscription_status, billing_exempt")
+    .select("id, family_name, last_name, phone_number, timezone, created_at, subscription_status, billing_exempt, sms_opted_out_at")
     .not("phone_number", "is", null)
+    .is("sms_opted_out_at", null)
     .eq("onboarding_completed", true);
 
   if (profileError) {
@@ -100,6 +104,8 @@ serve(async (req) => {
     if (result.status === "sent") {
       results.sent++;
       if (result.degraded) results.degraded++;
+    } else if (result.status === "skipped") {
+      results.skipped++;
     } else {
       results.failed++;
       results.errors.push(`${profile.id}: ${result.error}`);

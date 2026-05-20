@@ -162,16 +162,30 @@ export async function POST(request: Request) {
   // ── 2. STOP guard — Twilio handles unsubscribe at carrier level, but we
   //    honor it in-route too and return empty TwiML (no reply sent) ───────────
   if (/^(STOP|STOPALL|UNSUBSCRIBE|CANCEL|END|QUIT)$/i.test(messageBody)) {
-    // TCPA: record the opt-out on any matching waitlist signup so the
-    // phone-first marketing flow never texts that number again.
+    // TCPA: stamp the opt-out on both sides — the waitlist row (so the
+    // phone-first marketing flow never re-texts the number) AND the profile
+    // (so briefings, nudges, alerts, and check-ins all suppress this user).
+    // Both are scoped to rows that are not already opted out so re-sending
+    // STOP doesn't refresh the timestamp.
+    const optOutAt = new Date().toISOString();
+    const admin = createAdminClient();
     try {
-      await createAdminClient()
+      await admin
         .from("waitlist")
-        .update({ sms_opted_out_at: new Date().toISOString() })
+        .update({ sms_opted_out_at: optOutAt })
         .eq("phone", fromNumber)
         .is("sms_opted_out_at", null);
     } catch (err) {
       console.error("Failed to record waitlist SMS opt-out:", err);
+    }
+    try {
+      await admin
+        .from("profiles")
+        .update({ sms_opted_out_at: optOutAt })
+        .eq("phone_number", fromNumber)
+        .is("sms_opted_out_at", null);
+    } catch (err) {
+      console.error("Failed to record profile SMS opt-out:", err);
     }
     return twimlEmpty();
   }

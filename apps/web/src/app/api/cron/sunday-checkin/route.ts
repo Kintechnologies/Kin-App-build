@@ -69,11 +69,14 @@ export async function GET(request: Request) {
 
   const supabase = createAdminClient();
 
+  // TCPA: drop anyone who replied STOP — the weekly check-in is an
+  // automated send and must respect the opt-out.
   const { data: profiles, error } = await supabase
     .from("profiles")
     .select("id, family_name, phone_number, timezone, sunday_checkin_sent_at")
     .eq("onboarding_completed", true)
     .not("phone_number", "is", null)
+    .is("sms_opted_out_at", null)
     .returns<CheckinProfile[]>();
 
   if (error || !profiles) {

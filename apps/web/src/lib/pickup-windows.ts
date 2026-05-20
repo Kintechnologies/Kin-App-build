@@ -36,6 +36,11 @@ export interface HouseholdParent {
   name: string | null;
   phone: string | null;
   timezone: string;
+  /**
+   * TCPA opt-out timestamp from profiles.sms_opted_out_at. Non-NULL means the
+   * user replied STOP — proactive alert SMS to this parent must be suppressed.
+   */
+  optedOutAt: string | null;
 }
 
 export interface Household {
@@ -80,7 +85,7 @@ export async function resolveHousehold(
   // The primary (id = primaryId) and any partner (household_id = primaryId).
   const { data: rows } = await supabase
     .from("profiles")
-    .select("id, family_name, phone_number, timezone, context_notes")
+    .select("id, family_name, phone_number, timezone, context_notes, sms_opted_out_at")
     .or(`id.eq.${primaryId},household_id.eq.${primaryId}`)
     .returns<
       {
@@ -89,6 +94,7 @@ export async function resolveHousehold(
         phone_number: string | null;
         timezone: string | null;
         context_notes: string | null;
+        sms_opted_out_at: string | null;
       }[]
     >();
 
@@ -106,6 +112,7 @@ export async function resolveHousehold(
     name: r.family_name,
     phone: r.phone_number,
     timezone: r.timezone ?? "UTC",
+    optedOutAt: r.sms_opted_out_at,
   }));
 
   const primary = ordered.find((r) => r.id === primaryId);
@@ -372,6 +379,11 @@ export async function sendAlertSms(
   body: string
 ): Promise<boolean> {
   if (!parent.phone) return false;
+  // TCPA: a parent who replied STOP must never receive a proactive alert.
+  // Returning false (not true) so callers like detectPickupRisk skip stamping
+  // alert_sms_sent_at on the coordination_issue — the alert was suppressed,
+  // not delivered.
+  if (parent.optedOutAt) return false;
   try {
     await sendSms(parent.phone, body);
     await supabase.from("sms_conversations").insert({

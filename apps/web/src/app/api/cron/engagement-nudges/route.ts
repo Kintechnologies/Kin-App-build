@@ -148,12 +148,14 @@ async function runOnboardingNudges(
 
   // Nudge 1 — completed SMS onboarding (welcome SMS sent 24h+ ago) but never
   // connected a calendar. welcome_sms_sent_at is set only for SMS-onboarded
-  // profiles, so the `<` filter naturally scopes this to them.
+  // profiles, so the `<` filter naturally scopes this to them. TCPA: drop
+  // anyone who replied STOP.
   const { data: completed } = await supabase
     .from("profiles")
     .select(NUDGE_COLUMNS)
     .eq("onboarding_completed", true)
     .not("phone_number", "is", null)
+    .is("sms_opted_out_at", null)
     .lt("welcome_sms_sent_at", cutoff)
     .returns<NudgeProfile[]>();
 
@@ -205,13 +207,15 @@ async function runOnboardingNudges(
   }
 
   // Nudge 2 — started onboarding (past step 0) but went silent before
-  // finishing, with the profile created 24h+ ago.
+  // finishing, with the profile created 24h+ ago. TCPA: drop anyone who
+  // replied STOP, even mid-onboarding.
   const { data: silent } = await supabase
     .from("profiles")
     .select(NUDGE_COLUMNS)
     .eq("onboarding_completed", false)
     .gte("onboarding_step", 1)
     .not("phone_number", "is", null)
+    .is("sms_opted_out_at", null)
     .lt("created_at", cutoff)
     .returns<NudgeProfile[]>();
 
@@ -283,7 +287,7 @@ async function runTrialNudges(
 ): Promise<void> {
   // Only onboarded profiles still on the trial. Paying/past-due/canceled
   // accounts have left the funnel; billing-exempt (team, comped, partners)
-  // profiles are never nagged about billing.
+  // profiles are never nagged about billing. TCPA: drop anyone who replied STOP.
   const { data: trialing } = await supabase
     .from("profiles")
     .select(NUDGE_COLUMNS)
@@ -291,6 +295,7 @@ async function runTrialNudges(
     .eq("billing_exempt", false)
     .eq("onboarding_completed", true)
     .not("phone_number", "is", null)
+    .is("sms_opted_out_at", null)
     .returns<NudgeProfile[]>();
 
   for (const p of trialing ?? []) {
