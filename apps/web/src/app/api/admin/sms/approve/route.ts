@@ -4,10 +4,11 @@
  *   POST /api/admin/sms/approve   — promote a number to the approved allowlist
  *   GET  /api/admin/sms/approve   — list numbers still waiting on the SMS waitlist
  *
- * Auth: a Bearer token in the Authorization header, matched against ADMIN_SECRET
- * (falling back to CRON_SECRET when ADMIN_SECRET is unset). Both gating tables
- * are service-role only, so this route is the supported way for an admin to
- * work the SMS waitlist.
+ * Auth: a Bearer token in the Authorization header, matched against ADMIN_SECRET.
+ * The gating tables are service-role only, so this route is the supported way
+ * for an admin to work the SMS waitlist. ADMIN_SECRET is a dedicated admin
+ * credential — it intentionally does not fall back to CRON_SECRET so that
+ * compromising the scheduler does not also grant admin access.
  *
  * POST body: { phone: string, note?: string, notify?: boolean }
  *   - phone   accepts loose input ("(415) 555-0117"); normalized to E.164.
@@ -22,9 +23,9 @@ import { sendSms } from "@/lib/twilio";
 import { approveNumber, normalizePhone, APPROVED_MESSAGE } from "@/lib/sms-access";
 
 function authorize(request: Request): boolean {
-  const secret = process.env.ADMIN_SECRET ?? process.env.CRON_SECRET;
+  const secret = process.env.ADMIN_SECRET;
   if (!secret) {
-    console.error("admin/sms/approve: neither ADMIN_SECRET nor CRON_SECRET is set");
+    console.error("admin/sms/approve: ADMIN_SECRET is not set");
     return false;
   }
   return request.headers.get("authorization") === `Bearer ${secret}`;

@@ -6,12 +6,14 @@
 // 058_subdaily_crons.sql). pg_cron POSTs here with ?job=<name>; this function
 // forwards the call to the matching Next.js cron route.
 //
-// Those routes authenticate with a Bearer token (see lib/cron-auth.ts). They
-// accept the project's service-role key, which Supabase auto-injects into this
-// function as SUPABASE_SERVICE_ROLE_KEY — so no extra secret has to be
-// provisioned. pg_cron itself needs no auth: verify_jwt = false for this
-// function (see config.toml), matching the morning-briefing pattern.
+// Those routes authenticate with a Bearer token (see lib/cron-auth.ts). The
+// only accepted credential is CRON_SECRET — set the same value in both this
+// function's secrets and in the web app. pg_cron itself needs no auth:
+// verify_jwt = false for this function (see config.toml), matching the
+// morning-briefing pattern.
 //
+// Required env:
+//   CRON_SECRET — shared with the web app; matched by lib/cron-auth.ts.
 // Optional env:
 //   APP_URL — Vercel deployment origin; defaults to https://kinai.family.
 
@@ -37,10 +39,10 @@ serve(async (req) => {
     );
   }
 
-  const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-  if (!serviceRoleKey) {
+  const cronSecret = Deno.env.get("CRON_SECRET");
+  if (!cronSecret) {
     return new Response(
-      JSON.stringify({ error: "SUPABASE_SERVICE_ROLE_KEY not available" }),
+      JSON.stringify({ error: "CRON_SECRET not configured" }),
       { status: 500, headers: { "Content-Type": "application/json" } }
     );
   }
@@ -48,7 +50,7 @@ serve(async (req) => {
   // The Next.js cron routes are all GET + Bearer-authenticated.
   const upstream = await fetch(`${APP_URL}${path}`, {
     method: "GET",
-    headers: { Authorization: `Bearer ${serviceRoleKey}` },
+    headers: { Authorization: `Bearer ${cronSecret}` },
   });
 
   const body = await upstream.text();
