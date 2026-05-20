@@ -167,7 +167,7 @@ export default function PrivacyPage() {
         </Section>
 
         <Section title="6. Google Calendar Access">
-          <p>Kin requests access to your Google Calendar using OAuth 2.0. We request read and write access to view your schedule and add events on your behalf.</p>
+          <p>Kin requests access to your Google Calendar using OAuth 2.0. We request <strong style={{ color: "var(--ink)" }}>read-only access</strong> to view your schedule. Kin never writes to, modifies, or deletes events on your calendar.</p>
           <p><strong style={{ color: "var(--ink)" }}>Scope of use:</strong> We access only the calendars you authorize during setup. We do not share your calendar data with other users except your connected household partner(s).</p>
           <p>You can revoke Kin&apos;s access to your Google Calendar at any time from your Google Account settings at <a href="https://myaccount.google.com/permissions" target="_blank" rel="noopener noreferrer" style={{ color: "var(--green)", fontWeight: 500 }}>myaccount.google.com/permissions</a>.</p>
           <p>Kin&apos;s use of Google user data complies with the <a href="https://developers.google.com/terms/api-services-user-data-policy" target="_blank" rel="noopener noreferrer" style={{ color: "var(--green)", fontWeight: 500 }}>Google API Services User Data Policy</a>, including the Limited Use requirements.</p>
