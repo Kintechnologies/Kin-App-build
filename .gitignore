@@ -5,18 +5,9 @@ node_modules
 .next/
 out/
 
-# expo
-.expo/
-dist/
-*.jks
-*.p8
-*.p12
-*.key
-*.mobileprovision
-*.orig.*
-
 # production
 build/
+dist/
 
 # misc
 .DS_Store
