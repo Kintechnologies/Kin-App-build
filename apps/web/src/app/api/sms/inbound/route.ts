@@ -167,27 +167,50 @@ export async function POST(request: Request) {
     // (so briefings, nudges, alerts, and check-ins all suppress this user).
     // Both are scoped to rows that are not already opted out so re-sending
     // STOP doesn't refresh the timestamp.
-    const optOutAt = new Date().toISOString();
-    const admin = createAdminClient();
+    const optedOutAt = new Date().toISOString();
     try {
-      await admin
-        .from("waitlist")
-        .update({ sms_opted_out_at: optOutAt })
-        .eq("phone", fromNumber)
-        .is("sms_opted_out_at", null);
+      const admin = createAdminClient();
+      await Promise.all([
+        admin
+          .from("waitlist")
+          .update({ sms_opted_out_at: optedOutAt })
+          .eq("phone", fromNumber)
+          .is("sms_opted_out_at", null),
+        admin
+          .from("profiles")
+          .update({ sms_opted_out_at: optedOutAt })
+          .eq("phone_number", fromNumber)
+          .is("sms_opted_out_at", null),
+      ]);
     } catch (err) {
-      console.error("Failed to record waitlist SMS opt-out:", err);
-    }
-    try {
-      await admin
-        .from("profiles")
-        .update({ sms_opted_out_at: optOutAt })
-        .eq("phone_number", fromNumber)
-        .is("sms_opted_out_at", null);
-    } catch (err) {
-      console.error("Failed to record profile SMS opt-out:", err);
+      console.error("Failed to record SMS opt-out:", err);
     }
     return twimlEmpty();
+  }
+
+  // ── 2b. START / UNSTOP — opt-back-in path. Mirror of STOP: clears
+  //    sms_opted_out_at on both waitlist and profiles, then confirms. ─────────
+  if (/^(START|UNSTOP)$/i.test(messageBody)) {
+    try {
+      const admin = createAdminClient();
+      await Promise.all([
+        admin
+          .from("waitlist")
+          .update({ sms_opted_out_at: null })
+          .eq("phone", fromNumber)
+          .not("sms_opted_out_at", "is", null),
+        admin
+          .from("profiles")
+          .update({ sms_opted_out_at: null })
+          .eq("phone_number", fromNumber)
+          .not("sms_opted_out_at", "is", null),
+      ]);
+    } catch (err) {
+      console.error("Failed to clear SMS opt-out:", err);
+    }
+    return twimlReply(
+      "Welcome back! You've been re-subscribed to Kin messages."
+    );
   }
 
   // ── 3. Rate limit ──────────────────────────────────────────────────────────
