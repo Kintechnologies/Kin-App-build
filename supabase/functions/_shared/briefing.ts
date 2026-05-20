@@ -8,7 +8,12 @@
 //   TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_MESSAGING_SERVICE_SID,
 //   TWILIO_PHONE_NUMBER
 // Optional:
-//   OPENWEATHER_API_KEY — weather enrichment; absent keys degrade silently.
+//   OPENWEATHER_API_KEY  — weather enrichment; absent keys degrade silently.
+//   GOOGLE_MAPS_API_KEY  — Distance Matrix lookups for live drive times in the
+//                          briefing. The key must have the Distance Matrix API
+//                          enabled in Google Cloud Console. Absent or failing
+//                          keys degrade silently — the briefing falls back to
+//                          its existing soft hedging on logistics.
 //   SLACK_WEBHOOK_URL    — reliability alerts; falls back to ADMIN_PHONE SMS.
 //   ADMIN_PHONE          — Austin's number; alert fallback when Slack is unset.
 
@@ -23,6 +28,9 @@ const twilioMessagingServiceSid = Deno.env.get("TWILIO_MESSAGING_SERVICE_SID")!;
 const twilioFromNumber = Deno.env.get("TWILIO_PHONE_NUMBER")!;
 // Optional — weather enrichment is skipped entirely when this is unset.
 const openWeatherApiKey = Deno.env.get("OPENWEATHER_API_KEY");
+// Optional — Google Distance Matrix enrichment is skipped entirely when unset,
+// and the briefing falls back to soft hedging on drive times.
+const googleMapsApiKey = Deno.env.get("GOOGLE_MAPS_API_KEY");
 // Optional — reliability alerting. See notifySlack.
 const slackWebhookUrl = Deno.env.get("SLACK_WEBHOOK_URL");
 const adminPhone = Deno.env.get("ADMIN_PHONE");
@@ -349,6 +357,215 @@ async function fetchWeather(
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Travel time enrichment (optional)
+// ─────────────────────────────────────────────────────────────────────────────
+//
+// Without live drive times, the LLM hedges ("plan a clear path"); with them it
+// can land an actionable leave-by minute ("daycare drop is 14 min in traffic,
+// leave by 8:16"). This module pulls Google Distance Matrix estimates for the
+// chain of today's events, anchored at home_location when present. Absence is
+// silent — a missing key or a failed lookup just leaves the briefing in its
+// pre-existing soft-hedging mode.
+
+interface KnownLocation {
+  label: string;
+  address: string;
+  keywords: string[];
+}
+
+interface TravelTime {
+  description: string;
+  durationText: string;
+  inTrafficText: string | null;
+  distanceText: string | null;
+}
+
+// Parses profiles.context_notes into a home address plus any other labelled
+// anchors with address-like values (street numbers, street-type tokens). Skips
+// lines whose value is too vague to route — e.g. "Harrison West area" — since
+// sending neighborhood-only strings to Distance Matrix yields imprecise drive
+// times. home_location is pulled out separately so the caller can use it as the
+// origin of the day's first leg.
+function parseKnownLocations(
+  notes: string | null
+): { home: string | null; anchors: KnownLocation[] } {
+  if (!notes) return { home: null, anchors: [] };
+  let home: string | null = null;
+  const anchors: KnownLocation[] = [];
+  for (const line of notes.split("\n")) {
+    const idx = line.indexOf(": ");
+    if (idx === -1) continue;
+    const key = line.slice(0, idx).trim();
+    const value = line.slice(idx + 2).trim();
+    if (!key || !value) continue;
+    if (key.toLowerCase() === "home_location") {
+      home = value;
+      continue;
+    }
+    const looksLikeAddress =
+      /\d/.test(value) ||
+      /\b(st|street|ave|avenue|rd|road|blvd|dr|drive|ln|lane|way|pkwy|hwy|highway)\b/i.test(
+        value
+      );
+    if (!looksLikeAddress) continue;
+    const keywords = key
+      .toLowerCase()
+      .split(/[^a-z0-9]+/)
+      .filter((t) => t.length >= 4);
+    anchors.push({ label: key, address: value, keywords });
+  }
+  return { home, anchors };
+}
+
+// Calendar event "locations" that aren't physical places — videoconferencing
+// links, "Online", "TBD" — must not be sent to Distance Matrix or it will
+// geocode them into something nonsensical.
+function isVirtualLocation(loc: string): boolean {
+  const lower = loc.toLowerCase().trim();
+  if (lower.startsWith("http")) return true;
+  if (lower.startsWith("zoom") || lower.startsWith("google meet")) return true;
+  if (lower.startsWith("microsoft teams") || lower.startsWith("teams ")) return true;
+  if (lower.startsWith("webex") || lower.startsWith("skype")) return true;
+  return ["online", "virtual", "remote", "tbd", "teams", "phone", "call"].includes(lower);
+}
+
+// If the raw calendar location already reads as a real street address, trust
+// it. Otherwise try to match it into a known anchor by keyword (e.g. an event
+// titled "Daycare pickup" with location "Balanced Family Academy" maps to the
+// daycare anchor's address). Falls back to the raw string when neither rule
+// matches — Distance Matrix can usually geocode a known place name on its own.
+function resolveEventAddress(raw: string, anchors: KnownLocation[]): string {
+  if (/\d{1,5}\s+\w/.test(raw)) return raw;
+  const lower = raw.toLowerCase();
+  for (const a of anchors) {
+    if (a.keywords.some((k) => lower.includes(k))) return a.address;
+  }
+  return raw;
+}
+
+// One Distance Matrix call per leg. departure_time=now opts into current-
+// traffic durations (duration_in_traffic) — without it Google only returns the
+// free-flow estimate, which underestimates rush-hour drives. 5s timeout so a
+// hung Google API can never block a briefing.
+async function fetchTravelTime(
+  origin: string,
+  destination: string,
+  description: string
+): Promise<TravelTime | null> {
+  if (!googleMapsApiKey) return null;
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 5000);
+  try {
+    const url = new URL(
+      "https://maps.googleapis.com/maps/api/distancematrix/json"
+    );
+    url.searchParams.set("origins", origin);
+    url.searchParams.set("destinations", destination);
+    url.searchParams.set("mode", "driving");
+    url.searchParams.set("departure_time", "now");
+    url.searchParams.set("units", "imperial");
+    url.searchParams.set("key", googleMapsApiKey);
+    const res = await fetch(url.toString(), { signal: ctrl.signal });
+    if (!res.ok) return null;
+    const data = await res.json();
+    if (data.status !== "OK") return null;
+    const el = data.rows?.[0]?.elements?.[0];
+    if (!el || el.status !== "OK") return null;
+    return {
+      description,
+      durationText: el.duration?.text ?? "?",
+      inTrafficText: el.duration_in_traffic?.text ?? null,
+      distanceText: el.distance?.text ?? null,
+    };
+  } catch (err) {
+    console.error(
+      "fetchTravelTime failed:",
+      err instanceof Error ? err.message : String(err)
+    );
+    return null;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+// Cap legs so an unusually busy day can't fan out into 20 Distance Matrix
+// calls. 8 covers a normal day (home → drop-off → office → pickup → activity →
+// home) with headroom.
+const MAX_TRAVEL_LEGS = 8;
+
+// Builds the chain of legs we'll price and resolves each through Google.
+// Returns the (possibly empty) list of successful lookups; partial success is
+// fine — the LLM just gets the legs we could resolve.
+async function fetchTravelTimes(
+  rawEvents: any[] | null,
+  contextNotes: string | null,
+  timezone: string
+): Promise<TravelTime[]> {
+  if (!googleMapsApiKey) return [];
+  if (!rawEvents || rawEvents.length === 0) return [];
+
+  const { home, anchors } = parseKnownLocations(contextNotes);
+
+  const usable = rawEvents
+    .filter((e) => {
+      const isPrivate =
+        e.visibility === "private" || e.visibility === "confidential";
+      if (isPrivate) return false;
+      const loc = (e.location ?? "").trim();
+      if (!loc) return false;
+      if (isVirtualLocation(loc)) return false;
+      return true;
+    })
+    .map((e) => ({
+      time: new Date(e.start_time).toLocaleTimeString("en-US", {
+        timeZone: timezone,
+        hour: "numeric",
+        minute: "2-digit",
+      }),
+      title: e.title,
+      address: resolveEventAddress((e.location as string).trim(), anchors),
+    }));
+
+  if (usable.length === 0) return [];
+
+  const legs: { origin: string; destination: string; description: string }[] = [];
+  if (home) {
+    legs.push({
+      origin: home,
+      destination: usable[0].address,
+      description: `Home → ${usable[0].time} ${usable[0].title}`,
+    });
+  }
+  for (let i = 1; i < usable.length && legs.length < MAX_TRAVEL_LEGS; i++) {
+    if (usable[i].address === usable[i - 1].address) continue;
+    legs.push({
+      origin: usable[i - 1].address,
+      destination: usable[i].address,
+      description: `${usable[i - 1].time} ${usable[i - 1].title} → ${usable[i].time} ${usable[i].title}`,
+    });
+  }
+  if (legs.length === 0) return [];
+
+  const results = await Promise.all(
+    legs.map((l) => fetchTravelTime(l.origin, l.destination, l.description))
+  );
+  return results.filter((t): t is TravelTime => t !== null);
+}
+
+function formatTravelTimes(travelTimes: TravelTime[]): string {
+  if (travelTimes.length === 0) return "";
+  let out =
+    "\nTravel times (live drive estimates from Google Maps, current traffic):\n";
+  for (const t of travelTimes) {
+    const main = t.inTrafficText ?? t.durationText;
+    const trafficLabel = t.inTrafficText ? " in current traffic" : "";
+    const distance = t.distanceText ? `, ${t.distanceText}` : "";
+    out += `  ${t.description}: ${main}${trafficLabel}${distance}\n`;
+  }
+  return out;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Briefing generation
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -404,6 +621,8 @@ SCOPE — you cover this family's calendar, household, the routines and details 
 DATA FRESHNESS — if the context contains a "DATA FRESHNESS WARNING" line, the calendar may be out of date. In that case, hedge harder still: frame the schedule as "what I've got on the calendar" rather than asserting it as certain fact, and do not present a clear calendar as definitely clear (e.g. "nothing on the calendar — though it may not have synced yet"). Without that warning, treat the calendar as current — but still follow the HUMILITY guidance below; do not over-hedge the existence of the schedule itself.
 
 HUMILITY ON TIME-SENSITIVE LOGISTICS — Kin is an assistant, not the source of truth, and a parent may act on this briefing in ways that genuinely matter: a daycare pickup, a medication time, a custody handoff. For anything time-sensitive — pickups, drop-offs, appointment times, who is responsible for what — attribute it to the calendar rather than stating it as flat fact, and frame it as something the parent should confirm. Say "your calendar shows a 2pm meeting," not "you have a meeting at 2." Say "pickup looks like yours at 3pm today," not "pickup IS yours at 3pm." This is a matter of phrasing only: still lead with the most important item, still be specific and warm and useful — just don't sound categorically authoritative about logistics that could have quietly changed. Apply this on every briefing, not only when a freshness warning is present.
+
+TRAVEL TIMES — when the context contains a "Travel times" section, those are live Google Maps drive estimates with current traffic, computed at briefing time. Use them to make logistics concrete: "drive to daycare is showing 14 min in traffic — leave by 8:16 for the 8:30 drop-off" instead of vague hedging like "give yourself enough time." Subtract the drive estimate from the event start to surface a specific leave-by minute, and cite the source ("traffic is showing", "Maps has the drive at ~12 min") so it's clear this is a live read, not a promise. Use the in-traffic number when present. When NO travel times section is present, do NOT invent drive times or leave-by minutes — fall back to the existing soft framing ("plan a clear path", "give yourself extra time").
 
 CONTEXTUAL FOLLOW-UP QUESTION: On a normal morning, deliver the briefing and stop — do NOT ask a question. Only on a genuinely high-risk day — a real scheduling conflict, tight back-to-back timing between events, or an ambiguous pickup that could quietly go wrong — you MAY end with ONE short follow-up question that offers concrete help the user actually wants. It must name a specific event and time from today and propose a specific action you can take: a reminder, a nudge, a heads-up. Example: "Both your 5pm and Jaxon's 6pm pickup are tight today. Want me to ping you at 4:30 so it doesn't sneak up?" The question must earn its place by being useful to the user, not to chase a reply. Never ask a generic question, never hand the user more work, and never ask anything on a normal day. If you can't name a concrete risk and a concrete offer, ask nothing.`;
 
@@ -578,8 +797,15 @@ async function buildBriefingContext(
     }
   }
 
-  const weather = await fetchWeather(getContextNote(contextNotes, "home_location"), timezone);
+  // Weather + travel-time enrichment run in parallel — both are best-effort
+  // network calls that must never block or break a briefing. Either failing
+  // just leaves its section out and the prompt's fallback guidance kicks in.
+  const [weather, travelTimes] = await Promise.all([
+    fetchWeather(getContextNote(contextNotes, "home_location"), timezone),
+    fetchTravelTimes(todayEvents ?? null, contextNotes, timezone),
+  ]);
   if (weather) ctx += `\n${weather}\n`;
+  ctx += formatTravelTimes(travelTimes);
 
   return { ctx, events, dateLabel, parentFirstName: naming.parentFirstName };
 }
