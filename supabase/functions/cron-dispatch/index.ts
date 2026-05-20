@@ -26,6 +26,7 @@ const ROUTES: Record<string, string> = {
   "pickup-risk": "/api/cron/pickup-risk",
   "sunday-checkin": "/api/cron/sunday-checkin",
   "engagement-nudges-onboarding": "/api/cron/engagement-nudges?mode=onboarding",
+  "calendar-renewal": "/api/cron/calendar-renewal",
 };
 
 serve(async (req) => {
