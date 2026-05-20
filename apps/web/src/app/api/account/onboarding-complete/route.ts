@@ -27,6 +27,7 @@ interface ProfileRow {
   household_id: string | null;
   partner_phone_pending: string | null;
   welcome_sms_sent_at: string | null;
+  sms_opted_out_at: string | null;
 }
 
 export async function POST() {
@@ -42,7 +43,7 @@ export async function POST() {
     const admin = createAdminClient();
     const { data: profile } = await admin
       .from("profiles")
-      .select("family_name, phone_number, household_id, partner_phone_pending, welcome_sms_sent_at")
+      .select("family_name, phone_number, household_id, partner_phone_pending, welcome_sms_sent_at, sms_opted_out_at")
       .eq("id", user.id)
       .single<ProfileRow>();
 
@@ -54,7 +55,9 @@ export async function POST() {
     let partnerInvited = false;
 
     // ── 1. Welcome SMS ────────────────────────────────────────────────────────
-    if (profile.phone_number && !profile.welcome_sms_sent_at) {
+    // Skip if the user already texted STOP — sending after opt-out would be a
+    // TCPA violation and Twilio would block it anyway.
+    if (profile.phone_number && !profile.welcome_sms_sent_at && !profile.sms_opted_out_at) {
       const firstName = profile.family_name?.trim().split(/\s+/)[0] || "there";
       const message =
         `Hey ${firstName}! This is Kin. I'll be sending you a morning briefing to ` +
