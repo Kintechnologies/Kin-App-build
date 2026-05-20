@@ -303,9 +303,16 @@ async function createIssue(
 // ─── Proactive SMS ──────────────────────────────────────────────────────────
 
 /**
- * Text each household parent a heads-up about the conflict. A conflicted parent
- * is told which of their events collides; a free parent (YELLOW) is told the
- * pickup may fall to them. Best-effort — failures are logged, never thrown.
+ * Text each household parent about the conflict. A conflicted parent is told
+ * which of their events collides; a free parent (YELLOW) is told the pickup
+ * may fall to them. Best-effort — failures are logged, never thrown.
+ *
+ * These are templates, not LLM-generated, because pickup-risk fires from a
+ * 30-min cron and adding a Claude round-trip per parent per alert doubles the
+ * AI cost of the issue (the coordination_issues.content is already AI). The
+ * wording is kept aligned with Kin's voice (apps/web/src/lib/kin-voice.ts) and
+ * the alert prompt's [what changed] — [implication] shape; update both when
+ * the voice evolves.
  */
 async function dispatchAlerts(
   supabase: SupabaseClient,
@@ -327,16 +334,14 @@ async function dispatchAlerts(
 
     if (event) {
       const evTime = formatTimeInTz(new Date(event.start_time), timezone);
-      // Voice matches the morning briefing: lead with the conflict, end with
-      // the implication, no "Heads up" preamble. RED is direct ("no backup",
-      // "coverage needs sorting"); YELLOW prompts a soft check.
+      const head = `Your ${evTime} ${shortTitle(event.title)} overlaps ${desc}`;
       const tail =
         severity === "RED"
           ? conflicts.length > 1
-            ? " — you've both got conflicts, so coverage needs sorting before then."
-            : " — there's no backup on this one."
-          : " — worth a quick check.";
-      body = `Your ${evTime} ${shortTitle(event.title)} runs into ${desc}${tail}`;
+            ? " — you've both got conflicts, so coverage needs a quick call."
+            : " — and there's no backup today."
+          : ` — ${window.kind} coverage is at risk.`;
+      body = `${head}${tail}`;
     } else if (firstConflicted?.event) {
       const other = firstConflicted.parent.name ?? "Your partner";
       const evTime = formatTimeInTz(
@@ -345,7 +350,7 @@ async function dispatchAlerts(
       );
       body =
         `${other}'s ${evTime} ${shortTitle(firstConflicted.event.title)} ` +
-        `runs into ${desc} — ${window.kind} may be on you.`;
+        `overlaps ${desc} — ${window.kind} may be on you.`;
     } else {
       continue;
     }

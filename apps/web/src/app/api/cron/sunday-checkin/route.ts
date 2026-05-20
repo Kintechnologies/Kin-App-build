@@ -27,6 +27,7 @@ import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { sendSms } from "@/lib/twilio";
 import { isAuthorizedCron } from "@/lib/cron-auth";
+import { generateKinMessage } from "@/lib/generate-nudge";
 
 interface CheckinProfile {
   id: string;
@@ -54,12 +55,33 @@ function getLocalParts(timezone: string): { hour: number; weekday: string } {
   return { hour: parseInt(hourStr, 10) % 24, weekday };
 }
 
-function checkinMessage(familyName: string | null): string {
+/**
+ * LLM-generated Sunday check-in text in Kin's shared voice. The template
+ * fallback is the original, validated copy — used when the LLM call fails so a
+ * Sunday never goes silent on a Twilio or Anthropic blip.
+ */
+async function checkinMessage(familyName: string | null): Promise<string> {
   const firstName = (familyName ?? "").trim().split(/\s+/)[0] || "there";
-  return (
-    `Hey ${firstName}! Anything big coming up this week? Any important ` +
-    `reminders, deadlines, or things I should know about? Just reply here.`
-  );
+  const fallback =
+    `Hey ${firstName} — anything big coming up this week? Reminders, ` +
+    `deadlines, things I should know about? Reply here and I'll fold it ` +
+    `into Monday's briefing.`;
+
+  return generateKinMessage({
+    intent:
+      "Weekly Sunday afternoon check-in: ask the parent what's coming up " +
+      "this week — reminders, deadlines, plans, anything Kin should know " +
+      "about — so it can be folded into Monday's morning briefing. Open by " +
+      "addressing them by first name. This is the start of a new SMS thread, " +
+      "so a one-word hello is fine but not required. Make the ask " +
+      "open-ended; do not list categories at them. End with a clear " +
+      "invitation to just reply here. One question, no follow-ups.",
+    context: {
+      parent_first_name: firstName,
+    },
+    fallback,
+    maxChars: 320,
+  });
 }
 
 export async function GET(request: Request) {
@@ -106,7 +128,7 @@ export async function GET(request: Request) {
       continue;
     }
 
-    const message = checkinMessage(profile.family_name);
+    const message = await checkinMessage(profile.family_name);
 
     try {
       await sendSms(profile.phone_number, message);

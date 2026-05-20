@@ -33,6 +33,7 @@ import { randomBytes } from "crypto";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { sendSms } from "@/lib/twilio";
 import { isAuthorizedCron } from "@/lib/cron-auth";
+import { generateKinMessage } from "@/lib/generate-nudge";
 
 type AdminClient = ReturnType<typeof createAdminClient>;
 
@@ -195,9 +196,24 @@ async function runOnboardingNudges(
           .update({ calendar_connect_token: token })
           .eq("id", p.id);
       }
-      const body =
-        `Hey ${firstName(p)}! Connect your Google Calendar so Kin can give you ` +
-        `personalized briefings. It takes 30 seconds: ${APP_URL}/connect/${token}`;
+      const connectUrl = `${APP_URL}/connect/${token}`;
+      const fallback =
+        `Hey ${firstName(p)} — Kin's briefings get a lot sharper once your ` +
+        `calendar's connected. 30 seconds, here: ${connectUrl}`;
+      const body = await generateKinMessage({
+        intent:
+          "Nudge a parent who finished SMS onboarding 24h+ ago but never " +
+          "connected a calendar. Lead with the specific value of connecting " +
+          "(briefings that actually know their day), keep it under 320 chars, " +
+          "and include the connect URL exactly as given. This is the first " +
+          "SMS in a new thread, so opening with their first name is fine.",
+        context: {
+          parent_first_name: firstName(p),
+          connect_url: connectUrl,
+        },
+        fallback,
+        maxChars: 320,
+      });
       await sendNudge(supabase, p, "onboarding_calendar", body);
       results.sent++;
     } catch (err) {
@@ -226,9 +242,21 @@ async function runOnboardingNudges(
       continue;
     }
     try {
-      const body =
-        "Hey! Looks like you didn't finish setting up Kin. Want to pick up " +
-        "where you left off? Just reply here.";
+      const fallback =
+        `Hey ${firstName(p)} — looks like setup got cut short. Want to pick ` +
+        `up where you left off? Just reply here.`;
+      const body = await generateKinMessage({
+        intent:
+          "Nudge a parent who started onboarding 24h+ ago but went silent " +
+          "before finishing. Acknowledge that life got in the way without " +
+          "guilt-tripping. Offer to pick up where they left off and tell " +
+          "them they can just reply here to continue. One question max.",
+        context: {
+          parent_first_name: firstName(p),
+        },
+        fallback,
+        maxChars: 320,
+      });
       await sendNudge(supabase, p, "onboarding_silent", body);
       results.sent++;
     } catch (err) {
@@ -240,42 +268,76 @@ async function runOnboardingNudges(
 
 // ─── Trial drip (daily) ─────────────────────────────────────────────────────
 
+interface TrialNudge {
+  key: string;
+  intent: string;
+  fallback: (firstName: string) => string;
+  includeBillingUrl: boolean;
+}
+
 /**
  * The single trial-drip nudge a profile is due for, given days since signup,
  * or null. Checked latest-first so a profile that missed an earlier message
  * jumps to the current one rather than backfilling a stale message. Days 12
  * and 13 are time-critical, so they match exactly; days 3 and 7 carry a grace
  * window in case a daily run is missed.
+ *
+ * Each entry describes intent + fallback. The actual body is LLM-generated at
+ * send time so the wording shares the briefing voice (kin-voice.ts).
  */
-function pickTrialNudge(days: number): { key: string; body: string } | null {
+function pickTrialNudge(days: number): TrialNudge | null {
   if (days === 13) {
     return {
       key: "trial_day13",
-      body:
-        "Last day of your trial tomorrow! Don't lose your personalized " +
-        `briefings: ${BILLING_URL}`,
+      intent:
+        "Last-day-of-trial reminder. Your trial ends tomorrow. Be direct " +
+        "without being alarmist: name what they'd lose (the personalized " +
+        "morning briefing they've been getting) and include the billing " +
+        "URL exactly as given. No exclamation points. No salesy language.",
+      fallback: (n) =>
+        `${n} — last day of your trial tomorrow. To keep the morning ` +
+        `briefings going, subscribe here: ${BILLING_URL}`,
+      includeBillingUrl: true,
     };
   }
   if (days === 12) {
     return {
       key: "trial_day12",
-      body:
-        "Heads up — your free trial ends in 2 days. To keep your morning " +
-        `briefings, you can subscribe anytime: ${BILLING_URL}`,
+      intent:
+        "Trial-ends-in-2-days reminder. Mention the timing concretely (2 " +
+        "days) so they can act. Include the billing URL verbatim. Keep it " +
+        "low-pressure but specific — no exclamation points, no urgency theater.",
+      fallback: (n) =>
+        `${n} — your trial ends in 2 days. To keep the morning briefings ` +
+        `going, you can subscribe anytime: ${BILLING_URL}`,
+      includeBillingUrl: true,
     };
   }
   if (days >= 7 && days <= 11) {
     return {
       key: "trial_day7",
-      body:
-        "You're one week in! Kin has learned a lot about your family's " +
-        "rhythm. Here's to smoother mornings.",
+      intent:
+        "One-week-in encouragement message. Acknowledge they're a week into " +
+        "the trial and that Kin has had time to learn their family's " +
+        "rhythm. Warm, brief, no question, no link. This is a moment of " +
+        "appreciation, not a sales pitch.",
+      fallback: (n) =>
+        `${n} — one week in. Kin's getting a feel for your family's rhythm. ` +
+        `Here's to smoother mornings.`,
+      includeBillingUrl: false,
     };
   }
   if (days >= 3 && days <= 6) {
     return {
       key: "trial_day3",
-      body: "How are your first few briefings? Reply and let us know what you think!",
+      intent:
+        "Day-3 check-in on early briefings. Ask how the first few briefings " +
+        "have been landing — what's working, what isn't. Genuinely curious, " +
+        "not a survey. One open-ended question, then stop.",
+      fallback: (n) =>
+        `${n} — how are the first few briefings landing for you? What's ` +
+        `working, what isn't? Reply and let me know.`,
+      includeBillingUrl: false,
     };
   }
   return null;
@@ -309,7 +371,17 @@ async function runTrialNudges(
       continue;
     }
     try {
-      await sendNudge(supabase, p, due.key, due.body);
+      const name = firstName(p);
+      const body = await generateKinMessage({
+        intent: due.intent,
+        context: {
+          parent_first_name: name,
+          billing_url: due.includeBillingUrl ? BILLING_URL : undefined,
+        },
+        fallback: due.fallback(name),
+        maxChars: 320,
+      });
+      await sendNudge(supabase, p, due.key, body);
       results.sent++;
     } catch (err) {
       results.failed++;
