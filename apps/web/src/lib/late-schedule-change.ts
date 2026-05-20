@@ -258,11 +258,12 @@ async function dispatchAlerts(
   kind: "pickup" | "dropoff"
 ): Promise<void> {
   for (const parent of parents) {
+    // Voice matches the morning briefing: the new event leads, the
+    // implication follows, no "Heads up." preamble.
     const body =
       parent.id === owner.id
-        ? `Your ${evTime} ${evTitle} just hit the calendar — it overlaps with ${desc}. Heads up.`
-        : `${owner.name ?? "Your partner"}'s ${evTime} ${evTitle} just landed — ` +
-          `it overlaps with ${desc}, so ${kind} may be on you.`;
+        ? `Your ${evTime} ${evTitle} just landed on the calendar and runs into ${desc} — worth confirming coverage.`
+        : `${owner.name ?? "Your partner"}'s ${evTime} ${evTitle} just landed and runs into ${desc} — ${kind} may be on you.`;
     await sendAlertSms(supabase, parent, body);
   }
 }

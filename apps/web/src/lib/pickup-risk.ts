@@ -327,13 +327,16 @@ async function dispatchAlerts(
 
     if (event) {
       const evTime = formatTimeInTz(new Date(event.start_time), timezone);
+      // Voice matches the morning briefing: lead with the conflict, end with
+      // the implication, no "Heads up" preamble. RED is direct ("no backup",
+      // "coverage needs sorting"); YELLOW prompts a soft check.
       const tail =
         severity === "RED"
           ? conflicts.length > 1
-            ? " Heads up — you've both got conflicts, so line up coverage."
-            : " Heads up — no backup on this one."
-          : " Heads up.";
-      body = `Your ${evTime} ${shortTitle(event.title)} overlaps with ${desc}.${tail}`;
+            ? " — you've both got conflicts, so coverage needs sorting before then."
+            : " — there's no backup on this one."
+          : " — worth a quick check.";
+      body = `Your ${evTime} ${shortTitle(event.title)} runs into ${desc}${tail}`;
     } else if (firstConflicted?.event) {
       const other = firstConflicted.parent.name ?? "Your partner";
       const evTime = formatTimeInTz(
@@ -342,7 +345,7 @@ async function dispatchAlerts(
       );
       body =
         `${other}'s ${evTime} ${shortTitle(firstConflicted.event.title)} ` +
-        `overlaps with ${desc} — heads up, ${window.kind} may be on you.`;
+        `runs into ${desc} — ${window.kind} may be on you.`;
     } else {
       continue;
     }
