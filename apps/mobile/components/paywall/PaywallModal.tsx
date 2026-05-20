@@ -62,12 +62,12 @@ const STATIC_PLANS = [
   {
     id: "annual",
     label: "Annual",
-    price: "$29",
+    price: "$25",
     period: "/ month",
-    priceDetail: "$349.00 billed annually",
+    priceDetail: "$299.00 billed annually",
     badge: "Best Value",
     highlight: true,
-    savings: "Save $119 vs monthly",
+    savings: "Save $169 vs monthly",
   },
 ] as const;
 
@@ -129,7 +129,7 @@ export default function PaywallModal({
       for (const pkg of offering.availablePackages) {
         const pid = pkg.product.identifier;
         if (pid === "kin_monthly_39") setMonthlyPkg(pkg);
-        if (pid === "kin_annual_34900") setAnnualPkg(pkg);
+        if (pid === "kin_annual_29900") setAnnualPkg(pkg);
       }
       setOfferingLoaded(true);
     });
@@ -307,7 +307,7 @@ export default function PaywallModal({
                 <Text style={styles.planPeriod}>/mo</Text>
               </View>
               <Text style={styles.planDetail}>{getAnnualTotalPrice()}</Text>
-              <Text style={styles.planSavings}>Save $119 vs monthly</Text>
+              <Text style={styles.planSavings}>Save $169 vs monthly</Text>
               {selectedPlan === "annual" && (
                 <View style={[styles.planCheckmark, { backgroundColor: c.amberSubtle }]}>
                   <Check size={12} color={c.amber} strokeWidth={3} />
@@ -352,7 +352,7 @@ export default function PaywallModal({
               <>
                 <Text style={styles.ctaText}>Start 7-Day Free Trial</Text>
                 <Text style={styles.ctaSubtext}>
-                  {selectedPlan === "annual" ? "Then $349/year" : "Then $39/month"}
+                  {selectedPlan === "annual" ? "Then $299/year" : "Then $39/month"}
                 </Text>
               </>
             )}

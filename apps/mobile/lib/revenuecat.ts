@@ -3,7 +3,7 @@
  *
  * Products (create in RC dashboard):
  *   kin_monthly_39     — $39.00 / month
- *   kin_annual_34900   — $349.00 / year
+ *   kin_annual_29900   — $299.00 / year
  *
  * Required env var:
  *   EXPO_PUBLIC_REVENUECAT_API_KEY — Apple App Store API key from RC project settings.

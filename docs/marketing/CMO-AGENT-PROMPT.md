@@ -28,7 +28,7 @@ That's 30 seconds. That's Kin. It reads like a message from someone who was alre
 
 **Three screens:** Today (briefing + alerts + schedule), Chat (household threads + personal chat), Settings.
 
-**Pricing:** $39/month or $349/year. Premium subscription via RevenueCat (`kin_premium` entitlement).
+**Pricing:** $39/month or $299/year. Premium subscription via RevenueCat (`kin_premium` entitlement).
 
 **Stage as of 2026-04-08:** TestFlight in ~10 days. App Store submission shortly after.
 
