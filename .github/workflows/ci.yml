@@ -1,0 +1,51 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+# Cancel in-flight runs for the same branch when a new push lands — no value in
+# letting a stale run finish once a newer commit is already being checked.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: lint · typecheck · test
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint (next)
+        working-directory: apps/web
+        run: npx next lint
+
+      - name: Type check (web)
+        working-directory: apps/web
+        run: npx tsc --noEmit
+
+      - name: Type check (shared)
+        working-directory: packages/shared
+        run: npx tsc --noEmit
+
+      # Run per-package so vitest 4 (root npm-test currently uses the
+      # removed --workspace flag) doesn't trip CI. Each workspace owns
+      # its own vitest config and the per-package script is stable.
+      - name: Test (shared)
+        run: npm run test -w @kin/shared
+
+      - name: Test (web)
+        run: npm run test -w @kin/web

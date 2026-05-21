@@ -237,7 +237,7 @@ function SignUpForm() {
             marginBottom: -8,
           }}
         >
-          // recommended · briefings arrive over SMS
+          {"// recommended · briefings arrive over SMS"}
         </div>
       )}
 
