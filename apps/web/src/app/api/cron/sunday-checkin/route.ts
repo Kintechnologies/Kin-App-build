@@ -28,6 +28,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { sendSms } from "@/lib/twilio";
 import { isAuthorizedCron } from "@/lib/cron-auth";
 import { generateKinMessage } from "@/lib/generate-nudge";
+import { notifySlack } from "@/lib/notify";
 
 interface CheckinProfile {
   id: string;
@@ -167,6 +168,17 @@ export async function GET(request: Request) {
         })
         .then(() => {}, () => {});
     }
+  }
+
+  // One Slack post per run rather than per-failure — a Twilio outage would
+  // otherwise spam the channel with one message per profile. Critical when
+  // anything failed because Sunday check-in directly feeds Monday's briefing
+  // context; a silent drop loses the week-ahead notes a parent shared.
+  if (results.failed > 0) {
+    await notifySlack(
+      `Sunday check-in failed for ${results.failed} profile(s) (sent ${results.sent}). First few: ${errors.slice(0, 3).join(" | ")}`,
+      "critical"
+    ).catch(() => {});
   }
 
   return NextResponse.json({

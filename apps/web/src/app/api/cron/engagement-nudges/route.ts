@@ -34,6 +34,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { sendSms } from "@/lib/twilio";
 import { isAuthorizedCron } from "@/lib/cron-auth";
 import { generateKinMessage } from "@/lib/generate-nudge";
+import { notifySlack } from "@/lib/notify";
 
 type AdminClient = ReturnType<typeof createAdminClient>;
 
@@ -406,6 +407,17 @@ export async function GET(request: Request) {
   }
   if (mode === "trial" || mode === "all") {
     await runTrialNudges(supabase, results);
+  }
+
+  // Aggregate alert per run, not per failure — a Twilio outage would otherwise
+  // spam the channel. Critical: every trial-drip nudge that doesn't land is a
+  // conversion that quietly evaporates and a user that doesn't see day 12/13's
+  // payment ask.
+  if (results.failed > 0) {
+    await notifySlack(
+      `Engagement nudges (${mode}) failed for ${results.failed} send(s) (sent ${results.sent}). First few: ${results.errors.slice(0, 3).join(" | ")}`,
+      "critical"
+    ).catch(() => {});
   }
 
   return NextResponse.json({

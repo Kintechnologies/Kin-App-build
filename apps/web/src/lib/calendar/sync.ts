@@ -7,6 +7,7 @@ import {
 import { pullAppleEvents, appleEventToKinEvent } from "./apple";
 import { detectConflicts, findNewConflicts } from "./conflicts";
 import { detectLateScheduleChanges } from "@/lib/late-schedule-change";
+import { notifySlack } from "@/lib/notify";
 import type { CalendarConnection, CalendarEvent, CalendarConflict } from "@/types";
 
 // ── Main Sync Entry Point ──
@@ -65,14 +66,23 @@ export async function syncCalendarForConnection(connectionId: string) {
     if (process.env.NODE_ENV !== "production") {
       console.error(`Sync error for connection ${connectionId}:`, error);
     }
+    const msg = error instanceof Error ? error.message : "Unknown error";
     await supabase
       .from("calendar_connections")
       .update({
         sync_status: "error",
-        sync_error: error instanceof Error ? error.message : "Unknown error",
+        sync_error: msg,
         updated_at: new Date().toISOString(),
       })
       .eq("id", connectionId);
+    // A failed sync degrades the next briefing (stale calendar warning kicks
+    // in). Warning, not critical — a single connection failing is recoverable
+    // (token refresh, transient API error), but a pattern in the channel is
+    // the early signal that auth has actually broken.
+    await notifySlack(
+      `Calendar sync failed for connection ${connectionId}: ${msg}`,
+      "warning"
+    ).catch(() => {});
   }
 }
 

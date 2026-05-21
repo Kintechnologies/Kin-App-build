@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { logActivity } from "@/lib/activity-log";
+import { notifySlack } from "@/lib/notify";
 
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
@@ -12,6 +13,16 @@ export async function GET(request: Request) {
   if (code) {
     const supabase = createClient();
     const { error } = await supabase.auth.exchangeCodeForSession(code);
+
+    if (error) {
+      // The user just lost a sign-in. Warning: one failure is usually a
+      // stale link or browser-cookie weirdness, but a pattern means our auth
+      // is broken — surface it so we don't only learn from a support email.
+      await notifySlack(
+        `Auth callback exchangeCodeForSession failed: ${error.message}`,
+        "warning"
+      ).catch(() => {});
+    }
 
     if (!error) {
       // Fire a one-time signup alert for this user (idempotent).

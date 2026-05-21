@@ -14,6 +14,7 @@ import { headers } from "next/headers";
 import Stripe from "stripe";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import * as Sentry from "@sentry/nextjs";
+import { notifySlack } from "@/lib/notify";
 
 // Stripe SDK relies on Node's crypto for webhook signature verification.
 export const runtime = "nodejs";
@@ -131,6 +132,13 @@ export async function POST(request: Request) {
     );
   } catch (err) {
     Sentry.captureException(err);
+    // Signature mismatch is rarely a real attack — usually a webhook-secret
+    // rotation mismatch — but it leaves billing events unprocessed until it's
+    // fixed, so flag it loud.
+    await notifySlack(
+      `Stripe webhook rejected: invalid signature (${err instanceof Error ? err.message : String(err)})`,
+      "critical"
+    ).catch(() => {});
     return NextResponse.json({ error: "Invalid signature" }, { status: 400 });
   }
 
@@ -175,6 +183,13 @@ export async function POST(request: Request) {
     }
   } catch (error) {
     Sentry.captureException(error);
+    // A handler exception means we returned 500 to Stripe; Stripe will retry,
+    // but a profile's subscription_status may now be out of sync until then.
+    // Critical because this is the money path.
+    await notifySlack(
+      `Stripe webhook handler failed for ${event.type}: ${error instanceof Error ? error.message : String(error)}`,
+      "critical"
+    ).catch(() => {});
     return NextResponse.json({ error: "Webhook handler failed" }, { status: 500 });
   }
 
