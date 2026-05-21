@@ -19,6 +19,11 @@
 //   ADMIN_PHONE                — Austin's number; alert fallback when Slack is unset.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.40.0";
+import {
+  QUALITY_PASS_THRESHOLD,
+  quickQualityCheck,
+  scoreBriefing,
+} from "./briefing-quality.ts";
 
 const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
 const supabaseServiceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -907,6 +912,9 @@ function buildPlaintextBriefing(c: BriefingContext): string {
 export interface GeneratedBriefing {
   text: string;
   degraded: boolean;
+  // The prompt context fed to the generator. Surfaced so the runtime quality
+  // checks can ground-check the briefing against the same facts the writer saw.
+  context: string;
 }
 
 // Generates the briefing for one profile. If the AI call fails after retries,
@@ -939,6 +947,7 @@ export async function generateBriefing(
   return {
     text: appendPaymentNudge ? `${text}\n\n${PAYMENT_NUDGE}` : text,
     degraded,
+    context: context.ctx,
   };
 }
 
@@ -1002,7 +1011,7 @@ export async function deliverBriefing(
     daysSinceCreated >= 14;
 
   try {
-    const { text, degraded } = await generateBriefing(
+    const { text, degraded, context } = await generateBriefing(
       profile.id,
       profile.family_name,
       profile.last_name,
@@ -1010,8 +1019,62 @@ export async function deliverBriefing(
       appendPaymentNudge
     );
 
+    // Quick guard runs synchronously before send — it's pure regex against
+    // the generated text and the writer's context, so latency is negligible.
+    // The degraded plaintext fallback is a known-good template; running these
+    // checks on it would just be noise (it intentionally opens with "Good
+    // morning", for one). Anything it flags is a prompt-honesty bug worth a
+    // critical Slack ping immediately. We never block delivery on it.
+    if (!degraded) {
+      const quickIssues = quickQualityCheck(text, context);
+      if (quickIssues.length > 0) {
+        const summary = quickIssues.map((i) => `${i.type}: ${i.detail}`).join(" | ");
+        console.error(
+          `[${source}] quickQualityCheck failed for ${profile.id}: ${summary}`
+        );
+        await notifySlack(
+          `Briefing failed quick quality guard for ${profile.family_name ?? profile.id} ` +
+            `(${profile.id}, source: ${source}). ${summary} ` +
+            `Briefing: ${text.slice(0, 200)}${text.length > 200 ? "…" : ""}`,
+          "critical"
+        );
+      }
+    }
+
+    // Score in parallel with SMS send so the Haiku call (~1s) never adds
+    // latency to delivery. Plaintext fallback skips scoring for the same
+    // reason quickQualityCheck does. scoreBriefing returns null on any
+    // failure; we treat that as "could not score" and proceed.
+    const scorePromise = degraded
+      ? Promise.resolve(null)
+      : scoreBriefing(text, context).catch((err) => {
+          console.error(
+            "deliverBriefing: scoreBriefing threw",
+            err instanceof Error ? err.message : String(err)
+          );
+          return null;
+        });
+
     await sendSmsWithRetry(profile.phone_number, text);
     await logSms(profile.id, "outbound", text, profile.phone_number);
+
+    const score = await scorePromise;
+
+    if (score) {
+      console.log(
+        `[${source}] Quality ${score.grade} (${score.score}) for ${profile.id}` +
+          (score.issues.length > 0 ? ` — ${score.issues.length} issue(s)` : "")
+      );
+      if (!score.pass) {
+        await notifySlack(
+          `Briefing scored ${score.grade} (${score.score}/100, threshold ${QUALITY_PASS_THRESHOLD}) for ` +
+            `${profile.family_name ?? profile.id} (${profile.id}, source: ${source}). ` +
+            `Issues: ${score.issues.join(" | ") || "none returned"}. ` +
+            `Briefing: ${text.slice(0, 200)}${text.length > 200 ? "…" : ""}`,
+          "warning"
+        );
+      }
+    }
 
     await supabase.from("morning_briefings").upsert(
       {
@@ -1020,6 +1083,9 @@ export async function deliverBriefing(
         content: text,
         delivery_status: "sent",
         sent_at: new Date().toISOString(),
+        quality_score: score?.score ?? null,
+        quality_grade: score?.grade ?? null,
+        quality_issues: score?.issues ?? null,
       },
       { onConflict: "profile_id,briefing_date" }
     );
