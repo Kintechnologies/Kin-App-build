@@ -895,18 +895,17 @@ async function callAnthropicWithRetry(ctx: string): Promise<string> {
 
 // Plaintext fallback when the AI call fails after retries. No summary — just a
 // simple, useful list of the day's calendar so the user still gets something.
+// Opens with the substance, never "Good morning" — the SYSTEM_PROMPT forbids
+// greetings on the AI path, and the fallback must obey the same rule.
 function buildPlaintextBriefing(c: BriefingContext): string {
-  const greeting = c.parentFirstName ? `Good morning, ${c.parentFirstName}.` : "Good morning.";
   if (c.events.length === 0) {
-    return `${greeting} Nothing on the calendar today — an open day.`;
+    return `${c.dateLabel} — nothing on the calendar today. Open day.`;
   }
-  const parts: string[] = [`${greeting} Here's ${c.dateLabel}:`];
-  parts.push(
-    c.events
-      .map((e) => `${e.time} ${e.title}${e.location ? ` at ${e.location}` : ""}`)
-      .join("; ") + "."
-  );
-  return parts.join(" ").slice(0, 600);
+  const lead = `${c.dateLabel} — here's what your calendar shows:`;
+  const list = c.events
+    .map((e) => `${e.time} ${e.title}${e.location ? ` at ${e.location}` : ""}`)
+    .join("; ");
+  return `${lead} ${list}.`.slice(0, 600);
 }
 
 export interface GeneratedBriefing {
