@@ -219,10 +219,27 @@ function SignUpForm() {
         </div>
         <div style={{ fontSize: 13.5, color: T.warm56 }}>
           {inviteCode
-            ? "Verify your number to connect with your partner on Kin."
-            : "14-day free trial · ~90 seconds to set up · no password needed."}
+            ? "Verify your number — Kin texts your daily briefing."
+            : "Kin lives in your texts. Sign up with your number for a 14-day free trial."}
         </div>
       </div>
+
+      {/* SMS-first label — quietly orients the user to the primary path */}
+      {method === "phone" && phoneStep === "phone" && !inviteCode && (
+        <div
+          style={{
+            fontFamily: T.mono,
+            fontSize: 11,
+            letterSpacing: "0.04em",
+            textTransform: "uppercase",
+            color: T.sage,
+            textAlign: "center",
+            marginBottom: -8,
+          }}
+        >
+          // recommended · briefings arrive over SMS
+        </div>
+      )}
 
       {/* Phone OTP — primary */}
       {method === "phone" && (phoneStep === "phone" ? (
@@ -314,20 +331,6 @@ function SignUpForm() {
         </div>
       ))}
 
-      {/* method switch — only at the first step to avoid mid-verify state */}
-      {((method === "phone" && phoneStep === "phone") ||
-        (method === "email" && emailStep === "email")) && (
-        <button
-          type="button"
-          onClick={() => switchMethod(method === "phone" ? "email" : "phone")}
-          style={textLinkStyle}
-        >
-          {method === "phone"
-            ? "// use an email link instead"
-            : "// use a text code instead"}
-        </button>
-      )}
-
       {/* divider */}
       <div style={{ display: "flex", alignItems: "center", gap: 12, color: T.warm40, fontSize: 11.5, fontFamily: T.mono, letterSpacing: "0.04em" }}>
         <div style={{ flex: 1, height: 1, background: T.hair }} />
@@ -345,6 +348,21 @@ function SignUpForm() {
           {"// creates your account · you'll connect calendar in the next step"}
         </div>
       </div>
+
+      {/* tertiary method switch — only at the first step to avoid mid-verify state.
+          Sits below Google so phone (SMS) is unambiguously the primary path. */}
+      {((method === "phone" && phoneStep === "phone") ||
+        (method === "email" && emailStep === "email")) && (
+        <button
+          type="button"
+          onClick={() => switchMethod(method === "phone" ? "email" : "phone")}
+          style={textLinkStyle}
+        >
+          {method === "phone"
+            ? "// or use an email magic link instead"
+            : "// back to text code (recommended)"}
+        </button>
+      )}
 
       {/* pricing spec */}
       <div style={{
