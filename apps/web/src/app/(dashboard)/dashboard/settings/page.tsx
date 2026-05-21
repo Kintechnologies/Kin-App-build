@@ -3,15 +3,11 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import { useTheme } from "@/components/ThemeProvider";
 import {
   Phone,
   Bell,
   Clock,
   MapPin,
-  Moon,
-  Sun,
-  Check,
   LogOut,
   Loader2,
 } from "lucide-react";
@@ -170,7 +166,6 @@ function formatPhone(raw: string | null): string {
 
 export default function DashboardSettingsPage() {
   const router = useRouter();
-  const { theme, setTheme } = useTheme();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
   const [timezone, setTimezone] = useState("—");
@@ -230,8 +225,6 @@ export default function DashboardSettingsPage() {
     await supabase.auth.signOut();
     router.push("/signin");
   }
-
-  const isDark = theme === "dark" || theme === "system";
 
   return (
     <div
@@ -323,81 +316,6 @@ export default function DashboardSettingsPage() {
                 label="Delivered to"
                 value={formatPhone(profile?.phone_number ?? null)}
               />
-            </div>
-          </SectionCard>
-
-          <SectionCard
-            label="// APPEARANCE"
-            title="Theme"
-            description="Choose how Kin looks. Light mode is in development."
-          >
-            <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
-              <button
-                onClick={() => setTheme("dark")}
-                style={{
-                  flex: "1 1 140px",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "10px",
-                  padding: "12px 14px",
-                  background: isDark ? "var(--sage-12)" : "rgba(44,44,40,0.02)",
-                  border: isDark
-                    ? "0.5px solid rgba(92,107,79,0.5)"
-                    : "0.5px solid var(--hair)",
-                  borderRadius: "8px",
-                  color: isDark ? "var(--sage)" : "var(--warm-72)",
-                  cursor: "pointer",
-                  fontSize: "13.5px",
-                  fontWeight: 500,
-                  textAlign: "left",
-                }}
-              >
-                <Moon size={15} />
-                <span style={{ flex: 1 }}>Dark</span>
-                {isDark && <Check size={14} />}
-              </button>
-              <button
-                onClick={() => setTheme("light")}
-                style={{
-                  flex: "1 1 140px",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "10px",
-                  padding: "12px 14px",
-                  background:
-                    theme === "light"
-                      ? "var(--sage-12)"
-                      : "rgba(44,44,40,0.02)",
-                  border:
-                    theme === "light"
-                      ? "0.5px solid rgba(92,107,79,0.5)"
-                      : "0.5px solid var(--hair)",
-                  borderRadius: "8px",
-                  color: theme === "light" ? "var(--sage)" : "var(--warm-72)",
-                  cursor: "pointer",
-                  fontSize: "13.5px",
-                  fontWeight: 500,
-                  textAlign: "left",
-                }}
-              >
-                <Sun size={15} />
-                <span style={{ flex: 1 }}>Light</span>
-                {theme === "light" ? (
-                  <Check size={14} />
-                ) : (
-                  <span
-                    className="font-mono"
-                    style={{
-                      fontSize: "9.5px",
-                      letterSpacing: "0.05em",
-                      color: "var(--warm-24)",
-                      textTransform: "uppercase",
-                    }}
-                  >
-                    Soon
-                  </span>
-                )}
-              </button>
             </div>
           </SectionCard>
 
