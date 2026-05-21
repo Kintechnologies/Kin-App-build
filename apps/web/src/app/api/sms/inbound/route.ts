@@ -188,6 +188,18 @@ export async function POST(request: Request) {
     return twimlEmpty();
   }
 
+  // ── 2a. HELP / INFO — carrier-required keyword response. Onboarding consent
+  //    promises these work, and US carriers require an immediate, plain-text
+  //    response identifying the program and pointing to the opt-out path.
+  //    No DB writes, no rate-limit hit — short, deterministic, side-effect-free.
+  if (/^(HELP|INFO)$/i.test(messageBody)) {
+    return twimlReply(
+      "Kin Family AI. Daily morning briefing for parents. " +
+        "Help: kinai.family · email hello@kinai.family · reply STOP to unsubscribe. " +
+        "Msg & data rates may apply."
+    );
+  }
+
   // ── 2b. START / UNSTOP — opt-back-in path. Mirror of STOP: clears
   //    sms_opted_out_at on both waitlist and profiles, then confirms. ─────────
   if (/^(START|UNSTOP)$/i.test(messageBody)) {
