@@ -11,10 +11,25 @@ import { Pricing } from "@/components/Pricing";
 import { WaitlistSection } from "@/components/WaitlistSection";
 import { Footer } from "@/components/Footer";
 
+// V6 P1-L1: explicit OG image + Twitter card image so social previews on
+// Slack / Twitter / LinkedIn / iMessage all render the branded card instead
+// of a blank box. The opengraph-image file convention also generates an OG
+// asset, but explicit declarations here guarantee the meta tags exist
+// regardless of which Next.js metadata-merging path the build takes.
+const OG_IMAGE = {
+  url: "/opengraph-image",
+  width: 1200,
+  height: 630,
+  alt: "Kin — Stop keeping your family schedule in your head.",
+};
+
 export const metadata: Metadata = {
   title: "Kin — Stop keeping your family schedule in your head",
   description:
     "Kin watches your family's schedule and tells you what matters — before you have to figure it out yourself.",
+  metadataBase: new URL(
+    process.env.NEXT_PUBLIC_APP_URL ?? "https://kinai.family"
+  ),
   openGraph: {
     title: "Kin — Stop keeping your family schedule in your head",
     description:
@@ -23,12 +38,14 @@ export const metadata: Metadata = {
     siteName: "Kin",
     locale: "en_US",
     type: "website",
+    images: [OG_IMAGE],
   },
   twitter: {
     card: "summary_large_image",
     title: "Kin — Stop keeping your family schedule in your head",
     description:
       "Kin watches your family's schedule and tells you what matters — before you have to figure it out yourself.",
+    images: [OG_IMAGE.url],
   },
 };
 

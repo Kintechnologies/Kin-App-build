@@ -218,7 +218,7 @@ describe("POST /api/invite/[code]/accept — guard conditions", () => {
   });
 
   // ── Guard 4: wrong email ──────────────────────────────────────────────────
-  it("returns 403 when the authenticated user's email does not match the invite", async () => {
+  it("returns generic 404 when the authenticated user's email does not match the invite (no enumeration)", async () => {
     mockGetAuthenticatedUser.mockResolvedValue({
       id: ACCEPTOR_ID,
       email: "someone-else@example.com",
@@ -227,10 +227,8 @@ describe("POST /api/invite/[code]/accept — guard conditions", () => {
     mockCreateAdminClient.mockReturnValue(adminClient);
 
     const res = await POST(makeRequest(), makeParams());
-    expect(res.status).toBe(403);
-    expect(await res.json()).toMatchObject({
-      error: "This invite was not sent to your email address",
-    });
+    expect(res.status).toBe(404);
+    expect(await res.json()).toMatchObject({ error: "Invite not found" });
   });
 
   it("email comparison is case-insensitive", async () => {
@@ -243,8 +241,10 @@ describe("POST /api/invite/[code]/accept — guard conditions", () => {
     mockCreateAdminClient.mockReturnValue(adminClient);
 
     const res = await POST(makeRequest(), makeParams());
-    // If email guard passed, it should proceed (and succeed or hit another guard)
-    expect(res.status).not.toBe(403);
+    // If email guard passed, it should proceed (and succeed or hit another guard).
+    // Generic 404 is reserved for email mismatch, so passing the guard cannot
+    // produce a 404 here.
+    expect(res.status).not.toBe(404);
   });
 
   // ── Guard 5: already in a household ──────────────────────────────────────

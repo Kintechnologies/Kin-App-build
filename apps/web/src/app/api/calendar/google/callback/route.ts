@@ -5,10 +5,18 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import * as Sentry from "@sentry/nextjs";
 import {
   exchangeGoogleCode,
+  fetchGoogleAccountEmail,
   registerGoogleWebhook,
 } from "@/lib/calendar/google";
 import { syncCalendarForConnection } from "@/lib/calendar/sync";
 import { randomUUID } from "crypto";
+import { checkRateLimit, rateLimitResponse } from "@/lib/rate-limit";
+
+// SMS-flow OAuth `state` payloads are signed-style opaque tokens (random hex
+// from sms-onboarding's randomBytes); accept only the safe character set so a
+// crafted `state="sms:../../evil.com"` can't poison the errorRedirect path.
+// (v6 P1-A4)
+const SMS_TOKEN_RE = /^[a-zA-Z0-9_-]+$/;
 
 // GET /api/calendar/google/callback — OAuth callback
 //
@@ -25,12 +33,21 @@ export async function GET(request: Request) {
   const appUrl = process.env.NEXT_PUBLIC_APP_URL;
 
   const isSms = !!state && state.startsWith("sms:");
-  const smsToken = isSms ? state.slice(4) : null;
+  const smsTokenRaw = isSms ? state.slice(4) : null;
+  // Validate the token shape before it ever lands in a redirect URL. An
+  // attacker who can craft `state` must not be able to bend the path to a
+  // foreign host or up the directory tree. (v6 P1-A4)
+  const smsToken =
+    smsTokenRaw && SMS_TOKEN_RE.test(smsTokenRaw) ? smsTokenRaw : null;
 
   const errorRedirect = (reason: string) =>
-    isSms
+    isSms && smsToken
       ? `${appUrl}/connect/${smsToken}?error=${reason}`
       : `${appUrl}/settings?calendar_error=${reason}`;
+
+  if (isSms && !smsToken) {
+    return NextResponse.redirect(`${appUrl}/settings?calendar_error=invalid_token`);
+  }
 
   if (error) {
     return NextResponse.redirect(errorRedirect(error));
@@ -46,17 +63,30 @@ export async function GET(request: Request) {
     let db: SupabaseClient;
 
     if (isSms) {
+      // Per-token rate limit (v6 P1-A3) before we touch the DB — slows any
+      // attacker probing the connect-token namespace, even though the tokens
+      // are 12-byte random hex.
+      const rl = await checkRateLimit(smsToken!, "calendar-connect-token");
+      if (!rl.allowed) return rateLimitResponse(rl);
+
       const admin = createAdminClient();
-      const { data: tokenProfile } = await admin
+      // Atomic claim (v6 P1-A3): a conditional UPDATE that nulls the
+      // calendar_connect_token in the same statement that returns the profile.
+      // Two simultaneous OAuth callbacks racing the same token now serialize —
+      // only the first claim returns a row; the second sees nothing and bails,
+      // so we can't create duplicate calendar_connections rows under different
+      // OAuth sessions.
+      const { data: claimedProfile } = await admin
         .from("profiles")
-        .select("id")
+        .update({ calendar_connect_token: null })
         .eq("calendar_connect_token", smsToken)
+        .select("id")
         .maybeSingle<{ id: string }>();
 
-      if (!tokenProfile) {
+      if (!claimedProfile) {
         return NextResponse.redirect(errorRedirect("invalid_token"));
       }
-      profileId = tokenProfile.id;
+      profileId = claimedProfile.id;
       db = admin;
     } else {
       profileId = state;
@@ -64,6 +94,12 @@ export async function GET(request: Request) {
     }
 
     const tokens = await exchangeGoogleCode(code);
+
+    // Fetch the connected Google account's email so the multi-account dashboard
+    // can distinguish personal vs. work Gmail connections. (v6 P1-C1)
+    const googleAccountEmail = tokens.access_token
+      ? await fetchGoogleAccountEmail(tokens.access_token)
+      : null;
 
     // Google only emits a `refresh_token` on the FIRST consent. Subsequent
     // re-consents (e.g. the user re-runs OAuth after revoking access on the
@@ -95,6 +131,7 @@ export async function GET(request: Request) {
           token_expires_at: tokens.expiry_date
             ? new Date(tokens.expiry_date).toISOString()
             : null,
+          google_account_email: googleAccountEmail,
           sync_status: "idle",
           enabled: true,
           updated_at: new Date().toISOString(),
@@ -160,12 +197,10 @@ export async function GET(request: Request) {
         .eq("id", connection.id);
     }
 
-    // ── SMS texter: consume the one-time token, land on the confirmation page ─
+    // ── SMS texter: land on the confirmation page ──
+    // Token was already consumed by the atomic claim at the top of this
+    // handler — no second clear needed. (v6 P1-A3)
     if (isSms) {
-      await db
-        .from("profiles")
-        .update({ calendar_connect_token: null })
-        .eq("id", profileId);
       return NextResponse.redirect(`${appUrl}/connect/${smsToken}?connected=1`);
     }
 

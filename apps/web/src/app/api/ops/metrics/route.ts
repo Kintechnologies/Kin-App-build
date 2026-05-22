@@ -23,7 +23,24 @@ import { checkRateLimit, rateLimitResponse } from "@/lib/rate-limit";
 
 export const dynamic = "force-dynamic";
 
-const ADMIN_PHONES = new Set(["+16266762222", "+16266762832", "+16266761832"]);
+// V6 P1-I2: ADMIN_PHONES is sourced from env (comma-separated E.164 numbers)
+// with a small hardcoded fallback so a fresh deploy still gates the dashboard
+// while the env var rolls out. Mirror parsing logic in the
+// morning-briefing edge function so adding a founder is a single env edit.
+const ADMIN_PHONES_FALLBACK = [
+  "+16266762222",
+  "+16266762832",
+  "+16266761832",
+];
+const ADMIN_PHONES: Set<string> = (() => {
+  const env = process.env.ADMIN_PHONES;
+  if (!env) return new Set(ADMIN_PHONES_FALLBACK);
+  const parsed = env
+    .split(",")
+    .map((s) => s.trim())
+    .filter((s) => s.length > 0);
+  return new Set(parsed.length > 0 ? parsed : ADMIN_PHONES_FALLBACK);
+})();
 
 type SystemLight = "green" | "yellow" | "red";
 

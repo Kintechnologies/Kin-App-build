@@ -17,9 +17,12 @@ type Message = {
   text: string;
 };
 
+// V6 P1-L3: lead the first divider with "Example —" so a fast scanner
+// can't mistake the timestamps for a real inbox screenshot or assume Kin is
+// already texting them. The rest read as part of the same simulated thread.
 const messages: Message[] = [
   {
-    divider: "Today 7:03 AM",
+    divider: "Example — Today 7:03 AM",
     text: "Maya has soccer at 4:30 — you're on pickup. Tom's got a 5:00 call he can't move, so today's on you.\n\nHeads up: your 3:00 meeting runs right up against pickup. Worth building in a buffer.\n\nOne to remember — Leo's field-trip slip is due tomorrow.\n\nThat's everything. Have a good one. 💚",
   },
   {

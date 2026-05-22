@@ -34,7 +34,8 @@ type RouteKey =
   | "stripe-checkout"
   | "stripe-coupon"
   | "stripe-portal"
-  | "onboarding-complete";
+  | "onboarding-complete"
+  | "calendar-connect-token";
 
 // Lazily initialise Redis + limiters only when env vars are present.
 let redis: Redis | null = null;
@@ -139,6 +140,15 @@ function getLimiter(route: RouteKey): Ratelimit | null {
       redis: r,
       limiter: Ratelimit.slidingWindow(5, "1 m"),
       prefix: "rl:onboarding-complete",
+    });
+  } else if (route === "calendar-connect-token") {
+    // 10 OAuth callback hits per token per 10 minutes — generous for a real
+    // human who reloads the redirect a few times, tight enough to slow any
+    // brute-force enumeration of the connect-token namespace. (v6 P1-A3)
+    limiter = new Ratelimit({
+      redis: r,
+      limiter: Ratelimit.slidingWindow(10, "10 m"),
+      prefix: "rl:calendar-connect-token",
     });
   } else {
     // first-use: 5 requests per 365 days (effectively lifetime)

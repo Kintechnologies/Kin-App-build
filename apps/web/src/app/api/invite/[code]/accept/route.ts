@@ -74,14 +74,13 @@ export async function POST(
     // Guard: for email invites, only the intended recipient can accept (prevents
     // leaked-code abuse). Phone invites carry no email — the code itself is
     // delivered privately by SMS, so code possession is the proof of intent.
+    // Use a generic "not found" response so an authenticated attacker can't
+    // enumerate which email address a known code was originally sent to. (v6 P1-A2)
     if (
       invite.invitee_email &&
       user.email?.toLowerCase() !== invite.invitee_email.toLowerCase()
     ) {
-      return NextResponse.json(
-        { error: "This invite was not sent to your email address" },
-        { status: 403 }
-      );
+      return NextResponse.json({ error: "Invite not found" }, { status: 404 });
     }
 
     // Guard: partner is already in a household

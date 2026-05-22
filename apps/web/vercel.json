@@ -7,6 +7,10 @@
     {
       "path": "/api/cron/engagement-nudges?mode=trial",
       "schedule": "0 7 * * *"
+    },
+    {
+      "path": "/api/cron/calendar-renewal",
+      "schedule": "0 9 * * *"
     }
   ]
 }

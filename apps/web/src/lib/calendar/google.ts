@@ -28,6 +28,30 @@ export async function exchangeGoogleCode(code: string) {
 }
 
 /**
+ * Fetch the Google account's email so the multi-account dashboard can tell
+ * "personal" from "work" Gmail connections apart. (v6 P1-C1)
+ * Best-effort: returns null on any failure — the connection still works
+ * without an email displayed, the row just falls back to the legacy label.
+ */
+export async function fetchGoogleAccountEmail(
+  accessToken: string
+): Promise<string | null> {
+  try {
+    const res = await fetch(
+      "https://www.googleapis.com/oauth2/v1/userinfo?alt=json",
+      { headers: { Authorization: `Bearer ${accessToken}` } }
+    );
+    if (!res.ok) return null;
+    const data = (await res.json()) as { email?: string | null };
+    return typeof data.email === "string" && data.email.length > 0
+      ? data.email.toLowerCase()
+      : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Thrown when Google rejects the refresh_token (401, invalid_grant, etc.) —
  * meaning the user revoked Kin's access in their Google account, deleted their
  * Google account, or the token simply expired without refresh activity for

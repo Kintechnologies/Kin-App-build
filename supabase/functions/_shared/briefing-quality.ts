@@ -255,9 +255,18 @@ OUTPUT — return ONLY a single JSON object, no prose, no markdown fences:
 
 Each issue string should be one short sentence naming the rule violated and pointing at the offending text. If there are no issues, return an empty array.`;
 
+// V6 P1-M2: bound the scorer with the same AbortController pattern the
+// writer uses (briefing.ts:ANTHROPIC_TIMEOUT_MS). Without it a stalled
+// Anthropic socket can sit on the platform's 60–120s TCP timeout while the
+// briefing fan-out loop holds an open promise. Haiku is fast enough that 20s
+// is generous — beyond that the call is hung, not slow.
+const SCORER_TIMEOUT_MS = 20_000;
+
 // One scoring call. Returns null on any failure — caller treats that as "could
 // not score" and proceeds. Never throws.
 async function callJudge(prompt: string): Promise<{ score: number; issues: string[] } | null> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), SCORER_TIMEOUT_MS);
   try {
     const res = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
@@ -272,6 +281,7 @@ async function callJudge(prompt: string): Promise<{ score: number; issues: strin
         system: JUDGE_SYSTEM_PROMPT,
         messages: [{ role: "user", content: prompt }],
       }),
+      signal: controller.signal,
     });
     if (!res.ok) {
       const body = await res.text();
@@ -310,6 +320,8 @@ async function callJudge(prompt: string): Promise<{ score: number; issues: strin
       err instanceof Error ? err.message : String(err)
     );
     return null;
+  } finally {
+    clearTimeout(timer);
   }
 }
 

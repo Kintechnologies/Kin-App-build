@@ -179,7 +179,15 @@ export function appleEventToKinEvent(
     external_id: parsed.uid,
     external_source: "apple" as const,
     external_calendar_id: calendarUrl,
-    external_etag: parsed.etag ?? syntheticEtag(parsed),
+    // Guard against an empty-string etag falling through (v6 P1-C3): some Apple
+    // CalDAV endpoints return "" rather than omitting the header, which `??`
+    // wouldn't catch. Fall back to the synthetic etag whenever we don't have a
+    // real value so the change-detection comparison on the next sync stays
+    // meaningful.
+    external_etag:
+      parsed.etag && parsed.etag.trim().length > 0
+        ? parsed.etag
+        : syntheticEtag(parsed),
     sync_status: "synced" as const,
     is_shared: false,
     is_kid_event: false,

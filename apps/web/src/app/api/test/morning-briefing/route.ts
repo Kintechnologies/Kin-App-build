@@ -42,12 +42,24 @@ function safeEqual(a: string, b: string): boolean {
 }
 
 export async function GET(request: Request) {
+  // V6 P1-I3: prefer TEST_SECRET — the dedicated, lowest-privileged credential
+  // for the test endpoints. Fall back to CRON_SECRET so a deploy that hasn't
+  // rotated yet keeps working, but rotate ASAP. The fallback log surfaces in
+  // Vercel logs so we can see when it's still in use.
   const authHeader = request.headers.get("authorization") ?? "";
-  if (
-    !process.env.CRON_SECRET ||
-    !safeEqual(authHeader, `Bearer ${process.env.CRON_SECRET}`)
-  ) {
+  const testSecret = process.env.TEST_SECRET;
+  const cronSecret = process.env.CRON_SECRET;
+  const acceptedTest =
+    testSecret && safeEqual(authHeader, `Bearer ${testSecret}`);
+  const acceptedCron =
+    cronSecret && safeEqual(authHeader, `Bearer ${cronSecret}`);
+  if (!acceptedTest && !acceptedCron) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  if (!acceptedTest && acceptedCron) {
+    console.warn(
+      "/api/test/morning-briefing accepted CRON_SECRET — set TEST_SECRET to silence this fallback."
+    );
   }
 
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -70,7 +82,18 @@ export async function GET(request: Request) {
   }
 
   // Forward to the edge function's single-profile test mode. The function's
-  // handler validates the same CRON_SECRET via the x-cron-secret header.
+  // handler validates CRON_SECRET via the x-cron-secret header — that remains
+  // the credential between the two server-side trust boundaries; only the
+  // public-facing entry to this Next route is gated by TEST_SECRET. (V6 P1-I3)
+  if (!cronSecret) {
+    return NextResponse.json(
+      {
+        error:
+          "CRON_SECRET is required to forward to the morning-briefing edge function",
+      },
+      { status: 500 }
+    );
+  }
   const start = Date.now();
   let upstream: Response;
   try {
@@ -78,7 +101,7 @@ export async function GET(request: Request) {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "x-cron-secret": process.env.CRON_SECRET,
+        "x-cron-secret": cronSecret,
       },
       body: JSON.stringify({
         target_phone: phone,

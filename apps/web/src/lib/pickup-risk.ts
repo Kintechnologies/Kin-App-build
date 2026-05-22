@@ -108,6 +108,36 @@ export async function detectPickupRisk(
   if (parents.length === 0) return createdIssueIds;
 
   const parentIds = parents.map((p) => p.id);
+
+  // V6 P1-E4: bail when calendar data is too stale to trust. The pickup-risk
+  // detector reads "your event collides with the coverage window," so if the
+  // sync hasn't run for 6+ hours the events it consults may not reflect a
+  // last-minute reschedule. Sending a "you're conflicted" alert that's
+  // actually based on yesterday's calendar is worse than no alert. Matches
+  // the staleness threshold the briefing uses for its calendar-warning line.
+  const STALENESS_THRESHOLD_MS = 6 * 60 * 60 * 1000;
+  const { data: connRows } = await supabase
+    .from("calendar_connections")
+    .select("last_synced_at, enabled")
+    .in("profile_id", parentIds);
+  const enabledRows = (connRows ?? []).filter((c) => c.enabled !== false);
+  if (enabledRows.length > 0) {
+    const allStale = enabledRows.every((c) => {
+      if (!c.last_synced_at) return true;
+      return (
+        Date.now() - new Date(c.last_synced_at as string).getTime() >
+        STALENESS_THRESHOLD_MS
+      );
+    });
+    if (allStale) {
+      if (process.env.NODE_ENV !== "production") {
+        console.warn(
+          `pickup-risk: skipping ${primaryId} — every enabled calendar connection is >6h stale`
+        );
+      }
+      return createdIssueIds;
+    }
+  }
   const today = localDateInTz(timezone);
   const weekday = localWeekdayInTz(timezone);
 

@@ -131,18 +131,29 @@ export function WaitlistForm({
               placeholder="(555) 123-4567"
               aria-label="Phone number"
               required
+              aria-invalid={state === "error"}
               style={{
                 flex: "1 1 200px",
-                background: "var(--paper)",
-                border: `1px solid ${focused ? "var(--green-line)" : "var(--border)"}`,
+                // V6 P1-L2: paint the input itself when validation fails so the
+                // error reads at a glance, not just the secondary copy below.
+                background:
+                  state === "error" ? "rgba(166,90,74,0.06)" : "var(--paper)",
+                border:
+                  state === "error"
+                    ? "1px solid var(--clay)"
+                    : `1px solid ${focused ? "var(--green-line)" : "var(--border)"}`,
+                borderLeftWidth: state === "error" ? "3px" : "1px",
                 borderRadius: "11px",
                 padding: "13px 16px",
                 fontSize: "15px",
                 color: "var(--ink)",
                 outline: "none",
-                boxShadow: focused
-                  ? "0 0 0 3px var(--green-soft)"
-                  : "inset 0 1px 2px rgba(43,38,30,0.05)",
+                boxShadow:
+                  state === "error"
+                    ? "0 0 0 3px rgba(166,90,74,0.12)"
+                    : focused
+                      ? "0 0 0 3px var(--green-soft)"
+                      : "inset 0 1px 2px rgba(43,38,30,0.05)",
                 transition: "border-color 180ms ease, box-shadow 180ms ease",
               }}
             />

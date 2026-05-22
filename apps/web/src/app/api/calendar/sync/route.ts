@@ -48,7 +48,9 @@ export async function GET(request: Request) {
 
   const { data: connections } = await supabase
     .from("calendar_connections")
-    .select("id, provider, sync_status, sync_error, last_synced_at, enabled")
+    .select(
+      "id, provider, sync_status, sync_error, last_synced_at, enabled, google_account_email"
+    )
     .eq("profile_id", user.id);
 
   return NextResponse.json({ connections: connections || [] });
