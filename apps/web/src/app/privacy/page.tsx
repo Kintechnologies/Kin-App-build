@@ -161,6 +161,8 @@ export default function PrivacyPage() {
             "Anthropic — AI inference for generating schedule briefings and insights.",
             "Stripe — subscription billing via Stripe Checkout and the Stripe Customer Portal. Payment card data is collected and stored by Stripe; we never see or store full card numbers.",
             "Twilio — SMS delivery for your morning briefing and reminders.",
+            "Resend — transactional email delivery (account, billing, and support emails).",
+            "Slack — operational alerts to our team about service health.",
             "Sentry — error tracking and crash reporting. Anonymized diagnostic data only.",
           ]} />
           <p>We may also disclose your information if required by law, to protect the safety of our users, or in connection with a merger or acquisition (in which case you will be notified).</p>

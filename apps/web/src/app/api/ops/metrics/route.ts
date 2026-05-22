@@ -23,7 +23,7 @@ import { checkRateLimit, rateLimitResponse } from "@/lib/rate-limit";
 
 export const dynamic = "force-dynamic";
 
-const ADMIN_PHONES = new Set(["+16266762222", "+16266762832"]);
+const ADMIN_PHONES = new Set(["+16266762222", "+16266762832", "+16266761832"]);
 
 type SystemLight = "green" | "yellow" | "red";
 

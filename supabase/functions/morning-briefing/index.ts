@@ -286,17 +286,22 @@ serve(async (req) => {
     errors: [] as string[],
   };
 
+  // Pin one UTC instant for the whole fan-out so per-profile hour/date checks
+  // don't drift across an hour boundary mid-loop. Without this, a long batch
+  // that crosses 06:59:59 → 07:00:00 in some user's tz silently skips them.
+  const processStartUtc = new Date();
+
   for (const profile of profiles as BriefingProfile[]) {
     const tz = resolveTimezone(profile.timezone);
 
     // Only send during the 6am hour in the user's timezone
-    if (getLocalHour(tz) !== 6) {
+    if (getLocalHour(tz, processStartUtc) !== 6) {
       results.skipped++;
       continue;
     }
 
     // Dedup key is the user's local date, not UTC — see getLocalDate.
-    const briefingDate = getLocalDate(tz);
+    const briefingDate = getLocalDate(tz, processStartUtc);
 
     // Dedup guard: skip if already sent today
     const { data: existing } = await supabase

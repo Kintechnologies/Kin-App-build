@@ -57,6 +57,17 @@ export async function POST(request: Request) {
     };
     const successPath = body.successPath ?? "/dashboard/billing?subscribed=true";
     const cancelPath = body.cancelPath ?? "/dashboard/billing";
+
+    // Open-redirect guard: caller-supplied paths must be same-origin. Allow
+    // only paths that start with "/" but not "//" (which would resolve to
+    // protocol-relative external origins).
+    const isSafePath = (p: string) => p.startsWith("/") && !p.startsWith("//");
+    if (!isSafePath(successPath) || !isSafePath(cancelPath)) {
+      return NextResponse.json(
+        { error: "Invalid redirect path" },
+        { status: 400 }
+      );
+    }
     const couponCode = (
       body.coupon ??
       new URL(request.url).searchParams.get("coupon") ??

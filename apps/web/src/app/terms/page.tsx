@@ -135,7 +135,7 @@ export default function TermsPage() {
         </Section>
 
         <Section title="4. Subscriptions and Billing">
-          <p>{APP} is offered on a subscription basis. Subscriptions are available on a monthly or annual basis. Pricing is displayed on our website at the time of purchase.</p>
+          <p>{APP} is offered on a subscription basis. Monthly billing only during beta. Pricing is displayed on our website at the time of purchase.</p>
           <p><strong style={{ color: "var(--ink)" }}>Billing.</strong> Subscriptions are billed through Stripe via Stripe Checkout. By subscribing, you authorize Stripe to charge your payment method on a recurring basis at the start of each billing period until you cancel.</p>
           <p><strong style={{ color: "var(--ink)" }}>Free trials.</strong> If a free trial is offered, your subscription will automatically begin at the end of the trial period unless you cancel before the trial ends.</p>
           <p><strong style={{ color: "var(--ink)" }}>Cancellations.</strong> You may cancel your subscription at any time from your dashboard at /dashboard/billing, which opens the Stripe Customer Portal. Cancellation takes effect at the end of the current billing period. We do not provide refunds for partial billing periods except as required by applicable law.</p>

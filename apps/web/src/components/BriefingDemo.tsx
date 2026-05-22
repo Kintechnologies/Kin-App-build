@@ -20,7 +20,7 @@ type Message = {
 const messages: Message[] = [
   {
     divider: "Today 7:03 AM",
-    text: "Good morning, Sarah. Here's your family's day. ☀️\n\nMaya has soccer at 4:30 — you're on pickup. Tom's got a 5:00 call he can't move, so today's on you.\n\nHeads up: your 3:00 meeting runs right up against pickup. Worth building in a buffer.\n\nOne to remember — Leo's field-trip slip is due tomorrow.\n\nThat's everything. Have a good one. 💚",
+    text: "Maya has soccer at 4:30 — you're on pickup. Tom's got a 5:00 call he can't move, so today's on you.\n\nHeads up: your 3:00 meeting runs right up against pickup. Worth building in a buffer.\n\nOne to remember — Leo's field-trip slip is due tomorrow.\n\nThat's everything. Have a good one. 💚",
   },
   {
     divider: "Today 3:47 PM",

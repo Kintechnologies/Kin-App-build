@@ -97,7 +97,7 @@ function InfoRow({
   icon: typeof Phone;
   label: string;
   value: string;
-  hint?: string;
+  hint?: React.ReactNode;
 }) {
   return (
     <div
@@ -287,7 +287,22 @@ export default function DashboardSettingsPage() {
               icon={Phone}
               label="On file"
               value={formatPhone(profile?.phone_number ?? null)}
-              hint="To change your number, text Kin or reach out to support."
+              hint={
+                <>
+                  To change your number, text Kin or{" "}
+                  <a
+                    href="mailto:hello@kinai.family?subject=Change%20my%20phone%20number"
+                    style={{
+                      color: "var(--warm-56)",
+                      textDecoration: "underline",
+                      textUnderlineOffset: "2px",
+                    }}
+                  >
+                    email support
+                  </a>
+                  .
+                </>
+              }
             />
           </SectionCard>
 
@@ -309,7 +324,7 @@ export default function DashboardSettingsPage() {
                 icon={MapPin}
                 label="Time zone"
                 value={timezone}
-                hint="Detected from your device — this sets when 6:00 AM lands."
+                hint="Detected from your device. We use the timezone you set during onboarding — text Kin to change it."
               />
               <InfoRow
                 icon={Bell}

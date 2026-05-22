@@ -36,6 +36,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { getAnthropicClient, ANTHROPIC_MODEL } from "@/lib/anthropic";
 import { twimlReply } from "@/lib/twilio";
 import { dispatchPartnerInvite } from "@/lib/partner-invite";
+import { normalizePhone } from "@/lib/sms-access";
 
 type AdminClient = ReturnType<typeof createAdminClient>;
 
@@ -278,7 +279,7 @@ export async function handleSmsOnboarding(
     }
 
     case 7: {
-      const partnerPhone = extractPhone(messageBody);
+      const partnerPhone = normalizePhone(messageBody);
       if (partnerPhone) {
         await invitePartner(supabase, profile, partnerPhone);
         notes = appendNote(notes, "partner", `invited ${partnerPhone}`);
@@ -436,7 +437,7 @@ function matchesExpectedAnswer(step: number, msg: string): boolean {
         /\b(noon|midnight|dawn|sunrise|early|late|morning)\b/.test(m)
       );
     case 7: // partner phone, or an explicit skip
-      return extractPhone(msg) !== null || /\b(skip|none|no|nope|nah|solo|n\/a)\b/.test(m);
+      return normalizePhone(msg) !== null || /\b(skip|none|no|nope|nah|solo|n\/a)\b/.test(m);
     case 9: // email, or an explicit skip
       return extractEmail(msg) !== null || /\b(skip|none|no|nope|nah|n\/a)\b/.test(m);
     case 10: // a calendar control word
@@ -621,24 +622,6 @@ function cleanLastName(raw: string): string | null {
   const candidate = (tokens[tokens.length - 1] ?? "").replace(/[^A-Za-z'-]/g, "");
   if (candidate.length < 2) return null;
   return candidate.charAt(0).toUpperCase() + candidate.slice(1);
-}
-
-/** Extract a partner phone number, or null if the reply is a skip/no. */
-function extractPhone(raw: string): string | null {
-  const trimmed = raw.trim();
-
-  // Explicit international form wins.
-  const plus = trimmed.match(/\+\d[\d\s().-]{6,}\d/);
-  if (plus) {
-    const digits = plus[0].replace(/[^\d]/g, "");
-    if (digits.length >= 10 && digits.length <= 15) return `+${digits}`;
-  }
-
-  const digits = trimmed.replace(/[^\d]/g, "");
-  if (digits.length === 10) return `+1${digits}`;
-  if (digits.length === 11 && digits.startsWith("1")) return `+${digits}`;
-  if (digits.length >= 11 && digits.length <= 15) return `+${digits}`;
-  return null;
 }
 
 /**

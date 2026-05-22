@@ -49,12 +49,16 @@ const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 // Timezone helpers
 // ─────────────────────────────────────────────────────────────────────────────
 
-export function getLocalHour(timezone: string): number {
+// Optional `at` lets the caller pin a single UTC instant across many calls —
+// the fan-out loop captures `new Date()` once and passes it in for every
+// profile, so a profile that gets processed at 6:59:58 and one at 7:00:02 do
+// not disagree on whether "now" is still the 6am hour.
+export function getLocalHour(timezone: string, at: Date = new Date()): number {
   const parts = new Intl.DateTimeFormat("en-US", {
     timeZone: timezone,
     hour: "2-digit",
     hour12: false,
-  }).formatToParts(new Date());
+  }).formatToParts(at);
   const h = parts.find((p) => p.type === "hour")?.value ?? "0";
   return parseInt(h, 10) % 24;
 }
@@ -62,14 +66,15 @@ export function getLocalHour(timezone: string): number {
 // The user's local calendar date (YYYY-MM-DD), used as the dedup key. "Today"
 // for dedup must mean the user's today, not UTC's: a test send at 9:30pm EDT is
 // already the next UTC day, so a UTC key would let that send eat the user's
-// real morning slot. en-CA formats as YYYY-MM-DD.
-export function getLocalDate(timezone: string): string {
+// real morning slot. en-CA formats as YYYY-MM-DD. `at` is the same pinned
+// instant used by getLocalHour.
+export function getLocalDate(timezone: string, at: Date = new Date()): string {
   return new Intl.DateTimeFormat("en-CA", {
     timeZone: timezone,
     year: "numeric",
     month: "2-digit",
     day: "2-digit",
-  }).format(new Date());
+  }).format(at);
 }
 
 // The timezone applied when a profile has none on file, or an unrecognized
@@ -924,17 +929,18 @@ async function callAnthropicWithRetry(ctx: string): Promise<string> {
 
 // Plaintext fallback when the AI call fails after retries. No summary — just a
 // simple, useful list of the day's calendar so the user still gets something.
-// Opens with the substance, never "Good morning" — the SYSTEM_PROMPT forbids
-// greetings on the AI path, and the fallback must obey the same rule.
+// Leads with substance, never a greeting or a meta-intro — the SYSTEM_PROMPT
+// forbids "Good morning" / "here's your day" openings on the AI path, and the
+// fallback must obey the same rule. The very first token is an event time so
+// the user immediately sees what they need.
 function buildPlaintextBriefing(c: BriefingContext): string {
   if (c.events.length === 0) {
-    return `${c.dateLabel} — nothing on the calendar today. Open day.`;
+    return `Nothing on the calendar today — open day. (${c.dateLabel})`;
   }
-  const lead = `${c.dateLabel} — here's what your calendar shows:`;
   const list = c.events
     .map((e) => `${e.time} ${e.title}${e.location ? ` at ${e.location}` : ""}`)
     .join("; ");
-  return `${lead} ${list}.`.slice(0, 600);
+  return `${list}. (${c.dateLabel})`.slice(0, 600);
 }
 
 export interface GeneratedBriefing {

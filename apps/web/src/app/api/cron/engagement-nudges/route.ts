@@ -54,13 +54,14 @@ interface NudgeProfile {
   calendar_connect_token: string | null;
   subscription_status: string | null;
   billing_exempt: boolean | null;
+  trial_ends_at: string | null;
   nudges_sent: Record<string, string> | null;
 }
 
 const NUDGE_COLUMNS =
   "id, family_name, phone_number, timezone, created_at, onboarding_step, " +
   "onboarding_completed, welcome_sms_sent_at, calendar_connect_token, " +
-  "subscription_status, billing_exempt, nudges_sent";
+  "subscription_status, billing_exempt, trial_ends_at, nudges_sent";
 
 interface Results {
   sent: number;
@@ -404,6 +405,17 @@ async function runTrialNudges(
 
   for (const p of justEnded ?? []) {
     if (alreadySent(p, "trial_ended")) continue;
+    // 72h window: don't surprise a long-canceled user with a goodbye SMS days
+    // or weeks after their trial expired (e.g. backfill, support reinstate,
+    // or anyone whose row sat un-flipped). If trial_ends_at is missing, skip —
+    // we can't establish the freshness window.
+    const trialEndedAt = p.trial_ends_at
+      ? new Date(p.trial_ends_at).getTime()
+      : null;
+    if (!trialEndedAt || Date.now() - trialEndedAt > 3 * DAY_MS) {
+      results.skipped++;
+      continue;
+    }
     if (!isDaytime(p.timezone)) {
       results.skipped++;
       continue;

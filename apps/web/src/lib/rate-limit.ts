@@ -114,7 +114,21 @@ export async function checkRateLimit(
 ): Promise<RateLimitResult> {
   const limiter = getLimiter(route);
   if (!limiter) {
-    // Upstash not configured — allow all requests
+    // In prod, a missing rate-limit backend is a config error, not an excuse
+    // to flood every gated endpoint. Fail closed so we notice immediately
+    // instead of discovering it during an incident.
+    if (process.env.NODE_ENV === "production") {
+      console.error(
+        "rate-limit: Upstash not configured in production — rejecting request"
+      );
+      return {
+        allowed: false,
+        remaining: 0,
+        limit: 0,
+        reset: Date.now() + 60_000,
+      };
+    }
+    // Dev/test: allow all so local work isn't blocked.
     return { allowed: true, remaining: Infinity, limit: Infinity, reset: 0 };
   }
 

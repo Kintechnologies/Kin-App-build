@@ -64,11 +64,11 @@ const SMS_HISTORY_LIMIT = 20;
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function formatTime(iso: string): string {
+function formatTime(iso: string, timezone: string): string {
   return new Date(iso).toLocaleTimeString("en-US", {
     hour: "numeric",
     minute: "2-digit",
-    timeZone: "UTC",
+    timeZone: timezone,
   });
 }
 
@@ -88,9 +88,9 @@ function getLocalDate(timezone: string): string {
   }).format(new Date());
 }
 
-function formatCalendar(events: CalendarEventRow[] | null | undefined): string | null {
+function formatCalendar(events: CalendarEventRow[] | null | undefined, timezone: string): string | null {
   if (!events || events.length === 0) return "(no events today)";
-  return events.map((e) => `  ${formatTime(e.start_time)} — ${e.title}`).join("\n");
+  return events.map((e) => `  ${formatTime(e.start_time, timezone)} — ${e.title}`).join("\n");
 }
 
 /**
@@ -437,7 +437,8 @@ export async function POST(request: Request) {
   // The morning briefing is stored by the edge function under the user's LOCAL
   // date — look it up with the same timezone-resolved date, not the UTC `today`
   // used for the calendar windows. profiles.timezone is NOT NULL DEFAULT 'UTC'.
-  const briefingDate = getLocalDate(profileRow.timezone ?? "America/Los_Angeles");
+  const profileTimezone = profileRow.timezone ?? "America/Los_Angeles";
+  const briefingDate = getLocalDate(profileTimezone);
 
   const partnerEventsQuery = partnerProfileId
     ? supabase
@@ -508,8 +509,8 @@ export async function POST(request: Request) {
     speaking_to_name: profileName,
     partner_name: partnerName,
     today_date: dateStr,
-    today_calendar: formatCalendar(myEvents),
-    partner_today_calendar: partnerProfileId ? formatCalendar(partnerEvents) : null,
+    today_calendar: formatCalendar(myEvents, profileTimezone),
+    partner_today_calendar: partnerProfileId ? formatCalendar(partnerEvents, profileTimezone) : null,
     morning_briefing: todaysBriefingRow?.content ?? null,
     context_notes: profileRow.context_notes,
     calendar_freshness: describeCalendarFreshness(calendarConn ?? null),

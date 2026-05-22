@@ -59,17 +59,37 @@ export async function POST(request: Request) {
 
   // Keep the waitlist promise. Best-effort: a Twilio failure must not fail the
   // approval — the number is approved regardless and can text in to onboard.
+  // TCPA: never text a number that opted out, even when the admin clicks approve.
   let notified = false;
+  let optedOut = false;
   if (body.notify !== false) {
-    try {
-      await sendSms(phone, APPROVED_MESSAGE);
-      notified = true;
-    } catch (err) {
-      console.error("admin/sms/approve: notification SMS failed:", err);
+    const [{ data: waitlistRow }, { data: profileRow }] = await Promise.all([
+      supabase
+        .from("sms_waitlist")
+        .select("sms_opted_out_at")
+        .eq("phone_number", phone)
+        .maybeSingle<{ sms_opted_out_at: string | null }>(),
+      supabase
+        .from("profiles")
+        .select("sms_opted_out_at")
+        .eq("phone_number", phone)
+        .maybeSingle<{ sms_opted_out_at: string | null }>(),
+    ]);
+    optedOut =
+      Boolean(waitlistRow?.sms_opted_out_at) ||
+      Boolean(profileRow?.sms_opted_out_at);
+
+    if (!optedOut) {
+      try {
+        await sendSms(phone, APPROVED_MESSAGE);
+        notified = true;
+      } catch (err) {
+        console.error("admin/sms/approve: notification SMS failed:", err);
+      }
     }
   }
 
-  return NextResponse.json({ approved: phone, notified });
+  return NextResponse.json({ approved: phone, notified, optedOut });
 }
 
 export async function GET(request: Request) {

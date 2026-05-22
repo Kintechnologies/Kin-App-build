@@ -2,11 +2,12 @@
 
 import { useEffect } from "react";
 import Link from "next/link";
+import * as Sentry from "@sentry/nextjs";
 import { KinMark } from "@/components/KinMark";
 
 // Shared error boundary used by every route-group error.tsx. ALD palette: warm
-// oat/cream surface, sage accent, mono microcopy. Logs the error to the
-// console so Sentry's client-side wrapper picks it up.
+// oat/cream surface, sage accent, mono microcopy. Reports to Sentry alongside
+// the console log so route-level failures are tracked the same as global ones.
 export function RouteError({
   error,
   reset,
@@ -20,6 +21,7 @@ export function RouteError({
 }) {
   useEffect(() => {
     console.error(error);
+    Sentry.captureException(error);
   }, [error]);
 
   return (

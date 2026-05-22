@@ -18,6 +18,14 @@ export async function POST(request: Request) {
       .json()
       .catch(() => ({}))) as { returnPath?: string };
 
+    // Open-redirect guard: same-origin path only.
+    if (!returnPath.startsWith("/") || returnPath.startsWith("//")) {
+      return NextResponse.json(
+        { error: "Invalid redirect path" },
+        { status: 400 }
+      );
+    }
+
     if (!process.env.STRIPE_SECRET_KEY) {
       return NextResponse.json(
         { error: "Billing is not configured yet." },

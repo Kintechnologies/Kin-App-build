@@ -39,7 +39,7 @@ export function WaitlistForm({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const digits = phone.replace(/\D/g, "");
-    if (digits.length < 7 || state === "loading") return;
+    if (digits.length < 10 || state === "loading") return;
 
     setState("loading");
     setErrorMsg("");
@@ -60,7 +60,14 @@ export function WaitlistForm({
       setErrorMsg(
         err instanceof Error ? err.message : "Something went wrong. Try again."
       );
-      setTimeout(() => setState("idle"), 4000);
+    }
+  };
+
+  const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setPhone(formatPhone(e.target.value));
+    if (state === "error") {
+      setState("idle");
+      setErrorMsg("");
     }
   };
 
@@ -118,7 +125,7 @@ export function WaitlistForm({
               inputMode="tel"
               autoComplete="tel"
               value={phone}
-              onChange={(e) => setPhone(formatPhone(e.target.value))}
+              onChange={handlePhoneChange}
               onFocus={() => setFocused(true)}
               onBlur={() => setFocused(false)}
               placeholder="(555) 123-4567"
@@ -169,7 +176,18 @@ export function WaitlistForm({
 
           <p
             style={{
-              marginTop: "10px",
+              marginTop: "8px",
+              fontSize: "11.5px",
+              lineHeight: 1.55,
+              color: "var(--ink-3)",
+              letterSpacing: "0.1px",
+            }}
+          >
+            Enter your 10-digit US phone number.
+          </p>
+          <p
+            style={{
+              marginTop: "6px",
               fontSize: "11.5px",
               lineHeight: 1.55,
               color: "var(--ink-3)",

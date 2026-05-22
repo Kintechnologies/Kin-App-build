@@ -5,7 +5,7 @@ import { createServerClient } from "@supabase/ssr";
 // Only these routes require auth. Everything else — including the public
 // marketing surface ("/", /privacy, /terms) and the /api/waitlist signup
 // endpoint — is reachable without a session.
-const protectedRoutes = ["/dashboard", "/onboarding"];
+const protectedRoutes = ["/dashboard", "/onboarding", "/ops"];
 const authRoutes = ["/signin", "/signup"];
 
 export async function middleware(request: NextRequest) {
