@@ -20,6 +20,10 @@ interface Profile {
   email: string | null;
   subscription_status: SubscriptionStatus;
   trial_ends_at: string | null;
+  // Migration 065: Stripe writes this on cancel-at-period-end so the user
+  // keeps access until the period rolls over. subscription_status stays
+  // "active" until then, so the badge alone hides the pending cancellation.
+  cancel_at_period_end: boolean | null;
 }
 
 const PREMIUM_PRICE = "$39/month";
@@ -197,7 +201,7 @@ function BillingPageInner() {
         if (!user || cancelled) return;
         const { data } = await supabase
           .from("profiles")
-          .select("id, email, subscription_status, trial_ends_at")
+          .select("id, email, subscription_status, trial_ends_at, cancel_at_period_end")
           .eq("id", user.id)
           .single();
         if (data && !cancelled) setProfile(data as Profile);
@@ -289,7 +293,13 @@ function BillingPageInner() {
             } left${trialEndLabel ? ` (ends ${trialEndLabel})` : ""}`
           : "Your free trial has ended — add a payment method to keep Kin.";
       case "active":
-        return "Active · billed monthly";
+        // cancel_at_period_end = true means the user already cancelled via the
+        // Stripe Customer Portal but keeps access until the period rolls over.
+        // Without this branch the badge says "Active" right up to the cutover
+        // and the user has no in-app signal that their plan is winding down.
+        return profile?.cancel_at_period_end
+          ? "Cancels at end of billing period · resubscribe anytime to undo"
+          : "Active · billed monthly";
       case "past_due":
         return "We couldn't process your last payment. Update your card to keep Kin.";
       case "canceled":

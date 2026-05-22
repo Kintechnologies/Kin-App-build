@@ -36,26 +36,50 @@ export async function POST(request: Request) {
     // Use the first calendar (usually the default)
     const primaryCalendar = calendars[0];
 
-    // Store connection
-    const { data: connection, error: dbError } = await supabase
-      .from("calendar_connections")
-      .upsert(
-        {
-          profile_id: user.id,
-          provider: "apple",
-          access_token: appleId,            // username
-          refresh_token: appPassword,       // app-specific password
-          caldav_url: primaryCalendar.url,
-          sync_status: "idle",
-          enabled: true,
-          updated_at: new Date().toISOString(),
-        },
-        { onConflict: "profile_id,provider" }
-      )
-      .select()
-      .single();
+    // Store connection. Migration 067 dropped the full UNIQUE (profile_id,
+    // provider) and replaced it with a partial unique index on
+    // (profile_id, provider) WHERE provider = 'apple'. PostgreSQL won't infer
+    // a partial index from a bare ON CONFLICT (profile_id, provider) without
+    // the matching WHERE clause, so the legacy upsert silently overwrote or
+    // errored. Handle the conflict explicitly: update if a row exists for this
+    // profile/provider, else insert.
+    const baseRow = {
+      profile_id: user.id,
+      provider: "apple" as const,
+      access_token: appleId,            // username
+      refresh_token: appPassword,       // app-specific password
+      caldav_url: primaryCalendar.url,
+      sync_status: "idle" as const,
+      enabled: true,
+      updated_at: new Date().toISOString(),
+    };
 
-    if (dbError) throw dbError;
+    const { data: existing } = await supabase
+      .from("calendar_connections")
+      .select("id")
+      .eq("profile_id", user.id)
+      .eq("provider", "apple")
+      .maybeSingle();
+
+    let connection;
+    if (existing) {
+      const { data, error: dbError } = await supabase
+        .from("calendar_connections")
+        .update(baseRow)
+        .eq("id", existing.id)
+        .select()
+        .single();
+      if (dbError) throw dbError;
+      connection = data;
+    } else {
+      const { data, error: dbError } = await supabase
+        .from("calendar_connections")
+        .insert(baseRow)
+        .select()
+        .single();
+      if (dbError) throw dbError;
+      connection = data;
+    }
 
     // Trigger initial sync
     await syncCalendarForConnection(connection.id);

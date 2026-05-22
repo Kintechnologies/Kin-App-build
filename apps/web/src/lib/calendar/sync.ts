@@ -17,11 +17,26 @@ import type { CalendarConnection, CalendarEvent, CalendarConflict } from "@/type
 export async function syncCalendarForConnection(connectionId: string) {
   const supabase = createClient();
 
-  // Mark as syncing
-  await supabase
+  // Atomic claim: only proceed if this row isn't already 'syncing'. Two
+  // concurrent invocations (cron + manual reconnect, or overlapping cron
+  // ticks) would otherwise race on the per-calendar sync token map at the
+  // bottom of syncGoogleCalendar — the loser would clobber the winner's
+  // cursor and the next run would either re-process a window or skip events.
+  // The .neq() flips status to 'syncing' only when it isn't already, and
+  // .select() returns the row only when the update actually matched.
+  const { data: claim } = await supabase
     .from("calendar_connections")
     .update({ sync_status: "syncing", updated_at: new Date().toISOString() })
-    .eq("id", connectionId);
+    .eq("id", connectionId)
+    .neq("sync_status", "syncing")
+    .select("id")
+    .maybeSingle();
+
+  if (!claim) {
+    // Another sync owns this connection. Drop the duplicate — the in-flight
+    // run will finish and the next scheduled tick will pick up any new events.
+    return;
+  }
 
   try {
     const { data: connection } = await supabase

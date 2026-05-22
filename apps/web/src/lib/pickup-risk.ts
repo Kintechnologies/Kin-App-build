@@ -330,6 +330,13 @@ async function dispatchAlerts(
   const firstConflicted = conflicts.find((c) => c.event);
 
   for (const { parent, event } of conflicts) {
+    // TCPA: a parent who replied STOP must never receive a proactive alert.
+    // sendAlertSms also checks this, but gating here avoids spending a Twilio
+    // call slot, an sms_conversations row, and the LLM-free body assembly on
+    // a message that will be suppressed downstream — and matches every other
+    // outbound-SMS path which gates on opt-out before composing the message.
+    if (parent.optedOutAt) continue;
+
     let body: string;
 
     if (event) {

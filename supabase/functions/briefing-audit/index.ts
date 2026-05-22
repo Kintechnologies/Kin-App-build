@@ -165,7 +165,10 @@ serve(async (req) => {
 
     // We own this briefing — force-send now.
     results.missed++;
-    missedNames.push(profile.family_name ?? profile.id);
+    // PII: Slack payloads identify users by profile.id UUID only — never the
+    // user-supplied family_name. The audit summary goes to a channel with
+    // broader access than the database.
+    missedNames.push(profile.id);
 
     const result = await deliverBriefing(profile, briefingDate, "audit-backstop");
     if (result.status === "sent") {

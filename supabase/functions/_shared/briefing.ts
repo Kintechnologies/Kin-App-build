@@ -1196,9 +1196,12 @@ export async function deliverBriefing(
         console.error(
           `[${source}] quickQualityCheck failed for ${profile.id}: ${summary}`
         );
+        // PII: Slack payloads identify users by profile.id UUID only. family_name
+        // and other user-supplied identifiers must never appear in alert bodies —
+        // the channel has broader access than the database.
         await notifySlack(
-          `Briefing failed quick quality guard for ${profile.family_name ?? profile.id} ` +
-            `(${profile.id}, source: ${source}). ${summary} ` +
+          `Briefing failed quick quality guard for profile ${profile.id} ` +
+            `(source: ${source}). ${summary} ` +
             `Briefing: ${text.slice(0, 200)}${text.length > 200 ? "…" : ""}`,
           "critical"
         );
@@ -1234,7 +1237,7 @@ export async function deliverBriefing(
       if (!score.pass) {
         await notifySlack(
           `Briefing scored ${score.grade} (${score.score}/100, threshold ${QUALITY_PASS_THRESHOLD}) for ` +
-            `${profile.family_name ?? profile.id} (${profile.id}, source: ${source}). ` +
+            `profile ${profile.id} (source: ${source}). ` +
             `Issues: ${score.issues.join(" | ") || "none returned"}. ` +
             `Briefing: ${text.slice(0, 200)}${text.length > 200 ? "…" : ""}`,
           "warning"
@@ -1310,8 +1313,8 @@ export async function deliverBriefing(
     );
 
     await notifySlack(
-      `Briefing failed all retries for ${profile.family_name ?? profile.id} ` +
-        `(${profile.id}, source: ${source}): ${msg}`,
+      `Briefing failed all retries for profile ${profile.id} ` +
+        `(source: ${source}): ${msg}`,
       "critical"
     );
 
