@@ -364,7 +364,6 @@ async function expireUnpaidTrials(supabase: AdminClient): Promise<number> {
     .eq("subscription_status", "trial")
     .eq("billing_exempt", false)
     .lt("trial_ends_at", new Date().toISOString())
-    .or("stripe_customer_id.is.null,stripe_customer_id.eq.")
     .select("id");
 
   if (error) {

@@ -180,7 +180,7 @@ export default function PrivacyPage() {
 
         <Section title="8. Your Rights and Controls">
           <p><strong style={{ color: "var(--ink)" }}>Access and correction.</strong> You can view and update your account information in your dashboard at any time.</p>
-          <p><strong style={{ color: "var(--ink)" }}>Deletion.</strong> You can delete your account from your dashboard at /dashboard/account. This will permanently remove your profile, household data, and calendar access.</p>
+          <p><strong style={{ color: "var(--ink)" }}>Deletion.</strong> To delete your account, email <a href="mailto:hello@kinai.family?subject=Delete%20my%20account" style={{ color: "var(--green)", fontWeight: 500 }}>hello@kinai.family</a> with the subject &ldquo;Delete my account&rdquo; from the email address on file. We will permanently remove your profile, household data, and calendar access within 30 days.</p>
           <p><strong style={{ color: "var(--ink)" }}>Subscription management.</strong> You can manage or cancel your subscription at any time from /dashboard/billing, which opens the Stripe Customer Portal.</p>
           <p><strong style={{ color: "var(--ink)" }}>Data export.</strong> You may request a copy of your data by contacting us at <a href={`mailto:${EMAIL}`} style={{ color: "var(--green)", fontWeight: 500 }}>{EMAIL}</a>. We will provide your data in a machine-readable format within 30 days.</p>
           <p><strong style={{ color: "var(--ink)" }}>Calendar access.</strong> You can revoke Google Calendar access without deleting your account. Some features will be unavailable without calendar access.</p>

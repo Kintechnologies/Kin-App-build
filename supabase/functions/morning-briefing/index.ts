@@ -47,6 +47,23 @@ interface TestInvocation {
   dry_run?: boolean;
 }
 
+// Audit v5 P0-8: restrict actual SMS sends from the test endpoint to the
+// founder phone set. CRON_SECRET is a single shared bearer (Vercel crons,
+// cron-dispatch, Vault, /api/test/*) — leak in any of those paths would let
+// an attacker send arbitrary briefings to any user. Pinning sends to an
+// explicit allowlist contains that blast radius. dry_run=true is still allowed
+// to any number (founder pipeline tracing) but the response strips PII.
+const ADMIN_PHONES_FALLBACK = ["+16266762222", "+16266762832", "+16266761832"];
+function adminPhones(): Set<string> {
+  const env = Deno.env.get("ADMIN_PHONES");
+  if (!env) return new Set(ADMIN_PHONES_FALLBACK);
+  const parsed = env
+    .split(",")
+    .map((s) => s.trim())
+    .filter((s) => s.length > 0);
+  return new Set(parsed.length > 0 ? parsed : ADMIN_PHONES_FALLBACK);
+}
+
 /**
  * Single-profile test invocation. Lets `/api/test/morning-briefing` exercise
  * the real production briefing pipeline (the same code path the 6am fan-out
@@ -76,6 +93,23 @@ async function handleTestInvocation(
       JSON.stringify({ error: "Unauthorized" }),
       { status: 401, headers: { "Content-Type": "application/json" } }
     );
+  }
+
+  // P0-8: actual SMS sends are gated to the admin phone allowlist. dry_run
+  // mode is still allowed against any phone for pipeline tracing but the
+  // response payload is scrubbed below.
+  if (!body.dry_run) {
+    const allowed = adminPhones();
+    if (!allowed.has(body.target_phone)) {
+      return new Response(
+        JSON.stringify({
+          error:
+            "Forbidden: target_phone is not in ADMIN_PHONES; live sends from " +
+            "the test endpoint are restricted to founder numbers",
+        }),
+        { status: 403, headers: { "Content-Type": "application/json" } }
+      );
+    }
   }
 
   const { data: profile, error } = await supabase
@@ -125,14 +159,15 @@ async function handleTestInvocation(
       tz,
       appendPaymentNudge
     );
+    // P0-8: scrub PII from the dry_run response. CRON_SECRET is shared with
+    // every cron route + Vault; a leak there would otherwise let an attacker
+    // enumerate every paying family's name, timezone, and briefing context.
     return new Response(
       JSON.stringify({
         dry_run: true,
         target: {
           id: p.id,
-          family_name: p.family_name,
           phone_number: p.phone_number,
-          timezone: tz,
         },
         briefing: generated.text,
         degraded: generated.degraded,
@@ -164,6 +199,26 @@ async function handleTestInvocation(
 serve(async (req) => {
   if (req.method !== "POST") {
     return new Response("Method not allowed", { status: 405 });
+  }
+
+  // Caller authentication (audit v5 P0-2): every invocation requires the
+  // x-cron-secret header to match CRON_SECRET. pg_cron sends the header via
+  // public.cron_dispatch_headers() (migration 064). Without this, the function
+  // is a public DoS amplifier — a curl with empty body would fall straight
+  // through to the production fan-out and burn Claude + Twilio spend.
+  const cronSecret = Deno.env.get("CRON_SECRET");
+  if (!cronSecret) {
+    return new Response(
+      JSON.stringify({ error: "CRON_SECRET not configured" }),
+      { status: 500, headers: { "Content-Type": "application/json" } }
+    );
+  }
+  const presented = req.headers.get("x-cron-secret") ?? "";
+  if (!timingSafeEqual(presented, cronSecret)) {
+    return new Response(
+      JSON.stringify({ error: "Unauthorized" }),
+      { status: 401, headers: { "Content-Type": "application/json" } }
+    );
   }
 
   // Single-profile test invocation: POST body with target_phone + matching

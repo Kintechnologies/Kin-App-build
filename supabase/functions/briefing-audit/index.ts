@@ -10,8 +10,11 @@
 // (same generation + Twilio retry + AI fallback path as the morning cron) and
 // alerts Slack so a human knows the backstop had to step in.
 //
-// The morning-briefing function has verify_jwt = false (config.toml); this one
-// is registered the same way, so the cron POST needs no Authorization header.
+// Caller authentication (audit v5 P0-2): every invocation requires the
+// x-cron-secret header to match CRON_SECRET. pg_cron sends the header via
+// public.cron_dispatch_headers() (migration 064). Without this, the function
+// is a public DoS amplifier — anyone could force the "by-any-means-necessary"
+// backstop to re-send briefings to the entire user base on demand.
 
 import { serve } from "https://deno.land/std@0.208.0/http/server.ts";
 import {
@@ -24,9 +27,33 @@ import {
   type BriefingProfile,
 } from "../_shared/briefing.ts";
 
+function timingSafeEqual(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) {
+    diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  }
+  return diff === 0;
+}
+
 serve(async (req) => {
   if (req.method !== "POST") {
     return new Response("Method not allowed", { status: 405 });
+  }
+
+  const cronSecret = Deno.env.get("CRON_SECRET");
+  if (!cronSecret) {
+    return new Response(
+      JSON.stringify({ error: "CRON_SECRET not configured" }),
+      { status: 500, headers: { "Content-Type": "application/json" } }
+    );
+  }
+  const presented = req.headers.get("x-cron-secret") ?? "";
+  if (!timingSafeEqual(presented, cronSecret)) {
+    return new Response(
+      JSON.stringify({ error: "Unauthorized" }),
+      { status: 401, headers: { "Content-Type": "application/json" } }
+    );
   }
 
   // TCPA: sms_opted_out_at IS NULL drops any user who replied STOP. The

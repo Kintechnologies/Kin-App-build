@@ -231,7 +231,7 @@ export default function TermsPage() {
         </Section>
 
         <Section title="14. Termination">
-          <p>You may terminate your account at any time from your dashboard at /dashboard/account. To stop billing without deleting your account, cancel your subscription from /dashboard/billing.</p>
+          <p>You may terminate your account at any time by emailing <a href="mailto:hello@kinai.family?subject=Delete%20my%20account">hello@kinai.family</a> with the subject &ldquo;Delete my account&rdquo; from the email address on file. We will permanently remove your account within 30 days. To stop billing without deleting your account, cancel your subscription from /dashboard/billing.</p>
           <p>We may suspend or terminate your access to the Service at any time, with or without notice, if we believe you have violated these Terms, engaged in fraudulent activity, or for any other reason at our sole discretion.</p>
           <p>Upon termination, your right to use the Service will immediately cease. Sections that by their nature should survive termination (including Sections 9–16) will survive.</p>
         </Section>

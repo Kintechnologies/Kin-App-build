@@ -2,9 +2,15 @@
  * POST /api/stripe/webhook
  *
  * Keeps profiles.subscription_status in sync with Stripe:
- *   checkout.session.completed   → active  (+ store stripe_customer_id)
- *   invoice.payment_failed       → past_due
+ *   checkout.session.completed    → active  (+ store stripe_customer_id)
+ *   invoice.payment_failed        → past_due
+ *   invoice.payment_succeeded     → past_due → active recovery
+ *   customer.subscription.updated → map Stripe status + cancel_at_period_end
  *   customer.subscription.deleted → canceled
+ *
+ * Idempotency (audit v5 P0-3): every accepted event is recorded in
+ * stripe_events (event_id PK). A retried webhook short-circuits to 200 before
+ * any handler runs, so Stripe's 3-day retry storm cannot replay state changes.
  *
  * Uses the service-role Supabase client — webhooks have no user session.
  */
@@ -36,6 +42,30 @@ function getStripe() {
 }
 
 type SubscriptionStatus = "trial" | "active" | "past_due" | "canceled";
+
+/**
+ * Map a Stripe subscription.status to our 4-state DB enum. Returns null for
+ * statuses we deliberately don't surface (incomplete / incomplete_expired
+ * mid-checkout transitions are noise — the canonical checkout signal is
+ * checkout.session.completed).
+ */
+function mapStripeSubscriptionStatus(
+  status: Stripe.Subscription.Status
+): SubscriptionStatus | null {
+  switch (status) {
+    case "active":
+      return "active";
+    case "trialing":
+      return "trial";
+    case "past_due":
+    case "unpaid":
+      return "past_due";
+    case "canceled":
+      return "canceled";
+    default:
+      return null;
+  }
+}
 
 /**
  * Update a profile's subscription_status, resolving the row by Supabase user
@@ -144,6 +174,32 @@ export async function POST(request: Request) {
 
   const supabase = getAdminSupabase();
 
+  // Idempotency short-circuit (audit v5 P0-3). Insert the event_id; if it
+  // conflicts the event has already been processed and we ack 200 without
+  // re-running the handler. Belt-and-suspenders alongside the per-handler
+  // active-status guard.
+  const { data: inserted, error: dedupError } = await supabase
+    .from("stripe_events")
+    .insert({ event_id: event.id, event_type: event.type })
+    .select("event_id")
+    .maybeSingle();
+
+  if (dedupError) {
+    // 23505 unique_violation → already processed, this is the normal dedup path.
+    if (dedupError.code === "23505") {
+      return NextResponse.json({ received: true, deduped: true });
+    }
+    Sentry.captureException(dedupError);
+    await notifySlack(
+      `Stripe webhook dedup insert failed: ${dedupError.message}`,
+      "critical"
+    ).catch(() => {});
+    return NextResponse.json({ error: "Dedup failed" }, { status: 500 });
+  }
+  if (!inserted) {
+    return NextResponse.json({ received: true, deduped: true });
+  }
+
   try {
     switch (event.type) {
       case "checkout.session.completed": {
@@ -166,6 +222,70 @@ export async function POST(request: Request) {
               ? invoice.customer
               : invoice.customer?.id ?? null,
         });
+        break;
+      }
+
+      case "invoice.payment_succeeded": {
+        // Recovery path: a `past_due` profile becomes `active` again as soon as
+        // the retry succeeds. Without this, the user pays in the portal but our
+        // briefings stay paused until the next `customer.subscription.updated`
+        // (which we also handle now, but this path is the faster signal).
+        const invoice = event.data.object as Stripe.Invoice;
+        const customerId =
+          typeof invoice.customer === "string"
+            ? invoice.customer
+            : invoice.customer?.id ?? null;
+        if (customerId) {
+          const { data: profile } = await supabase
+            .from("profiles")
+            .select("id, subscription_status")
+            .eq("stripe_customer_id", customerId)
+            .maybeSingle<{ id: string; subscription_status: string | null }>();
+          if (profile?.subscription_status === "past_due") {
+            await supabase
+              .from("profiles")
+              .update({ subscription_status: "active" })
+              .eq("id", profile.id);
+          }
+        }
+        break;
+      }
+
+      case "customer.subscription.updated": {
+        // Stripe Customer Portal cancels arrive here first (with
+        // cancel_at_period_end = true); the actual `customer.subscription.deleted`
+        // can be up to 30 days later. Trial conversions and past_due/active
+        // transitions also flow through this event, so it's the canonical
+        // source of subscription state.
+        const subscription = event.data.object as Stripe.Subscription;
+        const userId = subscription.metadata?.supabase_user_id;
+        const customerId =
+          typeof subscription.customer === "string"
+            ? subscription.customer
+            : subscription.customer?.id ?? null;
+
+        const mapped = mapStripeSubscriptionStatus(subscription.status);
+        if (mapped) {
+          const patch: Record<string, unknown> = {
+            subscription_status: mapped,
+            cancel_at_period_end: subscription.cancel_at_period_end === true,
+          };
+          if (customerId) patch.stripe_customer_id = customerId;
+
+          if (userId) {
+            await supabase.from("profiles").update(patch).eq("id", userId);
+          } else if (customerId) {
+            await supabase
+              .from("profiles")
+              .update(patch)
+              .eq("stripe_customer_id", customerId);
+          } else {
+            Sentry.captureMessage(
+              "Stripe webhook: customer.subscription.updated without resolvable profile",
+              "warning"
+            );
+          }
+        }
         break;
       }
 
