@@ -57,7 +57,8 @@ export type QuickIssueType =
   | "too_short"
   | "too_long"
   | "weather_without_context"
-  | "missing_family_name";
+  | "missing_family_name"
+  | "phantom_partner";
 
 export interface QuickQualityIssue {
   type: QuickIssueType;
@@ -173,6 +174,28 @@ export function quickQualityCheck(
         issues.push({
           type: "missing_family_name",
           detail: `Briefing names no household member (known: ${names.join(", ")}).`,
+        });
+      }
+    }
+
+    // Sole-parent guard: a briefing for a profile whose context has no
+    // partner section must never lean on a phantom co-parent. The audit's
+    // worst-case is "your partner can cover the 3 PM pickup" referring to
+    // nobody — embarrassing for a single parent and a betrayal of the
+    // family-data signal the user gave us. The partner section in the
+    // context is built only when one exists, so its absence is reliable
+    // ground truth. (audit v5 P1-B5)
+    const PARTNER_SECTION_PATTERN =
+      /\b(partner|co[- ]?parent|spouse|other parent)['']?s?\s+(calendar|events|schedule|day|side)/i;
+    const contextHasPartner = PARTNER_SECTION_PATTERN.test(context);
+    if (!contextHasPartner) {
+      const phantomPattern =
+        /\b(your\s+partner|the\s+other\s+parent|your\s+spouse|co-?parent)\b/i;
+      const phantomMatch = text.match(phantomPattern);
+      if (phantomMatch) {
+        issues.push({
+          type: "phantom_partner",
+          detail: `Briefing references "${phantomMatch[0]}" but the context has no partner section — this profile is solo.`,
         });
       }
     }

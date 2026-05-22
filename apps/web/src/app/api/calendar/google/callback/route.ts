@@ -65,6 +65,24 @@ export async function GET(request: Request) {
 
     const tokens = await exchangeGoogleCode(code);
 
+    // Google only emits a `refresh_token` on the FIRST consent. Subsequent
+    // re-consents (e.g. the user re-runs OAuth after revoking access on the
+    // Google account page) often omit it. If we naively pass `undefined`, the
+    // upsert clobbers a perfectly good existing refresh_token with NULL, and
+    // the next sync calls `refreshGoogleToken(undefined)` which throws "No
+    // refresh token is set" — a string the audit's isRevokedTokenError check
+    // doesn't recognise, so the connection silently lands in `error` with no
+    // reconnect CTA. Fix: look up the existing row first and keep its
+    // refresh_token when the fresh exchange didn't return one.
+    const { data: priorConnection } = await db
+      .from("calendar_connections")
+      .select("refresh_token")
+      .eq("profile_id", profileId)
+      .eq("provider", "google")
+      .maybeSingle<{ refresh_token: string | null }>();
+    const refreshTokenToPersist =
+      tokens.refresh_token ?? priorConnection?.refresh_token ?? null;
+
     // Upsert the connection
     const { data: connection, error: dbError } = await db
       .from("calendar_connections")
@@ -73,7 +91,7 @@ export async function GET(request: Request) {
           profile_id: profileId,
           provider: "google",
           access_token: tokens.access_token,
-          refresh_token: tokens.refresh_token,
+          refresh_token: refreshTokenToPersist,
           token_expires_at: tokens.expiry_date
             ? new Date(tokens.expiry_date).toISOString()
             : null,

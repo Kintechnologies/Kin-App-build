@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getAuthenticatedUser } from "@/lib/supabase/api-auth";
 import { createClient } from "@/lib/supabase/server";
 import { dispatchPartnerInvite } from "@/lib/partner-invite";
+import { checkRateLimit, rateLimitResponse } from "@/lib/rate-limit";
 import * as Sentry from "@sentry/nextjs";
 
 /**
@@ -24,6 +25,9 @@ export async function POST(request: Request) {
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+
+    const rl = await checkRateLimit(user.id, "invite-create");
+    if (!rl.allowed) return rateLimitResponse(rl);
 
     const body = (await request.json()) as {
       partnerEmail?: string;

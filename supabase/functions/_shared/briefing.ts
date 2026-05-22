@@ -724,6 +724,7 @@ async function buildBriefingContext(
     { data: familyMembers },
     { data: calendarConnections },
     { data: contextNoteRows },
+    { data: coordinationIssueRows },
   ] = await Promise.all([
     // Today's events — anything whose [start, end) interval overlaps the user's
     // local day. A `start_time` window alone would miss multi-day all-day events
@@ -758,6 +759,22 @@ async function buildBriefingContext(
       .gt("expires_at", new Date().toISOString())
       .order("created_at", { ascending: false })
       .limit(5),
+    // Live coordination issues — pickup-risk windows and late schedule changes
+    // the 30-minute cron has already materialized into the household's queue.
+    // OPEN + ACKNOWLEDGED (not RESOLVED), windows that touch today or have no
+    // window. The deleted apps/web/src/lib/sms-briefing.ts was the only path
+    // surfacing these; without this query the briefing can't even mention a
+    // RED pickup window the rest of the system has detected. (audit v5 P1-B1)
+    supabase
+      .from("coordination_issues")
+      .select("trigger_type, content, event_window_start, event_window_end, state")
+      .eq("household_id", householdId)
+      .in("state", ["OPEN", "ACKNOWLEDGED"])
+      .or(
+        `event_window_start.is.null,and(event_window_start.lt.${endUtc},event_window_end.gt.${startUtc})`
+      )
+      .order("surfaced_at", { ascending: true })
+      .limit(8),
   ]);
 
   const dateLabel = new Date().toLocaleDateString("en-US", {
@@ -842,6 +859,41 @@ async function buildBriefingContext(
       "Kin's Sunday check-in about the week ahead):\n";
     for (const n of liveNotes) {
       if (n.content && n.content.trim()) ctx += `  ${n.content.trim()}\n`;
+    }
+  }
+
+  // Live coordination issues — pickup-risk and late-schedule-change rows the
+  // background cron has already qualified. These are concrete, materialized
+  // findings (not the LLM's inference) and they should drive the briefing's
+  // lead-with-the-most-important-thing rule.
+  const issues = (coordinationIssueRows ?? []) as {
+    trigger_type: string;
+    content: string;
+    event_window_start: string | null;
+    event_window_end: string | null;
+    state: string;
+  }[];
+  if (issues.length > 0) {
+    ctx +=
+      "\nLIVE COORDINATION ISSUES — these are materialized findings from " +
+      "Kin's background detectors, not inferences from the calendar. Treat them " +
+      "as authoritative facts; if one is present, lead with the most urgent:\n";
+    const labelFor = (t: string) =>
+      ({
+        pickup_risk: "Pickup risk",
+        late_schedule_change: "Late schedule change",
+        schedule_compression: "Schedule compression",
+        responsibility_shift: "Responsibility shift",
+        budget_overspend: "Budget overspend",
+        other: "Coordination issue",
+      })[t] ?? "Coordination issue";
+    for (const i of issues) {
+      const when = i.event_window_start
+        ? `${fmtTime(i.event_window_start)}${
+            i.event_window_end ? `–${fmtTime(i.event_window_end)}` : ""
+          }`
+        : "today";
+      ctx += `  [${labelFor(i.trigger_type)} · ${i.state} · ${when}] ${i.content.trim()}\n`;
     }
   }
 
@@ -935,12 +987,14 @@ async function callAnthropicWithRetry(ctx: string): Promise<string> {
 // the user immediately sees what they need.
 function buildPlaintextBriefing(c: BriefingContext): string {
   if (c.events.length === 0) {
-    return `Nothing on the calendar today — open day. (${c.dateLabel})`;
+    return toGsm7Safe(
+      `Nothing on the calendar today, open day. (${c.dateLabel})`
+    );
   }
   const list = c.events
     .map((e) => `${e.time} ${e.title}${e.location ? ` at ${e.location}` : ""}`)
     .join("; ");
-  return `${list}. (${c.dateLabel})`.slice(0, 600);
+  return toGsm7Safe(`${list}. (${c.dateLabel})`).slice(0, 600);
 }
 
 export interface GeneratedBriefing {
@@ -959,6 +1013,55 @@ export interface GeneratedBriefing {
 const TOTAL_SMS_CAP = 600;
 // Two newlines between body and nudge.
 const NUDGE_SEPARATOR = "\n\n";
+
+// ── GSM-7 normalization ─────────────────────────────────────────────────────
+// SMS segments are 160 chars in GSM-7 encoding but only 70 chars in UCS-2.
+// A single non-GSM-7 character (em-dash, curly quote, é, fancy ellipsis from
+// an LLM output, …) flips the whole message into UCS-2, turning the assumed
+// 4-segment cap into 9 billed segments. `.slice(0, 600)` counts UTF-16 code
+// units, not segments, so the cap is silently wrong for any briefing that
+// contains a smart character.
+//
+// Normalize aggressively: ASCII-equivalent the common offenders and strip the
+// rest. Output is GSM-7 safe at the cost of "Sarah's" → "Sarah's" (already
+// ASCII) and "—" → "-". Briefings stay legible; we stay at 4 segments. The
+// SMS extension chars (|^€{}[]~\) cost 2 chars each in GSM-7, so we also map
+// those to safer single-char ASCII where possible. (audit v5 P1-B3)
+function toGsm7Safe(s: string): string {
+  return s
+    // Quote-flavored Unicode → ASCII
+    .replace(/[‘’‚′ʼ]/g, "'")
+    .replace(/[“”„″]/g, '"')
+    // Dashes
+    .replace(/[–—―]/g, "-")
+    // Ellipsis
+    .replace(/…/g, "...")
+    // Non-breaking & similar spaces
+    .replace(/[     ]/g, " ")
+    // Bullets & arrows we sometimes see in LLM output
+    .replace(/[•·]/g, "-")
+    .replace(/[→➜]/g, "->")
+    // Common accented letters → ASCII (briefings are en-US; preserve names
+    // best-effort but accept that "café" → "cafe" is better than 9 segments).
+    .replace(/[àáâãäå]/g, "a")
+    .replace(/[ÀÁÂÃÄÅ]/g, "A")
+    .replace(/[èéêë]/g, "e")
+    .replace(/[ÈÉÊË]/g, "E")
+    .replace(/[ìíîï]/g, "i")
+    .replace(/[ÌÍÎÏ]/g, "I")
+    .replace(/[òóôõöø]/g, "o")
+    .replace(/[ÒÓÔÕÖØ]/g, "O")
+    .replace(/[ùúûü]/g, "u")
+    .replace(/[ÙÚÛÜ]/g, "U")
+    .replace(/[ñ]/g, "n")
+    .replace(/[Ñ]/g, "N")
+    .replace(/[ç]/g, "c")
+    .replace(/[Ç]/g, "C")
+    // Anything still outside basic Latin / GSM-7 default gets dropped.
+    // Permissive enough for the briefing output set; aggressive enough to
+    // keep segment math honest.
+    .replace(/[^\x09\x0A\x0D\x20-\x7E]/g, "");
+}
 
 // Generates the briefing for one profile. If the AI call fails after retries,
 // degrades gracefully to a plaintext calendar list rather than giving up.
@@ -979,7 +1082,10 @@ export async function generateBriefing(
   let text: string;
   let degraded = false;
   try {
-    text = (await callAnthropicWithRetry(context.ctx)).slice(0, bodyCap);
+    // Normalize the AI output to GSM-7 before slicing — Claude routinely
+    // emits em-dashes and curly quotes that would otherwise force the message
+    // into UCS-2 and blow past our 4-segment cap.
+    text = toGsm7Safe(await callAnthropicWithRetry(context.ctx)).slice(0, bodyCap);
   } catch (err) {
     degraded = true;
     const msg = err instanceof Error ? err.message : String(err);

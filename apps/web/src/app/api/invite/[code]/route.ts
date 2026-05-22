@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { checkRateLimit, rateLimitResponse } from "@/lib/rate-limit";
 import * as Sentry from "@sentry/nextjs";
 
 /**
@@ -7,11 +8,15 @@ import * as Sentry from "@sentry/nextjs";
  * Public — no auth required. Returns invite metadata for the landing page.
  *
  * Returns:
- *   200  { valid: true, inviterName: string, familyName: string, inviteeEmail: string, expiresAt: string }
+ *   200  { valid: true, inviterName: string, familyName: string, expiresAt: string }
  *   200  { valid: false, reason: 'expired' | 'accepted' | 'not_found' }
+ *
+ * The invitee email is NOT included in the public response — anyone with the
+ * invite code can hit this endpoint, and we don't want leaked SMS log lines
+ * or shoulder-glance scenarios to expose recipient email addresses.
  */
 export async function GET(
-  _request: Request,
+  request: Request,
   { params }: { params: { code: string } }
 ) {
   try {
@@ -19,6 +24,16 @@ export async function GET(
   if (!code) {
     return NextResponse.json({ valid: false, reason: "not_found" as const });
   }
+
+  // Per-IP rate limit to defeat enumeration of the 64-bit code space. An
+  // honest accept-page reload from a single household stays well under the
+  // limit; a script trying to brute-force codes hits 429 fast.
+  const ip =
+    request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+    request.headers.get("x-real-ip") ||
+    "unknown";
+  const rl = await checkRateLimit(`ip:${ip}`, "invite-lookup");
+  if (!rl.allowed) return rateLimitResponse(rl);
 
   const supabase = createClient();
 
@@ -31,7 +46,6 @@ export async function GET(
   let invite: {
     accepted: boolean;
     expires_at: string;
-    invitee_email: string;
     inviter_profile_id: string;
   } | null = null;
 
@@ -43,7 +57,7 @@ export async function GET(
 
     const { data: inv } = await adminClient
       .from("household_invites")
-      .select("accepted, expires_at, invitee_email, inviter_profile_id")
+      .select("accepted, expires_at, inviter_profile_id")
       .eq("invite_code", code)
       .maybeSingle();
 
@@ -65,7 +79,7 @@ export async function GET(
     // For production: ensure SUPABASE_SERVICE_ROLE_KEY is configured.
     const { data: inv } = await supabase
       .from("household_invites")
-      .select("accepted, expires_at, invitee_email, inviter_profile_id")
+      .select("accepted, expires_at, inviter_profile_id")
       .eq("invite_code", code)
       .maybeSingle();
 
@@ -100,7 +114,6 @@ export async function GET(
     valid: true,
     inviterName: inviterFirstName,
     familyName: familyName ?? "your household",
-    inviteeEmail: invite.invitee_email,
     expiresAt: invite.expires_at,
   });
   } catch (err) {

@@ -9,8 +9,8 @@
     "dev:web": "npm run dev -w @kin/web",
     "build:web": "npm run build -w @kin/web",
     "gen:types": "supabase gen types typescript --project-id $SUPABASE_PROJECT_ID --schema public > packages/shared/src/database.types.ts",
-    "test": "vitest run --workspace vitest.workspace.ts",
-    "test:watch": "vitest --workspace vitest.workspace.ts",
+    "test": "npm run test -w @kin/shared && npm run test -w @kin/web",
+    "test:watch": "npm run test:watch -w @kin/web",
     "test:shared": "npm run test -w @kin/shared",
     "test:web": "npm run test -w @kin/web"
   },

@@ -41,11 +41,17 @@ jobs:
         working-directory: packages/shared
         run: npx tsc --noEmit
 
-      # Run per-package so vitest 4 (root npm-test currently uses the
-      # removed --workspace flag) doesn't trip CI. Each workspace owns
-      # its own vitest config and the per-package script is stable.
       - name: Test (shared)
         run: npm run test -w @kin/shared
 
       - name: Test (web)
         run: npm run test -w @kin/web
+
+      - name: Build (web)
+        working-directory: apps/web
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ci-build-placeholder
+          NEXT_PUBLIC_APP_URL: https://kinai.family
+          SUPABASE_SERVICE_ROLE_KEY: ci-build-placeholder
+        run: npx next build

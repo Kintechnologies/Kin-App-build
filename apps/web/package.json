@@ -20,6 +20,7 @@
     "@tavily/core": "^0.7.2",
     "@upstash/ratelimit": "^2.0.8",
     "@upstash/redis": "^1.37.0",
+    "@vercel/functions": "^3.6.0",
     "framer-motion": "^12.38.0",
     "googleapis": "^171.4.0",
     "ical.js": "^2.2.1",

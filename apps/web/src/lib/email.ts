@@ -404,6 +404,39 @@ export function paymentConfirmationEmail(firstName?: string | null): EmailTempla
 }
 
 /**
+ * Day-75 deletion reminder — fired by the cleanup cron 15 days before the
+ * 90-day retention window deletes a cancelled or expired account. Gives the
+ * user a clear way to reactivate and a hard date so the deletion isn't a
+ * surprise. Best-effort: a failed send must not abort the cron.
+ */
+export function deletionReminderEmail(opts: {
+  firstName?: string | null;
+  deletionDate: Date;
+}): EmailTemplate {
+  const { firstName, deletionDate } = opts;
+  const formatted = deletionDate.toLocaleDateString("en-US", {
+    weekday: "long",
+    month: "long",
+    day: "numeric",
+    year: "numeric",
+    timeZone: "America/Los_Angeles",
+  });
+  return buildEmail({
+    subject: "Your Kin data is scheduled for deletion",
+    preheader: `Your family's data will be deleted on ${formatted} unless you reactivate.`,
+    heading: "Your Kin data is scheduled for deletion",
+    paragraphs: [
+      `${greeting(firstName)} a heads-up before anything irreversible happens.`,
+      `Your Kin account has been inactive for 75 days. Per our 90-day retention policy, every record we hold on your family — calendars, briefings, conversations — will be permanently deleted on <strong>${formatted}</strong>.`,
+      "If you'd like to keep your data and pick Kin back up, just reactivate from your dashboard. If you'd rather we delete it, no action needed — it'll be gone on the date above and we won't reach out again.",
+    ],
+    cta: { label: "Reactivate your account", url: BILLING_URL },
+    footnote:
+      "You're receiving this because Kin's privacy policy promises to warn you before deletion. We send exactly one of these.",
+  });
+}
+
+/**
  * Partner invite email — a backup channel to the SMS invite. Explains what
  * Kin is and links to the invite landing page so the partner can join the
  * same household.

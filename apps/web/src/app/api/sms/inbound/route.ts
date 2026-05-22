@@ -22,6 +22,7 @@
  * defense lives in the SMS system prompt. STOP keywords return empty TwiML.
  */
 
+import { waitUntil } from "@vercel/functions";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getAnthropicClient, ANTHROPIC_MODEL } from "@/lib/anthropic";
 import { checkRateLimit } from "@/lib/rate-limit";
@@ -162,81 +163,16 @@ export async function POST(request: Request) {
     return twimlReply("Hi! Text us from the number you signed up with.");
   }
 
-  // ── 2. STOP guard — Twilio handles unsubscribe at carrier level, but we
-  //    honor it in-route too and return empty TwiML (no reply sent) ───────────
-  if (/^(STOP|STOPALL|UNSUBSCRIBE|CANCEL|END|QUIT)$/i.test(messageBody)) {
-    // TCPA: stamp the opt-out on both sides — the waitlist row (so the
-    // phone-first marketing flow never re-texts the number) AND the profile
-    // (so briefings, nudges, alerts, and check-ins all suppress this user).
-    // Both are scoped to rows that are not already opted out so re-sending
-    // STOP doesn't refresh the timestamp.
-    const optedOutAt = new Date().toISOString();
-    try {
-      const admin = createAdminClient();
-      await Promise.all([
-        admin
-          .from("waitlist")
-          .update({ sms_opted_out_at: optedOutAt })
-          .eq("phone", fromNumber)
-          .is("sms_opted_out_at", null),
-        admin
-          .from("profiles")
-          .update({ sms_opted_out_at: optedOutAt })
-          .eq("phone_number", fromNumber)
-          .is("sms_opted_out_at", null),
-      ]);
-    } catch (err) {
-      console.error("Failed to record SMS opt-out:", err);
-    }
-    return twimlEmpty();
-  }
-
-  // ── 2a. HELP / INFO — carrier-required keyword response. Onboarding consent
-  //    promises these work, and US carriers require an immediate, plain-text
-  //    response identifying the program and pointing to the opt-out path.
-  //    No DB writes, no rate-limit hit — short, deterministic, side-effect-free.
-  if (/^(HELP|INFO)$/i.test(messageBody)) {
-    return twimlReply(
-      "Kin Family AI. Daily morning briefing for parents. " +
-        "Help: kinai.family · email hello@kinai.family · reply STOP to unsubscribe. " +
-        "Msg & data rates may apply."
-    );
-  }
-
-  // ── 2b. START / UNSTOP — opt-back-in path. Mirror of STOP: clears
-  //    sms_opted_out_at on both waitlist and profiles, then confirms. ─────────
-  if (/^(START|UNSTOP)$/i.test(messageBody)) {
-    try {
-      const admin = createAdminClient();
-      await Promise.all([
-        admin
-          .from("waitlist")
-          .update({ sms_opted_out_at: null })
-          .eq("phone", fromNumber)
-          .not("sms_opted_out_at", "is", null),
-        admin
-          .from("profiles")
-          .update({ sms_opted_out_at: null })
-          .eq("phone_number", fromNumber)
-          .not("sms_opted_out_at", "is", null),
-      ]);
-    } catch (err) {
-      console.error("Failed to clear SMS opt-out:", err);
-    }
-    return twimlReply(
-      "Welcome back! You've been re-subscribed to Kin messages."
-    );
-  }
-
   const supabase = createAdminClient();
 
-  // ── 2c. Idempotency — Twilio retries (5xx / network failure, default 3
-  //    attempts) re-POST with the same MessageSid. Without dedup, each retry
-  //    would re-run the Claude call, double-bill us, and double-send the
-  //    outbound reply. STOP/HELP/START above are already idempotent (their
-  //    DB updates are gated by `.is(... null)`) so we let them short-circuit
-  //    first; everything below this point reads as the cached prior turn on
-  //    retry. ────────────────────────────────────────────────────────────────
+  // ── 2. Idempotency — Twilio retries (5xx / network failure, default 3
+  //    attempts) re-POST with the same MessageSid. STOP / HELP / INFO / START
+  //    used to live above this lookup because their DB writes are individually
+  //    idempotent — but HELP and START re-emit a billed outbound segment on
+  //    every retry. Moving the cache check above the keyword handlers (and
+  //    persisting their sid + outbound below) means a Twilio retry of a HELP
+  //    or START hits the cache and replays the prior outbound from the DB
+  //    instead of generating a new one. ─────────────────────────────────────
   if (messageSid) {
     const { data: priorInbound } = await supabase
       .from("sms_conversations")
@@ -246,10 +182,10 @@ export async function POST(request: Request) {
       .maybeSingle<{ id: string; profile_id: string | null; sent_at: string }>();
 
     if (priorInbound) {
-      // Find the outbound reply emitted for this turn. We pair by profile +
-      // "first outbound after this inbound" — sms_conversations doesn't track
-      // a reply FK, but inbound/outbound on a single profile are strictly
-      // serialized by the webhook, so the next outbound is the right one.
+      // Find the outbound reply emitted for this turn. The pre-profile keyword
+      // handlers (HELP / START) log with profile_id = null, so the lookup also
+      // matches by sid via the prior inbound's profile_id when available, and
+      // falls back to a sid-tagged outbound otherwise.
       if (priorInbound.profile_id) {
         const { data: cachedReply } = await supabase
           .from("sms_conversations")
@@ -262,6 +198,13 @@ export async function POST(request: Request) {
           .maybeSingle<{ body: string }>();
         if (cachedReply?.body) return twimlReply(cachedReply.body);
       }
+      const { data: sidReply } = await supabase
+        .from("sms_conversations")
+        .select("body")
+        .eq("twilio_message_sid", messageSid)
+        .eq("direction", "outbound")
+        .maybeSingle<{ body: string }>();
+      if (sidReply?.body) return twimlReply(sidReply.body);
       // Inbound logged but no outbound yet (original handler crashed mid-flight,
       // or this is a duplicate of a non-profile-bound flow). Returning empty
       // TwiML is safer than re-running — the original attempt's TwiML response
@@ -269,6 +212,125 @@ export async function POST(request: Request) {
       // work risks double-charging Claude. ─────────────────────────────────
       return twimlEmpty();
     }
+  }
+
+  // ── 2a. STOP guard — Twilio handles unsubscribe at carrier level, but we
+  //    honor it in-route too and return empty TwiML (no reply sent) ───────────
+  if (/^(STOP|STOPALL|UNSUBSCRIBE|CANCEL|END|QUIT)$/i.test(messageBody)) {
+    // TCPA: stamp the opt-out on both sides — the waitlist row (so the
+    // phone-first marketing flow never re-texts the number) AND the profile
+    // (so briefings, nudges, alerts, and check-ins all suppress this user).
+    // Both are scoped to rows that are not already opted out so re-sending
+    // STOP doesn't refresh the timestamp.
+    const optedOutAt = new Date().toISOString();
+    try {
+      await Promise.all([
+        supabase
+          .from("waitlist")
+          .update({ sms_opted_out_at: optedOutAt })
+          .eq("phone", fromNumber)
+          .is("sms_opted_out_at", null),
+        supabase
+          .from("profiles")
+          .update({ sms_opted_out_at: optedOutAt })
+          .eq("phone_number", fromNumber)
+          .is("sms_opted_out_at", null),
+      ]);
+      // Persist a sid-tagged inbound so the next retry hits the cache and we
+      // don't re-run the opt-out update. No outbound row — STOP returns empty
+      // TwiML, and the cache-hit path returns empty TwiML when no outbound is
+      // found for the sid.
+      if (messageSid) {
+        await supabase.from("sms_conversations").insert({
+          profile_id: null,
+          direction: "inbound",
+          body: messageBody,
+          from_number: fromNumber,
+          to_number: process.env.TWILIO_PHONE_NUMBER ?? "",
+          twilio_message_sid: messageSid,
+        });
+      }
+    } catch (err) {
+      console.error("Failed to record SMS opt-out:", err);
+    }
+    return twimlEmpty();
+  }
+
+  // ── 2b. HELP / INFO — carrier-required keyword response. Onboarding consent
+  //    promises these work, and US carriers require an immediate, plain-text
+  //    response identifying the program and pointing to the opt-out path. The
+  //    inbound + outbound are sid-tagged so a Twilio retry hits the cache
+  //    instead of billing a new segment for the same MessageSid.
+  if (/^(HELP|INFO)$/i.test(messageBody)) {
+    const helpReply =
+      "Kin Family AI. Daily morning briefing for parents. " +
+      "Help: kinai.family · email hello@kinai.family · reply STOP to unsubscribe. " +
+      "Msg & data rates may apply.";
+    if (messageSid) {
+      try {
+        await supabase.from("sms_conversations").insert({
+          profile_id: null,
+          direction: "inbound",
+          body: messageBody,
+          from_number: fromNumber,
+          to_number: process.env.TWILIO_PHONE_NUMBER ?? "",
+          twilio_message_sid: messageSid,
+        });
+        await supabase.from("sms_conversations").insert({
+          profile_id: null,
+          direction: "outbound",
+          body: helpReply,
+          from_number: process.env.TWILIO_PHONE_NUMBER ?? "",
+          to_number: fromNumber,
+          twilio_message_sid: messageSid,
+        });
+      } catch (err) {
+        console.error("Failed to record HELP/INFO turn:", err);
+      }
+    }
+    return twimlReply(helpReply);
+  }
+
+  // ── 2c. START / UNSTOP — opt-back-in path. Mirror of STOP: clears
+  //    sms_opted_out_at on both waitlist and profiles, then confirms. ─────────
+  if (/^(START|UNSTOP)$/i.test(messageBody)) {
+    const startReply =
+      "Welcome back! You've been re-subscribed to Kin messages.";
+    try {
+      await Promise.all([
+        supabase
+          .from("waitlist")
+          .update({ sms_opted_out_at: null })
+          .eq("phone", fromNumber)
+          .not("sms_opted_out_at", "is", null),
+        supabase
+          .from("profiles")
+          .update({ sms_opted_out_at: null })
+          .eq("phone_number", fromNumber)
+          .not("sms_opted_out_at", "is", null),
+      ]);
+      if (messageSid) {
+        await supabase.from("sms_conversations").insert({
+          profile_id: null,
+          direction: "inbound",
+          body: messageBody,
+          from_number: fromNumber,
+          to_number: process.env.TWILIO_PHONE_NUMBER ?? "",
+          twilio_message_sid: messageSid,
+        });
+        await supabase.from("sms_conversations").insert({
+          profile_id: null,
+          direction: "outbound",
+          body: startReply,
+          from_number: process.env.TWILIO_PHONE_NUMBER ?? "",
+          to_number: fromNumber,
+          twilio_message_sid: messageSid,
+        });
+      }
+    } catch (err) {
+      console.error("Failed to clear SMS opt-out:", err);
+    }
+    return twimlReply(startReply);
   }
 
   // ── 3. Rate limit ──────────────────────────────────────────────────────────
@@ -607,15 +669,19 @@ export async function POST(request: Request) {
   });
 
   // ── 14. Learn household context from this exchange ────────────────────────
-  // Fire-and-forget so it adds zero latency to the SMS reply. Awaiting a second
-  // Claude call here would risk Twilio's 15s webhook timeout.
-  // analyzeConversationForContext swallows all of its own errors.
-  void analyzeConversationForContext(
-    supabase,
-    profileRow.id,
-    messageBody,
-    reply,
-    inboundRow?.id ?? null
+  // Vercel terminates serverless execution on response return, so a naked
+  // `void someAsync()` is killed before the second Claude call lands. waitUntil
+  // hands the promise to the platform so it survives past the TwiML response
+  // while still adding zero latency to the SMS reply. The function swallows
+  // its own errors.
+  waitUntil(
+    analyzeConversationForContext(
+      supabase,
+      profileRow.id,
+      messageBody,
+      reply,
+      inboundRow?.id ?? null
+    )
   );
 
   return twimlReply(reply);

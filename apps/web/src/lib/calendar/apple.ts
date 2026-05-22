@@ -1,6 +1,6 @@
 import { createDAVClient, DAVCalendar, DAVObject } from "tsdav";
 import ICAL from "ical.js";
-import type { CalendarEvent } from "@/types";
+import type { CalendarEvent, CalendarEventVisibility } from "@/types";
 
 // ── CalDAV Client ──
 
@@ -84,6 +84,7 @@ export interface ParsedAppleEvent {
   endTime: string;
   allDay: boolean;
   recurrenceRule?: string;
+  visibility: CalendarEventVisibility;
 }
 
 function parseICalEvent(
@@ -104,6 +105,19 @@ function parseICalEvent(
   const rruleProp = vevent.getFirstPropertyValue("rrule");
   const recurrenceRule = rruleProp ? rruleProp.toString() : undefined;
 
+  // iCalendar CLASS values: PUBLIC | PRIVATE | CONFIDENTIAL (RFC 5545 §3.8.1.3).
+  // Map onto our 4-state visibility enum so the briefing layer's private-event
+  // stripping logic applies to Apple events too — without this, Apple-side
+  // private events leak by name into the AI prompt.
+  const classProp = vevent.getFirstPropertyValue("class");
+  const classRaw =
+    typeof classProp === "string" ? classProp.toLowerCase() : null;
+  let visibility: CalendarEventVisibility;
+  if (classRaw === "private") visibility = "private";
+  else if (classRaw === "confidential") visibility = "confidential";
+  else if (classRaw === "public") visibility = "public";
+  else visibility = "default";
+
   return {
     uid: event.uid,
     url,
@@ -115,6 +129,7 @@ function parseICalEvent(
     endTime: event.endDate.toJSDate().toISOString(),
     allDay,
     recurrenceRule,
+    visibility,
   };
 }
 
@@ -129,6 +144,7 @@ export function appleEventToKinEvent(
     title: parsed.title,
     description: parsed.description,
     location: parsed.location,
+    visibility: parsed.visibility,
     start_time: parsed.startTime,
     end_time: parsed.endTime,
     all_day: parsed.allDay,

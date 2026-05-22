@@ -3,6 +3,7 @@ import {
   pullGoogleEvents,
   googleEventToKinEvent,
   refreshGoogleToken,
+  listGoogleCalendars,
   GoogleTokenRevokedError,
 } from "./google";
 import { pullAppleEvents, appleEventToKinEvent } from "./apple";
@@ -119,81 +120,107 @@ async function syncGoogleCalendar(connection: CalendarConnection) {
       .eq("id", connection.id);
   }
 
-  const calendarId = connection.google_calendar_id || "primary";
-
-  // Pull events (incremental if we have a sync token)
-  let result = await pullGoogleEvents(
-    accessToken,
-    calendarId,
-    connection.google_sync_token || undefined
-  );
-
-  // If sync token expired, do a full resync
-  if (result.requiresFullSync) {
-    result = await pullGoogleEvents(accessToken, calendarId);
+  // Pre-V5 connections only synced "primary". Fan out across every non-hidden
+  // calendar so school district, sports league, partner-shared, kid-pediatric,
+  // etc. show up in the briefing. The first sub-calendar of a fresh connection
+  // boots from no sync token; subsequent runs resume per-calendar via the
+  // google_sync_tokens jsonb map (migration 067). Returning [] (e.g. brand-new
+  // OAuth where calendarList hasn't propagated yet) falls back to "primary".
+  let subCalendars: { id: string; primary: boolean }[];
+  try {
+    const discovered = await listGoogleCalendars(accessToken);
+    subCalendars = discovered.length
+      ? discovered.map((c) => ({ id: c.id, primary: c.primary }))
+      : [{ id: "primary", primary: true }];
+  } catch {
+    subCalendars = [{ id: "primary", primary: true }];
   }
 
-  // Upsert events into Supabase
-  for (const gEvent of result.events) {
-    if (gEvent.status === "cancelled") {
-      // Soft-delete cancelled events
-      await supabase
-        .from("calendar_events")
-        .update({
-          deleted_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        })
-        .eq("external_id", gEvent.id)
-        .eq("external_source", "google")
-        .eq("owner_parent_id", connection.profile_id);
-      continue;
-    }
+  // google_sync_tokens is a JSONB column added in migration 067; existing rows
+  // default to {}. Legacy single google_sync_token applies to "primary".
+  const syncTokensRaw =
+    (connection as CalendarConnection & {
+      google_sync_tokens?: Record<string, string> | null;
+    }).google_sync_tokens ?? {};
+  const syncTokens: Record<string, string> = { ...syncTokensRaw };
+  if (connection.google_sync_token && !syncTokens["primary"]) {
+    syncTokens["primary"] = connection.google_sync_token;
+  }
 
-    const kinEvent = googleEventToKinEvent(
-      gEvent,
-      connection.profile_id,
-      calendarId
+  for (const cal of subCalendars) {
+    let result = await pullGoogleEvents(
+      accessToken,
+      cal.id,
+      syncTokens[cal.id] || undefined
     );
 
-    // Check if event already exists
-    const { data: existing } = await supabase
-      .from("calendar_events")
-      .select("id, external_etag, updated_at")
-      .eq("external_id", gEvent.id)
-      .eq("external_source", "google")
-      .eq("owner_parent_id", connection.profile_id)
-      .single();
+    if (result.requiresFullSync) {
+      result = await pullGoogleEvents(accessToken, cal.id);
+    }
 
-    if (existing) {
-      // Only update if etag changed (event was modified externally)
-      if (existing.external_etag !== gEvent.etag) {
+    for (const gEvent of result.events) {
+      if (gEvent.status === "cancelled") {
         await supabase
           .from("calendar_events")
           .update({
-            ...kinEvent,
-            last_synced_at: new Date().toISOString(),
+            deleted_at: new Date().toISOString(),
             updated_at: new Date().toISOString(),
           })
-          .eq("id", existing.id);
+          .eq("external_id", gEvent.id)
+          .eq("external_source", "google")
+          .eq("owner_parent_id", connection.profile_id);
+        continue;
       }
-    } else {
-      await supabase.from("calendar_events").insert({
-        ...kinEvent,
-        last_synced_at: new Date().toISOString(),
-      });
+
+      const kinEvent = googleEventToKinEvent(
+        gEvent,
+        connection.profile_id,
+        cal.id
+      );
+
+      const { data: existing } = await supabase
+        .from("calendar_events")
+        .select("id, external_etag, updated_at")
+        .eq("external_id", gEvent.id)
+        .eq("external_source", "google")
+        .eq("owner_parent_id", connection.profile_id)
+        .eq("external_calendar_id", cal.id)
+        .maybeSingle();
+
+      if (existing) {
+        if (existing.external_etag !== gEvent.etag) {
+          await supabase
+            .from("calendar_events")
+            .update({
+              ...kinEvent,
+              last_synced_at: new Date().toISOString(),
+              updated_at: new Date().toISOString(),
+            })
+            .eq("id", existing.id);
+        }
+      } else {
+        await supabase.from("calendar_events").insert({
+          ...kinEvent,
+          last_synced_at: new Date().toISOString(),
+        });
+      }
+    }
+
+    if (result.nextSyncToken) {
+      syncTokens[cal.id] = result.nextSyncToken;
     }
   }
 
-  // Save new sync token
-  if (result.nextSyncToken) {
-    await supabase
-      .from("calendar_connections")
-      .update({
-        google_sync_token: result.nextSyncToken,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", connection.id);
-  }
+  await supabase
+    .from("calendar_connections")
+    .update({
+      google_sync_tokens: syncTokens,
+      // Keep the legacy column in lockstep with "primary" so downgrades or
+      // pre-migration consumers don't lose their cursor.
+      google_sync_token: syncTokens["primary"] ?? connection.google_sync_token,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", connection.id);
 }
 
 // ── Apple Sync ──
@@ -211,7 +238,14 @@ async function syncAppleCalendar(connection: CalendarConnection) {
     connection.caldav_url
   );
 
+  // Track every external_id we observed on this pull so the deletion sweep at
+  // the end can soft-delete the ones that disappeared. CalDAV has no
+  // "cancelled" record like Google — deleted events just vanish from
+  // subsequent responses — so we have to reconcile by absence. (audit v5 P1-C5)
+  const seenExternalIds = new Set<string>();
+
   for (const parsed of events) {
+    seenExternalIds.add(parsed.uid);
     const kinEvent = appleEventToKinEvent(
       parsed,
       connection.profile_id,
@@ -224,7 +258,7 @@ async function syncAppleCalendar(connection: CalendarConnection) {
       .eq("external_id", parsed.uid)
       .eq("external_source", "apple")
       .eq("owner_parent_id", connection.profile_id)
-      .single();
+      .maybeSingle();
 
     if (existing) {
       if (existing.external_etag !== parsed.etag) {
@@ -243,6 +277,32 @@ async function syncAppleCalendar(connection: CalendarConnection) {
         last_synced_at: new Date().toISOString(),
       });
     }
+  }
+
+  // ── Deletion sweep ────────────────────────────────────────────────────────
+  // Pull every previously-stored Apple event for this profile and soft-delete
+  // the ones that did not appear in this sync. Bounded to the active set so
+  // we don't keep re-deleting already-deleted rows on every run.
+  const { data: priorEvents } = await supabase
+    .from("calendar_events")
+    .select("id, external_id")
+    .eq("external_source", "apple")
+    .eq("owner_parent_id", connection.profile_id)
+    .is("deleted_at", null);
+
+  const orphanedIds =
+    priorEvents
+      ?.filter((row) => row.external_id && !seenExternalIds.has(row.external_id))
+      .map((row) => row.id) ?? [];
+
+  if (orphanedIds.length > 0) {
+    await supabase
+      .from("calendar_events")
+      .update({
+        deleted_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      })
+      .in("id", orphanedIds);
   }
 }
 

@@ -10,6 +10,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getStripe } from "@/lib/stripe";
+import { checkRateLimit, rateLimitResponse } from "@/lib/rate-limit";
 import * as Sentry from "@sentry/nextjs";
 
 export async function POST(request: Request) {
@@ -41,6 +42,9 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    const rl = await checkRateLimit(user.id, "stripe-portal");
+    if (!rl.allowed) return rateLimitResponse(rl);
+
     const { data: profile } = await supabase
       .from("profiles")
       .select("stripe_customer_id")
@@ -54,10 +58,16 @@ export async function POST(request: Request) {
       );
     }
 
+    // Fall back to request origin when the public URL env is missing — keeps
+    // preview deploys and misconfigured environments from producing
+    // "undefined/dashboard/billing" return_url that Stripe rejects opaquely.
+    const baseUrl =
+      process.env.NEXT_PUBLIC_APP_URL ?? new URL(request.url).origin;
+
     const stripe = getStripe();
     const session = await stripe.billingPortal.sessions.create({
       customer: profile.stripe_customer_id,
-      return_url: `${process.env.NEXT_PUBLIC_APP_URL}${returnPath}`,
+      return_url: `${baseUrl}${returnPath}`,
     });
 
     return NextResponse.json({ url: session.url });

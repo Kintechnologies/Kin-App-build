@@ -16,10 +16,12 @@
  */
 
 import { NextResponse } from "next/server";
+import * as Sentry from "@sentry/nextjs";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { sendSms } from "@/lib/twilio";
 import { dispatchPartnerInvite } from "@/lib/partner-invite";
+import { checkRateLimit, rateLimitResponse } from "@/lib/rate-limit";
 
 interface ProfileRow {
   family_name: string | null;
@@ -39,6 +41,9 @@ export async function POST() {
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+
+    const rl = await checkRateLimit(user.id, "onboarding-complete");
+    if (!rl.allowed) return rateLimitResponse(rl);
 
     const admin = createAdminClient();
     const { data: profile } = await admin
@@ -113,8 +118,11 @@ export async function POST() {
     }
 
     return NextResponse.json({ ok: true, welcomeSmsSent, partnerInvited });
-  } catch {
-    // Non-fatal — never block onboarding completion on this.
+  } catch (err) {
+    // Non-fatal for the user — never block onboarding completion. But the
+    // outer catch must still report to Sentry, otherwise welcome-SMS failures
+    // and partner-invite dispatch errors are invisible in production.
+    Sentry.captureException(err);
     return NextResponse.json({ ok: false });
   }
 }

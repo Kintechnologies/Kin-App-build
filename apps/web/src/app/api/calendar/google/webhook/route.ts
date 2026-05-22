@@ -49,7 +49,10 @@ export async function POST(request: Request) {
     .single();
 
   if (!connection) {
-    return NextResponse.json({ error: "Unknown channel" }, { status: 404 });
+    // 410 Gone tells Google the channel is permanently dead and to stop
+    // retrying. A 404 keeps the channel "live" from Google's perspective and
+    // they pound our webhook until the channel TTL (up to 7 days) elapses.
+    return NextResponse.json({ error: "Channel no longer registered" }, { status: 410 });
   }
 
   // Trigger sync (non-blocking)

@@ -83,16 +83,55 @@ function baseInvite(overrides: Record<string, unknown> = {}) {
 
 /**
  * Build a minimal Supabase admin client stub.
- * `invite`: what maybeSingle() returns for household_invites
- * `partnerHouseholdId`: what the profiles.select().single() returns
+ *
+ * The accept route now performs an atomic claim (UPDATE household_invites
+ * SET accepted=true WHERE id=$1 AND accepted=false RETURNING id) and only
+ * writes profiles.household_id when the claim returns a row. This stub
+ * spies on the two distinct UPDATE call shapes the route can issue:
+ *
+ *   household_invites.update({accepted: true, ...}).eq("id").eq("accepted", false).select("id")
+ *   profiles.update({household_id}).eq("id", uid)
+ *
+ * `invite`           — row returned by household_invites.select().maybeSingle()
+ * `partnerHouseholdId` — row returned by profiles.select().single()
+ * `claimRow`         — row(s) returned by the atomic-claim UPDATE; defaults to
+ *                      a single-row result so the happy path proceeds. Pass
+ *                      `[]` to simulate losing the race.
  */
 function buildAdminClient(
   invite: Record<string, unknown> | null,
   partnerHouseholdId: string | null = null,
-  fetchError: unknown = null
+  fetchError: unknown = null,
+  claimRow: Array<{ id: string }> = [{ id: "invite-row-001" }]
 ) {
-  const updateEq = vi.fn().mockResolvedValue({ error: null });
-  const update = vi.fn().mockReturnValue({ eq: updateEq });
+  // Profiles UPDATE: chainable `.eq()` returning { error: null }
+  const profilesUpdateEq = vi.fn().mockResolvedValue({ error: null });
+  const profilesUpdate = vi.fn().mockReturnValue({ eq: profilesUpdateEq });
+
+  // Invites UPDATE chain — accepted-true claim:
+  //   .update().eq("id").eq("accepted", false).select("id")
+  // Also a rollback path that re-issues .update().eq("id") without further chains.
+  const invitesClaimSelect = vi
+    .fn()
+    .mockResolvedValue({ data: claimRow, error: null });
+  const invitesClaimEqAccepted = vi
+    .fn()
+    .mockReturnValue({ select: invitesClaimSelect });
+  // Both `accepted` flip (with .select) and rollback flip (terminal) start with
+  // .update().eq("id", ...). For rollback the terminal awaits the .eq().
+  const invitesUpdate = vi.fn().mockReturnValue({
+    eq: vi.fn().mockImplementation((col: string, _val: unknown) => {
+      if (col === "id") {
+        return {
+          eq: invitesClaimEqAccepted,
+          // Terminal awaitable for rollback: thenable resolving to {error: null}
+          then: (resolve: (v: { error: null }) => void) =>
+            resolve({ error: null }),
+        };
+      }
+      return { error: null };
+    }),
+  });
 
   return {
     from: (table: string) => {
@@ -105,7 +144,7 @@ function buildAdminClient(
                 .mockResolvedValue({ data: invite, error: fetchError }),
             }),
           }),
-          update,
+          update: invitesUpdate,
         };
       }
       if (table === "profiles") {
@@ -118,13 +157,14 @@ function buildAdminClient(
               }),
             }),
           }),
-          update,
+          update: profilesUpdate,
         };
       }
-      return { select: vi.fn(), update };
+      return { select: vi.fn(), update: vi.fn() };
     },
-    _update: update,
-    _updateEq: updateEq,
+    _update: profilesUpdate,
+    _updateEq: profilesUpdateEq,
+    _invitesUpdate: invitesUpdate,
   };
 }
 

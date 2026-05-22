@@ -10,7 +10,6 @@ interface InviteData {
   valid: true;
   inviterName: string;
   familyName: string;
-  inviteeEmail: string;
   expiresAt: string;
 }
 

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isAuthorizedCron } from "@/lib/cron-auth";
+import { sendEmail, deletionReminderEmail } from "@/lib/email";
 import * as Sentry from "@sentry/nextjs";
 
 // This route should be called daily by a Vercel cron job
@@ -24,20 +25,41 @@ export async function GET(request: Request) {
     .gt("data_deletion_at", now.toISOString())
     .eq("deletion_reminded", false);
 
+  let remindersSent = 0;
   if (reminderUsers && reminderUsers.length > 0) {
     for (const user of reminderUsers) {
-      // TODO: Send reminder email via Beehiiv
-      // "Your Kin data will be deleted on [date]. Reactivate to keep your family profile."
-      await supabase
-        .from("profiles")
-        .update({ deletion_reminded: true })
-        .eq("id", user.id);
+      // Only flip deletion_reminded after the email actually sends, otherwise
+      // a Resend outage would silently swallow the user's promised warning
+      // and they'd never get one — the next run would skip them.
+      if (!user.email || !user.data_deletion_at) continue;
+      const template = deletionReminderEmail({
+        firstName: user.family_name?.trim().split(/\s+/)[0] ?? null,
+        deletionDate: new Date(user.data_deletion_at),
+      });
+      let sent = false;
+      try {
+        sent = await sendEmail({
+          to: user.email,
+          subject: template.subject,
+          html: template.html,
+          text: template.text,
+        });
+      } catch (err) {
+        Sentry.captureException(err);
+      }
+      if (sent) {
+        await supabase
+          .from("profiles")
+          .update({ deletion_reminded: true })
+          .eq("id", user.id);
+        remindersSent++;
+      }
     }
     // Aggregate, count-only breadcrumb. Per-user messages used to include the
     // deletion timestamp (and email rows were in scope), leaking PII into
     // Sentry. (audit v3 P1-I2)
     Sentry.captureMessage(
-      `cleanup: sent day-75 reminders to ${reminderUsers.length} user(s)`,
+      `cleanup: sent day-75 reminders to ${remindersSent} user(s) (eligible: ${reminderUsers.length})`,
       "info"
     );
   }
@@ -73,7 +95,8 @@ export async function GET(request: Request) {
   }
 
   return NextResponse.json({
-    reminders_sent: reminderUsers?.length || 0,
+    reminders_sent: remindersSent,
+    reminders_eligible: reminderUsers?.length || 0,
     accounts_deleted: deletedCount,
     timestamp: now.toISOString(),
   });

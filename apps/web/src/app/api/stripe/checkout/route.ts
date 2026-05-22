@@ -13,6 +13,7 @@ import { NextResponse } from "next/server";
 import type Stripe from "stripe";
 import { createClient } from "@/lib/supabase/server";
 import { getStripe, resolveMonthlyPriceId } from "@/lib/stripe";
+import { checkRateLimit, rateLimitResponse } from "@/lib/rate-limit";
 import * as Sentry from "@sentry/nextjs";
 
 /**
@@ -88,6 +89,9 @@ export async function POST(request: Request) {
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+
+    const rl = await checkRateLimit(user.id, "stripe-checkout");
+    if (!rl.allowed) return rateLimitResponse(rl);
 
     const stripe = getStripe();
 

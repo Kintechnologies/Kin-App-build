@@ -98,30 +98,55 @@ export async function POST(
       );
     }
 
-    // ── Link profiles ───────────────────────────────────────────────────────
-    // Partner's household_id → inviter's profile id
-    const { error: profileErr } = await adminClient
-      .from("profiles")
-      .update({ household_id: invite.inviter_profile_id })
-      .eq("id", user.id);
-
-    if (profileErr) {
-      return NextResponse.json({ error: "Failed to link household" }, { status: 500 });
-    }
-
-    // ── Mark invite as accepted ─────────────────────────────────────────────
-    const { error: acceptErr } = await adminClient
+    // ── Atomic claim ────────────────────────────────────────────────────────
+    // Mark the invite accepted FIRST with a conditional UPDATE — only succeeds
+    // when accepted is still false. This serializes two authenticated users
+    // racing the same code through their respective rate-limit windows: only
+    // one UPDATE returns a row, the other sees an empty result and bails out
+    // before any household_id is written.
+    const { data: claimedRows, error: claimErr } = await adminClient
       .from("household_invites")
       .update({
         accepted: true,
         accepted_by_profile_id: user.id,
         accepted_at: new Date().toISOString(),
       })
-      .eq("id", invite.id);
+      .eq("id", invite.id)
+      .eq("accepted", false)
+      .select("id");
 
-    if (acceptErr) {
-      // Non-fatal: household is already linked.
-      Sentry.captureException(new Error(acceptErr.message));
+    if (claimErr) {
+      Sentry.captureException(new Error(claimErr.message));
+      return NextResponse.json({ error: "Failed to accept invite" }, { status: 500 });
+    }
+
+    if (!claimedRows || claimedRows.length === 0) {
+      // Lost the race — another caller accepted between our read and our claim.
+      return NextResponse.json({ error: "Invite already used" }, { status: 409 });
+    }
+
+    // ── Link profiles ───────────────────────────────────────────────────────
+    // Partner's household_id → inviter's profile id. We only get here on a
+    // successful claim, so household linking is guaranteed to happen exactly
+    // once per invite.
+    const { error: profileErr } = await adminClient
+      .from("profiles")
+      .update({ household_id: invite.inviter_profile_id })
+      .eq("id", user.id);
+
+    if (profileErr) {
+      // Roll back the claim so a retry can succeed — otherwise the invite is
+      // permanently in "accepted but not linked" limbo.
+      await adminClient
+        .from("household_invites")
+        .update({
+          accepted: false,
+          accepted_by_profile_id: null,
+          accepted_at: null,
+        })
+        .eq("id", invite.id);
+      Sentry.captureException(new Error(profileErr.message));
+      return NextResponse.json({ error: "Failed to link household" }, { status: 500 });
     }
 
     return NextResponse.json({ success: true });

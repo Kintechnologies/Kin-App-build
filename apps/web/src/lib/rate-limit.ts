@@ -28,7 +28,12 @@ type RouteKey =
   | "first-use"
   | "sms"
   | "invite-accept"
-  | "ops-metrics";
+  | "ops-metrics"
+  | "invite-create"
+  | "invite-lookup"
+  | "stripe-checkout"
+  | "stripe-portal"
+  | "onboarding-complete";
 
 // Lazily initialise Redis + limiters only when env vars are present.
 let redis: Redis | null = null;
@@ -84,6 +89,46 @@ function getLimiter(route: RouteKey): Ratelimit | null {
       redis: r,
       limiter: Ratelimit.slidingWindow(60, "1 m"),
       prefix: "rl:ops-metrics",
+    });
+  } else if (route === "invite-create") {
+    // 3 partner-invite SMS dispatches per user per day — a paying user shouldn't
+    // be paging arbitrary phone numbers via our Twilio account.
+    limiter = new Ratelimit({
+      redis: r,
+      limiter: Ratelimit.slidingWindow(3, "1 d"),
+      prefix: "rl:invite-create",
+    });
+  } else if (route === "invite-lookup") {
+    // 30 GET /api/invite/[code] lookups per IP per minute — defeats casual
+    // enumeration of 64-bit codes while leaving room for an honest user
+    // reloading the accept page a few times.
+    limiter = new Ratelimit({
+      redis: r,
+      limiter: Ratelimit.slidingWindow(30, "1 m"),
+      prefix: "rl:invite-lookup",
+    });
+  } else if (route === "stripe-checkout") {
+    // 5 Stripe checkout-session creations per user per minute — bounds
+    // promotion-code probing and prevents accidental loops from inflating
+    // our Stripe call volume.
+    limiter = new Ratelimit({
+      redis: r,
+      limiter: Ratelimit.slidingWindow(5, "1 m"),
+      prefix: "rl:stripe-checkout",
+    });
+  } else if (route === "stripe-portal") {
+    limiter = new Ratelimit({
+      redis: r,
+      limiter: Ratelimit.slidingWindow(5, "1 m"),
+      prefix: "rl:stripe-portal",
+    });
+  } else if (route === "onboarding-complete") {
+    // The route is welcome-SMS-latched, but each call still costs a profile
+    // read and a Twilio send for the unlatched edge cases.
+    limiter = new Ratelimit({
+      redis: r,
+      limiter: Ratelimit.slidingWindow(5, "1 m"),
+      prefix: "rl:onboarding-complete",
     });
   } else {
     // first-use: 5 requests per 365 days (effectively lifetime)

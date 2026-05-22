@@ -1,7 +1,12 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getAuthenticatedUser } from "@/lib/supabase/api-auth";
-import { getGoogleAuthUrl } from "@/lib/calendar/google";
+import {
+  getGoogleAuthUrl,
+  refreshGoogleToken,
+  stopGoogleWebhook,
+} from "@/lib/calendar/google";
+import * as Sentry from "@sentry/nextjs";
 
 // GET /api/calendar/google — initiate Google OAuth
 export async function GET(request: Request) {
@@ -27,6 +32,42 @@ export async function DELETE(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
   const supabase = createClient();
+
+  // Stop the live push channel BEFORE deleting the connection row — otherwise
+  // Google keeps pinging our webhook for up to 7 days (channel TTL) and the
+  // webhook returns 404, which Google retries indefinitely. Best-effort: a
+  // failed stop must not block the user's disconnect.
+  const { data: existing } = await supabase
+    .from("calendar_connections")
+    .select(
+      "refresh_token, google_channel_id, google_resource_id"
+    )
+    .eq("profile_id", user.id)
+    .eq("provider", "google")
+    .maybeSingle<{
+      refresh_token: string | null;
+      google_channel_id: string | null;
+      google_resource_id: string | null;
+    }>();
+
+  if (
+    existing?.refresh_token &&
+    existing.google_channel_id &&
+    existing.google_resource_id
+  ) {
+    try {
+      const tokens = await refreshGoogleToken(existing.refresh_token);
+      if (tokens.access_token) {
+        await stopGoogleWebhook(
+          tokens.access_token,
+          existing.google_channel_id,
+          existing.google_resource_id
+        );
+      }
+    } catch (err) {
+      Sentry.captureException(err);
+    }
+  }
 
   await supabase
     .from("calendar_connections")

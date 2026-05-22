@@ -52,10 +52,28 @@ function isRevokedTokenError(err: unknown): boolean {
   const errCode = e?.response?.data?.error;
   if (errCode === "invalid_grant" || errCode === "unauthorized_client") return true;
   if (typeof e?.message === "string" && /invalid_grant/i.test(e.message)) return true;
+  // The google client library throws "No refresh token is set" when callers
+  // pass `null`/`undefined` — we used to swallow this as a generic error, then
+  // the connection would land in `error` rather than `needs_reconnect` and the
+  // dashboard wouldn't render the reconnect CTA. Treat it as a revoked-token
+  // condition so users always get a way back. (audit v5 P1-C3)
+  if (
+    typeof e?.message === "string" &&
+    /no refresh token is set/i.test(e.message)
+  ) {
+    return true;
+  }
   return false;
 }
 
-export async function refreshGoogleToken(refreshToken: string) {
+export async function refreshGoogleToken(refreshToken: string | null | undefined) {
+  if (!refreshToken) {
+    // Match the google library's own error string so isRevokedTokenError above
+    // routes this through to a needs_reconnect flip.
+    throw new GoogleTokenRevokedError(
+      "No refresh token is set — user must reconnect"
+    );
+  }
   const oauth2Client = getGoogleOAuthClient();
   oauth2Client.setCredentials({ refresh_token: refreshToken });
   try {
@@ -135,6 +153,39 @@ export async function pullGoogleEvents(
     }
     throw error;
   }
+}
+
+/**
+ * Return the user's non-hidden, non-deleted calendars (the ones they'd see in
+ * Google Calendar today). Used by the sync path to fan out across every
+ * coordination-relevant calendar instead of just "primary" — school district
+ * calendars, sports leagues, partner shared calendars all live here.
+ */
+export async function listGoogleCalendars(
+  accessToken: string
+): Promise<{ id: string; summary: string; primary: boolean }[]> {
+  const calendar = getCalendarClient(accessToken);
+  const out: { id: string; summary: string; primary: boolean }[] = [];
+  let pageToken: string | undefined;
+  do {
+    const response = await calendar.calendarList.list({
+      maxResults: 250,
+      showHidden: false,
+      showDeleted: false,
+      pageToken,
+    });
+    for (const item of response.data.items ?? []) {
+      if (!item.id) continue;
+      if (item.hidden || item.deleted) continue;
+      out.push({
+        id: item.id,
+        summary: item.summary ?? item.id,
+        primary: item.primary === true,
+      });
+    }
+    pageToken = response.data.nextPageToken || undefined;
+  } while (pageToken);
+  return out;
 }
 
 // ── Webhook Management ──
