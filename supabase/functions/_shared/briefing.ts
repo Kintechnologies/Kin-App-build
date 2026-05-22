@@ -848,9 +848,19 @@ async function buildBriefingContext(
 }
 
 // Calls Claude with 3 attempts and exponential backoff. Throws if all fail.
+//
+// Per-attempt 30s timeout via AbortController: without this, a stalled socket
+// (not a 5xx — actually hanging) can sit on the platform's TCP timeout
+// (60–120s) per attempt, chaining a single bad connection into multi-minute
+// blocks inside the morning-briefing fan-out loop. Bounded worst case is now
+// ~90s (3 × 30s) regardless of upstream behavior.
+const ANTHROPIC_TIMEOUT_MS = 30_000;
+
 async function callAnthropicWithRetry(ctx: string): Promise<string> {
   let lastErr: unknown;
   for (let attempt = 1; attempt <= 3; attempt++) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), ANTHROPIC_TIMEOUT_MS);
     try {
       const res = await fetch("https://api.anthropic.com/v1/messages", {
         method: "POST",
@@ -865,6 +875,7 @@ async function callAnthropicWithRetry(ctx: string): Promise<string> {
           system: SYSTEM_PROMPT,
           messages: [{ role: "user", content: ctx }],
         }),
+        signal: controller.signal,
       });
       if (!res.ok) {
         const err = await res.text();
@@ -885,9 +896,21 @@ async function callAnthropicWithRetry(ctx: string): Promise<string> {
       return text.replace(/\s+/g, " ").trim();
     } catch (err) {
       lastErr = err;
+      const aborted =
+        (err as { name?: string })?.name === "AbortError" ||
+        controller.signal.aborted;
+      if (aborted) {
+        lastErr = new Error(
+          `Anthropic request aborted after ${ANTHROPIC_TIMEOUT_MS}ms`
+        );
+      }
       const status = (err as { status?: number })?.status;
-      if (!isRetryable(status) || attempt === 3) break;
+      // Treat AbortError as retryable — a stalled socket on attempt 1 may
+      // succeed on attempt 2 against a different upstream node.
+      if ((!isRetryable(status) && !aborted) || attempt === 3) break;
       await sleep(1000 * 2 ** (attempt - 1));
+    } finally {
+      clearTimeout(timer);
     }
   }
   throw lastErr instanceof Error ? lastErr : new Error(String(lastErr));
@@ -916,6 +939,15 @@ export interface GeneratedBriefing {
   context: string;
 }
 
+// Total SMS budget across body + optional payment nudge. 600 chars ≈ 4 Twilio
+// segments (160 chars/segment). Appending the trial payment nudge unconditionally
+// after a 600-char slice pushed trial briefings to ~760 chars — a fifth segment
+// of cost on every trial-user send. The cap now covers the whole message; the
+// body is shortened to fit when the nudge is appended.
+const TOTAL_SMS_CAP = 600;
+// Two newlines between body and nudge.
+const NUDGE_SEPARATOR = "\n\n";
+
 // Generates the briefing for one profile. If the AI call fails after retries,
 // degrades gracefully to a plaintext calendar list rather than giving up.
 export async function generateBriefing(
@@ -927,11 +959,15 @@ export async function generateBriefing(
 ): Promise<GeneratedBriefing> {
   const context = await buildBriefingContext(profileId, familyName, lastName, timezone);
 
+  // Reserve room for the nudge so body + separator + nudge fits the cap.
+  const bodyCap = appendPaymentNudge
+    ? TOTAL_SMS_CAP - PAYMENT_NUDGE.length - NUDGE_SEPARATOR.length
+    : TOTAL_SMS_CAP;
+
   let text: string;
   let degraded = false;
   try {
-    // 600-char cap leaves room for an optional high-risk follow-up question.
-    text = (await callAnthropicWithRetry(context.ctx)).slice(0, 600);
+    text = (await callAnthropicWithRetry(context.ctx)).slice(0, bodyCap);
   } catch (err) {
     degraded = true;
     const msg = err instanceof Error ? err.message : String(err);
@@ -940,11 +976,11 @@ export async function generateBriefing(
       `AI briefing generation failed for ${familyName ?? profileId} (${profileId}) after retries — sent plaintext fallback. ${msg}`,
       "warning"
     );
-    text = buildPlaintextBriefing(context);
+    text = buildPlaintextBriefing(context).slice(0, bodyCap);
   }
 
   return {
-    text: appendPaymentNudge ? `${text}\n\n${PAYMENT_NUDGE}` : text,
+    text: appendPaymentNudge ? `${text}${NUDGE_SEPARATOR}${PAYMENT_NUDGE}` : text,
     degraded,
     context: context.ctx,
   };

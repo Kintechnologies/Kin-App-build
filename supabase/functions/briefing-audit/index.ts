@@ -33,12 +33,18 @@ serve(async (req) => {
   // backstop must respect the opt-out exactly as the 6am cron does — a
   // "by-any-means-necessary" recovery that re-texted an unsubscribed user
   // would be a TCPA violation, not reliability.
+  //
+  // Billing gate mirrors morning-briefing: trial/active subscribers only,
+  // plus billing_exempt overrides. The audit must never recover a briefing
+  // for a canceled or past_due account — that would defeat the gating on
+  // the primary cron and re-introduce the same cost+compliance leak.
   const { data: profiles, error } = await supabase
     .from("profiles")
     .select("id, family_name, last_name, phone_number, timezone, created_at, subscription_status, billing_exempt, sms_opted_out_at")
     .not("phone_number", "is", null)
     .is("sms_opted_out_at", null)
-    .eq("onboarding_completed", true);
+    .eq("onboarding_completed", true)
+    .or("subscription_status.in.(trial,active),billing_exempt.eq.true");
 
   if (error) {
     console.error("Audit failed to load profiles:", error.message);

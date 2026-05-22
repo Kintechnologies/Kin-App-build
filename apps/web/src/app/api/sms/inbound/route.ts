@@ -154,6 +154,9 @@ export async function POST(request: Request) {
 
   const fromNumber = params["From"] ?? "";
   const messageBody = (params["Body"] ?? "").trim();
+  // Twilio's request UUID. Stable across retries of the same upstream message —
+  // used below as the idempotency key for the Claude-bound paths.
+  const messageSid = params["MessageSid"] ?? "";
 
   if (!fromNumber) {
     return twimlReply("Hi! Text us from the number you signed up with.");
@@ -225,13 +228,54 @@ export async function POST(request: Request) {
     );
   }
 
+  const supabase = createAdminClient();
+
+  // ── 2c. Idempotency — Twilio retries (5xx / network failure, default 3
+  //    attempts) re-POST with the same MessageSid. Without dedup, each retry
+  //    would re-run the Claude call, double-bill us, and double-send the
+  //    outbound reply. STOP/HELP/START above are already idempotent (their
+  //    DB updates are gated by `.is(... null)`) so we let them short-circuit
+  //    first; everything below this point reads as the cached prior turn on
+  //    retry. ────────────────────────────────────────────────────────────────
+  if (messageSid) {
+    const { data: priorInbound } = await supabase
+      .from("sms_conversations")
+      .select("id, profile_id, sent_at")
+      .eq("twilio_message_sid", messageSid)
+      .eq("direction", "inbound")
+      .maybeSingle<{ id: string; profile_id: string | null; sent_at: string }>();
+
+    if (priorInbound) {
+      // Find the outbound reply emitted for this turn. We pair by profile +
+      // "first outbound after this inbound" — sms_conversations doesn't track
+      // a reply FK, but inbound/outbound on a single profile are strictly
+      // serialized by the webhook, so the next outbound is the right one.
+      if (priorInbound.profile_id) {
+        const { data: cachedReply } = await supabase
+          .from("sms_conversations")
+          .select("body")
+          .eq("profile_id", priorInbound.profile_id)
+          .eq("direction", "outbound")
+          .gte("sent_at", priorInbound.sent_at)
+          .order("sent_at", { ascending: true })
+          .limit(1)
+          .maybeSingle<{ body: string }>();
+        if (cachedReply?.body) return twimlReply(cachedReply.body);
+      }
+      // Inbound logged but no outbound yet (original handler crashed mid-flight,
+      // or this is a duplicate of a non-profile-bound flow). Returning empty
+      // TwiML is safer than re-running — the original attempt's TwiML response
+      // already went back to Twilio on the first delivery, and re-doing the
+      // work risks double-charging Claude. ─────────────────────────────────
+      return twimlEmpty();
+    }
+  }
+
   // ── 3. Rate limit ──────────────────────────────────────────────────────────
   const rl = await checkRateLimit(fromNumber, "sms");
   if (!rl.allowed) {
     return twimlReply("You're sending messages too fast. Try again in an hour.");
   }
-
-  const supabase = createAdminClient();
 
   // ── 4. Profile lookup ──────────────────────────────────────────────────────
   let profileRow: OnboardingProfile | null = null;
@@ -277,7 +321,11 @@ export async function POST(request: Request) {
   }
 
   // ── 6. Log inbound (capture row id for household-context provenance) ───────
-  const { data: inboundRow } = await supabase
+  // twilio_message_sid backs the idempotency check above; partial unique index
+  // (see migration 062) catches the rare race where two retries land between
+  // the lookup and the insert — on conflict, fetch the cached reply and return
+  // it instead of double-billing Claude.
+  const inboundInsert = await supabase
     .from("sms_conversations")
     .insert({
       profile_id: profileRow.id,
@@ -285,9 +333,33 @@ export async function POST(request: Request) {
       body: messageBody,
       from_number: fromNumber,
       to_number: process.env.TWILIO_PHONE_NUMBER ?? "",
+      twilio_message_sid: messageSid || null,
     })
     .select("id")
     .maybeSingle<{ id: string }>();
+
+  if (inboundInsert.error?.code === "23505" && messageSid) {
+    const { data: priorInbound } = await supabase
+      .from("sms_conversations")
+      .select("profile_id, sent_at")
+      .eq("twilio_message_sid", messageSid)
+      .eq("direction", "inbound")
+      .maybeSingle<{ profile_id: string | null; sent_at: string }>();
+    if (priorInbound?.profile_id) {
+      const { data: cachedReply } = await supabase
+        .from("sms_conversations")
+        .select("body")
+        .eq("profile_id", priorInbound.profile_id)
+        .eq("direction", "outbound")
+        .gte("sent_at", priorInbound.sent_at)
+        .order("sent_at", { ascending: true })
+        .limit(1)
+        .maybeSingle<{ body: string }>();
+      if (cachedReply?.body) return twimlReply(cachedReply.body);
+    }
+    return twimlEmpty();
+  }
+  const inboundRow = inboundInsert.data;
 
   // ── 6b. Capture a Sunday check-in reply ───────────────────────────────────
   // If this onboarded user got a weekly Sunday check-in text in the last 24h

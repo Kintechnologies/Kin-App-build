@@ -18,16 +18,21 @@ import { createAdminClient } from "@/lib/supabase/admin";
 
 type AdminClient = ReturnType<typeof createAdminClient>;
 
-/** The warm reply an unapproved number receives. */
+/** The warm reply an unapproved number receives.
+ *
+ * Includes the STOP footer because 10DLC carrier rules require an opt-out
+ * instruction on every promotional / transactional SMS in a campaign — not
+ * just the final message in a series. */
 export const WAITLIST_MESSAGE =
   "Hey! Kin isn't open to everyone yet, but you're on the list. " +
-  "We'll text you when it's your turn. 💛";
+  "We'll text you when it's your turn. 💛 Reply STOP to opt out.";
 
 /** The SMS sent to a number the moment an admin approves it — this is the
- * "we'll text you when it's your turn" promise from WAITLIST_MESSAGE coming due. */
+ * "we'll text you when it's your turn" promise from WAITLIST_MESSAGE coming due.
+ * Carries the same STOP footer for 10DLC compliance. */
 export const APPROVED_MESSAGE =
   "Good news — it's your turn! Kin's ready for you. 💛 " +
-  "Text me anything to get started.";
+  "Text me anything to get started. Reply STOP to opt out.";
 
 /**
  * Normalize a phone number to E.164 (a leading + and digits only), or null if

@@ -39,12 +39,19 @@ serve(async (req) => {
   // TCPA: sms_opted_out_at IS NULL drops any user who replied STOP — the
   // inbound webhook stamps that column on opt-out, and we treat non-NULL
   // as a hard suppression for every automated briefing path.
+  //
+  // Billing gate: only trial + active subscribers receive briefings.
+  // past_due/canceled accounts would be both a cost leak (Twilio fees on a
+  // lapsed customer) and a TCPA risk — 10DLC treats post-cancellation auto-SMS
+  // as outside the consented "duration of the relationship". billing_exempt
+  // (founder/comp) overrides the status filter via .or().
   const { data: profiles, error: profileError } = await supabase
     .from("profiles")
     .select("id, family_name, last_name, phone_number, timezone, created_at, subscription_status, billing_exempt, sms_opted_out_at")
     .not("phone_number", "is", null)
     .is("sms_opted_out_at", null)
-    .eq("onboarding_completed", true);
+    .eq("onboarding_completed", true)
+    .or("subscription_status.in.(trial,active),billing_exempt.eq.true");
 
   if (profileError) {
     console.error("Failed to fetch profiles:", profileError.message);
