@@ -32,6 +32,7 @@ type RouteKey =
   | "invite-create"
   | "invite-lookup"
   | "stripe-checkout"
+  | "stripe-coupon"
   | "stripe-portal"
   | "onboarding-complete";
 
@@ -115,6 +116,15 @@ function getLimiter(route: RouteKey): Ratelimit | null {
       redis: r,
       limiter: Ratelimit.slidingWindow(5, "1 m"),
       prefix: "rl:stripe-checkout",
+    });
+  } else if (route === "stripe-coupon") {
+    // 3 coupon resolutions per user per minute — bounds coupon-code probing
+    // independently of the broader stripe-checkout limit. Audit v5 P2-A5:
+    // raw `resolveDiscount` exposes a timing oracle on coupon validity.
+    limiter = new Ratelimit({
+      redis: r,
+      limiter: Ratelimit.slidingWindow(3, "1 m"),
+      prefix: "rl:stripe-coupon",
     });
   } else if (route === "stripe-portal") {
     limiter = new Ratelimit({

@@ -133,6 +133,33 @@ function parseICalEvent(
   };
 }
 
+/**
+ * Stable synthetic etag derived from the event's mutable fields. Used when
+ * the CalDAV server omits the etag header (some Apple endpoints do this for
+ * read-only shared calendars). Without it, every sync would either update
+ * every row (write amplification) or never update at all (no-update race) —
+ * v5 P2-C3.
+ */
+function syntheticEtag(parsed: ParsedAppleEvent): string {
+  const composite = [
+    parsed.title,
+    parsed.startTime,
+    parsed.endTime,
+    parsed.location ?? "",
+    parsed.description ?? "",
+    parsed.recurrenceRule ?? "",
+    parsed.visibility,
+  ].join("|");
+  // Lightweight non-crypto hash — collision-resistant enough for change
+  // detection between two snapshots of the same event UID.
+  let hash = 0;
+  for (let i = 0; i < composite.length; i++) {
+    hash = (hash << 5) - hash + composite.charCodeAt(i);
+    hash |= 0;
+  }
+  return `kin-${hash.toString(16)}-${composite.length}`;
+}
+
 export function appleEventToKinEvent(
   parsed: ParsedAppleEvent,
   profileId: string,
@@ -152,7 +179,7 @@ export function appleEventToKinEvent(
     external_id: parsed.uid,
     external_source: "apple" as const,
     external_calendar_id: calendarUrl,
-    external_etag: parsed.etag,
+    external_etag: parsed.etag ?? syntheticEtag(parsed),
     sync_status: "synced" as const,
     is_shared: false,
     is_kid_event: false,

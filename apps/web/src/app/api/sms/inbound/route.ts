@@ -155,6 +155,16 @@ export async function POST(request: Request) {
 
   const fromNumber = params["From"] ?? "";
   const messageBody = (params["Body"] ?? "").trim();
+  // Carrier keyword normalization: STOP/HELP/START variants often arrive with
+  // trailing punctuation ("STOP.", "HELP!") or a single trailing word
+  // ("stop please"). Twilio's carrier-side opt-out catches the bare token,
+  // but our `sms_opted_out_at` stamp only fires on the exact regex below — so
+  // a variant lets the user opt out at the carrier without us recording it,
+  // and engagement-nudges keeps texting them. Normalize the first whitespace-
+  // separated token, stripping trailing punctuation.
+  const messageKeyword = messageBody
+    .split(/\s+/)[0]
+    .replace(/[.,!?;:]+$/, "");
   // Twilio's request UUID. Stable across retries of the same upstream message —
   // used below as the idempotency key for the Claude-bound paths.
   const messageSid = params["MessageSid"] ?? "";
@@ -182,10 +192,20 @@ export async function POST(request: Request) {
       .maybeSingle<{ id: string; profile_id: string | null; sent_at: string }>();
 
     if (priorInbound) {
-      // Find the outbound reply emitted for this turn. The pre-profile keyword
-      // handlers (HELP / START) log with profile_id = null, so the lookup also
-      // matches by sid via the prior inbound's profile_id when available, and
-      // falls back to a sid-tagged outbound otherwise.
+      // Find the outbound reply emitted for this turn. Prefer the explicit
+      // replied_to_id FK (v5 P2-S2) so two inbound messages within the same
+      // second can't mis-pair via time-order; fall back to the legacy
+      // sent_at-ordered query for rows written before migration 071.
+      const { data: pairedReply } = await supabase
+        .from("sms_conversations")
+        .select("body")
+        .eq("replied_to_id", priorInbound.id)
+        .eq("direction", "outbound")
+        .order("sent_at", { ascending: true })
+        .limit(1)
+        .maybeSingle<{ body: string }>();
+      if (pairedReply?.body) return twimlReply(pairedReply.body);
+
       if (priorInbound.profile_id) {
         const { data: cachedReply } = await supabase
           .from("sms_conversations")
@@ -216,7 +236,7 @@ export async function POST(request: Request) {
 
   // ── 2a. STOP guard — Twilio handles unsubscribe at carrier level, but we
   //    honor it in-route too and return empty TwiML (no reply sent) ───────────
-  if (/^(STOP|STOPALL|UNSUBSCRIBE|CANCEL|END|QUIT)$/i.test(messageBody)) {
+  if (/^(STOP|STOPALL|UNSUBSCRIBE|CANCEL|END|QUIT)$/i.test(messageKeyword)) {
     // TCPA: stamp the opt-out on both sides — the waitlist row (so the
     // phone-first marketing flow never re-texts the number) AND the profile
     // (so briefings, nudges, alerts, and check-ins all suppress this user).
@@ -261,21 +281,25 @@ export async function POST(request: Request) {
   //    response identifying the program and pointing to the opt-out path. The
   //    inbound + outbound are sid-tagged so a Twilio retry hits the cache
   //    instead of billing a new segment for the same MessageSid.
-  if (/^(HELP|INFO)$/i.test(messageBody)) {
+  if (/^(HELP|INFO)$/i.test(messageKeyword)) {
     const helpReply =
       "Kin Family AI. Daily morning briefing for parents. " +
       "Help: kinai.family · email hello@kinai.family · reply STOP to unsubscribe. " +
       "Msg & data rates may apply.";
     if (messageSid) {
       try {
-        await supabase.from("sms_conversations").insert({
-          profile_id: null,
-          direction: "inbound",
-          body: messageBody,
-          from_number: fromNumber,
-          to_number: process.env.TWILIO_PHONE_NUMBER ?? "",
-          twilio_message_sid: messageSid,
-        });
+        const { data: helpInbound } = await supabase
+          .from("sms_conversations")
+          .insert({
+            profile_id: null,
+            direction: "inbound",
+            body: messageBody,
+            from_number: fromNumber,
+            to_number: process.env.TWILIO_PHONE_NUMBER ?? "",
+            twilio_message_sid: messageSid,
+          })
+          .select("id")
+          .maybeSingle<{ id: string }>();
         await supabase.from("sms_conversations").insert({
           profile_id: null,
           direction: "outbound",
@@ -283,6 +307,7 @@ export async function POST(request: Request) {
           from_number: process.env.TWILIO_PHONE_NUMBER ?? "",
           to_number: fromNumber,
           twilio_message_sid: messageSid,
+          replied_to_id: helpInbound?.id ?? null,
         });
       } catch (err) {
         console.error("Failed to record HELP/INFO turn:", err);
@@ -293,7 +318,7 @@ export async function POST(request: Request) {
 
   // ── 2c. START / UNSTOP — opt-back-in path. Mirror of STOP: clears
   //    sms_opted_out_at on both waitlist and profiles, then confirms. ─────────
-  if (/^(START|UNSTOP)$/i.test(messageBody)) {
+  if (/^(START|UNSTOP)$/i.test(messageKeyword)) {
     const startReply =
       "Welcome back! You've been re-subscribed to Kin messages.";
     try {
@@ -310,14 +335,18 @@ export async function POST(request: Request) {
           .not("sms_opted_out_at", "is", null),
       ]);
       if (messageSid) {
-        await supabase.from("sms_conversations").insert({
-          profile_id: null,
-          direction: "inbound",
-          body: messageBody,
-          from_number: fromNumber,
-          to_number: process.env.TWILIO_PHONE_NUMBER ?? "",
-          twilio_message_sid: messageSid,
-        });
+        const { data: startInbound } = await supabase
+          .from("sms_conversations")
+          .insert({
+            profile_id: null,
+            direction: "inbound",
+            body: messageBody,
+            from_number: fromNumber,
+            to_number: process.env.TWILIO_PHONE_NUMBER ?? "",
+            twilio_message_sid: messageSid,
+          })
+          .select("id")
+          .maybeSingle<{ id: string }>();
         await supabase.from("sms_conversations").insert({
           profile_id: null,
           direction: "outbound",
@@ -325,12 +354,46 @@ export async function POST(request: Request) {
           from_number: process.env.TWILIO_PHONE_NUMBER ?? "",
           to_number: fromNumber,
           twilio_message_sid: messageSid,
+          replied_to_id: startInbound?.id ?? null,
         });
       }
     } catch (err) {
       console.error("Failed to clear SMS opt-out:", err);
     }
     return twimlReply(startReply);
+  }
+
+  // ── 2d. In-flight idempotency sentinel (v5 P2-S5) ─────────────────────────
+  //    Cache check at step 2 reads sms_conversations for a prior inbound with
+  //    this MessageSid, but the row is only inserted after profile lookup +
+  //    rate limit + (heavy) onboarding/Claude work. A Twilio retry arriving
+  //    during that window sees no prior row and re-runs the work — billing
+  //    Claude twice. Pre-insert a sentinel row (profile_id NULL) as soon as
+  //    we know we're not a keyword reply; later steps UPDATE it with the
+  //    profile_id instead of INSERTing a fresh row. A concurrent retry that
+  //    races the sentinel insert hits the partial unique index from migration
+  //    062, falls through to the conflict handler, and returns empty TwiML.
+  let sentinelInboundId: string | null = null;
+  if (messageSid) {
+    const sentinel = await supabase
+      .from("sms_conversations")
+      .insert({
+        profile_id: null,
+        direction: "inbound",
+        body: messageBody,
+        from_number: fromNumber,
+        to_number: process.env.TWILIO_PHONE_NUMBER ?? "",
+        twilio_message_sid: messageSid,
+      })
+      .select("id")
+      .maybeSingle<{ id: string }>();
+    if (sentinel.error?.code === "23505") {
+      // A concurrent attempt got the sentinel first — the other invocation
+      // is doing the work. Return empty TwiML; the caller can retry once the
+      // original commits its outbound row.
+      return twimlEmpty();
+    }
+    sentinelInboundId = sentinel.data?.id ?? null;
   }
 
   // ── 3. Rate limit ──────────────────────────────────────────────────────────
@@ -382,46 +445,56 @@ export async function POST(request: Request) {
     }
   }
 
-  // ── 6. Log inbound (capture row id for household-context provenance) ───────
-  // twilio_message_sid backs the idempotency check above; partial unique index
-  // (see migration 062) catches the rare race where two retries land between
-  // the lookup and the insert — on conflict, fetch the cached reply and return
-  // it instead of double-billing Claude.
-  const inboundInsert = await supabase
-    .from("sms_conversations")
-    .insert({
-      profile_id: profileRow.id,
-      direction: "inbound",
-      body: messageBody,
-      from_number: fromNumber,
-      to_number: process.env.TWILIO_PHONE_NUMBER ?? "",
-      twilio_message_sid: messageSid || null,
-    })
-    .select("id")
-    .maybeSingle<{ id: string }>();
-
-  if (inboundInsert.error?.code === "23505" && messageSid) {
-    const { data: priorInbound } = await supabase
+  // ── 6. Stamp inbound with profile_id ───────────────────────────────────────
+  // The row was pre-inserted as a sentinel at step 2d (with profile_id NULL)
+  // to close the in-flight race window. Update it with the resolved
+  // profile_id now that profile lookup is done. The legacy INSERT path is
+  // kept for the no-MessageSid case (paranoid: real Twilio inbound always
+  // has one, but local tests sometimes don't).
+  let inboundRow: { id: string } | null = null;
+  if (sentinelInboundId) {
+    await supabase
       .from("sms_conversations")
-      .select("profile_id, sent_at")
-      .eq("twilio_message_sid", messageSid)
-      .eq("direction", "inbound")
-      .maybeSingle<{ profile_id: string | null; sent_at: string }>();
-    if (priorInbound?.profile_id) {
-      const { data: cachedReply } = await supabase
+      .update({ profile_id: profileRow.id })
+      .eq("id", sentinelInboundId);
+    inboundRow = { id: sentinelInboundId };
+  } else {
+    const inboundInsert = await supabase
+      .from("sms_conversations")
+      .insert({
+        profile_id: profileRow.id,
+        direction: "inbound",
+        body: messageBody,
+        from_number: fromNumber,
+        to_number: process.env.TWILIO_PHONE_NUMBER ?? "",
+        twilio_message_sid: messageSid || null,
+      })
+      .select("id")
+      .maybeSingle<{ id: string }>();
+
+    if (inboundInsert.error?.code === "23505" && messageSid) {
+      const { data: priorInbound } = await supabase
         .from("sms_conversations")
-        .select("body")
-        .eq("profile_id", priorInbound.profile_id)
-        .eq("direction", "outbound")
-        .gte("sent_at", priorInbound.sent_at)
-        .order("sent_at", { ascending: true })
-        .limit(1)
-        .maybeSingle<{ body: string }>();
-      if (cachedReply?.body) return twimlReply(cachedReply.body);
+        .select("profile_id, sent_at")
+        .eq("twilio_message_sid", messageSid)
+        .eq("direction", "inbound")
+        .maybeSingle<{ profile_id: string | null; sent_at: string }>();
+      if (priorInbound?.profile_id) {
+        const { data: cachedReply } = await supabase
+          .from("sms_conversations")
+          .select("body")
+          .eq("profile_id", priorInbound.profile_id)
+          .eq("direction", "outbound")
+          .gte("sent_at", priorInbound.sent_at)
+          .order("sent_at", { ascending: true })
+          .limit(1)
+          .maybeSingle<{ body: string }>();
+        if (cachedReply?.body) return twimlReply(cachedReply.body);
+      }
+      return twimlEmpty();
     }
-    return twimlEmpty();
+    inboundRow = inboundInsert.data;
   }
-  const inboundRow = inboundInsert.data;
 
   // ── 6b. Capture a Sunday check-in reply ───────────────────────────────────
   // If this onboarded user got a weekly Sunday check-in text in the last 24h
@@ -512,6 +585,7 @@ export async function POST(request: Request) {
         .is("deleted_at", null)
         .order("start_time", { ascending: true })
         .limit(10)
+        .returns<CalendarEventRow[]>()
     : Promise.resolve({ data: null as CalendarEventRow[] | null });
 
   const [
@@ -529,8 +603,9 @@ export async function POST(request: Request) {
       .or(`end_time.gt.${todayStart},end_time.is.null`)
       .is("deleted_at", null)
       .order("start_time", { ascending: true })
-      .limit(10) as unknown as Promise<{ data: CalendarEventRow[] | null }>,
-    partnerEventsQuery as unknown as Promise<{ data: CalendarEventRow[] | null }>,
+      .limit(10)
+      .returns<CalendarEventRow[]>(),
+    partnerEventsQuery,
     supabase
       .from("morning_briefings")
       .select("content")
@@ -546,7 +621,8 @@ export async function POST(request: Request) {
       .eq("profile_id", profileRow.id)
       .neq("direction", "outbound_failed")
       .order("sent_at", { ascending: false })
-      .limit(SMS_HISTORY_LIMIT + 1) as unknown as Promise<{ data: SmsHistoryRow[] | null }>,
+      .limit(SMS_HISTORY_LIMIT + 1)
+      .returns<SmsHistoryRow[]>(),
     // Most recent calendar sync — drives the staleness hedge in the system
     // prompt. nullsFirst:false keeps a never-synced connection from outranking
     // a real timestamp.
@@ -660,12 +736,16 @@ export async function POST(request: Request) {
   }
 
   // ── 13. Log outbound + return TwiML ───────────────────────────────────────
+  // replied_to_id pins this outbound to the inbound it answered, so a Twilio
+  // retry of a same-second sibling inbound can't mis-pair via the time-order
+  // cache lookup (v5 P2-S2).
   await supabase.from("sms_conversations").insert({
     profile_id: profileRow.id,
     direction: "outbound",
     body: reply,
     from_number: process.env.TWILIO_PHONE_NUMBER ?? "",
     to_number: fromNumber,
+    replied_to_id: inboundRow?.id ?? null,
   });
 
   // ── 14. Learn household context from this exchange ────────────────────────

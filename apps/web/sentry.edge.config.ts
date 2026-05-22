@@ -6,4 +6,5 @@ Sentry.init({
   tracesSampleRate: process.env.NODE_ENV === "production" ? 0.1 : 0,
   debug: false,
   beforeSend: scrubSentryEvent,
+  release: process.env.VERCEL_GIT_COMMIT_SHA,
 });

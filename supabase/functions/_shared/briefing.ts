@@ -690,10 +690,16 @@ function resolveFamilyNaming(
     return { parentFirstName: null, surname: explicitSurname };
   }
   const tokens = cleaned.split(/\s+/);
-  // Prefer the dedicated last_name column; fall back to a multi-word
-  // family_name for profiles created before that column existed.
-  const surname =
-    explicitSurname ?? (tokens.length > 1 ? tokens.slice(1).join(" ") : null);
+  // Prefer the dedicated last_name column. Without it, only attempt a split
+  // for an unambiguous two-token "First Last" form (v5 P2-E4: the prior
+  // "first word + everything else" fallback Western-ized longer names like
+  // "Mary Smith Johnson" or CJK family-first ordering, inventing a surname
+  // the user never typed). Three+ tokens with no explicit surname → leave
+  // null and let the briefing layer's no-surname fallback handle it.
+  let surname: string | null = explicitSurname;
+  if (!surname && tokens.length === 2) {
+    surname = tokens[1];
+  }
   return { parentFirstName: tokens[0], surname };
 }
 
@@ -919,6 +925,11 @@ async function buildBriefingContext(
 // ~90s (3 × 30s) regardless of upstream behavior.
 const ANTHROPIC_TIMEOUT_MS = 30_000;
 
+// Default writer model. Override via BRIEFING_WRITER_MODEL (v5 P2-B4) when
+// rolling to a newer Sonnet or A/B testing a different model.
+const WRITER_MODEL =
+  Deno.env.get("BRIEFING_WRITER_MODEL") ?? "claude-sonnet-4-6";
+
 async function callAnthropicWithRetry(ctx: string): Promise<string> {
   let lastErr: unknown;
   for (let attempt = 1; attempt <= 3; attempt++) {
@@ -933,7 +944,7 @@ async function callAnthropicWithRetry(ctx: string): Promise<string> {
           "content-type": "application/json",
         },
         body: JSON.stringify({
-          model: "claude-sonnet-4-6",
+          model: WRITER_MODEL,
           max_tokens: 200,
           system: SYSTEM_PROMPT,
           messages: [{ role: "user", content: ctx }],

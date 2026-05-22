@@ -34,7 +34,7 @@ export const metadata: Metadata = {
 
 export default function Home() {
   return (
-    <main className="marketing" style={{ backgroundColor: "#ECE4D2", color: "#2B261E" }}>
+    <main className="marketing" style={{ backgroundColor: "#F7F3ED", color: "#2B261E" }}>
       <Nav />
       <Hero />
       <Relatability />

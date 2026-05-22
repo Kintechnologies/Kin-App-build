@@ -145,7 +145,7 @@ body {
    to their root element.
    ───────────────────────────────────────────────────────────────────────── */
 .marketing {
-  --bg:          #ECE4D2;
+  --bg:          #F7F3ED;
   --bg-deep:     #E3D9C1;
   --paper:       #F7F2E6;
   --paper-2:     #EFE7D4;
@@ -194,5 +194,26 @@ body {
 @media (prefers-reduced-motion: no-preference) {
   .marketing .kin-reveal {
     animation: kinReveal 0.6s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+}
+
+/* Auth surface utilities. Moved here from inline <style dangerouslySetInnerHTML>
+   blocks in (auth)/signin/page.tsx and (auth)/signup/page.tsx (v5 P2-Sec1):
+   static strings were never an XSS risk, but scanners flag the attribute on
+   every audit pass — globals.css is the single source of truth.
+
+   .kin-spin: 360° rotation keyframe used by the auth-page loading spinners.
+   .kin-signin-rail / .kin-signin-shell / .kin-signin-mobile-wordmark: signin
+   layout responsiveness — the rail hides under 900px and the form stacks. */
+@keyframes spin { to { transform: rotate(360deg); } }
+@media (max-width: 900px) {
+  .kin-signin-rail { display: none !important; }
+  .kin-signin-shell { flex-direction: column !important; }
+  .kin-signin-mobile-wordmark {
+    display: block !important;
+    position: absolute;
+    top: 28px;
+    left: 50%;
+    transform: translateX(-50%);
   }
 }

@@ -18,9 +18,17 @@
  */
 
 import { NextResponse } from "next/server";
+import { timingSafeEqual } from "node:crypto";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { sendSms } from "@/lib/twilio";
 import { approveNumber, normalizePhone, APPROVED_MESSAGE } from "@/lib/sms-access";
+
+function safeEqual(a: string, b: string): boolean {
+  const aBuf = Buffer.from(a);
+  const bBuf = Buffer.from(b);
+  if (aBuf.length !== bBuf.length) return false;
+  return timingSafeEqual(aBuf, bBuf);
+}
 
 function authorize(request: Request): boolean {
   const secret = process.env.ADMIN_SECRET;
@@ -28,7 +36,8 @@ function authorize(request: Request): boolean {
     console.error("admin/sms/approve: ADMIN_SECRET is not set");
     return false;
   }
-  return request.headers.get("authorization") === `Bearer ${secret}`;
+  const header = request.headers.get("authorization") ?? "";
+  return safeEqual(header, `Bearer ${secret}`);
 }
 
 export async function POST(request: Request) {

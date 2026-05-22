@@ -121,6 +121,11 @@ export async function POST(request: Request) {
 
     let discounts: Stripe.Checkout.SessionCreateParams.Discount[] | undefined;
     if (couponCode) {
+      // Coupon-specific limit so a single user can't probe many codes per
+      // minute through the timing oracle in resolveDiscount.
+      const couponRl = await checkRateLimit(user.id, "stripe-coupon");
+      if (!couponRl.allowed) return rateLimitResponse(couponRl);
+
       const discount = await resolveDiscount(stripe, couponCode);
       if (!discount) {
         return NextResponse.json(

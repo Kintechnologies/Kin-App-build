@@ -6,7 +6,7 @@ export const metadata = {
   description: "Terms governing your use of Kin AI.",
 };
 
-const LAST_UPDATED = "April 1, 2026";
+const LAST_UPDATED = "May 22, 2026";
 const COMPANY = "Kin Technologies LLC";
 const APP = "Kin AI";
 const EMAIL = "hello@kinai.family";

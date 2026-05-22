@@ -815,24 +815,6 @@ export default function SignInPage() {
           <SignInForm />
         </Suspense>
       </div>
-      <style
-        dangerouslySetInnerHTML={{
-          __html: `
-            @keyframes spin { to { transform: rotate(360deg); } }
-            @media (max-width: 900px) {
-              .kin-signin-rail { display: none !important; }
-              .kin-signin-shell { flex-direction: column !important; }
-              .kin-signin-mobile-wordmark {
-                display: block !important;
-                position: absolute;
-                top: 28px;
-                left: 50%;
-                transform: translateX(-50%);
-              }
-            }
-          `,
-        }}
-      />
     </main>
   );
 }

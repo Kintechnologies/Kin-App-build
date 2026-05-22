@@ -99,11 +99,14 @@ export async function syncCalendarForConnection(connectionId: string) {
 async function syncGoogleCalendar(connection: CalendarConnection) {
   const supabase = createClient();
 
-  // Refresh token if needed
+  // Refresh token if needed. 60s buffer (v5 P2-C1): a token whose expiry is
+  // <= now races the upcoming Google API call — by the time the request
+  // arrives, the token is rejected. Refresh anything expiring in the next
+  // minute too.
   let accessToken = connection.access_token!;
   if (
     connection.token_expires_at &&
-    new Date(connection.token_expires_at) <= new Date()
+    new Date(connection.token_expires_at).getTime() <= Date.now() + 60_000
   ) {
     const newTokens = await refreshGoogleToken(connection.refresh_token!);
     accessToken = newTokens.access_token!;

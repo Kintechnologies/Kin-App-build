@@ -224,6 +224,7 @@ export default function DashboardSettingsPage() {
     const supabase = createClient();
     await supabase.auth.signOut();
     router.push("/signin");
+    router.refresh();
   }
 
   return (

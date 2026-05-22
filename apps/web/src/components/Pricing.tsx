@@ -65,7 +65,7 @@ export function Pricing() {
             letterSpacing: "-0.2px",
           }}
         >
-          Early access members lock in this price forever.
+          Simple monthly pricing during early access.
         </p>
       </Reveal>
 
@@ -258,7 +258,7 @@ export function Pricing() {
               background: "var(--clay)",
             }}
           />
-          Early access price — locked in forever
+          Early access — month-to-month, cancel anytime
         </div>
       </div>
     </section>

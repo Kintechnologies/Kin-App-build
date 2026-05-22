@@ -39,4 +39,8 @@ export default withSentryConfig(nextConfig, {
   dryRun: process.env.SENTRY_AUTH_TOKEN === undefined,
   org: process.env.SENTRY_ORG,
   project: process.env.SENTRY_PROJECT,
+  // v5 P2-I2: route browser-side Sentry traffic through our own domain so
+  // ad-blockers (uBlock, EasyPrivacy) can't suppress error reports — family
+  // product audience overlaps heavily with privacy-extension users.
+  tunnelRoute: "/monitoring",
 });

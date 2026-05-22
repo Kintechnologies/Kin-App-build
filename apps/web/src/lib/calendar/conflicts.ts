@@ -40,8 +40,11 @@ export function detectConflicts(
         !a.is_kid_event && !b.is_kid_event;
       const differentOwners = a.owner_parent_id !== b.owner_parent_id;
 
-      // 1. Time overlap between both parents
-      if (bothParentEvents && differentOwners && a.is_shared && b.is_shared) {
+      // 1. Time overlap between both parents (v5 P2-C2 — drop is_shared
+      // requirement: synced events default is_shared=false, so the predicate
+      // was unreachable from real Google/Apple data. A double-booking between
+      // two parents is a conflict regardless of share flag).
+      if (bothParentEvents && differentOwners) {
         conflicts.push({
           event_a: a,
           event_b: b,

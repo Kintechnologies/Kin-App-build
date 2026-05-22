@@ -6,7 +6,17 @@ import { notifySlack } from "@/lib/notify";
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
   const code = searchParams.get("code");
-  const next = searchParams.get("next") ?? "/dashboard";
+  // Validate `next` — must be a relative path (starts with /) and NOT a
+  // protocol-relative URL (`//evil.com` resolves to https://evil.com after
+  // concatenation with origin). Cap length so we don't echo arbitrary
+  // user-controlled junk back into the Location header.
+  const rawNext = searchParams.get("next") ?? "/dashboard";
+  const next =
+    rawNext.startsWith("/") &&
+    !rawNext.startsWith("//") &&
+    rawNext.length <= 200
+      ? rawNext
+      : "/dashboard";
   // Invite code carried through from /signup?invite=CODE → emailRedirectTo
   const inviteCode = searchParams.get("invite");
 

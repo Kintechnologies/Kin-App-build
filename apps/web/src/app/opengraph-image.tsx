@@ -21,7 +21,7 @@ export default function OpengraphImage() {
         style={{
           width: "100%",
           height: "100%",
-          background: "#ECE4D2",
+          background: "#F7F3ED",
           display: "flex",
           flexDirection: "column",
           padding: "80px 96px",

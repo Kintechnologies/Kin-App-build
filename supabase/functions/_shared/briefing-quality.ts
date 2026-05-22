@@ -24,12 +24,16 @@ const anthropicApiKey = Deno.env.get("ANTHROPIC_API_KEY")!;
 
 // Haiku is the right tradeoff here: scoring runs on every briefing, so cost
 // and latency matter; the judgement is rubric-driven and doesn't need Sonnet's
-// reasoning headroom.
-const SCORER_MODEL = "claude-haiku-4-5-20251001";
+// reasoning headroom. Override via BRIEFING_SCORER_MODEL (v5 P2-B4) when
+// rolling to a newer Haiku or A/B testing a different model.
+const SCORER_MODEL =
+  Deno.env.get("BRIEFING_SCORER_MODEL") ?? "claude-haiku-4-5-20251001";
 
-// 80 = B. Below this we Slack the team. Tune from observed score distribution
-// once we have a few weeks of historical data.
-export const QUALITY_PASS_THRESHOLD = 80;
+// 70 = C. Below this we Slack the team. Lowered from 80 for beta weeks 1-2
+// (audit v5 P2-B1) — Haiku scorer biases low on first-week voice variation,
+// and we want signal on actual quality cliffs, not normal voice variation.
+// Bump back to 80 once we have a baseline distribution from real users.
+export const QUALITY_PASS_THRESHOLD = 70;
 
 export type Grade = "A" | "B" | "C" | "D" | "F";
 

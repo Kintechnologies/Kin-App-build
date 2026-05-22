@@ -21,7 +21,7 @@ export default function GlobalError({
         style={{
           margin: 0,
           minHeight: "100vh",
-          backgroundColor: "#ECE4D2",
+          backgroundColor: "#F7F3ED",
           color: "#2B261E",
           fontFamily:
             'system-ui, -apple-system, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, sans-serif',

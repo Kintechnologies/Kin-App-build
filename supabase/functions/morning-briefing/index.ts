@@ -137,6 +137,29 @@ async function handleTestInvocation(
   }
 
   const p = profile as BriefingProfile;
+
+  // Defense-in-depth subscription gate (v5 P2-B3): the morning + audit fan-out
+  // paths filter on (trial,active) + billing_exempt at query time, but the
+  // test endpoint resolves a profile by phone — gate it the same way so a
+  // canceled or past_due user can't be reached via test mode either.
+  if (!body.dry_run) {
+    const status = p.subscription_status;
+    const billingExempt = p.billing_exempt;
+    const subscriptionActive =
+      billingExempt === true || status === "trial" || status === "active";
+    if (!subscriptionActive) {
+      return new Response(
+        JSON.stringify({
+          error:
+            "Forbidden: target profile is not on an active subscription " +
+            "(test sends require subscription_status in (trial,active) or " +
+            "billing_exempt = true, mirroring the production fan-out gate)",
+        }),
+        { status: 403, headers: { "Content-Type": "application/json" } }
+      );
+    }
+  }
+
   const tz = resolveTimezone(p.timezone);
 
   if (body.dry_run) {
@@ -312,7 +335,11 @@ serve(async (req) => {
       .maybeSingle();
 
     if (existing?.delivery_status === "sent") {
-      console.log(`Already sent to ${profile.id} today, skipping`);
+      // v5 P2-I3: drop to debug — at scale this fires N×24 times per user/day
+      // and drowns the structured fan-out summary. console.debug is filtered
+      // out of Supabase Logs by default but still available locally via
+      // SUPABASE_FUNCTION_LOG_LEVEL=debug.
+      console.debug(`Already sent to ${profile.id} today, skipping`);
       results.skipped++;
       continue;
     }

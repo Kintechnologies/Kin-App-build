@@ -32,14 +32,35 @@ const NAV: NavItem[] = [
   { href: "/dashboard/settings", label: "Settings", icon: SettingsIcon, enabled: true },
 ];
 
-function nextBriefCountdown(): string {
+/**
+ * Countdown to the next 6:00 AM in `timezone`. v5 P2-E3: previously used
+ * `new Date()` getters that resolve in the *browser's* local time, so a PT
+ * user viewing the dashboard from a CT business trip saw 6:00 CT (= 4:00 PT)
+ * — the wrong target. Now driven by the user's stored profile timezone.
+ */
+function nextBriefCountdown(timezone: string | null): string {
+  const tz = timezone ?? Intl.DateTimeFormat().resolvedOptions().timeZone;
   const now = new Date();
-  const next = new Date(now);
-  next.setHours(6, 0, 0, 0);
-  if (now.getHours() >= 6) next.setDate(next.getDate() + 1);
-  const ms = next.getTime() - now.getTime();
-  const h = Math.floor(ms / 3600000);
-  const m = Math.floor((ms % 3600000) / 60000);
+  // Intl-formatted hour/minute in the user's tz.
+  const fmt = new Intl.DateTimeFormat("en-US", {
+    timeZone: tz,
+    hour: "numeric",
+    minute: "numeric",
+    hour12: false,
+  });
+  const parts = fmt.formatToParts(now);
+  const hour = Number(parts.find((p) => p.type === "hour")?.value ?? "0");
+  const minute = Number(parts.find((p) => p.type === "minute")?.value ?? "0");
+
+  // Minutes until next 6:00 AM in user tz. If we're past 6:00 today, target
+  // 6:00 tomorrow (add 24h).
+  const minutesNow = hour * 60 + minute;
+  const minutesTarget = 6 * 60;
+  let minutesToGo = minutesTarget - minutesNow;
+  if (minutesToGo <= 0) minutesToGo += 24 * 60;
+
+  const h = Math.floor(minutesToGo / 60);
+  const m = minutesToGo % 60;
   return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
 }
 
@@ -50,12 +71,16 @@ export default function SidebarNav() {
   const [countdown, setCountdown] = useState("06:00");
   const [name, setName] = useState<string | null>(null);
   const [email, setEmail] = useState<string | null>(null);
+  const [timezone, setTimezone] = useState<string | null>(null);
 
   useEffect(() => {
-    setCountdown(nextBriefCountdown());
-    const t = setInterval(() => setCountdown(nextBriefCountdown()), 60_000);
+    setCountdown(nextBriefCountdown(timezone));
+    const t = setInterval(
+      () => setCountdown(nextBriefCountdown(timezone)),
+      60_000
+    );
     return () => clearInterval(t);
-  }, []);
+  }, [timezone]);
 
   useEffect(() => {
     let cancelled = false;
@@ -67,15 +92,16 @@ export default function SidebarNav() {
         if (user.email) setEmail(user.email);
         const { data: profile } = await supabase
           .from("profiles")
-          .select("first_name")
+          .select("first_name, timezone")
           .eq("id", user.id)
-          .single();
+          .single<{ first_name: string | null; timezone: string | null }>();
         if (cancelled) return;
         if (profile?.first_name) {
           setName(profile.first_name.split(" ")[0]);
         } else if (user.email) {
           setName(user.email.split("@")[0]);
         }
+        if (profile?.timezone) setTimezone(profile.timezone);
       } catch {
         /* non-fatal */
       }
@@ -90,6 +116,7 @@ export default function SidebarNav() {
     const supabase = createClient();
     await supabase.auth.signOut();
     router.push("/signin");
+    router.refresh();
   }
 
   const initial = (name || email || "K").charAt(0).toUpperCase();

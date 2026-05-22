@@ -95,7 +95,6 @@ function textResponse(text: string): Anthropic.Message {
     model: "claude-test-model",
     stop_reason: "end_turn",
     stop_sequence: null,
-    stop_details: null,
     container: null,
     usage: {
       input_tokens: 10,
@@ -126,7 +125,6 @@ function toolUseResponse(id = "tu_001", query = "test query"): Anthropic.Message
     model: "claude-test-model",
     stop_reason: "tool_use",
     stop_sequence: null,
-    stop_details: null,
     container: null,
     usage: {
       input_tokens: 10,

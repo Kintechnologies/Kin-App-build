@@ -110,21 +110,60 @@ serve(async (req) => {
     results.checked++;
     const briefingDate = getLocalDate(tz);
 
-    const { data: existing } = await supabase
+    // Atomic claim (v5 P2-B2): try to insert a placeholder row, or atomically
+    // flip a stale 'failed' row to 'generated'. Postgres row-level locking
+    // serializes concurrent CAS attempts — the loser sees a row already in
+    // 'generated' or 'sent' and skips. Closes the SELECT-then-SEND double-send
+    // window if the audit cron retries while a prior invocation is mid-flight.
+    const insertAttempt = await supabase
       .from("morning_briefings")
-      .select("id, delivery_status")
-      .eq("profile_id", profile.id)
-      .eq("briefing_date", briefingDate)
+      .insert({
+        profile_id: profile.id,
+        briefing_date: briefingDate,
+        content: "",
+        delivery_status: "generated",
+      })
+      .select("id")
       .maybeSingle();
 
-    // Already delivered — nothing to do.
-    if (existing?.delivery_status === "sent") {
-      results.alreadySent++;
+    let claimed = !!insertAttempt.data;
+    let alreadySent = false;
+
+    if (!claimed) {
+      // Row exists — try to atomically flip 'failed' → 'generated' to claim.
+      const { data: flipped } = await supabase
+        .from("morning_briefings")
+        .update({ delivery_status: "generated", sent_at: null })
+        .eq("profile_id", profile.id)
+        .eq("briefing_date", briefingDate)
+        .eq("delivery_status", "failed")
+        .select("id")
+        .maybeSingle();
+      claimed = !!flipped;
+
+      if (!claimed) {
+        // Row is either 'sent' (already delivered) or 'generated' (another
+        // invocation has the claim mid-flight). Either way we don't re-send.
+        const { data: existing } = await supabase
+          .from("morning_briefings")
+          .select("delivery_status")
+          .eq("profile_id", profile.id)
+          .eq("briefing_date", briefingDate)
+          .maybeSingle();
+        alreadySent = existing?.delivery_status === "sent";
+      }
+    }
+
+    if (!claimed) {
+      if (alreadySent) {
+        results.alreadySent++;
+      }
+      // 'generated' with another invocation holding the claim: silently skip;
+      // the audit re-runs daily and the in-flight original will land 'sent'.
       continue;
     }
 
-    // No row at all, or a row stuck at 'failed' / 'generated' → missed.
-    // Force-send now.
+    // We own this briefing — force-send now.
     results.missed++;
     missedNames.push(profile.family_name ?? profile.id);
 

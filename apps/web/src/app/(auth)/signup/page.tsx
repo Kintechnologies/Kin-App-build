@@ -416,7 +416,6 @@ export default function SignUpPage() {
       <Suspense fallback={null}>
         <SignUpForm />
       </Suspense>
-      <style dangerouslySetInnerHTML={{ __html: `@keyframes spin { to { transform: rotate(360deg); } }` }} />
     </main>
   );
 }
