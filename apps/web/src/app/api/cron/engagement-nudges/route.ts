@@ -88,12 +88,21 @@ function daysSince(iso: string): number {
  * True when it's a reasonable hour (8am–9pm) in the recipient's timezone to
  * send a nudge. An unknown/invalid timezone falls back to "yes" rather than
  * silencing the profile forever.
+ *
+ * P2-E3 (audit v6): unknown-timezone fallback used to be
+ * "America/Los_Angeles" — that silently assumed PT for India / EU users
+ * whose profile timezone wasn't captured, so they got nudges at 8 AM PT
+ * (≈ 8:30 PM IST). Switched to UTC: a wider band of recipients see the
+ * nudge at a defensible local hour, and the morning-briefing pipeline
+ * already requires a real timezone (so the unknown-timezone path here
+ * only fires for stale rows). UTC's 8–21 window covers most of the
+ * waking hours for both Americas and Europe.
  */
 function isDaytime(timezone: string | null): boolean {
   try {
     const hour = parseInt(
       new Intl.DateTimeFormat("en-US", {
-        timeZone: timezone ?? "America/Los_Angeles",
+        timeZone: timezone ?? "UTC",
         hour: "numeric",
         hour12: false,
       }).format(new Date()),
@@ -108,6 +117,25 @@ function isDaytime(timezone: string | null): boolean {
 /** Already sent this nudge to this profile? */
 function alreadySent(p: NudgeProfile, key: string): boolean {
   return Boolean((p.nudges_sent ?? {})[key]);
+}
+
+/**
+ * V6 P1-E1: per-day cross-type cap. We already de-dupe per nudge key, but a
+ * trial-day-7 user who also tripped the onboarding-silent guard would have
+ * received both SMS in the same 12-hour window. Three engagement texts in a
+ * day feels like spam and quietly bumps STOP-rate. One nudge per 24h across
+ * all keys is the right ceiling.
+ */
+const MAX_PER_DAY_WINDOW_MS = 24 * 60 * 60 * 1000;
+function sentInLastDay(p: NudgeProfile): boolean {
+  const sent = p.nudges_sent ?? {};
+  const cutoff = Date.now() - MAX_PER_DAY_WINDOW_MS;
+  for (const ts of Object.values(sent)) {
+    if (typeof ts !== "string") continue;
+    const ms = Date.parse(ts);
+    if (Number.isFinite(ms) && ms >= cutoff) return true;
+  }
+  return false;
 }
 
 /**
@@ -187,6 +215,10 @@ async function runOnboardingNudges(
       results.skipped++;
       continue;
     }
+    if (sentInLastDay(p)) {
+      results.skipped++;
+      continue;
+    }
     try {
       // Reuse the existing connect token if there is one; mint a fresh one
       // otherwise. The /connect/<token> page maps the token back to the profile.
@@ -240,6 +272,10 @@ async function runOnboardingNudges(
   for (const p of silent ?? []) {
     if (alreadySent(p, "onboarding_silent")) continue;
     if (!isDaytime(p.timezone)) {
+      results.skipped++;
+      continue;
+    }
+    if (sentInLastDay(p)) {
       results.skipped++;
       continue;
     }
@@ -420,6 +456,10 @@ async function runTrialNudges(
       results.skipped++;
       continue;
     }
+    if (sentInLastDay(p)) {
+      results.skipped++;
+      continue;
+    }
     try {
       const name = firstName(p);
       const fallback =
@@ -470,6 +510,10 @@ async function runTrialNudges(
       results.skipped++;
       continue;
     }
+    if (sentInLastDay(p)) {
+      results.skipped++;
+      continue;
+    }
     try {
       const name = firstName(p);
       const body = await generateKinMessage({
@@ -497,7 +541,23 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const mode = new URL(request.url).searchParams.get("mode") ?? "all";
+  // P2-E1 (audit v6): strict enum check on ?mode=. Previously an unknown
+  // value (typo, stale pg_cron job after a rename) silently fell through
+  // to "all", running BOTH onboarding + trial fan-outs. That doubled the
+  // intended send volume and made misconfiguration invisible.
+  const rawMode = new URL(request.url).searchParams.get("mode");
+  const mode = rawMode ?? "all";
+  const ALLOWED_MODES = new Set(["all", "onboarding", "trial"]);
+  if (!ALLOWED_MODES.has(mode)) {
+    return NextResponse.json(
+      {
+        error: "Invalid mode",
+        allowed: Array.from(ALLOWED_MODES),
+        received: mode,
+      },
+      { status: 400 }
+    );
+  }
   const supabase = createAdminClient();
   const results: Results = { sent: 0, skipped: 0, failed: 0, errors: [] };
 
@@ -519,12 +579,20 @@ export async function GET(request: Request) {
     ).catch(() => {});
   }
 
-  return NextResponse.json({
-    ok: true,
-    mode,
-    sent: results.sent,
-    skipped: results.skipped,
-    failed: results.failed,
-    errors: results.errors.length > 0 ? results.errors : undefined,
-  });
+  // V6 P1-I5: signal failure to Vercel Cron so it retries with exponential
+  // backoff. Returning 200 on partial failure used to lose every onboarding
+  // nudge during a 30-min Twilio outage with no recovery. 500 lets the cron
+  // come back around on its own.
+  const status = results.failed > 0 ? 500 : 200;
+  return NextResponse.json(
+    {
+      ok: results.failed === 0,
+      mode,
+      sent: results.sent,
+      skipped: results.skipped,
+      failed: results.failed,
+      errors: results.errors.length > 0 ? results.errors : undefined,
+    },
+    { status }
+  );
 }

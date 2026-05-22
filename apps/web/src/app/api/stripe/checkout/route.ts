@@ -14,6 +14,7 @@ import type Stripe from "stripe";
 import { createClient } from "@/lib/supabase/server";
 import { getStripe, resolveMonthlyPriceId } from "@/lib/stripe";
 import { checkRateLimit, rateLimitResponse } from "@/lib/rate-limit";
+import { isSameOrigin } from "@/lib/csrf";
 import * as Sentry from "@sentry/nextjs";
 
 /**
@@ -23,6 +24,12 @@ import * as Sentry from "@sentry/nextjs";
  * e.g. "BETA") or a raw coupon ID. Promotion codes are checked first since
  * that's what beta users will actually enter; a coupon-ID retrieve is the
  * fallback. Returns null when the code matches nothing or is inactive.
+ *
+ * P2-A2/P2-B1 (audit v6): the two-branch lookup creates a small timing
+ * oracle — a valid promotion code returns after one round-trip while an
+ * invalid one always pays both. Mitigation is the `stripe-coupon` rate
+ * limit (3/min/user) wired in the caller, which caps how many probes a
+ * single user can make. Accepted residual risk for the beta.
  */
 async function resolveDiscount(
   stripe: Stripe,
@@ -51,6 +58,10 @@ async function resolveDiscount(
 
 export async function POST(request: Request) {
   try {
+    if (!isSameOrigin(request)) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
     const body = (await request.json().catch(() => ({}))) as {
       successPath?: string;
       cancelPath?: string;
@@ -104,10 +115,16 @@ export async function POST(request: Request) {
 
     let customerId = profile?.stripe_customer_id ?? null;
     if (!customerId) {
-      const customer = await stripe.customers.create({
-        email: user.email,
-        metadata: { supabase_user_id: user.id },
-      });
+      // Idempotency key keyed by user.id — a retried request (network blip,
+      // client double-click) returns the same Stripe customer instead of
+      // creating duplicates that orphan the `stripe_customer_id` write.
+      const customer = await stripe.customers.create(
+        {
+          email: user.email,
+          metadata: { supabase_user_id: user.id },
+        },
+        { idempotencyKey: `customer_${user.id}` }
+      );
       customerId = customer.id;
       await supabase
         .from("profiles")

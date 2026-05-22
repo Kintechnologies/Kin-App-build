@@ -22,6 +22,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { sendSms } from "@/lib/twilio";
 import { dispatchPartnerInvite } from "@/lib/partner-invite";
 import { checkRateLimit, rateLimitResponse } from "@/lib/rate-limit";
+import { isSameOrigin } from "@/lib/csrf";
 
 interface ProfileRow {
   family_name: string | null;
@@ -32,8 +33,12 @@ interface ProfileRow {
   sms_opted_out_at: string | null;
 }
 
-export async function POST() {
+export async function POST(request: Request) {
   try {
+    if (!isSameOrigin(request)) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
     const supabase = createClient();
     const {
       data: { user },
@@ -57,6 +62,9 @@ export async function POST() {
     }
 
     let welcomeSmsSent = false;
+    // P2-A3 (audit v6): surface "welcome SMS failed" to the client so
+    // /onboarding/done can show a copy variant instead of always "All set".
+    let welcomeSmsFailed = false;
     let partnerInvited = false;
 
     // ── 1. Welcome SMS ────────────────────────────────────────────────────────
@@ -85,6 +93,8 @@ export async function POST() {
         welcomeSmsSent = true;
       } catch (err) {
         console.error("Welcome SMS failed:", err);
+        Sentry.captureException(err);
+        welcomeSmsFailed = true;
         await admin.from("sms_conversations").insert({
           profile_id: user.id,
           direction: "outbound_failed",
@@ -117,7 +127,7 @@ export async function POST() {
         .eq("id", user.id);
     }
 
-    return NextResponse.json({ ok: true, welcomeSmsSent, partnerInvited });
+    return NextResponse.json({ ok: true, welcomeSmsSent, welcomeSmsFailed, partnerInvited });
   } catch (err) {
     // Non-fatal for the user — never block onboarding completion. But the
     // outer catch must still report to Sentry, otherwise welcome-SMS failures

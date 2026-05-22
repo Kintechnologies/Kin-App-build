@@ -21,6 +21,16 @@
 -- pg_cron POST below needs no Authorization header itself.
 --
 -- This mirrors the morning-briefing pattern (046_morning_briefing_cron.sql).
+--
+-- P2-I2 (audit v6): the project URL below
+-- (https://coxqdpcffmsncvisfyvj.supabase.co/...) is hardcoded for the
+-- production project. Migration 072_cron_functions_base_url.sql already
+-- re-schedules every job in this file to source the URL from the
+-- vault-backed public.functions_base_url() helper instead. NEW pg_cron
+-- jobs must construct their POST URL with `public.functions_base_url() ||
+-- '/<function-name>'` so they continue working if the Supabase project is
+-- relinked or a separate staging/preview project is provisioned with its
+-- own vault entry. See migration 072 for the pattern.
 -- ─────────────────────────────────────────────────────────────────────────────
 
 CREATE EXTENSION IF NOT EXISTS pg_cron;

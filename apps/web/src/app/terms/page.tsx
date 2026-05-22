@@ -237,7 +237,7 @@ export default function TermsPage() {
         </Section>
 
         <Section title="15. Governing Law and Dispute Resolution">
-          <p>These Terms are governed by the laws of the state where {COMPANY} is registered, without regard to its conflict of law provisions.</p>
+          <p>These Terms are governed by the laws of the State of Delaware, United States, where {COMPANY} is incorporated, without regard to its conflict of law provisions.</p>
           <p>Any dispute arising from these Terms or your use of the Service that cannot be resolved informally will be submitted to binding arbitration under the rules of the American Arbitration Association, except that either party may seek injunctive or other equitable relief in a court of competent jurisdiction.</p>
           <p><strong style={{ color: "var(--ink)" }}>Class action waiver.</strong> You agree to bring claims against Kin only in your individual capacity and not as a plaintiff or class member in any class action.</p>
           <p>If you are an EU consumer, you may have the right to bring disputes before the courts of your country of residence.</p>

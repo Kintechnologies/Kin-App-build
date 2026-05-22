@@ -16,6 +16,7 @@ import { randomBytes } from "crypto";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { sendSms } from "@/lib/twilio";
 import { sendEmail, partnerInviteEmail } from "@/lib/email";
+import { normalizePhone } from "@/lib/sms-access";
 
 function appUrl(): string {
   return process.env.NEXT_PUBLIC_APP_URL ?? "https://kinai.family";
@@ -67,16 +68,53 @@ export async function dispatchPartnerInvite(
       invitee_phone: partnerPhone,
       invite_code: inviteCode,
     });
-    // Without a persisted row the /join/invite/<code> link is dead — fail loudly
-    // rather than texting the partner a link that 404s.
     if (insertErr) {
-      throw new Error(`household_invites insert failed: ${insertErr.message}`);
+      // Migration 075 (v6 P1-S1) added a partial unique index on
+      // (inviter_profile_id, invitee_phone) WHERE accepted = false. Two
+      // racing dispatch calls collide here — the loser sees Postgres 23505
+      // and re-reads the row the winner inserted so both code paths end up
+      // with the same invite_code instead of minting two SMS with two
+      // different links.
+      if ((insertErr as { code?: string }).code === "23505") {
+        const { data: retry } = await db
+          .from("household_invites")
+          .select("invite_code")
+          .eq("inviter_profile_id", inviterProfileId)
+          .eq("accepted", false)
+          .gte("expires_at", new Date().toISOString())
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle<{ invite_code: string }>();
+        if (retry?.invite_code) {
+          inviteCode = retry.invite_code;
+        } else {
+          throw new Error(
+            `household_invites insert failed (23505 but no row to recover): ${insertErr.message}`
+          );
+        }
+      } else {
+        // Without a persisted row the /join/invite/<code> link is dead — fail
+        // loudly rather than texting the partner a link that 404s.
+        throw new Error(`household_invites insert failed: ${insertErr.message}`);
+      }
     }
   } else {
     // Backfill a channel the original row was missing — e.g. the invite began
     // phone-only and we now also have an email address.
+    // P2-S1 (audit v6): cheap shape check on backfilled email — the SMS
+    // onboarding bot can pass any string here (free-text replies are
+    // common), and persisting "not now" or "no thanks" as invitee_email
+    // poisons the row and confuses the email-send path downstream.
+    const looksLikeEmail = (s: string): boolean =>
+      /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s);
     const patch: Record<string, string> = {};
-    if (partnerEmail && !existing?.invitee_email) patch.invitee_email = partnerEmail;
+    if (
+      partnerEmail &&
+      !existing?.invitee_email &&
+      looksLikeEmail(partnerEmail)
+    ) {
+      patch.invitee_email = partnerEmail;
+    }
     if (partnerPhone && !existing?.invitee_phone) patch.invitee_phone = partnerPhone;
     if (Object.keys(patch).length > 0) {
       await db.from("household_invites").update(patch).eq("invite_code", inviteCode);
@@ -121,14 +159,21 @@ async function sendInviteSms(
   // Honor opt-out: if the partner's phone is on a profile that texted STOP,
   // skip silently. Twilio also blocks it (error 21610), but checking first
   // avoids an outbound API call and a misleading "outbound_failed" log row.
+  //
+  // V6 P1-S2: profiles.phone_number is stored in E.164 ("+11234567890"), but
+  // callers can hand us looser formats like "(123) 456-7890". Without
+  // normalizePhone here the lookup misses the opt-out and we'd text someone
+  // who texted STOP. extractPhone in sms-onboarding was fixed in V5 P1-S3 but
+  // this lookup path was not.
+  const normalizedPhone = normalizePhone(partnerPhone) ?? partnerPhone;
   const { data: optedOutProfile } = await db
     .from("profiles")
     .select("sms_opted_out_at")
-    .eq("phone_number", partnerPhone)
+    .eq("phone_number", normalizedPhone)
     .not("sms_opted_out_at", "is", null)
     .maybeSingle();
   if (optedOutProfile) {
-    console.warn(`Partner invite SMS skipped — recipient opted out: ${partnerPhone}`);
+    console.warn(`Partner invite SMS skipped — recipient opted out: ${normalizedPhone}`);
     return false;
   }
 

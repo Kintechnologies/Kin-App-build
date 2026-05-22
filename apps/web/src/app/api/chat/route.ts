@@ -266,6 +266,18 @@ Conversation history is provided as the preceding message turns in this thread (
 
 // Retained per sprint directive: "Web search tool stays."
 // Scope restriction (coordination-only) is enforced by the active system prompt.
+//
+// P2-I1 (audit v6): HTML rendering safety. Tavily search snippets are pulled
+// from arbitrary third-party pages and could contain raw HTML tags or
+// markdown that, if rendered with dangerouslySetInnerHTML in the chat UI,
+// would amount to a stored-XSS path through the search tool. Current
+// renderer surface:
+//   * /api/sms/* — outbound is plain text via Twilio. Safe.
+//   * No /app/(dashboard) chat UI exists yet (this route is server-side
+//     only; chat output reaches the user exclusively over SMS).
+// If a chat UI is added later, render assistant text with React's default
+// text node escaping — never dangerouslySetInnerHTML. Audit this comment
+// when the dashboard chat ships.
 const SEARCH_TOOL: Anthropic.Tool = {
   name: "web_search",
   description:

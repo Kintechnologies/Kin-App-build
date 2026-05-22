@@ -58,6 +58,14 @@ export async function GET(request: Request) {
     // Aggregate, count-only breadcrumb. Per-user messages used to include the
     // deletion timestamp (and email rows were in scope), leaking PII into
     // Sentry. (audit v3 P1-I2)
+    //
+    // P2-E5 (audit v6): the count-only breadcrumb is intentional. We do
+    // NOT include per-user profile.id even though debugging a stuck
+    // single-user case would be easier with one. Sentry projects with
+    // wider access lists treat profile_id as quasi-identifier PII when
+    // joined with the supabase admin console, and the trade-off (slightly
+    // harder per-user debugging vs. a clean Sentry scrub posture) lands on
+    // privacy. For one-off debugging use the supabase query log instead.
     Sentry.captureMessage(
       `cleanup: sent day-75 reminders to ${remindersSent} user(s) (eligible: ${reminderUsers.length})`,
       "info"
@@ -75,17 +83,35 @@ export async function GET(request: Request) {
 
   if (deletionUsers && deletionUsers.length > 0) {
     for (const user of deletionUsers) {
-      // Delete all user data (cascade handles related tables)
-      // But first delete from tables without cascade
-      await supabase.from("conversations").delete().eq("profile_id", user.id);
-      await supabase.from("family_members").delete().eq("profile_id", user.id);
-      await supabase.from("onboarding_preferences").delete().eq("profile_id", user.id);
+      // V6 P1-E2: route through migration 070's atomic delete_user_account()
+      // RPC. The legacy two-step (profile DELETE → admin.deleteUser) would
+      // happily delete the auth row even if the profile DELETE failed (RLS,
+      // FK, transient) — orphaning the auth.users row with no recovery path
+      // for the user. The RPC is a single SECURITY DEFINER transaction:
+      // either every row goes, or none do.
+      const { error: rpcError } = await supabase.rpc("delete_user_account", {
+        uid: user.id,
+      });
+      if (rpcError) {
+        Sentry.captureException(
+          new Error(
+            `cleanup: delete_user_account RPC failed for ${user.id}: ${rpcError.message}`
+          )
+        );
+        continue;
+      }
 
-      // Delete the profile itself (auth.users cascade will handle the rest)
-      await supabase.from("profiles").delete().eq("id", user.id);
-
-      // Delete the auth user
-      await supabase.auth.admin.deleteUser(user.id);
+      const { error: authErr } = await supabase.auth.admin.deleteUser(user.id);
+      if (authErr) {
+        // DB transaction already committed — profile + child rows are gone but
+        // the auth.users row remains. Same recovery path as /api/account.
+        Sentry.captureException(
+          new Error(
+            `cleanup: auth delete failed post-tx for ${user.id}: ${authErr.message}`
+          )
+        );
+        continue;
+      }
       deletedCount++;
     }
     Sentry.captureMessage(

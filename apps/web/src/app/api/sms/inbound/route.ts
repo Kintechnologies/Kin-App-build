@@ -60,11 +60,20 @@ interface SmsHistoryRow {
 }
 
 // How many recent SMS turns to include as conversation memory.
-// 20 covers a full back-and-forth day; older context is dropped to keep tokens reasonable.
-const SMS_HISTORY_LIMIT = 20;
+// 30 covers a full back-and-forth day plus a partial second day; older context
+// is dropped to keep tokens reasonable. P2-S3 (audit v6): raised from 20 to 30
+// after noticing multi-day threads (Sun → Mon questions that reference Sat
+// context) were getting their early turns truncated. Long-term knowledge still
+// lives in profiles.household_context — this only controls the recency window.
+const SMS_HISTORY_LIMIT = 30;
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
+// P2-S4 (audit v6): en-US locale is intentional. US-only beta — every active
+// number is +1, and 12h time ("3:00 PM") reads more naturally to US texters
+// than the 24h fallback some locales return. Revisit when international
+// onboarding opens; until then, hard-coding en-US is the right default and
+// matches the rest of the SMS pipeline's US-centric copy.
 function formatTime(iso: string, timezone: string): string {
   return new Date(iso).toLocaleTimeString("en-US", {
     hour: "numeric",
@@ -281,6 +290,14 @@ export async function POST(request: Request) {
   //    response identifying the program and pointing to the opt-out path. The
   //    inbound + outbound are sid-tagged so a Twilio retry hits the cache
   //    instead of billing a new segment for the same MessageSid.
+  //    P2-S2 (audit v6): this branch INTENTIONALLY runs before the rate-limit
+  //    check below. CTIA / carrier rules require HELP and INFO to ALWAYS
+  //    elicit a program-identification reply — rate-limiting them risks
+  //    delivering an empty TwiML response on the keyword, which campaign
+  //    auditors treat as a compliance failure that can suspend short-code
+  //    delivery. Twilio absorbs the per-message cost; the per-sid dedup
+  //    above prevents a retry storm from billing twice. Do not move this
+  //    block below checkRateLimit.
   if (/^(HELP|INFO)$/i.test(messageKeyword)) {
     const helpReply =
       "Kin Family AI. Daily morning briefing for parents. " +

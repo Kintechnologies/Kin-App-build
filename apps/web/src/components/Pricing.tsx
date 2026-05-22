@@ -205,8 +205,20 @@ export function Pricing() {
           ))}
         </ul>
 
-        <a
-          href="#waitlist"
+        {/*
+          P2-L4 (audit v6): was an <a href="#waitlist"> — on mobile Safari the
+          anchor jump produces a hard reset to the top of the section rather
+          than a smooth scroll, and the URL hash sticks (Cmd+L pickle).
+          A <button> with scrollIntoView is snappier and leaves history clean.
+        */}
+        <button
+          type="button"
+          onClick={() => {
+            const target = document.getElementById("waitlist");
+            if (target) {
+              target.scrollIntoView({ behavior: "smooth", block: "start" });
+            }
+          }}
           style={{
             display: "block",
             width: "100%",
@@ -217,25 +229,27 @@ export function Pricing() {
             fontWeight: 600,
             background: "var(--green)",
             color: "var(--paper)",
+            border: "none",
             cursor: "pointer",
             transition: "transform 0.2s ease, box-shadow 0.2s ease",
             boxShadow: "0 4px 14px rgba(60,74,51,0.22)",
+            fontFamily: "inherit",
           }}
           onMouseEnter={(e) => {
-            (e.currentTarget as HTMLAnchorElement).style.transform =
+            (e.currentTarget as HTMLButtonElement).style.transform =
               "translateY(-1px)";
-            (e.currentTarget as HTMLAnchorElement).style.boxShadow =
+            (e.currentTarget as HTMLButtonElement).style.boxShadow =
               "0 6px 18px rgba(60,74,51,0.3)";
           }}
           onMouseLeave={(e) => {
-            (e.currentTarget as HTMLAnchorElement).style.transform =
+            (e.currentTarget as HTMLButtonElement).style.transform =
               "translateY(0)";
-            (e.currentTarget as HTMLAnchorElement).style.boxShadow =
+            (e.currentTarget as HTMLButtonElement).style.boxShadow =
               "0 4px 14px rgba(60,74,51,0.22)";
           }}
         >
           Claim your spot
-        </a>
+        </button>
 
         <div
           style={{

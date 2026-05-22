@@ -439,16 +439,41 @@ export default function FamilyPage() {
           </div>
         ) : (
           <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+            <label
+              htmlFor="partner-invite-phone"
+              style={{
+                position: "absolute",
+                width: 1,
+                height: 1,
+                padding: 0,
+                margin: -1,
+                overflow: "hidden",
+                clip: "rect(0 0 0 0)",
+                whiteSpace: "nowrap",
+                borderWidth: 0,
+              }}
+            >
+              Partner phone number
+            </label>
             <input
+              id="partner-invite-phone"
               type="tel"
               inputMode="tel"
               value={phone}
-              onChange={(e) => setPhone(e.target.value)}
+              onChange={(e) => {
+                setPhone(e.target.value);
+                // P2-D3 (audit v6): clear the prior error message as soon as
+                // the user starts editing — the error is for the value they
+                // *just submitted*, not the value they're now typing. Keeping
+                // it stuck on the screen makes the input feel broken.
+                if (formError) setFormError(null);
+              }}
               onKeyDown={(e) => {
                 if (e.key === "Enter") saveInvite();
               }}
               placeholder="(555) 123-4567"
               autoComplete="tel"
+              aria-label="Partner phone number"
               style={{
                 flex: "1 1 200px",
                 background: "var(--warm-06)",

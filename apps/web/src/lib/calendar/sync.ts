@@ -190,6 +190,21 @@ async function syncGoogleCalendar(connection: CalendarConnection) {
         continue;
       }
 
+      // P2-C3 (audit v6): recurring-event exceptions. With singleEvents=true
+      // Google returns each occurrence as its own event:
+      //   * Normal instance — id = `<masterId>_<YYYYMMDDTHHMMSSZ>`,
+      //     recurringEventId = masterId.
+      //   * Modified instance ("exception") — has its OWN id distinct from
+      //     the synthetic instance id, recurringEventId = masterId,
+      //     originalStartTime set. So the upsert below stores it as a
+      //     separate row keyed by the exception's id, NOT keyed by the
+      //     master.
+      // Net: exceptions live as standalone rows. Deleting the master
+      // doesn't cascade and unmodifying back to the recurrence leaves the
+      // exception's row orphaned until the next full resync sweeps it.
+      // Acceptable for the beta — briefings dedupe by start_time + title —
+      // but flag for a proper exception model if recurrence editing
+      // becomes common in user telemetry.
       const kinEvent = googleEventToKinEvent(
         gEvent,
         connection.profile_id,
@@ -224,7 +239,14 @@ async function syncGoogleCalendar(connection: CalendarConnection) {
       }
     }
 
-    if (result.nextSyncToken) {
+    // Guard empty token writes (v6 P1-C3): an absent / empty / whitespace-only
+    // nextSyncToken silently clobbers the prior good cursor, which forces the
+    // next pull to do a full re-sync. Only persist when there's something to
+    // persist.
+    if (
+      typeof result.nextSyncToken === "string" &&
+      result.nextSyncToken.trim().length > 0
+    ) {
       syncTokens[cal.id] = result.nextSyncToken;
     }
   }

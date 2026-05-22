@@ -16,6 +16,7 @@ interface CalendarConnection {
   id: string;
   provider: "google" | "apple";
   email?: string | null;
+  google_account_email?: string | null;
   enabled?: boolean;
   sync_status?: "idle" | "syncing" | "error" | "needs_reconnect";
   sync_error?: string | null;
@@ -102,6 +103,14 @@ export default function CalendarsPage() {
   const [loading, setLoading] = useState(true);
   const [connecting, setConnecting] = useState(false);
   const [syncing, setSyncing] = useState(false);
+  // P2-D4 (audit v6): inline confirm — toggling `confirmId` flips the row's
+  // disconnect button into a two-step "Click to confirm" affordance. This is
+  // acceptable for a low-stakes destructive action on a small surface, but a
+  // proper <dialog> with focus trap + Escape-to-cancel + aria-labelledby
+  // would be more accessible (screen readers don't currently announce the
+  // confirm prompt as a modal; keyboard users can't escape it). Considered
+  // overkill for the beta — revisit when adding more destructive flows or
+  // when we add the bigger "Delete account" dialog and can share patterns.
   const [confirmId, setConfirmId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -161,10 +170,13 @@ export default function CalendarsPage() {
   async function disconnect(conn: CalendarConnection) {
     setConnections((prev) => prev.filter((c) => c.id !== conn.id));
     setConfirmId(null);
-    const endpoint =
+    // Target this specific connection so a multi-account profile (v6 P1-C4)
+    // only loses the row the user clicked on.
+    const base =
       conn.provider === "google"
         ? "/api/calendar/google"
         : "/api/calendar/apple/connect";
+    const endpoint = `${base}?connection_id=${encodeURIComponent(conn.id)}`;
     try {
       await fetch(endpoint, { method: "DELETE" });
     } catch {
@@ -390,6 +402,7 @@ export default function CalendarsPage() {
                         }}
                       >
                         {conn.email ??
+                          conn.google_account_email ??
                           (conn.provider === "google"
                             ? "Google account"
                             : "Apple account")}

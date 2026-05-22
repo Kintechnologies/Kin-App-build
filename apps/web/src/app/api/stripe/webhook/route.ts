@@ -69,13 +69,23 @@ function mapStripeSubscriptionStatus(
 
 /**
  * Update a profile's subscription_status, resolving the row by Supabase user
- * id when available and otherwise by Stripe customer id (payment_failed events
- * carry no user metadata).
+ * id when available, then by Stripe customer id (payment_failed events carry
+ * no user metadata), then by email as a last-ditch fallback for invoice events
+ * that lack both. When the email fallback succeeds we stamp stripe_customer_id
+ * so the next event resolves on the fast path. (v6 P1-B1)
  */
 async function setStatus(
   supabase: SupabaseClient,
   status: SubscriptionStatus,
-  { userId, customerId }: { userId?: string | null; customerId?: string | null }
+  {
+    userId,
+    customerId,
+    customerEmail,
+  }: {
+    userId?: string | null;
+    customerId?: string | null;
+    customerEmail?: string | null;
+  }
 ) {
   const patch: Record<string, unknown> = { subscription_status: status };
   if (customerId) patch.stripe_customer_id = customerId;
@@ -90,6 +100,21 @@ async function setStatus(
       .update({ subscription_status: status })
       .eq("stripe_customer_id", customerId);
     return;
+  }
+  if (customerEmail) {
+    const normalizedEmail = customerEmail.toLowerCase();
+    const { data: byEmail } = await supabase
+      .from("profiles")
+      .select("id")
+      .ilike("email", normalizedEmail)
+      .maybeSingle<{ id: string }>();
+    if (byEmail?.id) {
+      await supabase
+        .from("profiles")
+        .update(patch)
+        .eq("id", byEmail.id);
+      return;
+    }
   }
   Sentry.captureMessage(
     "Stripe webhook: could not resolve a profile to update",
@@ -221,6 +246,10 @@ export async function POST(request: Request) {
             typeof invoice.customer === "string"
               ? invoice.customer
               : invoice.customer?.id ?? null,
+          // Rare edge case: an invoice without a resolvable customer id can
+          // still carry customer_email. Falling back to that field lets us
+          // mark the right profile past_due instead of warning + no-op. (v6 P1-B1)
+          customerEmail: invoice.customer_email ?? null,
         });
         break;
       }
@@ -266,9 +295,28 @@ export async function POST(request: Request) {
 
         const mapped = mapStripeSubscriptionStatus(subscription.status);
         if (mapped) {
+          // P2-D1 (audit v6): persist current_period_end so the billing UI
+          // can render the renewal/cancel date inline (migration 076).
+          // Stripe moved this off Subscription onto SubscriptionItem in
+          // their 2025+ API (each item can theoretically have a separate
+          // period; we only have one item). Falls back to the legacy field
+          // on older SDK versions for safety.
+          const subItem = subscription.items?.data?.[0] as
+            | { current_period_end?: number }
+            | undefined;
+          const legacyPeriodEnd = (subscription as unknown as {
+            current_period_end?: number;
+          }).current_period_end;
+          const periodEndSeconds =
+            subItem?.current_period_end ?? legacyPeriodEnd ?? null;
+          const periodEndIso =
+            typeof periodEndSeconds === "number"
+              ? new Date(periodEndSeconds * 1000).toISOString()
+              : null;
           const patch: Record<string, unknown> = {
             subscription_status: mapped,
             cancel_at_period_end: subscription.cancel_at_period_end === true,
+            subscription_current_period_end: periodEndIso,
           };
           if (customerId) patch.stripe_customer_id = customerId;
 

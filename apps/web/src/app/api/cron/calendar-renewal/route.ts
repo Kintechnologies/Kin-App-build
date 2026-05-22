@@ -30,6 +30,7 @@ import {
 import { syncCalendarForConnection } from "@/lib/calendar/sync";
 import { randomUUID } from "crypto";
 import * as Sentry from "@sentry/nextjs";
+import { notifySlack } from "@/lib/notify";
 
 interface ConnectionRow {
   id: string;
@@ -152,6 +153,7 @@ export async function GET(request: Request) {
   if (renewError) Sentry.captureException(renewError);
 
   let renewed = 0;
+  let flippedToReconnect = 0;
   const renewalErrors: { connection_id: string; error: string }[] = [];
   for (const conn of (nearExpiry ?? []) as ConnectionRow[]) {
     try {
@@ -161,6 +163,33 @@ export async function GET(request: Request) {
       const msg = err instanceof Error ? err.message : String(err);
       renewalErrors.push({ connection_id: conn.id, error: msg });
       Sentry.captureException(err);
+
+      // P2-C1 (audit v6): without this, a connection whose refresh_token has
+      // been revoked retries every 6h forever and the user never sees a
+      // "Reconnect Google Calendar" CTA — briefings degrade silently. Two
+      // termination conditions:
+      //   1. refresh_token missing (the only way renewOne can throw "no
+      //      refresh_token") — auth is structurally broken; user must
+      //      reconnect.
+      //   2. google_channel_expiry has already passed — we've burned the
+      //      24h renewal window without success and the channel is dead.
+      // Both flip sync_status to needs_reconnect so the dashboard renders
+      // the reconnect CTA (calendars/page.tsx:408).
+      const tokenMissing = msg.includes("no refresh_token");
+      const channelExpired = conn.google_channel_expiry
+        ? new Date(conn.google_channel_expiry).getTime() <= now.getTime()
+        : false;
+      if (tokenMissing || channelExpired) {
+        await supabase
+          .from("calendar_connections")
+          .update({
+            sync_status: "needs_reconnect",
+            sync_error: msg,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", conn.id);
+        flippedToReconnect++;
+      }
     }
   }
 
@@ -186,9 +215,39 @@ export async function GET(request: Request) {
     }
   }
 
+  // V6 P1-E3: aggregate failure-rate alerting. Individual failures are
+  // already in Sentry, but a run where everything fails (API key revoked,
+  // network blip during the whole tick) needs a louder, immediate channel —
+  // a cron returning 200-with-zeros looks identical to a 200-all-good in
+  // Vercel dashboards.
+  const renewalAttempted = nearExpiry?.length ?? 0;
+  const syncAttempted = staleConnections?.length ?? 0;
+  const renewalFailureRate =
+    renewalAttempted > 0 ? renewalErrors.length / renewalAttempted : 0;
+  const syncFailureRate =
+    syncAttempted > 0 ? syncErrors.length / syncAttempted : 0;
+
+  if (
+    (renewalAttempted > 0 && renewalFailureRate >= 0.5) ||
+    (syncAttempted > 0 && syncFailureRate >= 0.5)
+  ) {
+    await notifySlack(
+      `Calendar-renewal cron failure-rate over 50%: ` +
+        `renewals ${renewalErrors.length}/${renewalAttempted} failed, ` +
+        `fallback syncs ${syncErrors.length}/${syncAttempted} failed. ` +
+        `First error: ${renewalErrors[0]?.error ?? syncErrors[0]?.error ?? "n/a"}`,
+      "critical"
+    ).catch(() => {});
+  }
+
   return NextResponse.json({
     timestamp: now.toISOString(),
-    renewals: { attempted: nearExpiry?.length ?? 0, succeeded: renewed, errors: renewalErrors },
-    fallback_syncs: { attempted: staleConnections?.length ?? 0, succeeded: resynced, errors: syncErrors },
+    renewals: {
+      attempted: renewalAttempted,
+      succeeded: renewed,
+      errors: renewalErrors,
+      flipped_to_reconnect: flippedToReconnect,
+    },
+    fallback_syncs: { attempted: syncAttempted, succeeded: resynced, errors: syncErrors },
   });
 }

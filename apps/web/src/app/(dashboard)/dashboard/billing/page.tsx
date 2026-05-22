@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, Suspense } from "react";
+import { useState, useEffect, useRef, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import {
@@ -24,6 +24,10 @@ interface Profile {
   // keeps access until the period rolls over. subscription_status stays
   // "active" until then, so the badge alone hides the pending cancellation.
   cancel_at_period_end: boolean | null;
+  // Migration 076 (P2-D1): renewal date / cancellation cutover. Populated by
+  // the webhook on customer.subscription.updated. Null on legacy rows that
+  // predate the migration — UI degrades to date-less copy.
+  subscription_current_period_end: string | null;
 }
 
 const PREMIUM_PRICE = "$39/month";
@@ -189,6 +193,17 @@ function BillingPageInner() {
   const [action, setAction] = useState<"checkout" | "portal" | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [couponCode, setCouponCode] = useState("");
+  // P2-D5 (audit v6): the error message lives near the bottom of the pricing
+  // card and is often off-screen on phones / laptops after the user clicks
+  // "Start subscription." Ref it so we can scroll it into view as soon as
+  // an error is set — otherwise the click feels like a no-op.
+  const errorRef = useRef<HTMLParagraphElement | null>(null);
+
+  useEffect(() => {
+    if (error && errorRef.current) {
+      errorRef.current.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+  }, [error]);
 
   useEffect(() => {
     let cancelled = false;
@@ -201,7 +216,7 @@ function BillingPageInner() {
         if (!user || cancelled) return;
         const { data } = await supabase
           .from("profiles")
-          .select("id, email, subscription_status, trial_ends_at, cancel_at_period_end")
+          .select("id, email, subscription_status, trial_ends_at, cancel_at_period_end, subscription_current_period_end")
           .eq("id", user.id)
           .single();
         if (data && !cancelled) setProfile(data as Profile);
@@ -284,6 +299,21 @@ function BillingPageInner() {
       })
     : null;
 
+  // P2-D1 (audit v6): render the subscription_current_period_end date inline
+  // when present so the user knows exactly when their renewal lands or their
+  // cancellation cuts over — instead of having to open the Stripe portal.
+  const periodEndDate = profile?.subscription_current_period_end
+    ? new Date(profile.subscription_current_period_end)
+    : null;
+  const periodEndLabel =
+    periodEndDate && !Number.isNaN(periodEndDate.getTime())
+      ? periodEndDate.toLocaleDateString("en-US", {
+          month: "long",
+          day: "numeric",
+          year: "numeric",
+        })
+      : null;
+
   function statusLine(): string {
     switch (status) {
       case "trial":
@@ -297,8 +327,13 @@ function BillingPageInner() {
         // Stripe Customer Portal but keeps access until the period rolls over.
         // Without this branch the badge says "Active" right up to the cutover
         // and the user has no in-app signal that their plan is winding down.
-        return profile?.cancel_at_period_end
-          ? "Cancels at end of billing period · resubscribe anytime to undo"
+        if (profile?.cancel_at_period_end) {
+          return periodEndLabel
+            ? `Cancels on ${periodEndLabel} · resubscribe anytime to undo`
+            : "Cancels at end of billing period · resubscribe anytime to undo";
+        }
+        return periodEndLabel
+          ? `Active · renews ${periodEndLabel}`
           : "Active · billed monthly";
       case "past_due":
         return "We couldn't process your last payment. Update your card to keep Kin.";
@@ -532,6 +567,7 @@ function BillingPageInner() {
 
           {error && (
             <p
+              ref={errorRef}
               role="alert"
               style={{ fontSize: "12.5px", color: "rgba(166,90,74,0.9)" }}
             >

@@ -10,6 +10,8 @@ import {
   MapPin,
   LogOut,
   Loader2,
+  AlertTriangle,
+  Trash2,
 } from "lucide-react";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -50,6 +52,11 @@ function SectionCard({
 }) {
   return (
     <section
+      // P2-D6 (audit v6): aria-label exposes the section as a landmark so
+      // screen-reader users can jump between Settings groups via the
+      // sections-list shortcut. Without it the regions are unlabeled and
+      // every <section> just announces as "region."
+      aria-label={title}
       style={{
         background: "#FDFBF7",
         border: "0.5px solid var(--hair)",
@@ -170,6 +177,10 @@ export default function DashboardSettingsPage() {
   const [loading, setLoading] = useState(true);
   const [timezone, setTimezone] = useState("—");
   const [signingOut, setSigningOut] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState("");
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   useEffect(() => {
     try {
@@ -225,6 +236,25 @@ export default function DashboardSettingsPage() {
     await supabase.auth.signOut();
     router.push("/signin");
     router.refresh();
+  }
+
+  async function handleDeleteAccount() {
+    setDeleting(true);
+    setDeleteError(null);
+    try {
+      const res = await fetch("/api/account", { method: "DELETE" });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data?.error ?? "Account deletion failed");
+      }
+      const supabase = createClient();
+      await supabase.auth.signOut();
+      router.push("/?deleted=1");
+      router.refresh();
+    } catch (err) {
+      setDeleteError(err instanceof Error ? err.message : "Deletion failed");
+      setDeleting(false);
+    }
   }
 
   return (
@@ -372,6 +402,238 @@ export default function DashboardSettingsPage() {
             )}
             Sign out
           </button>
+
+          <section
+            aria-label="Danger zone"
+            style={{
+              background: "rgba(166,90,74,0.04)",
+              border: "0.5px solid rgba(166,90,74,0.25)",
+              borderRadius: "8px",
+              padding: "20px",
+              marginTop: "16px",
+            }}
+          >
+            <header style={{ marginBottom: "12px" }}>
+              <span
+                className="font-mono uppercase"
+                style={{
+                  fontSize: "11.5px",
+                  letterSpacing: "0.04em",
+                  color: "#A65A4A",
+                }}
+              >
+                {"// DANGER ZONE"}
+              </span>
+              <h2
+                style={{
+                  fontSize: "16px",
+                  fontWeight: 500,
+                  color: "var(--warm)",
+                  marginTop: "6px",
+                  letterSpacing: "-0.01em",
+                }}
+              >
+                Delete account
+              </h2>
+              <p
+                style={{
+                  fontSize: "13px",
+                  color: "var(--warm-56)",
+                  marginTop: "4px",
+                  lineHeight: 1.5,
+                }}
+              >
+                Permanently removes your profile, calendar connections,
+                briefings, and SMS history. This action cannot be undone.
+              </p>
+            </header>
+            <button
+              onClick={() => {
+                setDeleteConfirmText("");
+                setDeleteError(null);
+                setShowDeleteModal(true);
+              }}
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "8px",
+                background: "transparent",
+                border: "0.5px solid rgba(166,90,74,0.35)",
+                borderRadius: "8px",
+                padding: "10px 14px",
+                color: "#A65A4A",
+                fontSize: "13px",
+                fontWeight: 500,
+                cursor: "pointer",
+              }}
+            >
+              <Trash2 size={14} />
+              Delete my account
+            </button>
+          </section>
+
+          {showDeleteModal && (
+            <div
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="delete-account-title"
+              style={{
+                position: "fixed",
+                inset: 0,
+                background: "rgba(28,24,20,0.55)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                padding: "20px",
+                zIndex: 1000,
+              }}
+              onClick={(e) => {
+                if (e.target === e.currentTarget && !deleting) {
+                  setShowDeleteModal(false);
+                }
+              }}
+            >
+              <div
+                style={{
+                  background: "#FDFBF7",
+                  border: "0.5px solid var(--hair)",
+                  borderRadius: "12px",
+                  padding: "24px",
+                  maxWidth: "440px",
+                  width: "100%",
+                  boxShadow: "0 20px 60px rgba(28,24,20,0.25)",
+                }}
+              >
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "10px",
+                    marginBottom: "12px",
+                  }}
+                >
+                  <AlertTriangle size={20} color="#A65A4A" />
+                  <h3
+                    id="delete-account-title"
+                    style={{
+                      fontSize: "17px",
+                      fontWeight: 600,
+                      color: "var(--warm)",
+                      letterSpacing: "-0.01em",
+                    }}
+                  >
+                    Delete your account?
+                  </h3>
+                </div>
+                <p
+                  style={{
+                    fontSize: "13.5px",
+                    color: "var(--warm-56)",
+                    lineHeight: 1.55,
+                    marginBottom: "16px",
+                  }}
+                >
+                  This permanently removes everything Kin has on file — your
+                  briefings stop immediately and the data cannot be recovered.
+                  To confirm, type <strong>DELETE</strong> below.
+                </p>
+                <label
+                  htmlFor="delete-confirm"
+                  style={{
+                    display: "block",
+                    fontSize: "11.5px",
+                    fontFamily: "monospace",
+                    letterSpacing: "0.04em",
+                    textTransform: "uppercase",
+                    color: "var(--warm-40)",
+                    marginBottom: "6px",
+                  }}
+                >
+                  Type DELETE to confirm
+                </label>
+                <input
+                  id="delete-confirm"
+                  type="text"
+                  value={deleteConfirmText}
+                  onChange={(e) => setDeleteConfirmText(e.target.value)}
+                  autoComplete="off"
+                  disabled={deleting}
+                  style={{
+                    width: "100%",
+                    background: "var(--warm-06)",
+                    border: "0.5px solid var(--hair-strong)",
+                    borderRadius: "6px",
+                    padding: "10px 12px",
+                    fontSize: "14px",
+                    color: "var(--warm)",
+                    outline: "none",
+                    marginBottom: "12px",
+                  }}
+                />
+                {deleteError && (
+                  <p
+                    style={{
+                      fontSize: "12.5px",
+                      color: "#A65A4A",
+                      marginBottom: "12px",
+                    }}
+                  >
+                    {deleteError}
+                  </p>
+                )}
+                <div
+                  style={{
+                    display: "flex",
+                    gap: "10px",
+                    justifyContent: "flex-end",
+                  }}
+                >
+                  <button
+                    onClick={() => setShowDeleteModal(false)}
+                    disabled={deleting}
+                    style={{
+                      background: "transparent",
+                      border: "0.5px solid var(--hair)",
+                      borderRadius: "6px",
+                      padding: "10px 16px",
+                      color: "var(--warm-56)",
+                      fontSize: "13px",
+                      fontWeight: 500,
+                      cursor: deleting ? "wait" : "pointer",
+                    }}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleDeleteAccount}
+                    disabled={deleting || deleteConfirmText !== "DELETE"}
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: "8px",
+                      background:
+                        deleteConfirmText === "DELETE" && !deleting
+                          ? "#A65A4A"
+                          : "rgba(166,90,74,0.4)",
+                      color: "#FDFBF7",
+                      border: "none",
+                      borderRadius: "6px",
+                      padding: "10px 16px",
+                      fontSize: "13px",
+                      fontWeight: 500,
+                      cursor:
+                        deleteConfirmText === "DELETE" && !deleting
+                          ? "pointer"
+                          : "not-allowed",
+                    }}
+                  >
+                    {deleting && <Loader2 size={13} className="animate-spin" />}
+                    {deleting ? "Deleting…" : "Delete account"}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
         </>
       )}
     </div>

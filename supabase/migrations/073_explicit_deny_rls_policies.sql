@@ -15,6 +15,14 @@
 -- migration 035 (deprecated scaffold), so it's omitted.
 -- ─────────────────────────────────────────────────────────────────────────────
 
+-- P2-A4 (audit v6): sms_conversations is SERVICE-ROLE-ONLY. Every read or
+-- write happens through createAdminClient() — never the user-scoped Supabase
+-- client. Future engineers: if you find yourself wanting to add a permissive
+-- USING(profile_id = auth.uid()) policy here, stop. The table contains
+-- inbound/outbound SMS bodies (PII) and direction='outbound_failed' rows
+-- that leak failure modes. Authenticated end-users must never see it. If
+-- you have a legitimate need to surface SMS history to a user, do it
+-- through a server route that filters/redacts and returns curated rows.
 DROP POLICY IF EXISTS "sms_conversations service-role only" ON sms_conversations;
 CREATE POLICY "sms_conversations service-role only"
   ON sms_conversations

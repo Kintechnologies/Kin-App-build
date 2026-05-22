@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getAuthenticatedUser } from "@/lib/supabase/api-auth";
-import { listAppleCalendars } from "@/lib/calendar/apple";
+import { getAppleCalDAVClient, listAppleCalendars } from "@/lib/calendar/apple";
 import { syncCalendarForConnection } from "@/lib/calendar/sync";
+import type { DAVCalendar } from "tsdav";
 import * as Sentry from "@sentry/nextjs";
 
 // POST /api/calendar/apple/connect — connect Apple Calendar via app-specific password
@@ -35,6 +36,35 @@ export async function POST(request: Request) {
 
     // Use the first calendar (usually the default)
     const primaryCalendar = calendars[0];
+
+    // P2-C2 (audit v6): listAppleCalendars only proves the credentials are
+    // valid — it doesn't prove the primary calendar URL is queryable.
+    // Some iCloud accounts list calendars that fetchCalendarObjects then
+    // 403s on (shared calendars where access was revoked, "Hidden Holidays
+    // and Other" calendars). Without this check, the failure surfaces only
+    // during the first morning briefing — by then the user thinks the
+    // connection worked. Pilot fetch with a tight window so it's fast.
+    try {
+      const pilotClient = await getAppleCalDAVClient(appleId, appPassword);
+      const now = new Date();
+      const twentyFourHoursOut = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+      await pilotClient.fetchCalendarObjects({
+        calendar: { url: primaryCalendar.url } as DAVCalendar,
+        timeRange: {
+          start: now.toISOString(),
+          end: twentyFourHoursOut.toISOString(),
+        },
+      });
+    } catch (pilotErr) {
+      Sentry.captureException(pilotErr);
+      return NextResponse.json(
+        {
+          error:
+            "Your Apple Calendar credentials worked, but Kin couldn't read events from your default calendar. Try a different Apple ID or re-issue the app-specific password.",
+        },
+        { status: 400 }
+      );
+    }
 
     // Store connection. Migration 067 dropped the full UNIQUE (profile_id,
     // provider) and replaced it with a partial unique index on
@@ -102,18 +132,28 @@ export async function POST(request: Request) {
 }
 
 // DELETE /api/calendar/apple/connect — disconnect Apple Calendar
+//
+// Targets a specific connection by id when provided so multi-account profiles
+// (migration 067 + v6 P1-C4) can disconnect one account at a time. Falls back
+// to "all Apple connections for the user" for legacy callers without an id.
 export async function DELETE(request: Request) {
   const user = await getAuthenticatedUser(request);
   if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
   const supabase = createClient();
+  const { searchParams } = new URL(request.url);
+  const connectionId = searchParams.get("connection_id");
 
-  await supabase
+  let query = supabase
     .from("calendar_connections")
     .delete()
     .eq("profile_id", user.id)
     .eq("provider", "apple");
+  if (connectionId) {
+    query = query.eq("id", connectionId);
+  }
+  await query;
 
   await supabase
     .from("calendar_events")

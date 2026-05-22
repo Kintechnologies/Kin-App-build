@@ -62,6 +62,13 @@ function SignInForm() {
   const [emailStep, setEmailStep] = useState<EmailStep>("email");
   const [phone, setPhone] = useState("");
   const [code, setCode] = useState("");
+  // P2-L3 (audit v6): hardcoded demo credentials are INTENTIONAL for the
+  // beta. They prefill only when the URL is /signin?demo=true (the link
+  // from Landing → "See it in action") so beta evaluators and investor
+  // demos can get into the seeded demo account without us emailing a
+  // password. The demo account is sandboxed: limited household data, no
+  // outbound SMS, no Stripe customer. Remove this prefill before opening
+  // signup to the public.
   const [email, setEmail] = useState(demoMode ? "demo@kinai.family" : "");
   const [password, setPassword] = useState(demoMode ? "KinDemo2026!" : "");
   const [error, setError] = useState("");

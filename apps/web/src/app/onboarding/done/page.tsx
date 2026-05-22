@@ -15,6 +15,10 @@ export default function OnboardingDonePage() {
   const [briefingTime] = useState("6:00 AM");
   const [saveState, setSaveState] = useState<SaveState>("saving");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  // P2-A3 (audit v6): when welcome SMS dispatch fails server-side, swap the
+  // success copy from "first briefing tomorrow" to a "we couldn't text you"
+  // notice so the user knows to expect no SMS until they retry / fix phone.
+  const [welcomeSmsFailed, setWelcomeSmsFailed] = useState(false);
 
   // Audit v5 P0-6: this UPDATE used to be fire-and-forget. If it failed
   // (network blip, RLS hiccup, schema drift), the user saw "All set" while
@@ -24,6 +28,7 @@ export default function OnboardingDonePage() {
   const completeOnboarding = useCallback(async () => {
     setSaveState("saving");
     setErrorMessage(null);
+    setWelcomeSmsFailed(false);
     const supabase = createClient();
     try {
       const {
@@ -38,6 +43,25 @@ export default function OnboardingDonePage() {
         .update({ onboarding_step: 5, onboarding_completed: true })
         .eq("id", user.id);
       if (error) throw error;
+
+      // Fire-and-await the welcome-SMS / partner-invite endpoint so we can
+      // surface a failure to the user instead of leaving them confused
+      // about why their phone never buzzed.
+      try {
+        const resp = await fetch("/api/account/onboarding-complete", {
+          method: "POST",
+        });
+        if (resp.ok) {
+          const data = (await resp.json()) as {
+            welcomeSmsFailed?: boolean;
+          };
+          if (data.welcomeSmsFailed) setWelcomeSmsFailed(true);
+        }
+      } catch (postErr) {
+        // Network failure on the welcome-SMS endpoint shouldn't block the
+        // success state — log to Sentry and continue.
+        Sentry.captureException(postErr);
+      }
 
       setSaveState("success");
     } catch (err) {
@@ -175,9 +199,17 @@ export default function OnboardingDonePage() {
               <h1 className="text-warm-white font-semibold text-2xl mb-2">
                 You&apos;re all set.
               </h1>
-              <p className="text-warm-white/50 text-sm mb-8">
-                Your first briefing lands tomorrow morning at 6am.
-              </p>
+              {welcomeSmsFailed ? (
+                <p className="text-warm-white/50 text-sm mb-8">
+                  We couldn&apos;t send your welcome text — your first briefing
+                  will still land tomorrow morning at 6am. If you don&apos;t get
+                  it, double-check the phone number in Settings.
+                </p>
+              ) : (
+                <p className="text-warm-white/50 text-sm mb-8">
+                  Your first briefing lands tomorrow morning at 6am.
+                </p>
+              )}
             </motion.div>
 
             {/* Next steps */}

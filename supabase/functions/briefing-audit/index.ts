@@ -65,6 +65,19 @@ serve(async (req) => {
   // plus billing_exempt overrides. The audit must never recover a briefing
   // for a canceled or past_due account — that would defeat the gating on
   // the primary cron and re-introduce the same cost+compliance leak.
+  //
+  // P2-M3 (audit v6): the .or() gate at query time is the sole subscription
+  // check on the force-send path. We intentionally do NOT re-check
+  // subscription_status before the per-user force-send below — the query-
+  // level filter is sufficient because:
+  //   (a) the loop iterates the result set, never a re-query, so no row
+  //       can sneak in mid-iteration;
+  //   (b) a status that flips mid-run (canceled five minutes after the
+  //       audit started) was active when the user paid for that day, so
+  //       resuming their missed briefing is the correct fairness call;
+  //   (c) double-defending in code would diverge from the primary 6am
+  //       cron's behavior (same single gate at the query layer) and make
+  //       drift between the two crons harder to spot.
   const { data: profiles, error } = await supabase
     .from("profiles")
     .select("id, family_name, last_name, phone_number, timezone, created_at, subscription_status, billing_exempt, sms_opted_out_at")

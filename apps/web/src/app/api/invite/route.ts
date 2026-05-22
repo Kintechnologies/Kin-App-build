@@ -3,6 +3,7 @@ import { getAuthenticatedUser } from "@/lib/supabase/api-auth";
 import { createClient } from "@/lib/supabase/server";
 import { dispatchPartnerInvite } from "@/lib/partner-invite";
 import { checkRateLimit, rateLimitResponse } from "@/lib/rate-limit";
+import { isSameOrigin } from "@/lib/csrf";
 import * as Sentry from "@sentry/nextjs";
 
 /**
@@ -21,6 +22,10 @@ import * as Sentry from "@sentry/nextjs";
  */
 export async function POST(request: Request) {
   try {
+    if (!isSameOrigin(request)) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
     const user = await getAuthenticatedUser(request);
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

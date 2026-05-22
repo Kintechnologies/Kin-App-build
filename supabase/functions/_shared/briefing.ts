@@ -269,7 +269,13 @@ export async function notifySlack(
 
   if (adminPhone) {
     try {
-      await sendSmsOnce(adminPhone, text.slice(0, 600));
+      // P2-M1 (audit v6): cap to 600 chars to keep the admin SMS to a
+      // bounded ~5 segments, but append an ellipsis when we actually
+      // chopped — otherwise the message looks like it ended mid-sentence
+      // and someone has to grep the briefing log to find the rest.
+      const capped =
+        text.length > 600 ? text.slice(0, 597) + "..." : text;
+      await sendSmsOnce(adminPhone, capped);
       return;
     } catch (err) {
       console.error("notifySlack: admin SMS fallback failed", err);
@@ -458,6 +464,12 @@ function resolveEventAddress(raw: string, anchors: KnownLocation[]): string {
 // traffic durations (duration_in_traffic) — without it Google only returns the
 // free-flow estimate, which underestimates rush-hour drives. 5s timeout so a
 // hung Google API can never block a briefing.
+//
+// Quota distinction (v6 P1-C2): a 403/429 from Google means we've hit billing
+// or QPS limits and drive times will keep failing until ops acts. A 5s
+// AbortError or transient network failure is harmless. Capture the former to
+// Sentry as a critical signal so founders see the quota wall before users do;
+// degrade the latter silently.
 async function fetchTravelTime(
   origin: string,
   destination: string,
@@ -477,9 +489,32 @@ async function fetchTravelTime(
     url.searchParams.set("units", "imperial");
     url.searchParams.set("key", googleMapsApiKey);
     const res = await fetch(url.toString(), { signal: ctrl.signal });
-    if (!res.ok) return null;
+    if (!res.ok) {
+      if (res.status === 403 || res.status === 429) {
+        await reportQuotaExhaustion(
+          `HTTP ${res.status} from Distance Matrix`,
+          await safeReadBody(res)
+        );
+      }
+      return null;
+    }
     const data = await res.json();
-    if (data.status !== "OK") return null;
+    if (data.status !== "OK") {
+      // Distance Matrix encodes quota errors in the top-level `status` field
+      // with HTTP 200. OVER_QUERY_LIMIT / REQUEST_DENIED / RESOURCE_EXHAUSTED
+      // all indicate the API key has stopped working.
+      if (
+        data.status === "OVER_QUERY_LIMIT" ||
+        data.status === "REQUEST_DENIED" ||
+        data.status === "RESOURCE_EXHAUSTED"
+      ) {
+        await reportQuotaExhaustion(
+          `Distance Matrix status=${data.status}`,
+          typeof data.error_message === "string" ? data.error_message : null
+        );
+      }
+      return null;
+    }
     const el = data.rows?.[0]?.elements?.[0];
     if (!el || el.status !== "OK") return null;
     return {
@@ -489,6 +524,8 @@ async function fetchTravelTime(
       distanceText: el.distance?.text ?? null,
     };
   } catch (err) {
+    // AbortError (5s timeout) and generic network failures degrade silently —
+    // the briefing simply omits drive times. Don't Sentry-spam on these.
     console.error(
       "fetchTravelTime failed:",
       err instanceof Error ? err.message : String(err)
@@ -496,6 +533,40 @@ async function fetchTravelTime(
     return null;
   } finally {
     clearTimeout(timer);
+  }
+}
+
+async function safeReadBody(res: Response): Promise<string | null> {
+  try {
+    return (await res.text()).slice(0, 400);
+  } catch {
+    return null;
+  }
+}
+
+// Best-effort Sentry capture from inside the Deno briefing edge function.
+// Imports the SDK dynamically so a missing module never breaks briefings;
+// Slack notification is the durable channel here, Sentry is the trend log.
+let quotaAlertSent = false;
+async function reportQuotaExhaustion(
+  reason: string,
+  detail: string | null
+): Promise<void> {
+  // De-dupe per cold-start: a single briefing fan-out hitting quota will
+  // otherwise file one alert per leg per recipient. One alert per warm
+  // function instance is enough signal to act on.
+  if (quotaAlertSent) return;
+  quotaAlertSent = true;
+  console.error(
+    `fetchTravelTime quota exhaustion: ${reason}${detail ? ` — ${detail}` : ""}`
+  );
+  try {
+    await notifySlack(
+      `Distance Matrix quota exhausted (${reason}). Drive-time legs in today's briefings will degrade until the quota recovers.`,
+      "critical"
+    );
+  } catch {
+    /* notify is best-effort */
   }
 }
 
@@ -598,6 +669,16 @@ interface CalendarConnectionRow {
   last_synced_at: string | null;
   sync_status: string;
   enabled: boolean;
+  // P2-C4 (audit v6): provider lets the staleness note name *which*
+  // connection failed so the user knows whether to re-auth Google or
+  // re-issue an Apple app-specific password.
+  provider?: string | null;
+}
+
+function providerLabel(provider: string | null | undefined): string {
+  if (provider === "google") return "Google Calendar";
+  if (provider === "apple") return "Apple Calendar";
+  return "A connected calendar";
 }
 
 function calendarStalenessNote(
@@ -605,17 +686,32 @@ function calendarStalenessNote(
 ): string | null {
   const active = (connections ?? []).filter((c) => c.enabled);
   if (active.length === 0) return null;
-  if (active.some((c) => c.sync_status === "error")) {
-    return "A connected calendar is failing to sync — today's events may be incomplete or out of date.";
+
+  // P2-C4: report the specific provider that's failing instead of the
+  // ambiguous "a connected calendar." Multi-provider households need to
+  // know which side to fix.
+  const erroring = active.find((c) => c.sync_status === "error");
+  if (erroring) {
+    return `${providerLabel(erroring.provider)} is failing to sync — today's events may be incomplete or out of date.`;
   }
   const newestSync = active
     .map((c) => (c.last_synced_at ? new Date(c.last_synced_at).getTime() : 0))
     .reduce((a, b) => Math.max(a, b), 0);
   if (newestSync === 0) {
+    // Single connection? Name it. Multiple? Stay generic.
+    if (active.length === 1) {
+      return `${providerLabel(active[0].provider)} has not synced yet — today's events may be out of date.`;
+    }
     return "A connected calendar has not synced yet — today's events may be out of date.";
   }
   const ageMs = Date.now() - newestSync;
   if (ageMs > STALE_SYNC_THRESHOLD_MS) {
+    // Identify the stalest provider (the one whose last_synced_at is the
+    // oldest among connections that have synced at least once).
+    const synced = active.filter((c) => c.last_synced_at);
+    if (synced.length === 1) {
+      return `${providerLabel(synced[0].provider)} last synced ${Math.round(ageMs / 3_600_000)}h ago — today's events may be out of date.`;
+    }
     return `A connected calendar last synced ${Math.round(ageMs / 3_600_000)}h ago — today's events may be out of date.`;
   }
   return null;
@@ -700,6 +796,13 @@ function resolveFamilyNaming(
   if (!surname && tokens.length === 2) {
     surname = tokens[1];
   }
+  // P2-M2 (audit v6): downstream behavior when surname stays null — the
+  // briefing layer in buildBriefingContext drops the "the X family"
+  // construction and falls back to a member-name listing ("you and the
+  // kids", "you, Jontae, and Jax") instead of guessing a surname from an
+  // ambiguous 3+ token name. This is intentional: an invented surname
+  // ("Mary Smith Johnson" → "the Johnson family") embarrasses the user
+  // and contradicts their explicit profile data. Better to fall back.
   return { parentFirstName: tokens[0], surname };
 }
 
@@ -754,7 +857,7 @@ async function buildBriefingContext(
       .or(`profile_id.eq.${profileId},household_id.eq.${householdId}`),
     supabase
       .from("calendar_connections")
-      .select("last_synced_at, sync_status, enabled")
+      .select("last_synced_at, sync_status, enabled, provider")
       .eq("profile_id", profileId),
     // Live context notes — e.g. the weekly Sunday check-in reply about the
     // week ahead. expires_at is a TTL; drop anything past it.
@@ -780,8 +883,24 @@ async function buildBriefingContext(
         `event_window_start.is.null,and(event_window_start.lt.${endUtc},event_window_end.gt.${startUtc})`
       )
       .order("surfaced_at", { ascending: true })
-      .limit(8),
+      // V6 P1-M3: raised from 8 — a household on a chaotic week can produce
+      // 10+ open issues that all genuinely touch today (back-to-back pickup
+      // risks + late schedule changes + a responsibility shift), and the LLM
+      // needs the full set to pick the most urgent. 20 is empirical headroom;
+      // beyond that we Slack-warn so we notice if truncation actually bites.
+      .limit(20),
   ]);
+
+  if (
+    coordinationIssueRows &&
+    Array.isArray(coordinationIssueRows) &&
+    coordinationIssueRows.length >= 20
+  ) {
+    notifySlack(
+      `Coordination-issues query hit the 20-row limit for household ${householdId} — raise the cap or investigate why this household has so many open issues.`,
+      "warning"
+    ).catch(() => {});
+  }
 
   const dateLabel = new Date().toLocaleDateString("en-US", {
     timeZone: timezone,
@@ -927,8 +1046,12 @@ const ANTHROPIC_TIMEOUT_MS = 30_000;
 
 // Default writer model. Override via BRIEFING_WRITER_MODEL (v5 P2-B4) when
 // rolling to a newer Sonnet or A/B testing a different model.
+//
+// V6 P1-M1: explicit date suffix so we don't break silently the day Anthropic
+// deprecates the bare `claude-sonnet-4-6` alias. The scorer was already
+// date-pinned (briefing-quality.ts); both halves of the pipeline now match.
 const WRITER_MODEL =
-  Deno.env.get("BRIEFING_WRITER_MODEL") ?? "claude-sonnet-4-6";
+  Deno.env.get("BRIEFING_WRITER_MODEL") ?? "claude-sonnet-4-6-20250930";
 
 async function callAnthropicWithRetry(ctx: string): Promise<string> {
   let lastErr: unknown;

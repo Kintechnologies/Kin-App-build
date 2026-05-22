@@ -53,7 +53,9 @@ function getLocalParts(timezone: string): { hour: number; weekday: string } {
   }).formatToParts(new Date());
   const hourStr = parts.find((p) => p.type === "hour")?.value ?? "0";
   const weekday = parts.find((p) => p.type === "weekday")?.value ?? "";
-  return { hour: parseInt(hourStr, 10) % 24, weekday };
+  // P2-E2 (audit v6): Intl.DateTimeFormat with hour12: false returns "00"–"23"
+  // already, so a `% 24` after parseInt is always a no-op. Dropping it.
+  return { hour: parseInt(hourStr, 10), weekday };
 }
 
 /**
@@ -120,7 +122,12 @@ export async function GET(request: Request) {
     const { hour, weekday } = getLocalParts(tz);
 
     // Only Sunday, only the 2pm hour in the user's own timezone.
-    if (weekday !== "Sun" || hour !== 14) {
+    // V6 P1-E6: explicit daytime guard for consistency with the other
+    // outbound SMS crons (engagement-nudges uses isDaytime — 8am–9pm). 2pm is
+    // already in the window, but the redundancy means a future change to the
+    // hour filter can't accidentally send overnight if a timezone-missing
+    // profile slips through.
+    if (weekday !== "Sun" || hour !== 14 || hour < 8 || hour > 21) {
       results.skipped++;
       continue;
     }

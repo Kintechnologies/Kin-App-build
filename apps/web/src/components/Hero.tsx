@@ -16,14 +16,19 @@ export function Hero() {
       }}
     >
       {/* Warm ambient wash */}
+      {/* P2-L2 (audit v6): on phones (<400px wide) the fixed 760px ellipse
+          extended past the viewport so the warm glow fell off-screen and the
+          hero looked flat. clamp() lets the ellipse shrink to viewport width
+          on narrow screens and still hit 760px on desktop. Height scales
+          proportionally so the ellipse keeps its 0.68 aspect ratio. */}
       <div
         style={{
           position: "absolute",
           top: "8%",
           left: "50%",
           transform: "translateX(-50%)",
-          width: "760px",
-          height: "520px",
+          width: "clamp(300px, 100vw, 760px)",
+          height: "clamp(204px, 68vw, 520px)",
           background:
             "radial-gradient(ellipse at center, rgba(172,106,69,0.1) 0%, transparent 70%)",
           pointerEvents: "none",
