@@ -27,11 +27,48 @@ export async function exchangeGoogleCode(code: string) {
   return tokens;
 }
 
+/**
+ * Thrown when Google rejects the refresh_token (401, invalid_grant, etc.) —
+ * meaning the user revoked Kin's access in their Google account, deleted their
+ * Google account, or the token simply expired without refresh activity for
+ * months. The sync path uses this to flip the connection to `needs_reconnect`
+ * so the dashboard surfaces a Reconnect CTA. (audit v3 P1-C1)
+ */
+export class GoogleTokenRevokedError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "GoogleTokenRevokedError";
+  }
+}
+
+function isRevokedTokenError(err: unknown): boolean {
+  const e = err as {
+    status?: number;
+    code?: number | string;
+    response?: { data?: { error?: string } };
+    message?: string;
+  };
+  if (e?.status === 401 || e?.code === 401 || e?.code === "401") return true;
+  const errCode = e?.response?.data?.error;
+  if (errCode === "invalid_grant" || errCode === "unauthorized_client") return true;
+  if (typeof e?.message === "string" && /invalid_grant/i.test(e.message)) return true;
+  return false;
+}
+
 export async function refreshGoogleToken(refreshToken: string) {
   const oauth2Client = getGoogleOAuthClient();
   oauth2Client.setCredentials({ refresh_token: refreshToken });
-  const { credentials } = await oauth2Client.refreshAccessToken();
-  return credentials;
+  try {
+    const { credentials } = await oauth2Client.refreshAccessToken();
+    return credentials;
+  } catch (err) {
+    if (isRevokedTokenError(err)) {
+      throw new GoogleTokenRevokedError(
+        "Google refresh_token rejected — user must reconnect"
+      );
+    }
+    throw err;
+  }
 }
 
 // ── Calendar API ──
@@ -168,6 +205,15 @@ export function googleEventToKinEvent(
     ? (gEvent.visibility as CalendarEventVisibility)
     : "default";
 
+  // All-day events arrive from Google as `start.date = "2026-05-22"`. JS parses
+  // that as UTC midnight (2026-05-22T00:00:00Z), which renders as the PRIOR
+  // calendar day for any timezone west of UTC — every PT user would see
+  // "Mom's birthday" on the wrong day. Anchor to noon UTC of the target date
+  // instead: noon falls on the correct local date for any timezone within
+  // ±12h of UTC (essentially all of the US service area). (audit v3 P1-C2)
+  const allDayInstant = (dateStr: string) =>
+    new Date(`${dateStr}T12:00:00.000Z`).toISOString();
+
   return {
     profile_id: profileId,
     owner_parent_id: profileId,
@@ -176,10 +222,10 @@ export function googleEventToKinEvent(
     location: gEvent.location || undefined,
     visibility,
     start_time: isAllDay
-      ? new Date(gEvent.start!.date!).toISOString()
+      ? allDayInstant(gEvent.start!.date!)
       : gEvent.start!.dateTime!,
     end_time: isAllDay
-      ? new Date(gEvent.end!.date!).toISOString()
+      ? allDayInstant(gEvent.end!.date!)
       : gEvent.end!.dateTime!,
     all_day: isAllDay,
     external_id: gEvent.id!,

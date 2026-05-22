@@ -19,6 +19,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { checkRateLimit, rateLimitResponse } from "@/lib/rate-limit";
 
 export const dynamic = "force-dynamic";
 
@@ -306,6 +307,12 @@ export async function GET() {
   if (!profile?.phone_number || !ADMIN_PHONES.has(profile.phone_number)) {
     return NextResponse.json({ error: "forbidden" }, { status: 403 });
   }
+
+  // Defense-in-depth on top of phone-list gating: 60/min/uid is generous for
+  // a single admin browser polling the dashboard, but caps the blast radius if
+  // the founder account is ever compromised. (audit v3 P1-I3)
+  const rl = await checkRateLimit(user.id, "ops-metrics");
+  if (!rl.allowed) return rateLimitResponse(rl);
 
   const [briefing, sms, calendar, users] = await Promise.all([
     briefingHealth(supabase),

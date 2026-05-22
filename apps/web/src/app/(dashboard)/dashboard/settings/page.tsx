@@ -303,7 +303,7 @@ export default function DashboardSettingsPage() {
                 icon={Clock}
                 label="Briefing time"
                 value="6:00 AM"
-                hint="Delivered every morning. Custom times are coming soon."
+                hint="Delivered every morning in your local time."
               />
               <InfoRow
                 icon={MapPin}

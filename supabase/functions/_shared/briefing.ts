@@ -638,7 +638,7 @@ NO MANUFACTURED URGENCY — only flag a timing risk when one genuinely exists. A
 
 NO FILLER — do not editorialize on the day ("looks like a good day to enjoy the weekend", "perfect for it all", "no surprises", "a clean Monday morning"). Do not close with well-wishes ("hope it goes smoothly", "enjoy"). Do not summarize what you just said. End on the last substantive sentence.
 
-ADDRESSING THE FAMILY — the context names the primary parent and, when one is known, the family surname. When a surname is given, you may say "the [Surname]s" or "the [Surname] family" — but do so sparingly; speaking to the parent by first name is more personal. When NO surname is given, never manufacture one from the parent's first name ("the Austin family" is wrong); refer to the household by its members ("you and the kids", "you, Jontae, and Jaxon"). Always call children by their own names.
+ADDRESSING THE FAMILY — the context names the primary parent and, when one is known, the family surname. When a surname is given, you may say "the [Surname]s" or "the [Surname] family" — but do so sparingly; speaking to the parent by first name is more personal. When NO surname is given, never manufacture one from the parent's first name ("the Austin family" is wrong); refer to the household by its members ("you and the kids", "you, Jontae, and Jaxon"). Always call children by their own names. When the context contains NO partner calendar section, do not invent a partner — this household has a single parent, and phrasing like "your partner" or "the other parent" must never appear.
 
 WEATHER — absolute rule first: NEVER mention precipitation, rain, snow, temperature, wind, sun, cloud cover, "bundle up", "grab an umbrella", or any other weather condition unless a line that begins with "Weather (" is present in the context above. If no such line is present, do not reference weather in any form, not even obliquely. Do not infer weather from the season, the city, or anything else. When the Weather line IS present, you may use only the facts it states — never extrapolate or add detail it does not contain. And even then: only mention weather when it materially affects a specific event on today's calendar (rain landing on a pickup, cold at a bus stop, storm during a soccer game). Tie it to the event ("grab a jacket before Jaxon's 5:30 pickup — rain hits at 4"). When the day's weather is mild and uneventful, OMIT it entirely — do not include a forecast as wallpaper, do not close with "weather is clear and mild", do not editorialize ("clear skies and 80°F if you want to get outside"). A standalone weather line is always wrong.
 
@@ -1080,9 +1080,11 @@ export async function deliverBriefing(
     // latency to delivery. Plaintext fallback skips scoring for the same
     // reason quickQualityCheck does. scoreBriefing returns null on any
     // failure; we treat that as "could not score" and proceed.
+    let scorerThrew = false;
     const scorePromise = degraded
       ? Promise.resolve(null)
       : scoreBriefing(text, context).catch((err) => {
+          scorerThrew = true;
           console.error(
             "deliverBriefing: scoreBriefing threw",
             err instanceof Error ? err.message : String(err)
@@ -1124,6 +1126,37 @@ export async function deliverBriefing(
       },
       { onConflict: "profile_id,briefing_date" }
     );
+
+    // Detect sustained scorer outages. A Haiku timeout or quota issue can wipe
+    // the quality_score column across many briefings without ever surfacing —
+    // the trend dashboard degrades invisibly. When the just-persisted briefing
+    // is null-scored and the four immediately-prior briefings are also null
+    // (and the 5th-back IS scored, marking the boundary so we alert exactly
+    // once per outage), fire an info-level Slack ping. (audit v3 P1-B3)
+    if (!degraded && (score === null || scorerThrew)) {
+      try {
+        const { data: recent } = await supabase
+          .from("morning_briefings")
+          .select("quality_score")
+          .eq("delivery_status", "sent")
+          .order("sent_at", { ascending: false })
+          .limit(6);
+        const rows = recent ?? [];
+        const topFiveAllNull =
+          rows.length >= 5 &&
+          rows.slice(0, 5).every((r) => r.quality_score === null);
+        const sixthScored = rows.length >= 6 && rows[5].quality_score !== null;
+        const onlyFiveExist = rows.length === 5;
+        if (topFiveAllNull && (sixthScored || onlyFiveExist)) {
+          await notifySlack(
+            `Briefing quality scorer (Haiku) has returned null on the last 5 briefings — trend dashboard is degrading silently. Check Anthropic status.`,
+            "info"
+          ).catch(() => {});
+        }
+      } catch (err) {
+        console.error("scorer-streak check failed", err instanceof Error ? err.message : err);
+      }
+    }
 
     console.log(`[${source}] Sent briefing to ${profile.family_name} (${profile.id})`);
     return { status: "sent", degraded };

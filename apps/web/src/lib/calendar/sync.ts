@@ -3,6 +3,7 @@ import {
   pullGoogleEvents,
   googleEventToKinEvent,
   refreshGoogleToken,
+  GoogleTokenRevokedError,
 } from "./google";
 import { pullAppleEvents, appleEventToKinEvent } from "./apple";
 import { detectConflicts, findNewConflicts } from "./conflicts";
@@ -67,10 +68,16 @@ export async function syncCalendarForConnection(connectionId: string) {
       console.error(`Sync error for connection ${connectionId}:`, error);
     }
     const msg = error instanceof Error ? error.message : "Unknown error";
+    // A revoked refresh_token is a user action ("Remove access" in Google
+    // Account settings) — not a transient sync failure. Flip the connection
+    // into a dedicated state so the dashboard can render a Reconnect CTA
+    // instead of a misleading "Sync error" with no clear next action.
+    // (audit v3 P1-C1)
+    const isRevoked = error instanceof GoogleTokenRevokedError;
     await supabase
       .from("calendar_connections")
       .update({
-        sync_status: "error",
+        sync_status: isRevoked ? "needs_reconnect" : "error",
         sync_error: msg,
         updated_at: new Date().toISOString(),
       })
@@ -80,7 +87,7 @@ export async function syncCalendarForConnection(connectionId: string) {
     // (token refresh, transient API error), but a pattern in the channel is
     // the early signal that auth has actually broken.
     await notifySlack(
-      `Calendar sync failed for connection ${connectionId}: ${msg}`,
+      `Calendar sync failed for connection ${connectionId}${isRevoked ? " (needs_reconnect)" : ""}: ${msg}`,
       "warning"
     ).catch(() => {});
   }

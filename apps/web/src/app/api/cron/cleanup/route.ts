@@ -1,14 +1,14 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { isAuthorizedCron } from "@/lib/cron-auth";
 import * as Sentry from "@sentry/nextjs";
 
 // This route should be called daily by a Vercel cron job
 // Add to vercel.json: { "crons": [{ "path": "/api/cron/cleanup", "schedule": "0 6 * * *" }] }
 
 export async function GET(request: Request) {
-  // Verify cron secret to prevent unauthorized calls
-  const authHeader = request.headers.get("authorization");
-  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+  // Consistent cron auth with every other cron route. (audit v3 P1-I1)
+  if (!isAuthorizedCron(request)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -28,19 +28,24 @@ export async function GET(request: Request) {
     for (const user of reminderUsers) {
       // TODO: Send reminder email via Beehiiv
       // "Your Kin data will be deleted on [date]. Reactivate to keep your family profile."
-      Sentry.captureMessage(`Day-75 reminder sent: deletion on ${user.data_deletion_at}`, "info");
-
       await supabase
         .from("profiles")
         .update({ deletion_reminded: true })
         .eq("id", user.id);
     }
+    // Aggregate, count-only breadcrumb. Per-user messages used to include the
+    // deletion timestamp (and email rows were in scope), leaking PII into
+    // Sentry. (audit v3 P1-I2)
+    Sentry.captureMessage(
+      `cleanup: sent day-75 reminders to ${reminderUsers.length} user(s)`,
+      "info"
+    );
   }
 
   // 2. Delete data for users past the 90-day grace period
   const { data: deletionUsers } = await supabase
     .from("profiles")
-    .select("id, email")
+    .select("id")
     .lte("data_deletion_at", now.toISOString())
     .not("data_deletion_at", "is", null);
 
@@ -59,10 +64,12 @@ export async function GET(request: Request) {
 
       // Delete the auth user
       await supabase.auth.admin.deleteUser(user.id);
-
-      Sentry.captureMessage(`User data deleted per 90-day retention policy`, "info");
       deletedCount++;
     }
+    Sentry.captureMessage(
+      `cleanup: deleted ${deletedCount} account(s) per 90-day retention policy`,
+      "info"
+    );
   }
 
   return NextResponse.json({

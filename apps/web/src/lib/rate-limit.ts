@@ -10,16 +10,25 @@
  *   if (!result.allowed) return rateLimitResponse(result);
  *
  * Limits:
- *   chat            → 10 req / 1 min  (per user)
- *   morning-briefing → 1 req / 1 day  (per user)
+ *   chat             → 10 req / 1 min   (per user)
+ *   morning-briefing → 1 req / 1 day    (per user)
  *   first-use        → 5 req / lifetime — approximated as 5 req / 365 days
+ *   sms              → 10 inbound / 1 h (per phone)
+ *   invite-accept    → 5 req / 1 min    (per user — defeats invite-code enumeration)
+ *   ops-metrics      → 60 req / 1 min   (per uid — defense-in-depth on founder dash)
  */
 
 import { Ratelimit } from "@upstash/ratelimit";
 import { Redis } from "@upstash/redis";
 import { NextResponse } from "next/server";
 
-type RouteKey = "chat" | "morning-briefing" | "first-use" | "sms";
+type RouteKey =
+  | "chat"
+  | "morning-briefing"
+  | "first-use"
+  | "sms"
+  | "invite-accept"
+  | "ops-metrics";
 
 // Lazily initialise Redis + limiters only when env vars are present.
 let redis: Redis | null = null;
@@ -53,11 +62,28 @@ function getLimiter(route: RouteKey): Ratelimit | null {
       prefix: "rl:morning-briefing",
     });
   } else if (route === "sms") {
-    // 20 inbound SMS per hour per phone number — prevents API drain from a single number
+    // 10 inbound SMS per hour per phone number — caps Claude spend per user-hour
+    // for the beta cohort. Lowered from 20 in audit v3 P1-S2.
     limiter = new Ratelimit({
       redis: r,
-      limiter: Ratelimit.slidingWindow(20, "1 h"),
+      limiter: Ratelimit.slidingWindow(10, "1 h"),
       prefix: "rl:sms",
+    });
+  } else if (route === "invite-accept") {
+    // 5 invite-code submissions per minute per authenticated user — defeats
+    // brute-force enumeration of short invite codes by a logged-in attacker.
+    limiter = new Ratelimit({
+      redis: r,
+      limiter: Ratelimit.slidingWindow(5, "1 m"),
+      prefix: "rl:invite-accept",
+    });
+  } else if (route === "ops-metrics") {
+    // Founder /ops dashboard polls every few seconds; 60/min is generous headroom
+    // for a single admin browser. Defense-in-depth on top of phone-list gating.
+    limiter = new Ratelimit({
+      redis: r,
+      limiter: Ratelimit.slidingWindow(60, "1 m"),
+      prefix: "rl:ops-metrics",
     });
   } else {
     // first-use: 5 requests per 365 days (effectively lifetime)

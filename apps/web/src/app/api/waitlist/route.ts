@@ -42,26 +42,27 @@ function getRatelimit(): Ratelimit | null {
   return ratelimit;
 }
 
-// Normalize a user-typed phone number to E.164. Assumes a US/Canada
-// number when no country code is present — the form's audience is
-// North American. Returns null if the input can't be made valid.
+// Normalize a user-typed phone number to E.164. Restricted to US/Canada
+// (+1) for the beta — the 10DLC campaign and per-segment cost math both
+// assume +1, and any other country code would either fail delivery via
+// Twilio's brand registration or get billed at a multiple of the US rate.
+// (audit v3 P1-E3) Returns null if the input can't be made valid +1.
 function normalizePhone(raw: string): string | null {
   const trimmed = raw.trim();
-  const hasPlus = trimmed.startsWith("+");
   const digits = trimmed.replace(/\D/g, "");
 
   let e164: string;
-  if (hasPlus) {
+  if (trimmed.startsWith("+1") && digits.length === 11) {
     e164 = "+" + digits;
   } else if (digits.length === 10) {
     e164 = "+1" + digits;
   } else if (digits.length === 11 && digits.startsWith("1")) {
     e164 = "+" + digits;
   } else {
-    e164 = "+" + digits;
+    return null;
   }
 
-  return /^\+[1-9]\d{7,14}$/.test(e164) ? e164 : null;
+  return /^\+1\d{10}$/.test(e164) ? e164 : null;
 }
 
 export async function POST(req: NextRequest) {

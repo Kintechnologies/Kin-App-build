@@ -40,6 +40,7 @@ interface ProfileRow {
   context_notes: string | null;
   household_id: string | null;
   onboarding_step: number | null;
+  timezone: string | null;
 }
 
 export async function GET(request: Request) {
@@ -69,7 +70,7 @@ export async function GET(request: Request) {
   const { data: profile, error: profileErr } = await supabase
     .from("profiles")
     .select(
-      "id, family_name, phone_number, context_notes, household_id, onboarding_step"
+      "id, family_name, phone_number, context_notes, household_id, onboarding_step, timezone"
     )
     .eq("phone_number", phone)
     .limit(1)
@@ -116,6 +117,7 @@ export async function GET(request: Request) {
     family_name: profile.family_name,
     household_id: profile.household_id,
     context_notes: profile.context_notes,
+    timezone: profile.timezone,
   });
   const generationMs = Date.now() - generationStart;
 

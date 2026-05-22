@@ -113,8 +113,34 @@ export async function GET(request: Request) {
       Sentry.captureException(err);
     }
 
-    // Trigger initial sync
-    await syncCalendarForConnection(connection.id);
+    // Trigger initial sync. Hanging Google API calls used to leave the user
+    // staring at a frozen redirect (the route held an open fetch indefinitely);
+    // wrap in a 30s timeout so the redirect always happens. On timeout, flip
+    // the connection into `syncing` and let the next cron run backfill — the
+    // partial events written before the timeout remain. (audit v3 P1-C3)
+    const SYNC_TIMEOUT_MS = 30_000;
+    try {
+      await Promise.race([
+        syncCalendarForConnection(connection.id),
+        new Promise<never>((_, reject) =>
+          setTimeout(
+            () => reject(new Error("initial sync exceeded 30s")),
+            SYNC_TIMEOUT_MS
+          )
+        ),
+      ]);
+    } catch (syncErr) {
+      Sentry.captureException(syncErr);
+      await db
+        .from("calendar_connections")
+        .update({
+          sync_status: "syncing",
+          sync_error:
+            "initial sync timed out — will retry on the next scheduled run",
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", connection.id);
+    }
 
     // ── SMS texter: consume the one-time token, land on the confirmation page ─
     if (isSms) {

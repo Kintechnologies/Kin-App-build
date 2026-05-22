@@ -15,6 +15,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { getAnthropicClient, ANTHROPIC_MODEL } from "@/lib/anthropic";
 import { detectPickupRisk } from "@/lib/pickup-risk";
 import { getHouseholdContext, formatHouseholdContext } from "@/lib/household-context";
+import { notifySlack } from "@/lib/notify";
 
 interface CalendarEventRow {
   title: string;
@@ -69,19 +70,26 @@ export interface SmsBriefingProfile {
   family_name: string | null;
   household_id: string | null;
   context_notes: string | null;
+  // Profile timezone, used to format event times in the recipient's local clock.
+  // The /api/test/morning-briefing dev path passes this through so its output
+  // matches production. Optional for backwards compatibility with older callers.
+  timezone?: string | null;
 }
 
-function formatTime(iso: string): string {
+// Times must render in the recipient's local clock — a UTC default makes the
+// test endpoint and any non-PT user see misaligned event times.
+// (audit v3 P1-B2)
+function formatTime(iso: string, timezone: string = "America/Los_Angeles"): string {
   return new Date(iso).toLocaleTimeString("en-US", {
     hour: "numeric",
     minute: "2-digit",
-    timeZone: "UTC",
+    timeZone: timezone,
   });
 }
 
-function formatEventLine(e: CalendarEventRow): string {
+function formatEventLine(e: CalendarEventRow, timezone: string): string {
   const where = e.location ? ` (${e.location})` : "";
-  return `  ${formatTime(e.start_time)} — ${e.title}${where}`;
+  return `  ${formatTime(e.start_time, timezone)} — ${e.title}${where}`;
 }
 
 // Source of truth: supabase/functions/_shared/briefing.ts:SYSTEM_PROMPT.
@@ -113,7 +121,7 @@ NO MANUFACTURED URGENCY — only flag a timing risk when one genuinely exists. A
 
 NO FILLER — do not editorialize on the day ("looks like a good day to enjoy the weekend", "perfect for it all", "no surprises", "a clean Monday morning"). Do not close with well-wishes ("hope it goes smoothly", "enjoy"). Do not summarize what you just said. End on the last substantive sentence.
 
-ADDRESSING THE FAMILY — the context names the primary parent and, when one is known, the family surname. When a surname is given, you may say "the [Surname]s" or "the [Surname] family" — but do so sparingly; speaking to the parent by first name is more personal. When NO surname is given, never manufacture one from the parent's first name ("the Austin family" is wrong); refer to the household by its members ("you and the kids", "you, Jontae, and Jaxon"). Always call children by their own names.
+ADDRESSING THE FAMILY — the context names the primary parent and, when one is known, the family surname. When a surname is given, you may say "the [Surname]s" or "the [Surname] family" — but do so sparingly; speaking to the parent by first name is more personal. When NO surname is given, never manufacture one from the parent's first name ("the Austin family" is wrong); refer to the household by its members ("you and the kids", "you, Jontae, and Jaxon"). Always call children by their own names. When the context contains NO partner calendar section, do not invent a partner — this household has a single parent, and phrasing like "your partner" or "the other parent" must never appear.
 
 WEATHER — absolute rule first: NEVER mention precipitation, rain, snow, temperature, wind, sun, cloud cover, "bundle up", "grab an umbrella", or any other weather condition unless a line that begins with "Weather (" is present in the context above. If no such line is present, do not reference weather in any form, not even obliquely. Do not infer weather from the season, the city, or anything else. When the Weather line IS present, you may use only the facts it states — never extrapolate or add detail it does not contain. And even then: only mention weather when it materially affects a specific event on today's calendar (rain landing on a pickup, cold at a bus stop, storm during a soccer game). Tie it to the event ("grab a jacket before Jaxon's 5:30 pickup — rain hits at 4"). When the day's weather is mild and uneventful, OMIT it entirely — do not include a forecast as wallpaper, do not close with "weather is clear and mild", do not editorialize ("clear skies and 80°F if you want to get outside"). A standalone weather line is always wrong.
 
@@ -135,10 +143,12 @@ export async function generateSmsBriefing(
 ): Promise<string> {
   const today = new Date().toISOString().split("T")[0];
   const since24h = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+  const tz = profile.timezone ?? "America/Los_Angeles";
   const dateStr = new Date().toLocaleDateString("en-US", {
     weekday: "long",
     month: "long",
     day: "numeric",
+    timeZone: tz,
   });
 
   const profileName = profile.family_name ?? "there";
@@ -146,29 +156,54 @@ export async function generateSmsBriefing(
   // ── Resolve household + partner ────────────────────────────────────────────
   // household_id = null → this profile IS the primary parent.
   // household_id = X    → primary parent is X.
+  //
+  // KNOWN LIMITATION (audit v3 P1-B4): only a single partner is resolved here.
+  // Multi-adult households (two co-parents + grandparent, blended families,
+  // etc.) feed only ONE partner's calendar into the briefing. The data model
+  // (`profiles.household_id` is a 1:1 link to the primary) doesn't support
+  // multi-adult fan-out yet; expanding to a list is a schema change deferred
+  // post-beta. Document here so future work knows the constraint.
   const primaryId = profile.household_id ?? profile.id;
 
   let partnerProfileId: string | null = null;
   let partnerName: string | null = null;
+  let partnerResolveError: string | null = null;
 
   if (profile.household_id) {
     // This profile is the partner; the primary IS the partner.
     partnerProfileId = profile.household_id;
-    const { data: pRow } = await supabase
+    const { data: pRow, error: pErr } = await supabase
       .from("profiles")
       .select("family_name")
       .eq("id", profile.household_id)
       .single<{ family_name: string | null }>();
+    if (pErr) partnerResolveError = pErr.message;
     partnerName = pRow?.family_name ?? null;
   } else {
     // This profile is the primary; partner has household_id pointing to us.
-    const { data: pRow } = await supabase
+    const { data: pRow, error: pErr } = await supabase
       .from("profiles")
       .select("id, family_name")
       .eq("household_id", profile.id)
       .single<{ id: string; family_name: string | null }>();
+    // PGRST116 ("not found") is the normal sole-parent path and not an error;
+    // only real DB errors raise an alert.
+    if (pErr && pErr.code !== "PGRST116") partnerResolveError = pErr.message;
     partnerProfileId = pRow?.id ?? null;
     partnerName = pRow?.family_name ?? null;
+  }
+
+  // A coupled household with a failed partner lookup quietly drops the partner's
+  // calendar from the briefing. Alert so we notice rather than silently send a
+  // half-context briefing. (audit v3 P1-B1)
+  if (partnerResolveError) {
+    console.error(
+      `sms-briefing: partner-resolve failed for profile ${profile.id}: ${partnerResolveError}`
+    );
+    await notifySlack(
+      `Partner profile lookup failed for ${profileName} (${profile.id}): ${partnerResolveError}. Briefing will send without partner context.`,
+      "warning"
+    ).catch(() => {});
   }
 
   // ── Run pickup risk detection (idempotent; non-fatal on failure) ───────────
@@ -264,7 +299,7 @@ export async function generateSmsBriefing(
 
   ctx += `\n\n${profileName}'S CALENDAR TODAY:`;
   if (myEvents && myEvents.length > 0) {
-    for (const e of myEvents) ctx += `\n${formatEventLine(e)}`;
+    for (const e of myEvents) ctx += `\n${formatEventLine(e, tz)}`;
   } else {
     ctx += `\n  (no events)`;
   }
@@ -272,7 +307,7 @@ export async function generateSmsBriefing(
   if (partnerProfileId) {
     ctx += `\n\n${partnerName ?? "PARTNER"}'S CALENDAR TODAY:`;
     if (partnerEvents && partnerEvents.length > 0) {
-      for (const e of partnerEvents) ctx += `\n${formatEventLine(e)}`;
+      for (const e of partnerEvents) ctx += `\n${formatEventLine(e, tz)}`;
     } else {
       ctx += `\n  (no events)`;
     }
@@ -281,7 +316,7 @@ export async function generateSmsBriefing(
   if (recentChanges && recentChanges.length > 0) {
     ctx += `\n\nRECENT SCHEDULE CHANGES (last 24h):`;
     for (const e of recentChanges) {
-      ctx += `\n  - ${e.title} (${formatTime(e.start_time)})`;
+      ctx += `\n  - ${e.title} (${formatTime(e.start_time, tz)})`;
     }
   }
 

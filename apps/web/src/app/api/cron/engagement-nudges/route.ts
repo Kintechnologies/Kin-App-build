@@ -348,6 +348,53 @@ async function runTrialNudges(
   supabase: AdminClient,
   results: Results
 ): Promise<void> {
+  // Trial-ended one-shot. When a trial flips to canceled (P0-1 stopped them
+  // receiving briefings the same day), send one warm goodbye-with-an-upgrade-
+  // link SMS so the user knows what happened and how to come back. Exactly
+  // once per profile — gated on the nudges_sent key. (audit v3 P1-E4)
+  const { data: justEnded } = await supabase
+    .from("profiles")
+    .select(NUDGE_COLUMNS)
+    .eq("subscription_status", "canceled")
+    .eq("billing_exempt", false)
+    .eq("onboarding_completed", true)
+    .not("phone_number", "is", null)
+    .is("sms_opted_out_at", null)
+    .returns<NudgeProfile[]>();
+
+  for (const p of justEnded ?? []) {
+    if (alreadySent(p, "trial_ended")) continue;
+    if (!isDaytime(p.timezone)) {
+      results.skipped++;
+      continue;
+    }
+    try {
+      const name = firstName(p);
+      const fallback =
+        `${name} — your trial ended, so the morning briefings have paused. ` +
+        `If you want them back, you can resubscribe here: ${BILLING_URL}`;
+      const body = await generateKinMessage({
+        intent:
+          "Trial-ended one-shot SMS. The trial just lapsed and the user is " +
+          "no longer receiving briefings. Be warm and brief: tell them the " +
+          "trial ended, that briefings have paused, and that they can " +
+          "resubscribe via the billing URL exactly as given. No urgency " +
+          "theater, no exclamation points. This is sent exactly once.",
+        context: {
+          parent_first_name: name,
+          billing_url: BILLING_URL,
+        },
+        fallback,
+        maxChars: 320,
+      });
+      await sendNudge(supabase, p, "trial_ended", body);
+      results.sent++;
+    } catch (err) {
+      results.failed++;
+      results.errors.push(`trial_ended ${p.id}: ${errMsg(err)}`);
+    }
+  }
+
   // Only onboarded profiles still on the trial. Paying/past-due/canceled
   // accounts have left the funnel; billing-exempt (team, comped, partners)
   // profiles are never nagged about billing. TCPA: drop anyone who replied STOP.

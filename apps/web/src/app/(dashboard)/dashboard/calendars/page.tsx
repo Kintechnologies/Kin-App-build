@@ -17,7 +17,7 @@ interface CalendarConnection {
   provider: "google" | "apple";
   email?: string | null;
   enabled?: boolean;
-  sync_status?: "idle" | "syncing" | "error";
+  sync_status?: "idle" | "syncing" | "error" | "needs_reconnect";
   sync_error?: string | null;
   last_synced_at?: string | null;
 }
@@ -57,7 +57,11 @@ function ProviderGlyph({ provider }: { provider: "google" | "apple" }) {
   );
 }
 
-function StatusDot({ status }: { status: "connected" | "syncing" | "error" }) {
+function StatusDot({
+  status,
+}: {
+  status: "connected" | "syncing" | "error" | "needs_reconnect";
+}) {
   const color =
     status === "connected"
       ? "#5C6B4F"
@@ -330,12 +334,14 @@ export default function CalendarsPage() {
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
             {connections.map((conn) => {
-              const status =
-                conn.sync_status === "error"
-                  ? "error"
-                  : conn.sync_status === "syncing"
-                    ? "syncing"
-                    : "connected";
+              const status: "connected" | "syncing" | "error" | "needs_reconnect" =
+                conn.sync_status === "needs_reconnect"
+                  ? "needs_reconnect"
+                  : conn.sync_status === "error"
+                    ? "error"
+                    : conn.sync_status === "syncing"
+                      ? "syncing"
+                      : "connected";
               const isConfirming = confirmId === conn.id;
               return (
                 <div
@@ -392,11 +398,32 @@ export default function CalendarsPage() {
                     </div>
                     <MonoLabel>
                       {conn.provider} ·{" "}
-                      {status === "error"
-                        ? "Sync error"
-                        : relativeTime(conn.last_synced_at)}
+                      {status === "needs_reconnect"
+                        ? "Access revoked — reconnect"
+                        : status === "error"
+                          ? "Sync error"
+                          : relativeTime(conn.last_synced_at)}
                     </MonoLabel>
                   </div>
+                  {status === "needs_reconnect" && conn.provider === "google" && (
+                    <button
+                      onClick={connectGoogle}
+                      disabled={connecting}
+                      style={{
+                        background: "rgba(92,107,79,0.1)",
+                        border: "0.5px solid rgba(92,107,79,0.3)",
+                        borderRadius: "4px",
+                        padding: "6px 10px",
+                        color: "#5C6B4F",
+                        fontSize: "12px",
+                        fontWeight: 500,
+                        cursor: connecting ? "wait" : "pointer",
+                        marginRight: "6px",
+                      }}
+                    >
+                      {connecting ? "Connecting…" : "Reconnect Google"}
+                    </button>
+                  )}
                   {isConfirming ? (
                     <div style={{ display: "flex", gap: "6px" }}>
                       <button

@@ -265,6 +265,8 @@ function SignUpForm() {
               {" · "}
               <Link href="/privacy" style={{ color: T.sage, textDecoration: "none" }}>Privacy</Link>
               {" · Reply STOP to cancel"}
+              {" · "}
+              Can&rsquo;t receive SMS? Use the email magic link below.
             </div>
           </div>
           {error && <p style={{ color: T.rose, fontSize: 13, margin: 0 }} role="alert">{error}</p>}

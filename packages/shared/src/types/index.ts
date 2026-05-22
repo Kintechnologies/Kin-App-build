@@ -95,7 +95,7 @@ export interface CalendarConnection {
   google_channel_expiry?: string;
   google_resource_id?: string;
   last_synced_at?: string;
-  sync_status: "idle" | "syncing" | "error";
+  sync_status: "idle" | "syncing" | "error" | "needs_reconnect";
   sync_error?: string;
   enabled: boolean;
   created_at: string;

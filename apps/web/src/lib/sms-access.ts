@@ -42,12 +42,16 @@ export const APPROVED_MESSAGE =
  */
 export function normalizePhone(raw: string): string | null {
   const trimmed = (raw ?? "").trim();
-  if (/^\+[1-9]\d{7,14}$/.test(trimmed)) return trimmed;
+
+  // US/Canada only for beta. Twilio's 10DLC campaign, the brand, and all
+  // briefing/segmentation cost math assume +1 numbers. International numbers
+  // are not supported and would either fail delivery or be billed at a
+  // multiple of the US rate. (audit v3 P1-E3)
+  if (/^\+1\d{10}$/.test(trimmed)) return trimmed;
 
   const digits = trimmed.replace(/[^\d]/g, "");
   if (digits.length === 10) return `+1${digits}`;
   if (digits.length === 11 && digits.startsWith("1")) return `+${digits}`;
-  if (digits.length >= 8 && digits.length <= 15) return `+${digits}`;
   return null;
 }
 

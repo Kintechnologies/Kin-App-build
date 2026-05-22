@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getAuthenticatedUser } from "@/lib/supabase/api-auth";
+import { checkRateLimit, rateLimitResponse } from "@/lib/rate-limit";
 import * as Sentry from "@sentry/nextjs";
 
 /**
@@ -21,6 +22,11 @@ export async function POST(
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+
+    // Rate limit code submissions per user — defeats brute-force enumeration
+    // of short invite codes by an authenticated attacker.
+    const rl = await checkRateLimit(user.id, "invite-accept");
+    if (!rl.allowed) return rateLimitResponse(rl);
 
     const { code } = params;
     if (!code) {
