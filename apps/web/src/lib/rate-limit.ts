@@ -35,7 +35,8 @@ type RouteKey =
   | "stripe-coupon"
   | "stripe-portal"
   | "onboarding-complete"
-  | "calendar-connect-token";
+  | "calendar-connect-token"
+  | "account-delete";
 
 // Lazily initialise Redis + limiters only when env vars are present.
 let redis: Redis | null = null;
@@ -149,6 +150,16 @@ function getLimiter(route: RouteKey): Ratelimit | null {
       redis: r,
       limiter: Ratelimit.slidingWindow(10, "10 m"),
       prefix: "rl:calendar-connect-token",
+    });
+  } else if (route === "account-delete") {
+    // 3 hard-delete attempts per user per hour — irreversible operation, so
+    // there's no honest reason for high frequency. Tight enough to slow a
+    // forged-request loop, generous enough that a user who hits a transient
+    // 500 and retries twice still gets through. (V7 P0-5)
+    limiter = new Ratelimit({
+      redis: r,
+      limiter: Ratelimit.slidingWindow(3, "1 h"),
+      prefix: "rl:account-delete",
     });
   } else {
     // first-use: 5 requests per 365 days (effectively lifetime)

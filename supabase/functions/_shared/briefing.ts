@@ -761,6 +761,10 @@ interface BriefingContext {
   }[];
   dateLabel: string;
   parentFirstName: string | null;
+  // Whether the household has a co-parent on file. Derived from family_members
+  // rows directly so the sole-parent quality guard has reliable ground truth
+  // independent of how the LLM-facing context string is formatted. (V7 P0-3)
+  hasPartner: boolean;
 }
 
 // profiles.family_name holds the primary parent's FIRST name — SMS onboarding
@@ -1032,7 +1036,22 @@ async function buildBriefingContext(
   if (weather) ctx += `\n${weather}\n`;
   ctx += formatTravelTimes(travelTimes);
 
-  return { ctx, events, dateLabel, parentFirstName: naming.parentFirstName };
+  // Partner detection for the sole-parent quality guard (V7 P0-3). The
+  // conversation-learning layer writes relationship labels like
+  // "partner"/"spouse"/"co-parent"/"husband"/"wife"; check those rather than
+  // re-scanning the formatted ctx string for substrings that may never appear.
+  const hasPartner = (familyMembers ?? []).some((m: { relationship?: string | null }) => {
+    const rel = (m.relationship ?? "").toLowerCase();
+    return /\b(partner|spouse|co[-\s]?parent|husband|wife)\b/.test(rel);
+  });
+
+  return {
+    ctx,
+    events,
+    dateLabel,
+    parentFirstName: naming.parentFirstName,
+    hasPartner,
+  };
 }
 
 // Calls Claude with 3 attempts and exponential backoff. Throws if all fail.
@@ -1137,6 +1156,10 @@ export interface GeneratedBriefing {
   // The prompt context fed to the generator. Surfaced so the runtime quality
   // checks can ground-check the briefing against the same facts the writer saw.
   context: string;
+  // Surfaced so quickQualityCheck can run the phantom-partner guard against
+  // structured ground truth rather than a regex against the rendered ctx
+  // string. (V7 P0-3)
+  hasPartner: boolean;
 }
 
 // Total SMS budget across body + optional payment nudge. 600 chars ≈ 4 Twilio
@@ -1224,8 +1247,11 @@ export async function generateBriefing(
     degraded = true;
     const msg = err instanceof Error ? err.message : String(err);
     console.error(`generateBriefing: AI failed for ${profileId}, using plaintext fallback:`, msg);
+    // PII: identify profiles by UUID only. V6 P0-5 closed four sibling sites in
+    // this file; this call site was missed and re-opened as V7 P0-2. family_name
+    // and any user-supplied identifier must never appear in Slack alert bodies.
     await notifySlack(
-      `AI briefing generation failed for ${familyName ?? profileId} (${profileId}) after retries — sent plaintext fallback. ${msg}`,
+      `AI briefing generation failed for profile ${profileId} after retries — sent plaintext fallback. ${msg}`,
       "warning"
     );
     text = buildPlaintextBriefing(context).slice(0, bodyCap);
@@ -1235,6 +1261,7 @@ export async function generateBriefing(
     text: appendPaymentNudge ? `${text}${NUDGE_SEPARATOR}${PAYMENT_NUDGE}` : text,
     degraded,
     context: context.ctx,
+    hasPartner: context.hasPartner,
   };
 }
 
@@ -1298,7 +1325,7 @@ export async function deliverBriefing(
     daysSinceCreated >= 14;
 
   try {
-    const { text, degraded, context } = await generateBriefing(
+    const { text, degraded, context, hasPartner } = await generateBriefing(
       profile.id,
       profile.family_name,
       profile.last_name,
@@ -1313,7 +1340,7 @@ export async function deliverBriefing(
     // morning", for one). Anything it flags is a prompt-honesty bug worth a
     // critical Slack ping immediately. We never block delivery on it.
     if (!degraded) {
-      const quickIssues = quickQualityCheck(text, context);
+      const quickIssues = quickQualityCheck(text, context, { hasPartner });
       if (quickIssues.length > 0) {
         const summary = quickIssues.map((i) => `${i.type}: ${i.detail}`).join(" | ");
         console.error(
@@ -1413,7 +1440,9 @@ export async function deliverBriefing(
       }
     }
 
-    console.log(`[${source}] Sent briefing to ${profile.family_name} (${profile.id})`);
+    // PII: edge-function logs are viewable by anyone with the Supabase project
+    // role — broader access than Slack. Identify profiles by UUID only. (V7 P0-2)
+    console.log(`[${source}] Sent briefing to profile ${profile.id}`);
     return { status: "sent", degraded };
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);

@@ -14,14 +14,29 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getAuthenticatedUser } from "@/lib/supabase/api-auth";
+import { isSameOrigin } from "@/lib/csrf";
+import { checkRateLimit, rateLimitResponse } from "@/lib/rate-limit";
 import * as Sentry from "@sentry/nextjs";
 
 export async function DELETE(request: Request) {
   try {
+    // CSRF defense-in-depth. Account deletion is the highest-impact destructive
+    // endpoint in the app — a forged DELETE from a same-site context
+    // (subdomain takeover, malicious extension, XSS via a third-party script)
+    // would otherwise irreversibly hard-delete the user. (V7 P0-5)
+    if (!isSameOrigin(request)) {
+      return NextResponse.json({ error: "Bad origin" }, { status: 403 });
+    }
+
     const user = await getAuthenticatedUser(request);
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+
+    // Per-user rate limit — 3/hour. Irreversible operation; an honest user
+    // never needs more than one or two retries on transient failure. (V7 P0-5)
+    const rl = await checkRateLimit(user.id, "account-delete");
+    if (!rl.allowed) return rateLimitResponse(rl);
 
     const uid = user.id;
     const admin = createAdminClient();

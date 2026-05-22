@@ -1,6 +1,11 @@
 import Anthropic from "@anthropic-ai/sdk";
 
-export const ANTHROPIC_MODEL = "claude-sonnet-4-6";
+// Pin to a dated snapshot so we control upgrades explicitly. Bare aliases
+// (e.g. "claude-sonnet-4-6") rotate when Anthropic deprecates the model and
+// break silently — V6 P1-M1 pinned the SMS edge function for this reason;
+// V7 P0-4 pins this writer too. Keep in lockstep with the SMS edge function
+// model (supabase/functions/_shared/briefing.ts callAnthropicWithRetry).
+export const ANTHROPIC_MODEL = "claude-sonnet-4-6-20250930";
 
 let client: Anthropic | null = null;
 

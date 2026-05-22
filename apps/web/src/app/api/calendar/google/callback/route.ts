@@ -6,6 +6,7 @@ import * as Sentry from "@sentry/nextjs";
 import {
   exchangeGoogleCode,
   fetchGoogleAccountEmail,
+  listGoogleCalendars,
   registerGoogleWebhook,
 } from "@/lib/calendar/google";
 import { syncCalendarForConnection } from "@/lib/calendar/sync";
@@ -97,9 +98,58 @@ export async function GET(request: Request) {
 
     // Fetch the connected Google account's email so the multi-account dashboard
     // can distinguish personal vs. work Gmail connections. (v6 P1-C1)
+    // V7 P0-1: the email is also the partial-unique key for migration 078, so
+    // this is now load-bearing — without it, two Google accounts on the same
+    // profile can't be told apart.
     const googleAccountEmail = tokens.access_token
       ? await fetchGoogleAccountEmail(tokens.access_token)
       : null;
+
+    // Resolve the primary calendar's real id. The Google API accepts "primary"
+    // as a relative alias to the authenticated user's primary calendar, but
+    // every account has its own "primary" — storing the alias as
+    // google_calendar_id collapsed multi-account rows to the same key
+    // (migration 067's partial unique never engaged). Persist the resolved id
+    // (e.g. "user@example.com") so per-calendar sync token bookkeeping and
+    // multi-account routing have a stable identity. Best-effort: if the lookup
+    // fails we fall back to "primary" — sync still works since the API resolves
+    // the alias on every request. (V7 P0-1)
+    let googleCalendarId = "primary";
+    if (tokens.access_token) {
+      try {
+        const calendars = await listGoogleCalendars(tokens.access_token);
+        const primary = calendars.find((c) => c.primary);
+        if (primary) googleCalendarId = primary.id;
+      } catch (err) {
+        Sentry.captureException(err);
+      }
+    }
+
+    // Look up an existing row for this exact Google account on this profile.
+    // Mirrors the Apple SELECT-then-UPDATE-or-INSERT pattern at
+    // apple/connect/route.ts:87-112 (v6 P1-C4). Scoping by
+    // google_account_email lets a parent connect personal + work Gmail
+    // without collision; the legacy upsert keyed only on (profile_id,
+    // provider) silently overwrote the first account when the second
+    // connected. (V7 P0-1)
+    //
+    // When the email lookup returned null we scope the lookup to rows that
+    // ALSO have no email — so a transient userinfo failure during reconnect
+    // never matches a different account's row.
+    let priorLookup = db
+      .from("calendar_connections")
+      .select("id, refresh_token")
+      .eq("profile_id", profileId)
+      .eq("provider", "google");
+    if (googleAccountEmail) {
+      priorLookup = priorLookup.eq("google_account_email", googleAccountEmail);
+    } else {
+      priorLookup = priorLookup.is("google_account_email", null);
+    }
+    const { data: priorConnection } = await priorLookup.maybeSingle<{
+      id: string;
+      refresh_token: string | null;
+    }>();
 
     // Google only emits a `refresh_token` on the FIRST consent. Subsequent
     // re-consents (e.g. the user re-runs OAuth after revoking access on the
@@ -108,40 +158,44 @@ export async function GET(request: Request) {
     // the next sync calls `refreshGoogleToken(undefined)` which throws "No
     // refresh token is set" — a string the audit's isRevokedTokenError check
     // doesn't recognise, so the connection silently lands in `error` with no
-    // reconnect CTA. Fix: look up the existing row first and keep its
-    // refresh_token when the fresh exchange didn't return one.
-    const { data: priorConnection } = await db
-      .from("calendar_connections")
-      .select("refresh_token")
-      .eq("profile_id", profileId)
-      .eq("provider", "google")
-      .maybeSingle<{ refresh_token: string | null }>();
+    // reconnect CTA.
     const refreshTokenToPersist =
       tokens.refresh_token ?? priorConnection?.refresh_token ?? null;
 
-    // Upsert the connection
-    const { data: connection, error: dbError } = await db
-      .from("calendar_connections")
-      .upsert(
-        {
-          profile_id: profileId,
-          provider: "google",
-          access_token: tokens.access_token,
-          refresh_token: refreshTokenToPersist,
-          token_expires_at: tokens.expiry_date
-            ? new Date(tokens.expiry_date).toISOString()
-            : null,
-          google_account_email: googleAccountEmail,
-          sync_status: "idle",
-          enabled: true,
-          updated_at: new Date().toISOString(),
-        },
-        { onConflict: "profile_id,provider" }
-      )
-      .select()
-      .single();
+    const baseRow = {
+      profile_id: profileId,
+      provider: "google" as const,
+      access_token: tokens.access_token,
+      refresh_token: refreshTokenToPersist,
+      token_expires_at: tokens.expiry_date
+        ? new Date(tokens.expiry_date).toISOString()
+        : null,
+      google_account_email: googleAccountEmail,
+      google_calendar_id: googleCalendarId,
+      sync_status: "idle" as const,
+      enabled: true,
+      updated_at: new Date().toISOString(),
+    };
 
-    if (dbError) throw dbError;
+    let connection;
+    if (priorConnection) {
+      const { data, error: dbError } = await db
+        .from("calendar_connections")
+        .update(baseRow)
+        .eq("id", priorConnection.id)
+        .select()
+        .single();
+      if (dbError) throw dbError;
+      connection = data;
+    } else {
+      const { data, error: dbError } = await db
+        .from("calendar_connections")
+        .insert(baseRow)
+        .select()
+        .single();
+      if (dbError) throw dbError;
+      connection = data;
+    }
 
     // Register webhook for push notifications
     try {

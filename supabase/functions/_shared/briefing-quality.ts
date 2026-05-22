@@ -123,9 +123,15 @@ function extractHouseholdNames(context: string): string[] {
 // length, weather without grounding, household members not addressed) without
 // adding latency. Pure function: returns the list of issues, callers decide
 // how to react. Empty array means the briefing passed every quick check.
+//
+// `signals` carries structured ground truth derived from family_members data
+// (not parsed from the rendered context string). Currently just hasPartner —
+// used by the phantom-partner guard. Optional so legacy callers and tests
+// keep working; when omitted, partner-aware checks are skipped. (V7 P0-3)
 export function quickQualityCheck(
   text: string,
-  context?: string
+  context?: string,
+  signals?: { hasPartner?: boolean }
 ): QuickQualityIssue[] {
   const issues: QuickQualityIssue[] = [];
 
@@ -181,27 +187,29 @@ export function quickQualityCheck(
         });
       }
     }
+  }
 
-    // Sole-parent guard: a briefing for a profile whose context has no
-    // partner section must never lean on a phantom co-parent. The audit's
-    // worst-case is "your partner can cover the 3 PM pickup" referring to
-    // nobody — embarrassing for a single parent and a betrayal of the
-    // family-data signal the user gave us. The partner section in the
-    // context is built only when one exists, so its absence is reliable
-    // ground truth. (audit v5 P1-B5)
-    const PARTNER_SECTION_PATTERN =
-      /\b(partner|co[- ]?parent|spouse|other parent)['']?s?\s+(calendar|events|schedule|day|side)/i;
-    const contextHasPartner = PARTNER_SECTION_PATTERN.test(context);
-    if (!contextHasPartner) {
-      const phantomPattern =
-        /\b(your\s+partner|the\s+other\s+parent|your\s+spouse|co-?parent)\b/i;
-      const phantomMatch = text.match(phantomPattern);
-      if (phantomMatch) {
-        issues.push({
-          type: "phantom_partner",
-          detail: `Briefing references "${phantomMatch[0]}" but the context has no partner section — this profile is solo.`,
-        });
-      }
+  // Sole-parent guard: a briefing for a profile with no partner in
+  // family_members must never lean on a phantom co-parent. The audit's
+  // worst-case is "your partner can cover the 3 PM pickup" referring to
+  // nobody — embarrassing for a single parent and a betrayal of the
+  // family-data signal the user gave us. (audit v5 P1-B5)
+  //
+  // V7 P0-3: the prior implementation tried to detect partner-presence by
+  // regex-matching the rendered ctx string for "partner's calendar" /
+  // "spouse's events" — but buildBriefingContext never emits those literal
+  // phrases (family members are rendered as `Jontae (partner, age 38)`), so
+  // the guard never matched and inverted into a noise-generator. The signal
+  // now arrives as structured ground truth from family_members data.
+  if (signals && signals.hasPartner === false) {
+    const phantomPattern =
+      /\b(your\s+partner|the\s+other\s+parent|your\s+spouse|co-?parent)\b/i;
+    const phantomMatch = text.match(phantomPattern);
+    if (phantomMatch) {
+      issues.push({
+        type: "phantom_partner",
+        detail: `Briefing references "${phantomMatch[0]}" but no partner is on file for this household — this profile is solo.`,
+      });
     }
   }
 
