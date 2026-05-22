@@ -426,6 +426,13 @@ export async function POST(request: Request) {
 
   // ── 9. Fetch calendar context, today's briefing, and conversation history ─
   const today = new Date().toISOString().split("T")[0];
+  // Today's window in UTC, used for the "events touching today" filter below.
+  // Multi-day all-day events (vacations, school breaks, custody weeks) start on
+  // their first day and END on the day AFTER the last day (Google's exclusive
+  // end.date convention), so we must include any event whose interval overlaps
+  // today — not just events whose start_time falls inside today. (audit v4 P0-7)
+  const todayStart = `${today}T00:00:00Z`;
+  const todayEnd = `${today}T23:59:59Z`;
 
   // The morning briefing is stored by the edge function under the user's LOCAL
   // date — look it up with the same timezone-resolved date, not the UTC `today`
@@ -437,8 +444,8 @@ export async function POST(request: Request) {
         .from("calendar_events")
         .select("title, start_time, end_time")
         .eq("profile_id", partnerProfileId)
-        .gte("start_time", `${today}T00:00:00Z`)
-        .lte("start_time", `${today}T23:59:59Z`)
+        .lte("start_time", todayEnd)
+        .or(`end_time.gt.${todayStart},end_time.is.null`)
         .is("deleted_at", null)
         .order("start_time", { ascending: true })
         .limit(10)
@@ -455,8 +462,8 @@ export async function POST(request: Request) {
       .from("calendar_events")
       .select("title, start_time, end_time")
       .eq("profile_id", profileRow.id)
-      .gte("start_time", `${today}T00:00:00Z`)
-      .lte("start_time", `${today}T23:59:59Z`)
+      .lte("start_time", todayEnd)
+      .or(`end_time.gt.${todayStart},end_time.is.null`)
       .is("deleted_at", null)
       .order("start_time", { ascending: true })
       .limit(10) as unknown as Promise<{ data: CalendarEventRow[] | null }>,

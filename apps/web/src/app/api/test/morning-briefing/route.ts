@@ -11,37 +11,27 @@
  *   /api/test/morning-briefing      ← THIS FILE: single-phone dev test, gated
  *                                     by CRON_SECRET, defaults to a dry run
  *
- * Unlike /api/cron/morning-briefing (which fans out to every active user),
- * this targets ONE profile looked up by phone number, and only sends an SMS
- * when `send=true`. The default is a dry run that returns the generated
- * briefing plus a pipeline trace without touching Twilio or the database.
+ * Audit v4 P0-6: this route now proxies the call to the morning-briefing edge
+ * function (single-profile test mode), so the founder test path and the 6am
+ * production path execute the SAME briefing code. A previous Node-side copy of
+ * the SMS briefing generator (apps/web/src/lib/sms-briefing.ts) had drifted
+ * from the edge function and was leaking private event titles; that file is
+ * gone, and drift is now structurally impossible.
  *
  * Auth: Authorization: Bearer ${CRON_SECRET}
  *
- * GET /api/test/morning-briefing?phone=+1XXXXXXXXXX[&send=true][&persist=true]
- *   phone    — required; target profile's phone_number
- *   send     — "true" to actually deliver the SMS via Twilio
- *   persist  — "true" to write to morning_briefings + sms_conversations
+ * GET /api/test/morning-briefing?phone=+1XXXXXXXXXX[&send=true]
+ *   phone — required; target profile's phone_number
+ *   send  — "true" to actually deliver (generates + Twilio + persists +
+ *           audit log via the real edge-function delivery pipeline). Default
+ *           is a dry run: generation only, no Twilio, no DB writes.
  *
- * Returns the full pipeline trace as JSON.
- *
- * Briefing generator: lib/sms-briefing.ts (same path the cron job uses).
+ * The persist=true legacy param is gone: the edge function persists iff send
+ * is true (same as the production path). Carrying two flags here would just
+ * re-create the drift we're trying to kill.
  */
 
 import { NextResponse } from "next/server";
-import { createAdminClient } from "@/lib/supabase/admin";
-import { sendSms } from "@/lib/twilio";
-import { generateSmsBriefing } from "@/lib/sms-briefing";
-
-interface ProfileRow {
-  id: string;
-  family_name: string | null;
-  phone_number: string | null;
-  context_notes: string | null;
-  household_id: string | null;
-  onboarding_step: number | null;
-  timezone: string | null;
-}
 
 export async function GET(request: Request) {
   const authHeader = request.headers.get("authorization");
@@ -52,10 +42,17 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  if (!supabaseUrl) {
+    return NextResponse.json(
+      { error: "NEXT_PUBLIC_SUPABASE_URL is not configured" },
+      { status: 500 }
+    );
+  }
+
   const url = new URL(request.url);
   const phone = url.searchParams.get("phone");
   const send = url.searchParams.get("send") === "true";
-  const persist = url.searchParams.get("persist") === "true";
 
   if (!phone) {
     return NextResponse.json(
@@ -64,152 +61,46 @@ export async function GET(request: Request) {
     );
   }
 
-  const supabase = createAdminClient();
-
-  // ── Resolve the target profile by phone number ──────────────────────────
-  const { data: profile, error: profileErr } = await supabase
-    .from("profiles")
-    .select(
-      "id, family_name, phone_number, context_notes, household_id, onboarding_step, timezone"
-    )
-    .eq("phone_number", phone)
-    .limit(1)
-    .maybeSingle<ProfileRow>();
-
-  if (profileErr) {
-    return NextResponse.json(
-      { error: "Profile lookup failed", detail: profileErr.message },
-      { status: 500 }
-    );
-  }
-  if (!profile) {
-    return NextResponse.json(
-      { error: `No profile found with phone_number ${phone}` },
-      { status: 404 }
-    );
-  }
-
-  const today = new Date().toISOString().split("T")[0];
-
-  // ── Pipeline trace: what data the briefing generator will see ───────────
-  // coordination_issues.household_id stores the primary parent's ID.
-  const primaryId = profile.household_id ?? profile.id;
-  const [{ count: todayEventCount }, { count: openIssueCount }] =
-    await Promise.all([
-      supabase
-        .from("calendar_events")
-        .select("id", { count: "exact", head: true })
-        .eq("profile_id", profile.id)
-        .gte("start_time", `${today}T00:00:00Z`)
-        .lte("start_time", `${today}T23:59:59Z`)
-        .is("deleted_at", null),
-      supabase
-        .from("coordination_issues")
-        .select("id", { count: "exact", head: true })
-        .eq("household_id", primaryId)
-        .in("state", ["OPEN", "ACKNOWLEDGED"]),
-    ]);
-
-  // ── Generate the briefing (real generateSmsBriefing pipeline) ───────────
-  const generationStart = Date.now();
-  const briefing = await generateSmsBriefing(supabase, {
-    id: profile.id,
-    family_name: profile.family_name,
-    household_id: profile.household_id,
-    context_notes: profile.context_notes,
-    timezone: profile.timezone,
-  });
-  const generationMs = Date.now() - generationStart;
-
-  const trace = {
-    target: {
-      id: profile.id,
-      family_name: profile.family_name,
-      phone_number: profile.phone_number,
-      onboarding_step: profile.onboarding_step,
-      household_id: profile.household_id,
-      isActive:
-        profile.phone_number != null && (profile.onboarding_step ?? 0) >= 5,
-    },
-    dataFound: {
-      todayEventCount: todayEventCount ?? 0,
-      openCoordinationIssues: openIssueCount ?? 0,
-    },
-    generation: {
-      briefingChars: briefing.length,
-      durationMs: generationMs,
-    },
-  };
-
-  // ── Dry run: stop before sending ────────────────────────────────────────
-  if (!send) {
-    return NextResponse.json({
-      dryRun: true,
-      trace,
-      briefing,
-      delivery: { sent: false, persisted: false },
-    });
-  }
-
-  // ── Send the SMS via Twilio ─────────────────────────────────────────────
-  if (!profile.phone_number) {
-    return NextResponse.json(
-      { error: "Profile has no phone_number — cannot send", trace, briefing },
-      { status: 422 }
-    );
-  }
-
+  // Forward to the edge function's single-profile test mode. The function's
+  // handler validates the same CRON_SECRET via the x-cron-secret header.
+  const start = Date.now();
+  let upstream: Response;
   try {
-    await sendSms(profile.phone_number, briefing);
+    upstream = await fetch(`${supabaseUrl}/functions/v1/morning-briefing`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-cron-secret": process.env.CRON_SECRET,
+      },
+      body: JSON.stringify({
+        target_phone: phone,
+        dry_run: !send,
+      }),
+    });
   } catch (err) {
     return NextResponse.json(
       {
-        error: "Twilio send failed",
+        error: "Failed to reach morning-briefing edge function",
         detail: err instanceof Error ? err.message : String(err),
-        trace,
-        briefing,
-        delivery: { sent: false, persisted: false },
       },
       { status: 502 }
     );
   }
 
-  // ── Persist for the day (mirrors the cron route) ────────────────────────
-  let persisted = false;
-  let persistError: string | null = null;
-  if (persist) {
-    try {
-      await supabase.from("morning_briefings").upsert(
-        {
-          profile_id: profile.id,
-          briefing_date: today,
-          content: briefing,
-          delivery_status: "sent",
-          sent_at: new Date().toISOString(),
-        },
-        { onConflict: "profile_id,briefing_date" }
-      );
-      await supabase.from("sms_conversations").insert({
-        profile_id: profile.id,
-        direction: "outbound",
-        body: briefing,
-        from_number: process.env.TWILIO_PHONE_NUMBER ?? "",
-        to_number: profile.phone_number,
-      });
-      persisted = true;
-    } catch (err) {
-      persistError = err instanceof Error ? err.message : String(err);
-    }
+  const elapsed = Date.now() - start;
+  const text = await upstream.text();
+  let parsed: unknown = null;
+  try {
+    parsed = JSON.parse(text);
+  } catch {
+    parsed = { raw: text };
   }
 
-  return NextResponse.json({
-    trace,
-    briefing,
-    delivery: {
-      sent: true,
-      to: profile.phone_number,
-      persisted,
-      ...(persistError ? { persistError } : {}),
+  return NextResponse.json(
+    {
+      ...(parsed as Record<string, unknown>),
+      proxy_latency_ms: elapsed,
     },
-  });
+    { status: upstream.status }
+  );
 }

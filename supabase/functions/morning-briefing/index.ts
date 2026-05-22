@@ -25,14 +25,164 @@ import {
   getLocalHour,
   getLocalDate,
   resolveTimezone,
+  generateBriefing,
   deliverBriefing,
   notifySlack,
   type BriefingProfile,
 } from "../_shared/briefing.ts";
 
+// Length-aware constant-time compare so the test-mode auth gate doesn't leak
+// secret length via response timing.
+function timingSafeEqual(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) {
+    diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  }
+  return diff === 0;
+}
+
+interface TestInvocation {
+  target_phone: string;
+  dry_run?: boolean;
+}
+
+/**
+ * Single-profile test invocation. Lets `/api/test/morning-briefing` exercise
+ * the real production briefing pipeline (the same code path the 6am fan-out
+ * uses) instead of carrying a drifting Node copy. Audit v4 P0-6 deleted the
+ * duplicate web copy.
+ *
+ * Auth: requires the `x-cron-secret` header to match CRON_SECRET — the test
+ * route already gates itself on this same secret.
+ *
+ * Modes:
+ *   dry_run = true  → generate only; return text + context. No Twilio, no DB
+ *                     writes. Founder pipeline-trace use case.
+ *   dry_run = false → full deliverBriefing(): generate + send + persist +
+ *                     audit log + alerting. Same as the production fan-out.
+ *
+ * Bypasses the local-hour and already-sent guards on purpose so a founder can
+ * trigger a briefing at any time of day.
+ */
+async function handleTestInvocation(
+  req: Request,
+  body: TestInvocation
+): Promise<Response> {
+  const secret = Deno.env.get("CRON_SECRET");
+  const presented = req.headers.get("x-cron-secret") ?? "";
+  if (!secret || !timingSafeEqual(presented, secret)) {
+    return new Response(
+      JSON.stringify({ error: "Unauthorized" }),
+      { status: 401, headers: { "Content-Type": "application/json" } }
+    );
+  }
+
+  const { data: profile, error } = await supabase
+    .from("profiles")
+    .select(
+      "id, family_name, last_name, phone_number, timezone, created_at, " +
+        "subscription_status, billing_exempt, sms_opted_out_at"
+    )
+    .eq("phone_number", body.target_phone)
+    .maybeSingle();
+
+  if (error) {
+    return new Response(
+      JSON.stringify({ error: `Profile lookup failed: ${error.message}` }),
+      { status: 500, headers: { "Content-Type": "application/json" } }
+    );
+  }
+  if (!profile) {
+    return new Response(
+      JSON.stringify({
+        error: `No profile found with phone_number ${body.target_phone}`,
+      }),
+      { status: 404, headers: { "Content-Type": "application/json" } }
+    );
+  }
+
+  const p = profile as BriefingProfile;
+  const tz = resolveTimezone(p.timezone);
+
+  if (body.dry_run) {
+    let daysSinceCreated = 0;
+    if (p.created_at) {
+      daysSinceCreated = Math.floor(
+        (Date.now() - new Date(p.created_at).getTime()) / 86_400_000
+      );
+    }
+    const appendPaymentNudge =
+      !p.billing_exempt &&
+      p.subscription_status === "trial" &&
+      daysSinceCreated >= 14;
+
+    const generationStart = Date.now();
+    const generated = await generateBriefing(
+      p.id,
+      p.family_name,
+      p.last_name,
+      tz,
+      appendPaymentNudge
+    );
+    return new Response(
+      JSON.stringify({
+        dry_run: true,
+        target: {
+          id: p.id,
+          family_name: p.family_name,
+          phone_number: p.phone_number,
+          timezone: tz,
+        },
+        briefing: generated.text,
+        degraded: generated.degraded,
+        briefing_chars: generated.text.length,
+        duration_ms: Date.now() - generationStart,
+      }),
+      { status: 200, headers: { "Content-Type": "application/json" } }
+    );
+  }
+
+  const briefingDate = getLocalDate(tz);
+  const result = await deliverBriefing(p, briefingDate, "test-invocation");
+  return new Response(
+    JSON.stringify({
+      dry_run: false,
+      target: {
+        id: p.id,
+        family_name: p.family_name,
+        phone_number: p.phone_number,
+        timezone: tz,
+      },
+      briefing_date: briefingDate,
+      delivery: result,
+    }),
+    { status: 200, headers: { "Content-Type": "application/json" } }
+  );
+}
+
 serve(async (req) => {
   if (req.method !== "POST") {
     return new Response("Method not allowed", { status: 405 });
+  }
+
+  // Single-profile test invocation: POST body with target_phone + matching
+  // x-cron-secret header. Skips the fan-out entirely. (audit v4 P0-6)
+  if (req.headers.get("content-type")?.includes("application/json")) {
+    let parsed: unknown = null;
+    try {
+      parsed = await req.json();
+    } catch {
+      parsed = null;
+    }
+    if (
+      parsed &&
+      typeof parsed === "object" &&
+      typeof (parsed as TestInvocation).target_phone === "string" &&
+      (parsed as TestInvocation).target_phone.length > 0
+    ) {
+      return handleTestInvocation(req, parsed as TestInvocation);
+    }
   }
 
   // Fan-out: only profiles whose local hour is 6:xx and have a phone number.

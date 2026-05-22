@@ -1,7 +1,6 @@
 "use client";
 
 import type { CSSProperties } from "react";
-import { useState } from "react";
 import { Reveal } from "./Reveal";
 
 const features = [
@@ -12,11 +11,7 @@ const features = [
 ];
 
 export function Pricing() {
-  const [period, setPeriod] = useState<"monthly" | "annual">("monthly");
-
   const monthlyPrice = 39;
-  const annualPrice = 299;
-  const annualSavings = monthlyPrice * 12 - annualPrice;
 
   return (
     <section
@@ -66,70 +61,12 @@ export function Pricing() {
             fontStyle: "italic",
             color: "var(--ink-2)",
             textAlign: "center",
-            marginBottom: "36px",
+            marginBottom: "44px",
             letterSpacing: "-0.2px",
           }}
         >
           Early access members lock in this price forever.
         </p>
-      </Reveal>
-
-      {/* Toggle */}
-      <Reveal delay={0.16}>
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "center",
-            marginBottom: "44px",
-          }}
-        >
-          <div
-            style={{
-              display: "inline-flex",
-              background: "var(--paper2)",
-              border: "1px solid var(--border)",
-              borderRadius: "11px",
-              padding: "3px",
-            }}
-          >
-            {(["monthly", "annual"] as const).map((p) => (
-              <button
-                key={p}
-                onClick={() => setPeriod(p)}
-                style={{
-                  padding: "8px 18px",
-                  borderRadius: "8px",
-                  fontSize: "13px",
-                  fontWeight: 600,
-                  background: p === period ? "var(--paper)" : "transparent",
-                  color: p === period ? "var(--ink)" : "var(--ink-3)",
-                  cursor: "pointer",
-                  transition: "all 0.2s ease",
-                  boxShadow:
-                    p === period ? "0 1px 4px rgba(43,38,30,0.1)" : "none",
-                }}
-              >
-                {p === "monthly" ? "Monthly" : "Annual"}
-                {p === "annual" && (
-                  <span
-                    style={{
-                      marginLeft: "6px",
-                      padding: "2px 7px",
-                      background: "var(--green-soft)",
-                      borderRadius: "100px",
-                      fontSize: "10px",
-                      fontFamily: "var(--font-geist-mono), monospace",
-                      color: "var(--green)",
-                      letterSpacing: "0.4px",
-                    }}
-                  >
-                    save ${annualSavings}
-                  </span>
-                )}
-              </button>
-            ))}
-          </div>
-        </div>
       </Reveal>
 
       {/* Pricing card */}
@@ -190,12 +127,8 @@ export function Pricing() {
           Everything Kin does — for your whole family.
         </h3>
 
-        <div style={{ marginTop: "20px", marginBottom: "4px" }}>
-          <div
-            key={`price-${period}`}
-            className="kin-fade"
-            style={{ display: "flex", alignItems: "flex-end", gap: "5px" }}
-          >
+        <div style={{ marginTop: "20px", marginBottom: "28px" }}>
+          <div style={{ display: "flex", alignItems: "flex-end", gap: "5px" }}>
             <span
               style={{
                 fontSize: "clamp(34px, 4vw, 46px)",
@@ -205,7 +138,7 @@ export function Pricing() {
                 lineHeight: 1,
               }}
             >
-              ${period === "monthly" ? monthlyPrice : annualPrice}
+              ${monthlyPrice}
             </span>
             <span
               style={{
@@ -215,23 +148,9 @@ export function Pricing() {
                 fontFamily: "var(--font-geist-mono), monospace",
               }}
             >
-              {period === "monthly" ? "/mo" : "/yr"}
+              /mo
             </span>
           </div>
-        </div>
-
-        <div
-          style={{
-            fontSize: "12px",
-            color: "var(--ink-3)",
-            marginBottom: "28px",
-            fontStyle: "italic",
-            minHeight: "16px",
-          }}
-        >
-          {period === "annual"
-            ? `Billed once yearly (that's $${(annualPrice / 12).toFixed(0)}/mo)`
-            : ""}
         </div>
 
         <ul

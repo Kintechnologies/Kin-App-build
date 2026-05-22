@@ -344,10 +344,51 @@ function pickTrialNudge(days: number): TrialNudge | null {
   return null;
 }
 
+/**
+ * Flip expired trials (trial_ends_at < now AND no Stripe customer) to
+ * `canceled` so the briefing fan-out filter `(trial, active)` stops sending
+ * free briefings to users who never paid.
+ *
+ * The Stripe webhook only writes `canceled` on `customer.subscription.deleted`
+ * — a user who finishes 14 days without paying has no Stripe subscription, so
+ * nothing fires that event. Without this nightly flip the trial-gating fix in
+ * the briefing edge functions is neutralized for the common case. (audit v4 P0-1)
+ *
+ * Runs at the top of the daily trial-mode cron so the trial-ended one-shot SMS
+ * (below) catches the newly-canceled users on the same run.
+ */
+async function expireUnpaidTrials(supabase: AdminClient): Promise<number> {
+  const { data, error } = await supabase
+    .from("profiles")
+    .update({ subscription_status: "canceled" })
+    .eq("subscription_status", "trial")
+    .eq("billing_exempt", false)
+    .lt("trial_ends_at", new Date().toISOString())
+    .or("stripe_customer_id.is.null,stripe_customer_id.eq.")
+    .select("id");
+
+  if (error) {
+    console.error("expireUnpaidTrials failed:", error.message);
+    await notifySlack(
+      `Trial-expiry flip failed: ${error.message}`,
+      "critical"
+    ).catch(() => {});
+    return 0;
+  }
+  return data?.length ?? 0;
+}
+
 async function runTrialNudges(
   supabase: AdminClient,
   results: Results
 ): Promise<void> {
+  // Flip expired-without-paying trials to canceled first — see expireUnpaidTrials.
+  // The trial-ended one-shot below then catches them on the same run.
+  const expired = await expireUnpaidTrials(supabase);
+  if (expired > 0) {
+    console.log(`expireUnpaidTrials: flipped ${expired} trial(s) to canceled`);
+  }
+
   // Trial-ended one-shot. When a trial flips to canceled (P0-1 stopped them
   // receiving briefings the same day), send one warm goodbye-with-an-upgrade-
   // link SMS so the user knows what happened and how to come back. Exactly

@@ -31,7 +31,7 @@
  * Called from:
  *   - /api/cron/pickup-risk      (every 30 min — drives the proactive SMS)
  *   - morning-briefing route     (inline, so the briefing reflects fresh risk)
- *   - sms-briefing.ts            (inline, same reason)
+ *   - briefing edge function     (inline, same reason — supabase/functions/_shared/briefing.ts)
  */
 
 import { SupabaseClient } from "@supabase/supabase-js";

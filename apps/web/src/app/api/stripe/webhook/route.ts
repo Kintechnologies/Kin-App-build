@@ -170,14 +170,50 @@ export async function POST(request: Request) {
       }
 
       case "customer.subscription.deleted": {
+        // Idempotency / out-of-order guard (audit v4 P0-4). Stripe documents
+        // that webhook events can arrive out of order and that retries continue
+        // for up to 3 days. A retried (or late) `customer.subscription.deleted`
+        // arriving AFTER a fresh `checkout.session.completed` (the user
+        // re-subscribed) would silently flip a paying customer back to
+        // `canceled` and fire the trial-ended SMS at them.
+        //
+        // Defense: never downgrade a profile whose current status is `active`.
+        // The user could only have become `active` again by completing a new
+        // checkout, which means this delete event is for an older subscription
+        // that no longer represents their billing state.
         const subscription = event.data.object as Stripe.Subscription;
-        await setStatus(supabase, "canceled", {
-          userId: subscription.metadata?.supabase_user_id,
-          customerId:
-            typeof subscription.customer === "string"
-              ? subscription.customer
-              : subscription.customer?.id ?? null,
-        });
+        const userId = subscription.metadata?.supabase_user_id;
+        const customerId =
+          typeof subscription.customer === "string"
+            ? subscription.customer
+            : subscription.customer?.id ?? null;
+
+        let currentStatus: string | null = null;
+        if (userId) {
+          const { data } = await supabase
+            .from("profiles")
+            .select("subscription_status")
+            .eq("id", userId)
+            .maybeSingle<{ subscription_status: string | null }>();
+          currentStatus = data?.subscription_status ?? null;
+        } else if (customerId) {
+          const { data } = await supabase
+            .from("profiles")
+            .select("subscription_status")
+            .eq("stripe_customer_id", customerId)
+            .maybeSingle<{ subscription_status: string | null }>();
+          currentStatus = data?.subscription_status ?? null;
+        }
+
+        if (currentStatus === "active") {
+          console.log(
+            `Stripe webhook: ignoring stale customer.subscription.deleted for ` +
+              `customer ${customerId ?? "(unknown)"} — profile is currently active`
+          );
+          break;
+        }
+
+        await setStatus(supabase, "canceled", { userId, customerId });
         break;
       }
     }

@@ -8,7 +8,8 @@
  *
  * Use this when:
  *   - Building a new system prompt that needs Kin's voice → compose the blocks
- *     into your prompt string (see sms-system-prompt.ts, sms-briefing.ts).
+ *     into your prompt string (see sms-system-prompt.ts, or the Deno briefing
+ *     edge function at supabase/functions/_shared/briefing.ts).
  *   - Writing a one-shot outbound message via LLM → call generateKinMessage()
  *     in generate-nudge.ts (Sunday check-in, engagement nudges).
  *   - Writing a template string (a time-critical alert where an LLM round-trip

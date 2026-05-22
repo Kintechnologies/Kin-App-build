@@ -720,12 +720,18 @@ async function buildBriefingContext(
     { data: calendarConnections },
     { data: contextNoteRows },
   ] = await Promise.all([
+    // Today's events — anything whose [start, end) interval overlaps the user's
+    // local day. A `start_time` window alone would miss multi-day all-day events
+    // (vacations, school breaks, custody weeks) on every day after the first:
+    // Google stores `end.date` exclusive, so a Mon–Wed event has start_time =
+    // Mon noon UTC and end_time = Thu noon UTC; on Tue the start is outside
+    // today, but the event still spans today. (audit v4 P0-7)
     supabase
       .from("calendar_events")
       .select("title, start_time, end_time, location, visibility")
       .eq("profile_id", profileId)
-      .gte("start_time", startUtc)
       .lt("start_time", endUtc)
+      .or(`end_time.gt.${startUtc},end_time.is.null`)
       .order("start_time", { ascending: true }),
     // Household members — kids, partners, pets. SMS onboarding inserts kids
     // with profile_id set; the conversation-learning layer writes household_id
