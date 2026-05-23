@@ -80,8 +80,6 @@ export async function DELETE(request: Request) {
       // resulting POSTs, but every retry attempt we save earns us cleaner ops.
       let stopped = false;
       let lastErr: unknown = null;
-      // P1-C4 (audit v7): refresh_token on disk may be encrypted —
-      // decrypt before handing it to Google.
       const refreshClear = decryptToken(existing.refresh_token);
       if (!refreshClear) continue;
       for (let attempt = 0; attempt < 2 && !stopped; attempt++) {
