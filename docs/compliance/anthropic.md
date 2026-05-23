@@ -1,5 +1,15 @@
 # Anthropic Workspace Logging Posture
 
+> **⚠️ BETA LAUNCH BLOCKER (Audit V8 P0-3):** The verification below has
+> never been performed. Workspace logging is the only control on what
+> Anthropic retains after an inference completes, and every briefing
+> prompt carries kid names, school names, partner names, and calendar
+> event titles. **This must be verified in the Anthropic Console
+> before beta launches to any external cohort.** Walk through the
+> verification steps below, then fill in the recording table at the
+> bottom with the date, your name, the workspace ID, and a screenshot
+> path.
+
 (Audit V7 P2-P6) Anthropic's Console exposes a per-workspace
 "workspace logging" toggle. When ON, every prompt and completion sent
 through API keys in that workspace is retained server-side. Our

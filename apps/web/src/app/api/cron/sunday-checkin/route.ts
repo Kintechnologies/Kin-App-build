@@ -29,6 +29,7 @@ import { sendSms } from "@/lib/twilio";
 import { isAuthorizedCron } from "@/lib/cron-auth";
 import { generateKinMessage } from "@/lib/generate-nudge";
 import { notifySlack } from "@/lib/notify";
+import { ensureStopFooter } from "@/lib/sms-utils";
 
 interface CheckinProfile {
   id: string;
@@ -145,7 +146,12 @@ export async function GET(request: Request) {
       continue;
     }
 
-    const message = await checkinMessage(profile.family_name);
+    // V8 P0-2: A2P 10DLC carrier-audit standards require recurring outbound
+    // messages to carry opt-out instructions. Neither the LLM nor the fallback
+    // template emits STOP, so the footer is appended at the send site
+    // (idempotent — no-op if the body already mentions STOP). The logged
+    // sms_conversations row matches what was actually delivered.
+    const message = ensureStopFooter(await checkinMessage(profile.family_name));
 
     try {
       await sendSms(profile.phone_number, message);

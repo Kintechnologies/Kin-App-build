@@ -36,6 +36,7 @@ import { isAuthorizedCron } from "@/lib/cron-auth";
 import { generateKinMessage } from "@/lib/generate-nudge";
 import { notifySlack } from "@/lib/notify";
 import { expireUnpaidTrials } from "@/lib/billing/expire-trials";
+import { ensureStopFooter } from "@/lib/sms-utils";
 
 type AdminClient = ReturnType<typeof createAdminClient>;
 
@@ -143,15 +144,6 @@ function sentInLastDay(p: NudgeProfile): boolean {
     if (Number.isFinite(ms) && ms >= cutoff) return true;
   }
   return false;
-}
-
-// P1-S3 (audit v7): every engagement nudge is unsolicited outbound and must
-// carry an opt-out instruction per A2P 10DLC. LLM-generated bodies don't
-// reliably include it, and fallbacks shouldn't have to memorize the footer.
-// Enforce it here on every send so the policy is one line in one place.
-const STOP_FOOTER = " Reply STOP to opt out.";
-function ensureStopFooter(body: string): string {
-  return /\bSTOP\b/i.test(body) ? body : `${body}${STOP_FOOTER}`;
 }
 
 /**

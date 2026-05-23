@@ -24,6 +24,7 @@ import {
   quickQualityCheck,
   scoreBriefing,
 } from "./briefing-quality.ts";
+import { ensureStopFooter } from "./sms-utils.ts";
 
 const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
 const supabaseServiceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -1411,8 +1412,14 @@ export async function deliverBriefing(
           return null;
         });
 
-    await sendSmsWithRetry(profile.phone_number, text);
-    await logSms(profile.id, "outbound", text, profile.phone_number);
+    // V8 P0-1: A2P 10DLC carrier-audit standards require recurring outbound
+    // messages to carry opt-out instructions. The briefing system prompt
+    // forbids closing language, so the footer is appended at the send site
+    // (idempotent — no-op if the body already mentions STOP). The persisted
+    // morning_briefings.content row matches what was actually delivered.
+    const textWithFooter = ensureStopFooter(text);
+    await sendSmsWithRetry(profile.phone_number, textWithFooter);
+    await logSms(profile.id, "outbound", textWithFooter, profile.phone_number);
 
     const score = await scorePromise;
 
@@ -1440,7 +1447,7 @@ export async function deliverBriefing(
       {
         profile_id: profile.id,
         briefing_date: briefingDate,
-        content: text,
+        content: textWithFooter,
         delivery_status: "sent",
         sent_at: new Date().toISOString(),
         quality_score: score?.score ?? null,
