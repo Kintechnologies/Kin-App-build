@@ -6,6 +6,8 @@ import {
   refreshGoogleToken,
   stopGoogleWebhook,
 } from "@/lib/calendar/google";
+import { decryptToken } from "@/lib/calendar/token-crypto";
+import { isSameOrigin } from "@/lib/csrf";
 import * as Sentry from "@sentry/nextjs";
 
 // GET /api/calendar/google — initiate Google OAuth
@@ -32,6 +34,11 @@ export async function GET(request: Request) {
 // independently. Falls back to "all Google connections for the user" for
 // legacy callers without an id.
 export async function DELETE(request: Request) {
+  // CSRF defense-in-depth (audit V7 P2-A2): a drive-by site could otherwise
+  // trigger a DELETE that disconnects the victim's calendar.
+  if (!isSameOrigin(request)) {
+    return NextResponse.json({ error: "Bad origin" }, { status: 403 });
+  }
   const user = await getAuthenticatedUser(request);
   if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -67,17 +74,33 @@ export async function DELETE(request: Request) {
       existing.google_channel_id &&
       existing.google_resource_id
     ) {
-      try {
-        const tokens = await refreshGoogleToken(existing.refresh_token);
-        if (tokens.access_token) {
-          await stopGoogleWebhook(
-            tokens.access_token,
-            existing.google_channel_id,
-            existing.google_resource_id
-          );
+      // Retry channel-stop once on failure (audit V7 P2-C5): if we 410-orphan
+      // a live channel, Google keeps pinging our webhook for up to 7 days
+      // (billed egress + log noise). The webhook handler 410-handles the
+      // resulting POSTs, but every retry attempt we save earns us cleaner ops.
+      let stopped = false;
+      let lastErr: unknown = null;
+      // P1-C4 (audit v7): refresh_token on disk may be encrypted —
+      // decrypt before handing it to Google.
+      const refreshClear = decryptToken(existing.refresh_token);
+      if (!refreshClear) continue;
+      for (let attempt = 0; attempt < 2 && !stopped; attempt++) {
+        try {
+          const tokens = await refreshGoogleToken(refreshClear);
+          if (tokens.access_token) {
+            await stopGoogleWebhook(
+              tokens.access_token,
+              existing.google_channel_id,
+              existing.google_resource_id
+            );
+            stopped = true;
+          }
+        } catch (err) {
+          lastErr = err;
         }
-      } catch (err) {
-        Sentry.captureException(err);
+      }
+      if (!stopped && lastErr) {
+        Sentry.captureException(lastErr);
       }
     }
   }

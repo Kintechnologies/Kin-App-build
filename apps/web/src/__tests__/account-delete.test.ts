@@ -1,34 +1,32 @@
 /**
  * DELETE /api/account — test suite
  *
- * The route now delegates the entire data-side delete to the Postgres
- * function `public.delete_user_account(uid uuid)` (migration 070), then
- * issues `auth.admin.deleteUser` only after that RPC succeeds. This rewrite
- * targets the new shape; the pre-V5 ordering tests don't apply because the
- * tx runs atomically inside the DB function.
+ * P1-P3 (audit v7) changed this route from immediate hard-delete to a
+ * 30-day soft-schedule. The route now sets `data_deletion_at`,
+ * `cancelled_at`, and `sms_opted_out_at` on the profile; the existing
+ * cleanup cron (apps/web/src/app/api/cron/cleanup/route.ts) picks any
+ * profile whose `data_deletion_at` has passed and invokes the
+ * `delete_user_account()` RPC. Tests reflect that contract.
  *
  * Covers:
- *   1. Unauthenticated request → 401
- *   2. Happy path → RPC called with the actor's uid, auth deleted, 200
- *   3. RPC failure → auth NOT deleted, 500 + Sentry capture
- *   4. Auth-delete failure (RPC succeeded) → 500 + Sentry capture
- *   5. Cross-origin request → 403 (V7 P0-5 CSRF defense-in-depth)
- *   6. Rate-limited request → 429 (V7 P0-5 rate-limit defense-in-depth)
+ *   1. Cross-origin request → 403 (V7 P0-5 CSRF defense-in-depth)
+ *   2. Rate-limited request → 429 (V7 P0-5)
+ *   3. Unauthenticated request → 401
+ *   4. Happy path → profiles row updated with data_deletion_at ~30d out, 200
+ *   5. DB update failure → 500 + Sentry capture
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 const {
   mockGetAuthenticatedUser,
-  mockRpc,
-  mockDeleteUser,
+  mockUpdate,
   mockSentryCaptureException,
   mockIsSameOrigin,
   mockCheckRateLimit,
 } = vi.hoisted(() => ({
   mockGetAuthenticatedUser: vi.fn(),
-  mockRpc: vi.fn(),
-  mockDeleteUser: vi.fn(),
+  mockUpdate: vi.fn(),
   mockSentryCaptureException: vi.fn(),
   mockIsSameOrigin: vi.fn(),
   mockCheckRateLimit: vi.fn(),
@@ -53,8 +51,14 @@ vi.mock("@sentry/nextjs", () => ({
 
 vi.mock("@/lib/supabase/admin", () => ({
   createAdminClient: vi.fn(() => ({
-    rpc: mockRpc,
-    auth: { admin: { deleteUser: mockDeleteUser } },
+    from: vi.fn(() => ({
+      update: (patch: Record<string, unknown>) => {
+        mockUpdate(patch);
+        return {
+          eq: vi.fn().mockResolvedValue({ error: null }),
+        };
+      },
+    })),
   })),
 }));
 
@@ -80,14 +84,9 @@ function makeRequest(): Request {
 
 const UID = "test-user-123";
 
-describe("DELETE /api/account", () => {
+describe("DELETE /api/account (P1-P3 30-day soft schedule)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockRpc.mockResolvedValue({ error: null });
-    mockDeleteUser.mockResolvedValue({ error: null });
-    // Default to "trusted" (same-origin, under rate limit) so existing tests
-    // exercise the original behavior. Individual tests override these to
-    // exercise the V7 P0-5 defense-in-depth checks.
     mockIsSameOrigin.mockReturnValue(true);
     mockCheckRateLimit.mockResolvedValue({
       allowed: true,
@@ -102,8 +101,7 @@ describe("DELETE /api/account", () => {
     const res = await DELETE(makeRequest());
     expect(res.status).toBe(403);
     expect(mockGetAuthenticatedUser).not.toHaveBeenCalled();
-    expect(mockRpc).not.toHaveBeenCalled();
-    expect(mockDeleteUser).not.toHaveBeenCalled();
+    expect(mockUpdate).not.toHaveBeenCalled();
   });
 
   it("returns 429 when the per-user rate limit is exceeded (V7 P0-5)", async () => {
@@ -117,56 +115,44 @@ describe("DELETE /api/account", () => {
     const res = await DELETE(makeRequest());
     expect(res.status).toBe(429);
     expect(mockCheckRateLimit).toHaveBeenCalledWith(UID, "account-delete");
-    expect(mockRpc).not.toHaveBeenCalled();
-    expect(mockDeleteUser).not.toHaveBeenCalled();
+    expect(mockUpdate).not.toHaveBeenCalled();
   });
 
   it("returns 401 when the request is unauthenticated", async () => {
     mockGetAuthenticatedUser.mockResolvedValue(null);
     const res = await DELETE(makeRequest());
     expect(res.status).toBe(401);
-    expect(mockRpc).not.toHaveBeenCalled();
-    expect(mockDeleteUser).not.toHaveBeenCalled();
+    expect(mockUpdate).not.toHaveBeenCalled();
   });
 
-  it("invokes delete_user_account RPC then deletes the auth row, returns 200", async () => {
+  it("schedules deletion ~30 days out and returns 200", async () => {
     mockGetAuthenticatedUser.mockResolvedValue({ id: UID });
+    const before = Date.now();
 
     const res = await DELETE(makeRequest());
 
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ success: true });
-    expect(mockRpc).toHaveBeenCalledWith("delete_user_account", { uid: UID });
-    expect(mockDeleteUser).toHaveBeenCalledWith(UID);
+    const body = (await res.json()) as {
+      success?: boolean;
+      scheduled?: boolean;
+      data_deletion_at?: string;
+    };
+    expect(body.success).toBe(true);
+    expect(body.scheduled).toBe(true);
+    expect(body.data_deletion_at).toBeTypeOf("string");
+    expect(mockUpdate).toHaveBeenCalledTimes(1);
+
+    const patch = mockUpdate.mock.calls[0][0] as Record<string, unknown>;
+    expect(patch.cancelled_at).toBeTypeOf("string");
+    expect(patch.data_deletion_at).toBeTypeOf("string");
+    expect(patch.sms_opted_out_at).toBeTypeOf("string");
+
+    const deleteAt = new Date(patch.data_deletion_at as string).getTime();
+    const lower = before + 29 * 24 * 60 * 60 * 1000;
+    const upper = before + 31 * 24 * 60 * 60 * 1000;
+    expect(deleteAt).toBeGreaterThanOrEqual(lower);
+    expect(deleteAt).toBeLessThanOrEqual(upper);
+
     expect(mockSentryCaptureException).not.toHaveBeenCalled();
-  });
-
-  it("does NOT delete the auth row when the RPC fails — atomic guarantee", async () => {
-    mockGetAuthenticatedUser.mockResolvedValue({ id: UID });
-    mockRpc.mockResolvedValue({
-      error: { message: "delete_user_account exploded" },
-    });
-
-    const res = await DELETE(makeRequest());
-
-    expect(res.status).toBe(500);
-    expect(mockRpc).toHaveBeenCalled();
-    expect(mockDeleteUser).not.toHaveBeenCalled();
-    expect(mockSentryCaptureException).toHaveBeenCalled();
-  });
-
-  it("captures to Sentry when auth-delete fails after a successful RPC", async () => {
-    mockGetAuthenticatedUser.mockResolvedValue({ id: UID });
-    mockDeleteUser.mockResolvedValue({
-      error: { message: "auth.users delete blew up" },
-    });
-
-    const res = await DELETE(makeRequest());
-
-    expect(res.status).toBe(500);
-    expect(mockRpc).toHaveBeenCalled();
-    expect(mockDeleteUser).toHaveBeenCalled();
-    // Two captures: the post-tx Sentry breadcrumb + the outer catch.
-    expect(mockSentryCaptureException).toHaveBeenCalled();
   });
 });

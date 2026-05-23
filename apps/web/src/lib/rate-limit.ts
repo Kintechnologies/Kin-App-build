@@ -36,7 +36,8 @@ type RouteKey =
   | "stripe-portal"
   | "onboarding-complete"
   | "calendar-connect-token"
-  | "account-delete";
+  | "account-delete"
+  | "demo-login";
 
 // Lazily initialise Redis + limiters only when env vars are present.
 let redis: Redis | null = null;
@@ -160,6 +161,16 @@ function getLimiter(route: RouteKey): Ratelimit | null {
       redis: r,
       limiter: Ratelimit.slidingWindow(3, "1 h"),
       prefix: "rl:account-delete",
+    });
+  } else if (route === "demo-login") {
+    // 10 demo sign-ins per IP per hour. Tight enough that the route can't be
+    // used as a credential-stuffing oracle against the seeded account, loose
+    // enough for an investor demo or pitch where the link gets clicked a few
+    // times in quick succession. (P1-A1 audit v7)
+    limiter = new Ratelimit({
+      redis: r,
+      limiter: Ratelimit.slidingWindow(10, "1 h"),
+      prefix: "rl:demo-login",
     });
   } else {
     // first-use: 5 requests per 365 days (effectively lifetime)

@@ -206,6 +206,23 @@ export function Pricing() {
         </ul>
 
         {/*
+          What $39/mo actually covers (audit V7 P2-L3) — without this
+          fineprint the price tag reads ambiguous on a household plan
+          (per-parent? per-kid? per-account?).
+        */}
+        <p
+          style={{
+            margin: "0 0 14px",
+            fontSize: "12.5px",
+            color: "var(--ink-3)",
+            lineHeight: 1.5,
+            textAlign: "center",
+          }}
+        >
+          Includes both parents and unlimited kids on one household.
+        </p>
+
+        {/*
           P2-L4 (audit v6): was an <a href="#waitlist"> — on mobile Safari the
           anchor jump produces a hard reset to the top of the section rather
           than a smooth scroll, and the URL hash sticks (Cmd+L pickle).
@@ -222,6 +239,7 @@ export function Pricing() {
           style={{
             display: "block",
             width: "100%",
+            minHeight: 44, // WCAG 2.5.5 touch target (audit V7 P2-D11)
             padding: "13px",
             textAlign: "center",
             borderRadius: "11px",
@@ -248,7 +266,7 @@ export function Pricing() {
               "0 4px 14px rgba(60,74,51,0.22)";
           }}
         >
-          Claim your spot
+          Get Early Access
         </button>
 
         <div

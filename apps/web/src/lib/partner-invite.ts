@@ -153,7 +153,7 @@ async function sendInviteSms(
   inviterFirstName: string,
   inviteUrl: string
 ): Promise<boolean> {
-  const body = `${inviterFirstName} set up Kin — a daily 6am briefing that keeps your family's schedule coordinated. Join their household to share calendars: ${inviteUrl}`;
+  const body = `${inviterFirstName} set up Kin — a daily 6am briefing that keeps your family's schedule coordinated. Join their household to share calendars: ${inviteUrl} Reply STOP to opt out.`;
   const fromNumber = process.env.TWILIO_PHONE_NUMBER ?? "";
 
   // Honor opt-out: if the partner's phone is on a profile that texted STOP,

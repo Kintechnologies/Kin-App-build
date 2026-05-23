@@ -544,19 +544,32 @@ async function safeReadBody(res: Response): Promise<string | null> {
   }
 }
 
-// Best-effort Sentry capture from inside the Deno briefing edge function.
-// Imports the SDK dynamically so a missing module never breaks briefings;
-// Slack notification is the durable channel here, Sentry is the trend log.
-let quotaAlertSent = false;
+// Distance Matrix quota-exhaustion alert. Slack is the durable channel here —
+// we do NOT capture to Sentry from inside the Deno edge function. The prior
+// comment claimed a "best-effort dynamic Sentry import" but no such import
+// existed (P1-M2 audit v7). When trend-tracking lands it should live in a
+// dedicated module with the Sentry SDK pinned in import_map.json, not as a
+// dynamic best-effort import inside this hot path.
+//
+// Per-hour re-arm (audit V7 P2-M2): the dedup state used to be a single
+// boolean that latched for the lifetime of the warm function instance — a
+// long warm cycle would silence the alert for hours during a sustained
+// quota outage. Track the last-alert wall-clock instead and re-arm every
+// hour so an outage that drags past one hour gets a fresh ping.
+const QUOTA_REARM_WINDOW_MS = 60 * 60 * 1000;
+let lastQuotaAlertAt: number | null = null;
 async function reportQuotaExhaustion(
   reason: string,
   detail: string | null
 ): Promise<void> {
-  // De-dupe per cold-start: a single briefing fan-out hitting quota will
-  // otherwise file one alert per leg per recipient. One alert per warm
-  // function instance is enough signal to act on.
-  if (quotaAlertSent) return;
-  quotaAlertSent = true;
+  const now = Date.now();
+  if (
+    lastQuotaAlertAt !== null &&
+    now - lastQuotaAlertAt < QUOTA_REARM_WINDOW_MS
+  ) {
+    return;
+  }
+  lastQuotaAlertAt = now;
   console.error(
     `fetchTravelTime quota exhaustion: ${reason}${detail ? ` — ${detail}` : ""}`
   );
@@ -690,9 +703,20 @@ function calendarStalenessNote(
   // P2-C4: report the specific provider that's failing instead of the
   // ambiguous "a connected calendar." Multi-provider households need to
   // know which side to fix.
+  //
+  // P1-C1 (audit v7): a connection in state `needs_reconnect` (revoked
+  // refresh_token, expired channel — migration 066) used to fall through.
+  // If it had synced within threshold before revocation the briefing was
+  // built from a structurally-stale calendar with no warning. Treat
+  // needs_reconnect identically to error, with copy that nudges the user
+  // toward the reconnect button.
   const erroring = active.find((c) => c.sync_status === "error");
   if (erroring) {
     return `${providerLabel(erroring.provider)} is failing to sync — today's events may be incomplete or out of date.`;
+  }
+  const needsReconnect = active.find((c) => c.sync_status === "needs_reconnect");
+  if (needsReconnect) {
+    return `${providerLabel(needsReconnect.provider)} needs to be reconnected — today's events may be incomplete or out of date.`;
   }
   const newestSync = active
     .map((c) => (c.last_synced_at ? new Date(c.last_synced_at).getTime() : 0))
@@ -886,7 +910,12 @@ async function buildBriefingContext(
       .or(
         `event_window_start.is.null,and(event_window_start.lt.${endUtc},event_window_end.gt.${startUtc})`
       )
-      .order("surfaced_at", { ascending: true })
+      // Newest first (audit V7 P2-M1): LLM recency bias means later items
+      // in the context window get less attention, so put the fresh
+      // pickup-risk window / late schedule change at the top where the
+      // model is more likely to surface it. Old issues still arrive within
+      // the LIMIT below.
+      .order("surfaced_at", { ascending: false })
       // V6 P1-M3: raised from 8 — a household on a chaotic week can produce
       // 10+ open issues that all genuinely touch today (back-to-back pickup
       // risks + late schedule changes + a responsibility shift), and the LLM
@@ -1349,10 +1378,18 @@ export async function deliverBriefing(
         // PII: Slack payloads identify users by profile.id UUID only. family_name
         // and other user-supplied identifiers must never appear in alert bodies —
         // the channel has broader access than the database.
+        //
+        // P1-M3 (audit v7): the body used to be included for triage convenience
+        // ("Briefing: ${text.slice(0, 200)}…"). Briefings carry kid names,
+        // school names, partner names, and locations — the most sensitive
+        // surface of paying-family life — and a SLACK_BRIEFING_WEBHOOK_URL
+        // leak would have exposed the corpus. Body now lives only in the
+        // RLS-scoped morning_briefings.content row + the per-row
+        // quality_issues JSONB. Ops can paste the profile id into the debug
+        // tool to fetch the body when they need it.
         await notifySlack(
           `Briefing failed quick quality guard for profile ${profile.id} ` +
-            `(source: ${source}). ${summary} ` +
-            `Briefing: ${text.slice(0, 200)}${text.length > 200 ? "…" : ""}`,
+            `(source: ${source}). issues: ${quickIssues.length} (${summary})`,
           "critical"
         );
       }
@@ -1385,11 +1422,15 @@ export async function deliverBriefing(
           (score.issues.length > 0 ? ` — ${score.issues.length} issue(s)` : "")
       );
       if (!score.pass) {
+        // P1-M3 (audit v7): never include the briefing body in Slack alerts.
+        // The body carries kid + school + partner names + locations and
+        // would leak the corpus on any SLACK_BRIEFING_WEBHOOK_URL exposure.
+        // The body is already persisted on morning_briefings.content for ops
+        // lookup via the debug tool keyed on profile_id.
         await notifySlack(
           `Briefing scored ${score.grade} (${score.score}/100, threshold ${QUALITY_PASS_THRESHOLD}) for ` +
             `profile ${profile.id} (source: ${source}). ` +
-            `Issues: ${score.issues.join(" | ") || "none returned"}. ` +
-            `Briefing: ${text.slice(0, 200)}${text.length > 200 ? "…" : ""}`,
+            `issues: ${score.issues.length} (${score.issues.slice(0, 3).join(" | ") || "none returned"})`,
           "warning"
         );
       }

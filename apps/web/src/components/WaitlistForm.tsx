@@ -28,7 +28,7 @@ interface WaitlistFormProps {
 }
 
 export function WaitlistForm({
-  ctaText = "Join the Waitlist",
+  ctaText = "Get Early Access",
   id,
 }: WaitlistFormProps) {
   const [phone, setPhone] = useState("");
@@ -134,6 +134,7 @@ export function WaitlistForm({
               aria-invalid={state === "error"}
               style={{
                 flex: "1 1 200px",
+                minHeight: 44, // WCAG 2.5.5 touch target (audit V7 P2-D11)
                 // V6 P1-L2: paint the input itself when validation fails so the
                 // error reads at a glance, not just the secondary copy below.
                 background:
@@ -168,6 +169,7 @@ export function WaitlistForm({
               }}
               style={{
                 flex: "0 0 auto",
+                minHeight: 44, // WCAG 2.5.5 touch target (audit V7 P2-D11)
                 fontSize: "14px",
                 fontWeight: 600,
                 color: "var(--paper)",

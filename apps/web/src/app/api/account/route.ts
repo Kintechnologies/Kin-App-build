@@ -1,14 +1,24 @@
 /**
  * DELETE /api/account
  *
- * Hard-deletes the authenticated user's account and all associated data.
+ * Schedules the authenticated user's account for deletion in 30 days. The
+ * existing daily cleanup cron (apps/web/src/app/api/cron/cleanup/route.ts)
+ * picks up any profile whose `data_deletion_at` has passed and invokes the
+ * SECURITY DEFINER `public.delete_user_account()` RPC to hard-delete every
+ * row in a single transaction.
  *
- * The full data delete is performed by the SECURITY DEFINER Postgres function
- * `public.delete_user_account(uid)` (migration 070) which runs as a single
- * transaction — either every row goes, or none do. Eliminates the V3 partial-
- * delete failure mode where a mid-route Vercel timeout left orphaned rows.
- * Only after the DB transaction commits do we delete auth.users (a separate
- * connection that can't participate in the same tx).
+ * P1-P3 (audit v7): the previous implementation hard-deleted immediately,
+ * contradicting the privacy policy's "we will delete your personal data
+ * within 30 days" promise and bypassing the 75-day reminder cron the
+ * cleanup route already supports. A misclick was unrecoverable. The
+ * 30-day grace lets a user undo via support; the immediate hard-delete
+ * path now lives only inside the cleanup cron (and migration 070's RPC,
+ * still usable by support for admin/CCPA "delete now" requests).
+ *
+ * During the grace window the auth row is left in place but
+ * `cancelled_at` is stamped so any future briefing fan-out, nudge, or
+ * billing automation can opt the profile out. The route also flips
+ * `sms_opted_out_at` so no further outbound SMS lands.
  */
 
 import { NextResponse } from "next/server";
@@ -18,12 +28,14 @@ import { isSameOrigin } from "@/lib/csrf";
 import { checkRateLimit, rateLimitResponse } from "@/lib/rate-limit";
 import * as Sentry from "@sentry/nextjs";
 
+const GRACE_DAYS = 30;
+
 export async function DELETE(request: Request) {
   try {
     // CSRF defense-in-depth. Account deletion is the highest-impact destructive
     // endpoint in the app — a forged DELETE from a same-site context
     // (subdomain takeover, malicious extension, XSS via a third-party script)
-    // would otherwise irreversibly hard-delete the user. (V7 P0-5)
+    // would otherwise irreversibly schedule the user for deletion. (V7 P0-5)
     if (!isSameOrigin(request)) {
       return NextResponse.json({ error: "Bad origin" }, { status: 403 });
     }
@@ -33,31 +45,35 @@ export async function DELETE(request: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Per-user rate limit — 3/hour. Irreversible operation; an honest user
-    // never needs more than one or two retries on transient failure. (V7 P0-5)
+    // Per-user rate limit — 3/hour. Even with the 30-day grace, an honest
+    // user never needs more than one or two retries on transient failure. (V7 P0-5)
     const rl = await checkRateLimit(user.id, "account-delete");
     if (!rl.allowed) return rateLimitResponse(rl);
 
     const uid = user.id;
     const admin = createAdminClient();
+    const now = new Date();
+    const deleteAt = new Date(now.getTime() + GRACE_DAYS * 24 * 60 * 60 * 1000);
 
-    const { error: rpcError } = await admin.rpc("delete_user_account", { uid });
-    if (rpcError) {
-      throw new Error(`Account data deletion failed: ${rpcError.message}`);
+    const { error: updateErr } = await admin
+      .from("profiles")
+      .update({
+        cancelled_at: now.toISOString(),
+        data_deletion_at: deleteAt.toISOString(),
+        deletion_reminded: false,
+        sms_opted_out_at: now.toISOString(),
+      })
+      .eq("id", uid);
+
+    if (updateErr) {
+      throw new Error(`Account deletion scheduling failed: ${updateErr.message}`);
     }
 
-    const { error: authDeleteError } = await admin.auth.admin.deleteUser(uid);
-    if (authDeleteError) {
-      // The DB tx already committed — profile + child rows are gone but the
-      // auth.users row remains. Capture so we can manually clean up; the user
-      // experience is still "you're deleted" (no profile means no app access).
-      Sentry.captureException(
-        new Error(`Auth deletion failed post-tx: ${authDeleteError.message}`)
-      );
-      throw new Error(`Auth deletion failed: ${authDeleteError.message}`);
-    }
-
-    return NextResponse.json({ success: true });
+    return NextResponse.json({
+      success: true,
+      scheduled: true,
+      data_deletion_at: deleteAt.toISOString(),
+    });
   } catch (err) {
     Sentry.captureException(err);
     return NextResponse.json(

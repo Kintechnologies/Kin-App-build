@@ -62,24 +62,46 @@ function SignInForm() {
   const [emailStep, setEmailStep] = useState<EmailStep>("email");
   const [phone, setPhone] = useState("");
   const [code, setCode] = useState("");
-  // P2-L3 (audit v6): hardcoded demo credentials are INTENTIONAL for the
-  // beta. They prefill only when the URL is /signin?demo=true (the link
-  // from Landing → "See it in action") so beta evaluators and investor
-  // demos can get into the seeded demo account without us emailing a
-  // password. The demo account is sandboxed: limited household data, no
-  // outbound SMS, no Stripe customer. Remove this prefill before opening
-  // signup to the public.
-  const [email, setEmail] = useState(demoMode ? "demo@kinai.family" : "");
-  const [password, setPassword] = useState(demoMode ? "KinDemo2026!" : "");
+  // P1-A1 (audit v7): demo credentials used to be hardcoded in this
+  // component (demo@kinai.family / KinDemo2026!) and prefilled the form
+  // when the URL was /signin?demo=true. The credentials shipped to every
+  // user's browser in the React bundle — a permanent string-search target
+  // and a credential-stuffing oracle. They now live in env vars
+  // (DEMO_EMAIL, DEMO_PASSWORD) on the server. ?demo=true triggers a POST
+  // to /api/demo-login which signs the user in (cookies set on the
+  // response) and the dashboard takes over from there.
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
-  // Keep the demo account prefilled if ?demo=true changes (e.g. SPA nav)
   useEffect(() => {
-    if (demoMode) {
-      setEmail((e) => e || "demo@kinai.family");
-      setPassword((p) => p || "KinDemo2026!");
-    }
+    if (!demoMode) return;
+    let cancelled = false;
+    (async () => {
+      setLoading(true);
+      try {
+        const res = await fetch("/api/demo-login", { method: "POST" });
+        if (cancelled) return;
+        if (!res.ok) {
+          const body = (await res.json().catch(() => ({}))) as {
+            error?: string;
+          };
+          setError(body.error ?? "Demo sign-in failed.");
+          setLoading(false);
+          return;
+        }
+        await routeAfterAuth();
+      } catch {
+        if (!cancelled) {
+          setError("Demo sign-in failed.");
+          setLoading(false);
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [demoMode]);
 
@@ -314,8 +336,9 @@ function SignInForm() {
             </div>
           </div>
           <div>
-            <label style={labelStyle}>Email</label>
+            <label htmlFor="signin-password-email" style={labelStyle}>Email</label>
             <input
+              id="signin-password-email"
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
@@ -325,8 +348,9 @@ function SignInForm() {
             />
           </div>
           <div>
-            <label style={labelStyle}>Password</label>
+            <label htmlFor="signin-password" style={labelStyle}>Password</label>
             <input
+              id="signin-password"
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
@@ -382,7 +406,7 @@ function SignInForm() {
       {method === "phone" && (phoneStep === "phone" ? (
         <form onSubmit={handleSendCode} style={{ display: "flex", flexDirection: "column", gap: 12 }}>
           <div>
-            <label style={labelStyle}>Mobile number</label>
+            <label htmlFor="signin-phone" style={labelStyle}>Mobile number</label>
             <div style={{ display: "flex", alignItems: "center" }}>
               <div
                 style={{
@@ -399,10 +423,12 @@ function SignInForm() {
                   fontFamily: T.mono,
                   flexShrink: 0,
                 }}
+                aria-hidden="true"
               >
                 +1
               </div>
               <input
+                id="signin-phone"
                 type="tel"
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
@@ -430,8 +456,9 @@ function SignInForm() {
       ) : (
         <form onSubmit={handleVerifyCode} style={{ display: "flex", flexDirection: "column", gap: 12 }}>
           <div>
-            <label style={labelStyle}>6-digit code</label>
+            <label htmlFor="signin-otp-code" style={labelStyle}>6-digit code</label>
             <input
+              id="signin-otp-code"
               type="text"
               inputMode="numeric"
               pattern="[0-9]{6}"
@@ -494,8 +521,9 @@ function SignInForm() {
       {method === "email" && (emailStep === "email" ? (
         <form onSubmit={handleEmailLink} style={{ display: "flex", flexDirection: "column", gap: 12 }}>
           <div>
-            <label style={labelStyle}>Email address</label>
+            <label htmlFor="signin-magic-email" style={labelStyle}>Email address</label>
             <input
+              id="signin-magic-email"
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}

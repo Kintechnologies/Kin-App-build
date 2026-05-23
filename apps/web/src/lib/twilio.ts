@@ -73,10 +73,18 @@ export async function sendSms(to: string, body: string): Promise<void> {
   const token = AUTH_TOKEN();
   const messagingServiceSid = MESSAGING_SERVICE_SID();
 
+  // Cap the body before send (audit V7 P2-S3): Twilio's hard ceiling is
+  // 1600 chars / 10 segments. A pathological interpolation (oversized
+  // family_name, long calendar event title) could blow past. Truncate
+  // defensively so callers can't generate undeliverable messages, then let
+  // the caller see the truncated body via the trailing "...".
+  const safeBody =
+    body.length > 1500 ? body.slice(0, 1497) + "..." : body;
+
   let lastErr: unknown;
   for (let attempt = 1; attempt <= 3; attempt++) {
     try {
-      await sendSmsOnce(to, body, sid, token, messagingServiceSid);
+      await sendSmsOnce(to, safeBody, sid, token, messagingServiceSid);
       return;
     } catch (err) {
       lastErr = err;
@@ -98,6 +106,9 @@ export function validateTwilioRequest(
   url: string,
   params: Record<string, string>
 ): boolean {
+  // Reject empty / missing signature upfront (audit V7 P2-S6): saves the
+  // HMAC computation for probe traffic and unauthenticated callers.
+  if (!signature) return false;
   const token = AUTH_TOKEN();
   const sortedKeys = Object.keys(params).sort();
   let payload = url;
@@ -108,6 +119,11 @@ export function validateTwilioRequest(
     .createHmac("sha1", token)
     .update(payload, "utf8")
     .digest("base64");
+  // Length pre-check (audit V7 P2-S1): crypto.timingSafeEqual throws on
+  // length mismatch, and the catch is observably faster than a real compare.
+  // Short-circuit here so the timing surface looks identical regardless of
+  // input length.
+  if (signature.length !== expected.length) return false;
   try {
     return crypto.timingSafeEqual(
       Buffer.from(signature),

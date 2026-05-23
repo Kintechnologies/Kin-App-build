@@ -245,17 +245,17 @@ function SignUpForm() {
       {method === "phone" && (phoneStep === "phone" ? (
         <form onSubmit={handleSendCode} style={{ display: "flex", flexDirection: "column", gap: 12 }}>
           <div>
-            <label style={{ display: "block", fontSize: 11.5, color: T.warm56, letterSpacing: "0.04em", textTransform: "uppercase", fontWeight: 500, marginBottom: 8 }}>
+            <label htmlFor="signup-phone" style={{ display: "block", fontSize: 11.5, color: T.warm56, letterSpacing: "0.04em", textTransform: "uppercase", fontWeight: 500, marginBottom: 8 }}>
               Mobile number
             </label>
             <div style={{ display: "flex", alignItems: "center", width: "100%" }}>
-              <div style={{
+              <div aria-hidden="true" style={{
                 height: 44, padding: "0 12px", background: T.bgElev,
                 border: `0.5px solid ${T.border}`, borderRight: "none", borderRadius: "8px 0 0 8px",
                 display: "flex", alignItems: "center", fontSize: 14, color: T.warm40,
                 fontFamily: T.mono, flexShrink: 0, boxSizing: "border-box",
               }}>+1</div>
-              <input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)}
+              <input id="signup-phone" type="tel" value={phone} onChange={(e) => setPhone(e.target.value)}
                 placeholder="(415) 555-0117" autoFocus required
                 style={{ ...fieldStyle, borderRadius: "0 8px 8px 0", flex: 1, width: "auto", minWidth: 0 }} />
             </div>
@@ -278,10 +278,10 @@ function SignUpForm() {
       ) : (
         <form onSubmit={handleVerifyCode} style={{ display: "flex", flexDirection: "column", gap: 12 }}>
           <div>
-            <label style={{ display: "block", fontSize: 11.5, color: T.warm56, letterSpacing: "0.04em", textTransform: "uppercase", fontWeight: 500, marginBottom: 8 }}>
+            <label htmlFor="signup-otp-code" style={{ display: "block", fontSize: 11.5, color: T.warm56, letterSpacing: "0.04em", textTransform: "uppercase", fontWeight: 500, marginBottom: 8 }}>
               6-digit code
             </label>
-            <input type="text" inputMode="numeric" pattern="[0-9]{6}" maxLength={6}
+            <input id="signup-otp-code" type="text" inputMode="numeric" pattern="[0-9]{6}" maxLength={6}
               value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))}
               placeholder="123456" autoFocus required
               style={{ ...fieldStyle, fontFamily: T.mono, letterSpacing: "0.15em", fontSize: 18, textAlign: "center" }} />
@@ -306,10 +306,10 @@ function SignUpForm() {
       {method === "email" && (emailStep === "email" ? (
         <form onSubmit={handleEmailLink} style={{ display: "flex", flexDirection: "column", gap: 12 }}>
           <div>
-            <label style={{ display: "block", fontSize: 11.5, color: T.warm56, letterSpacing: "0.04em", textTransform: "uppercase", fontWeight: 500, marginBottom: 8 }}>
+            <label htmlFor="signup-email" style={{ display: "block", fontSize: 11.5, color: T.warm56, letterSpacing: "0.04em", textTransform: "uppercase", fontWeight: 500, marginBottom: 8 }}>
               Email address
             </label>
-            <input type="email" value={email} onChange={(e) => setEmail(e.target.value)}
+            <input id="signup-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)}
               placeholder="you@example.com" autoFocus required style={fieldStyle} />
             <div style={{ marginTop: 6, fontFamily: T.mono, fontSize: 11, color: T.warm40, textAlign: "center" }}>
               {"// we'll email you a one-click sign-in link"}

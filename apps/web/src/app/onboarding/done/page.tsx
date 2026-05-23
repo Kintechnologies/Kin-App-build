@@ -19,6 +19,11 @@ export default function OnboardingDonePage() {
   // success copy from "first briefing tomorrow" to a "we couldn't text you"
   // notice so the user knows to expect no SMS until they retry / fix phone.
   const [welcomeSmsFailed, setWelcomeSmsFailed] = useState(false);
+  // P1-D2 (audit v7): default to "failed" until the API call succeeds. A
+  // network error used to land in the catch below and leave welcomeSmsFailed
+  // = false, so the user saw the upbeat "first briefing tomorrow" copy even
+  // though we never confirmed the welcome SMS went out.
+  const [welcomeSmsConfirmed, setWelcomeSmsConfirmed] = useState(false);
 
   // Audit v5 P0-6: this UPDATE used to be fire-and-forget. If it failed
   // (network blip, RLS hiccup, schema drift), the user saw "All set" while
@@ -47,20 +52,36 @@ export default function OnboardingDonePage() {
       // Fire-and-await the welcome-SMS / partner-invite endpoint so we can
       // surface a failure to the user instead of leaving them confused
       // about why their phone never buzzed.
+      //
+      // P1-D2 (audit v7): a network error here used to land in the catch
+      // below and leave the UI claiming "first briefing tomorrow" with no
+      // confirmation. We now treat any non-success response (including a
+      // thrown fetch) as "couldn't confirm" and show the third copy variant
+      // so the user knows they may not have been texted.
       try {
         const resp = await fetch("/api/account/onboarding-complete", {
           method: "POST",
         });
         if (resp.ok) {
           const data = (await resp.json()) as {
+            welcomeSmsSent?: boolean;
             welcomeSmsFailed?: boolean;
+            partnerInvited?: boolean;
+            partnerPhone?: string | null;
           };
           if (data.welcomeSmsFailed) setWelcomeSmsFailed(true);
+          else if (data.welcomeSmsSent) setWelcomeSmsConfirmed(true);
+          // P1-P4 (audit v7): the partner phone used to live in
+          // sessionStorage where any same-origin script could read it.
+          // The API now returns it (masked or full) so we never persist
+          // a phone number in client-side storage.
+          if (data.partnerPhone) setPartnerPhone(data.partnerPhone);
+        } else {
+          setWelcomeSmsFailed(true);
         }
       } catch (postErr) {
-        // Network failure on the welcome-SMS endpoint shouldn't block the
-        // success state — log to Sentry and continue.
         Sentry.captureException(postErr);
+        setWelcomeSmsFailed(true);
       }
 
       setSaveState("success");
@@ -73,15 +94,12 @@ export default function OnboardingDonePage() {
     }
   }, []);
 
-  // Mark onboarding complete + retrieve partner phone for display
+  // Mark onboarding complete. The partner phone for display arrives from the
+  // server response (see completeOnboarding) — never from sessionStorage,
+  // which any same-origin script (Sentry, Stripe.js, future analytics) can
+  // read. (P1-P4 audit v7)
   useEffect(() => {
     void completeOnboarding();
-
-    const stored = sessionStorage.getItem("kin_partner_phone");
-    if (stored) {
-      setPartnerPhone(stored);
-      sessionStorage.removeItem("kin_partner_phone");
-    }
   }, [completeOnboarding]);
 
   const nextSteps = [
@@ -168,7 +186,7 @@ export default function OnboardingDonePage() {
               onClick={() => {
                 void completeOnboarding();
               }}
-              className="w-full glass border border-white/10 py-3.5 rounded-xl text-warm-white text-sm font-medium hover:border-white/20 transition-all"
+              className="w-full glass border border-hairline py-3.5 rounded-xl text-warm-white text-sm font-medium hover:border-hairline transition-all"
             >
               Retry
             </button>
@@ -205,9 +223,14 @@ export default function OnboardingDonePage() {
                   will still land tomorrow morning at 6am. If you don&apos;t get
                   it, double-check the phone number in Settings.
                 </p>
-              ) : (
+              ) : welcomeSmsConfirmed ? (
                 <p className="text-warm-white/50 text-sm mb-8">
                   Your first briefing lands tomorrow morning at 6am.
+                </p>
+              ) : (
+                <p className="text-warm-white/50 text-sm mb-8">
+                  We&apos;ll text you shortly to confirm setup. Your first
+                  briefing lands tomorrow morning at 6am.
                 </p>
               )}
             </motion.div>
@@ -246,7 +269,7 @@ export default function OnboardingDonePage() {
             >
               <Link
                 href="/dashboard"
-                className="w-full glass border border-white/10 py-3.5 rounded-xl text-warm-white/70 text-sm font-medium hover:text-warm-white hover:border-white/20 transition-all text-center"
+                className="w-full glass border border-hairline py-3.5 rounded-xl text-warm-white/70 text-sm font-medium hover:text-warm-white hover:border-hairline transition-all text-center"
               >
                 Go to dashboard
               </Link>

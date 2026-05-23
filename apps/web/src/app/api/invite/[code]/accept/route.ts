@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getAuthenticatedUser } from "@/lib/supabase/api-auth";
 import { checkRateLimit, rateLimitResponse } from "@/lib/rate-limit";
+import { isSameOrigin } from "@/lib/csrf";
 import * as Sentry from "@sentry/nextjs";
 
 /**
@@ -18,6 +19,14 @@ export async function POST(
   { params }: { params: { code: string } }
 ) {
   try {
+    // P1-A2 (audit v7): CSRF defense-in-depth. Accepting an invite
+    // irreversibly links the caller's profile into another household — a
+    // forged POST from a malicious origin would silently move a victim into
+    // a stranger's household. Mirror the same-origin guard the other
+    // state-changing routes use (per V6 P2-A1).
+    if (!isSameOrigin(request)) {
+      return NextResponse.json({ error: "Bad origin" }, { status: 403 });
+    }
     const user = await getAuthenticatedUser(request);
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

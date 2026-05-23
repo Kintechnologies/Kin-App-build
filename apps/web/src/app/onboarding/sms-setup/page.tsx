@@ -17,7 +17,7 @@ function StepDots({ current }: { current: number }) {
         <div
           key={i}
           className={`h-1.5 rounded-full transition-all duration-300 ${
-            i === current ? "w-6 bg-primary" : i < current ? "w-2 bg-primary/40" : "w-2 bg-white/10"
+            i === current ? "w-6 bg-primary" : i < current ? "w-2 bg-primary/40" : "w-2 bg-hairline"
           }`}
         />
       ))}
@@ -138,7 +138,7 @@ function PhoneStep({ onNext }: { onNext: () => void }) {
             maxLength={14}
             required
             autoComplete="tel"
-            className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-warm-white placeholder:text-warm-white/25 text-sm focus:outline-none focus:ring-1 focus:ring-primary/50 transition-all"
+            className="w-full bg-warm-cream border border-hairline rounded-xl px-4 py-3 text-charcoal placeholder:text-charcoal/30 text-sm focus:outline-none focus:ring-1 focus:ring-primary/50 transition-all"
           />
         </div>
 
@@ -155,7 +155,7 @@ function PhoneStep({ onNext }: { onNext: () => void }) {
             placeholder="(555) 000-0000"
             maxLength={14}
             autoComplete="tel"
-            className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-warm-white placeholder:text-warm-white/25 text-sm focus:outline-none focus:ring-1 focus:ring-primary/50 transition-all"
+            className="w-full bg-warm-cream border border-hairline rounded-xl px-4 py-3 text-charcoal placeholder:text-charcoal/30 text-sm focus:outline-none focus:ring-1 focus:ring-primary/50 transition-all"
           />
         </div>
 

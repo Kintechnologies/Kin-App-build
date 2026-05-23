@@ -35,6 +35,7 @@ import { sendSms } from "@/lib/twilio";
 import { isAuthorizedCron } from "@/lib/cron-auth";
 import { generateKinMessage } from "@/lib/generate-nudge";
 import { notifySlack } from "@/lib/notify";
+import { expireUnpaidTrials } from "@/lib/billing/expire-trials";
 
 type AdminClient = ReturnType<typeof createAdminClient>;
 
@@ -127,15 +128,30 @@ function alreadySent(p: NudgeProfile, key: string): boolean {
  * all keys is the right ceiling.
  */
 const MAX_PER_DAY_WINDOW_MS = 24 * 60 * 60 * 1000;
+// Audit V7 P2-E5: trial_ended is a one-shot terminal SMS and should not
+// block a future re-engagement nudge (P1-E1 is queued). Excluding it here
+// is benign today (the keys are mutually exclusive in practice) but
+// future-proofs the limiter for when re-engagement lands.
+const PER_DAY_EXEMPT_NUDGE_KEYS = new Set<string>(["trial_ended"]);
 function sentInLastDay(p: NudgeProfile): boolean {
   const sent = p.nudges_sent ?? {};
   const cutoff = Date.now() - MAX_PER_DAY_WINDOW_MS;
-  for (const ts of Object.values(sent)) {
+  for (const [key, ts] of Object.entries(sent)) {
+    if (PER_DAY_EXEMPT_NUDGE_KEYS.has(key)) continue;
     if (typeof ts !== "string") continue;
     const ms = Date.parse(ts);
     if (Number.isFinite(ms) && ms >= cutoff) return true;
   }
   return false;
+}
+
+// P1-S3 (audit v7): every engagement nudge is unsolicited outbound and must
+// carry an opt-out instruction per A2P 10DLC. LLM-generated bodies don't
+// reliably include it, and fallbacks shouldn't have to memorize the footer.
+// Enforce it here on every send so the policy is one line in one place.
+const STOP_FOOTER = " Reply STOP to opt out.";
+function ensureStopFooter(body: string): string {
+  return /\bSTOP\b/i.test(body) ? body : `${body}${STOP_FOOTER}`;
 }
 
 /**
@@ -148,6 +164,7 @@ async function sendNudge(
   nudgeKey: string,
   body: string
 ): Promise<void> {
+  body = ensureStopFooter(body);
   await sendSms(profile.phone_number as string, body);
 
   await supabase.from("sms_conversations").insert({
@@ -381,46 +398,15 @@ function pickTrialNudge(days: number): TrialNudge | null {
   return null;
 }
 
-/**
- * Flip expired trials (trial_ends_at < now AND no Stripe customer) to
- * `canceled` so the briefing fan-out filter `(trial, active)` stops sending
- * free briefings to users who never paid.
- *
- * The Stripe webhook only writes `canceled` on `customer.subscription.deleted`
- * — a user who finishes 14 days without paying has no Stripe subscription, so
- * nothing fires that event. Without this nightly flip the trial-gating fix in
- * the briefing edge functions is neutralized for the common case. (audit v4 P0-1)
- *
- * Runs at the top of the daily trial-mode cron so the trial-ended one-shot SMS
- * (below) catches the newly-canceled users on the same run.
- */
-async function expireUnpaidTrials(supabase: AdminClient): Promise<number> {
-  const { data, error } = await supabase
-    .from("profiles")
-    .update({ subscription_status: "canceled" })
-    .eq("subscription_status", "trial")
-    .eq("billing_exempt", false)
-    .lt("trial_ends_at", new Date().toISOString())
-    .select("id");
-
-  if (error) {
-    console.error("expireUnpaidTrials failed:", error.message);
-    await notifySlack(
-      `Trial-expiry flip failed: ${error.message}`,
-      "critical"
-    ).catch(() => {});
-    return 0;
-  }
-  return data?.length ?? 0;
-}
-
 async function runTrialNudges(
   supabase: AdminClient,
   results: Results
 ): Promise<void> {
-  // Flip expired-without-paying trials to canceled first — see expireUnpaidTrials.
-  // The trial-ended one-shot below then catches them on the same run.
-  const expired = await expireUnpaidTrials(supabase);
+  // Flip expired-without-paying trials to canceled first — see
+  // @/lib/billing/expire-trials. The trial-ended one-shot below then catches
+  // them on the same run. (Function and its regression test share the lifted
+  // implementation per audit V7 P2-B6.)
+  const expired = await expireUnpaidTrials(supabase, { notify: notifySlack });
   if (expired > 0) {
     console.log(`expireUnpaidTrials: flipped ${expired} trial(s) to canceled`);
   }
@@ -501,7 +487,20 @@ async function runTrialNudges(
     .returns<NudgeProfile[]>();
 
   for (const p of trialing ?? []) {
-    const due = pickTrialNudge(daysSince(p.created_at));
+    const days = daysSince(p.created_at);
+    let due = pickTrialNudge(days);
+    // Audit V7 P2-E6: backfill the trial_day12 nudge on day 13 when day
+    // 12 was missed (Twilio brownout, cron skip, etc.). Without this, a
+    // single day-12 outage silently drops the user out of the entire
+    // trial-conversion sequence and they only ever see "last day
+    // tomorrow" without the earlier "2 days left" prompt.
+    if (
+      due?.key === "trial_day13" &&
+      !alreadySent(p, "trial_day12") &&
+      !alreadySent(p, "trial_day13")
+    ) {
+      due = pickTrialNudge(12) ?? due;
+    }
     if (!due || alreadySent(p, due.key)) {
       results.skipped++;
       continue;
@@ -530,6 +529,112 @@ async function runTrialNudges(
     } catch (err) {
       results.failed++;
       results.errors.push(`${due.key} ${p.id}: ${errMsg(err)}`);
+    }
+  }
+}
+
+// ─── Re-engagement nudges (paid users gone silent) ──────────────────────────
+
+/**
+ * Nudge paid users who haven't texted Kin in a while. Two waves:
+ *   30 days silent → "checking in" (no link, just a warm prompt)
+ *   60 days silent → "are these briefings still landing for you?" (asks for
+ *                     a yes/no so we get a real signal)
+ *
+ * Gated by:
+ *   - subscription_status='active' AND billing_exempt=false
+ *   - onboarding_completed=true
+ *   - sms_opted_out_at IS NULL
+ *   - Inbound SMS most recent timestamp matches the window
+ *   - One nudge per profile per key (reengage_30d / reengage_60d)
+ *
+ * P1-E1 (audit v7).
+ */
+async function runReEngagementNudges(
+  supabase: AdminClient,
+  results: Results
+): Promise<void> {
+  const now = Date.now();
+  const cutoff30 = new Date(now - 30 * DAY_MS).toISOString();
+  const cutoff60 = new Date(now - 60 * DAY_MS).toISOString();
+
+  const { data: paid } = await supabase
+    .from("profiles")
+    .select(NUDGE_COLUMNS)
+    .eq("subscription_status", "active")
+    .eq("billing_exempt", false)
+    .eq("onboarding_completed", true)
+    .not("phone_number", "is", null)
+    .is("sms_opted_out_at", null)
+    .returns<NudgeProfile[]>();
+
+  for (const p of paid ?? []) {
+    const due30 = !alreadySent(p, "reengage_30d");
+    const due60 = !alreadySent(p, "reengage_60d");
+    if (!due30 && !due60) continue;
+    if (!isDaytime(p.timezone) || sentInLastDay(p)) {
+      results.skipped++;
+      continue;
+    }
+
+    // Look up the most recent inbound — bounded by 70 days so we don't
+    // scan the entire history.
+    const { data: lastInboundRow } = await supabase
+      .from("sms_conversations")
+      .select("created_at")
+      .eq("profile_id", p.id)
+      .eq("direction", "inbound")
+      .gte("created_at", new Date(now - 70 * DAY_MS).toISOString())
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle<{ created_at: string }>();
+    const lastInboundIso = lastInboundRow?.created_at ?? null;
+    const noInbound70d = !lastInboundIso;
+
+    // Pick which wave to fire. Day 60 takes precedence (more urgent) when
+    // both keys are unsent.
+    let key: "reengage_60d" | "reengage_30d" | null = null;
+    let intent = "";
+    let fallback = "";
+    const inSilentWindow60 =
+      due60 && (noInbound70d || (lastInboundIso && lastInboundIso < cutoff60));
+    const inSilentWindow30 =
+      due30 && (noInbound70d || (lastInboundIso && lastInboundIso < cutoff30));
+    if (inSilentWindow60) {
+      key = "reengage_60d";
+      intent =
+        "Re-engagement nudge for a paying parent who hasn't texted in 60+ " +
+        "days. Be warm and direct — ask one yes/no question so we get a " +
+        "real signal on whether the briefings are still landing. No urgency, " +
+        "no upsell, no link. One short sentence then the question.";
+      fallback =
+        `${firstName(p)} — quick check: are the morning briefings still ` +
+        `useful, or are they fading into the background? Either answer is fine.`;
+    } else if (inSilentWindow30) {
+      key = "reengage_30d";
+      intent =
+        "Re-engagement nudge for a paying parent silent for 30+ days. " +
+        "Warm check-in, no question required. One sentence acknowledging " +
+        "you haven't heard from them, no link, no upsell, no apology.";
+      fallback =
+        `${firstName(p)} — been a quiet stretch on your end. Hope the ` +
+        `briefings are holding up; reply any time if anything needs ` +
+        `adjusting.`;
+    }
+    if (!key) continue;
+
+    try {
+      const body = await generateKinMessage({
+        intent,
+        context: { parent_first_name: firstName(p) },
+        fallback,
+        maxChars: 320,
+      });
+      await sendNudge(supabase, p, key, body);
+      results.sent++;
+    } catch (err) {
+      results.failed++;
+      results.errors.push(`${key} ${p.id}: ${errMsg(err)}`);
     }
   }
 }
@@ -567,14 +672,25 @@ export async function GET(request: Request) {
   if (mode === "trial" || mode === "all") {
     await runTrialNudges(supabase, results);
   }
+  // P1-E1 (audit v7): re-engagement nudges for paid users who go silent.
+  // Conversion math is more sensitive than acquisition — a recovered
+  // $39/mo subscriber is worth more than the marginal trial conversion
+  // we already drip-nudge.
+  if (mode === "trial" || mode === "all") {
+    await runReEngagementNudges(supabase, results);
+  }
 
   // Aggregate alert per run, not per failure — a Twilio outage would otherwise
   // spam the channel. Critical: every trial-drip nudge that doesn't land is a
   // conversion that quietly evaporates and a user that doesn't see day 12/13's
-  // payment ask.
+  // payment ask. Audit V7 P2-S2: include the failure ratio so the channel
+  // can distinguish "one tester's phone number went bad" from "Twilio
+  // brownout / A2P re-registration" without opening logs.
   if (results.failed > 0) {
+    const total = results.sent + results.failed;
+    const ratio = total > 0 ? Math.round((results.failed / total) * 100) : 0;
     await notifySlack(
-      `Engagement nudges (${mode}) failed for ${results.failed} send(s) (sent ${results.sent}). First few: ${results.errors.slice(0, 3).join(" | ")}`,
+      `Engagement nudges (${mode}) failed for ${results.failed} send(s) of ${total} attempted (${ratio}% failure rate). First few: ${results.errors.slice(0, 3).join(" | ")}`,
       "critical"
     ).catch(() => {});
   }

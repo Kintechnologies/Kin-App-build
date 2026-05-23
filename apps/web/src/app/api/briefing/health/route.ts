@@ -15,6 +15,7 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { notifySlack } from "@/lib/notify";
+import { isAuthorizedCron } from "@/lib/cron-auth";
 
 export const dynamic = "force-dynamic";
 
@@ -109,7 +110,15 @@ async function checkCron(
   }
 }
 
-export async function GET() {
+export async function GET(request: Request) {
+  // P1-A4 (audit v7): this route makes Twilio + Supabase calls and triggers
+  // Slack alerts on failure. Unauthenticated callers could spam the channel
+  // and burn Twilio/Supabase quota. Gate it behind the same Bearer token used
+  // by the other cron/monitoring routes.
+  if (!isAuthorizedCron(request)) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   const supabase = createAdminClient();
 
   const [edgeFunction, twilio, supabaseCheck, cron] = await Promise.all([

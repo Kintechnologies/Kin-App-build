@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getAuthenticatedUser } from "@/lib/supabase/api-auth";
+import { resolveHouseholdId } from "@/lib/household-context";
 
 // GET /api/calendar/events — list events for the current user
 export async function GET(request: Request) {
@@ -73,12 +74,17 @@ export async function POST(request: Request) {
     );
   }
 
+  // Stamp the household primary's id, not the caller's (audit V7 P2-C4).
+  // Partner accounts otherwise create events keyed to partner.id, which
+  // disappears from the primary's household-scoped briefing query.
+  const householdId = await resolveHouseholdId(supabase, user.id);
+
   const { data: event, error } = await supabase
     .from("calendar_events")
     .insert({
       profile_id: user.id,
       owner_parent_id: user.id,
-      household_id: user.id,
+      household_id: householdId,
       title,
       description,
       location,
@@ -104,6 +110,25 @@ export async function POST(request: Request) {
 }
 
 // PUT /api/calendar/events — update an event
+//
+// P1-A3 (audit v7): allowlist the fields a caller may patch. The previous
+// `const { id, ...updates } = body; .update({...updates})` spread accepted
+// every key on the request body — including is_shared, is_kid_event, and
+// visibility. RLS gates the row, but within their own row a user could flip
+// visibility=private → public OR is_shared=true and leak the event into the
+// household briefing (defeating migration 051's private-event PII guard).
+const ALLOWED_UPDATE_FIELDS = [
+  "title",
+  "description",
+  "location",
+  "start_time",
+  "end_time",
+  "all_day",
+  "color",
+  "recurrence_rule",
+  "assigned_member",
+] as const;
+
 export async function PUT(request: Request) {
   const user = await getAuthenticatedUser(request);
   if (!user) {
@@ -112,15 +137,15 @@ export async function PUT(request: Request) {
   const supabase = createClient();
 
   const body = await request.json();
-  const { id, ...updates } = body;
+  const { id } = body as { id?: string };
 
   if (!id) {
     return NextResponse.json({ error: "Event ID required" }, { status: 400 });
   }
 
-  // If marking as kid event, force is_shared
-  if (updates.is_kid_event) {
-    updates.is_shared = true;
+  const updates: Record<string, unknown> = {};
+  for (const field of ALLOWED_UPDATE_FIELDS) {
+    if (field in body) updates[field] = (body as Record<string, unknown>)[field];
   }
 
   const { data: event, error } = await supabase

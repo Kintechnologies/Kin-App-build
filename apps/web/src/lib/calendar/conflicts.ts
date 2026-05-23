@@ -7,6 +7,12 @@ interface ConflictCandidate {
   description: string;
 }
 
+// Bound the conflict-detection window (audit V7 P2-C1): the O(n²) loop is
+// fine in steady state because of the early-break, but a hot reconnect with
+// 200+ events can add measurable latency to the 30s-bounded OAuth callback.
+// 7 days is the longest horizon the household briefing actually cares about.
+const CONFLICT_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
+
 // Detect conflicts in a merged household event list
 export function detectConflicts(
   events: CalendarEvent[],
@@ -15,7 +21,13 @@ export function detectConflicts(
   const conflicts: ConflictCandidate[] = [];
 
   // Only look at non-deleted, non-cancelled events
-  const active = events.filter((e) => !e.deleted_at);
+  const now = Date.now();
+  const cutoff = now + CONFLICT_WINDOW_MS;
+  const active = events.filter((e) => {
+    if (e.deleted_at) return false;
+    const start = new Date(e.start_time).getTime();
+    return start <= cutoff;
+  });
 
   // Sort by start time
   active.sort(

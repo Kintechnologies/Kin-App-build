@@ -10,7 +10,27 @@ import { pullAppleEvents, appleEventToKinEvent } from "./apple";
 import { detectConflicts, findNewConflicts } from "./conflicts";
 import { detectLateScheduleChanges } from "@/lib/late-schedule-change";
 import { notifySlack } from "@/lib/notify";
+import { resolveHouseholdId } from "@/lib/household-context";
+import { encryptToken, decryptToken } from "./token-crypto";
 import type { CalendarConnection, CalendarEvent, CalendarConflict } from "@/types";
+
+// P1-C3 (audit v7): synced events from Google/Apple used to land with
+// is_shared = false AND household_id = null. The household conflict detector
+// queries `is_shared=true OR is_kid_event=true OR owner_parent_id=<me>` and
+// the RLS policy gates by household_id — so neither partner could see the
+// other's events. Cross-parent conflict detection structurally didn't work.
+//
+// We now stamp household_id to the household primary and is_shared = true
+// for every synced event whose visibility isn't private/confidential.
+// Private events stay owner-only (visibility was already mapped by the
+// per-provider parsers and the briefing layer strips them).
+function householdSharingPatch(
+  visibility: CalendarEvent["visibility"] | undefined,
+  householdId: string
+): { household_id: string; is_shared: boolean } {
+  const isPrivate = visibility === "private" || visibility === "confidential";
+  return { household_id: householdId, is_shared: !isPrivate };
+}
 
 // ── Main Sync Entry Point ──
 
@@ -113,23 +133,30 @@ export async function syncCalendarForConnection(connectionId: string) {
 
 async function syncGoogleCalendar(connection: CalendarConnection) {
   const supabase = createClient();
+  const householdId = await resolveHouseholdId(supabase, connection.profile_id);
 
   // Refresh token if needed. 60s buffer (v5 P2-C1): a token whose expiry is
   // <= now races the upcoming Google API call — by the time the request
   // arrives, the token is rejected. Refresh anything expiring in the next
   // minute too.
-  let accessToken = connection.access_token!;
+  //
+  // P1-C4 (audit v7): decrypt tokens at the read boundary; encrypt at the
+  // write boundary. The token-crypto helper passes through legacy plaintext
+  // unchanged, so existing rows keep working until the next refresh re-
+  // persists them encrypted.
+  let accessToken = decryptToken(connection.access_token) ?? "";
+  const decryptedRefresh = decryptToken(connection.refresh_token);
   if (
     connection.token_expires_at &&
     new Date(connection.token_expires_at).getTime() <= Date.now() + 60_000
   ) {
-    const newTokens = await refreshGoogleToken(connection.refresh_token!);
+    const newTokens = await refreshGoogleToken(decryptedRefresh!);
     accessToken = newTokens.access_token!;
 
     await supabase
       .from("calendar_connections")
       .update({
-        access_token: newTokens.access_token,
+        access_token: encryptToken(newTokens.access_token ?? null),
         token_expires_at: newTokens.expiry_date
           ? new Date(newTokens.expiry_date).toISOString()
           : null,
@@ -205,11 +232,15 @@ async function syncGoogleCalendar(connection: CalendarConnection) {
       // Acceptable for the beta — briefings dedupe by start_time + title —
       // but flag for a proper exception model if recurrence editing
       // becomes common in user telemetry.
-      const kinEvent = googleEventToKinEvent(
+      const baseEvent = googleEventToKinEvent(
         gEvent,
         connection.profile_id,
         cal.id
       );
+      const kinEvent = {
+        ...baseEvent,
+        ...householdSharingPatch(baseEvent.visibility, householdId),
+      };
 
       const { data: existing } = await supabase
         .from("calendar_events")
@@ -243,38 +274,48 @@ async function syncGoogleCalendar(connection: CalendarConnection) {
     // nextSyncToken silently clobbers the prior good cursor, which forces the
     // next pull to do a full re-sync. Only persist when there's something to
     // persist.
+    //
+    // Per-calendar persistence (audit V7 P2-C3): write the cursor *inside*
+    // the loop so a failure on calendar N+1 doesn't lose calendars 0..N's
+    // newly-learned tokens. Without this, an outage mid-loop forces a full
+    // 6-month re-pull next run for every calendar that had already finished.
     if (
       typeof result.nextSyncToken === "string" &&
       result.nextSyncToken.trim().length > 0
     ) {
       syncTokens[cal.id] = result.nextSyncToken;
+      await supabase
+        .from("calendar_connections")
+        .update({
+          google_sync_tokens: syncTokens,
+          google_sync_token:
+            syncTokens["primary"] ?? connection.google_sync_token,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", connection.id);
     }
   }
-
-  await supabase
-    .from("calendar_connections")
-    .update({
-      google_sync_tokens: syncTokens,
-      // Keep the legacy column in lockstep with "primary" so downgrades or
-      // pre-migration consumers don't lose their cursor.
-      google_sync_token: syncTokens["primary"] ?? connection.google_sync_token,
-      updated_at: new Date().toISOString(),
-    })
-    .eq("id", connection.id);
 }
 
 // ── Apple Sync ──
 
 async function syncAppleCalendar(connection: CalendarConnection) {
   const supabase = createClient();
+  const householdId = await resolveHouseholdId(supabase, connection.profile_id);
 
   if (!connection.access_token || !connection.refresh_token || !connection.caldav_url) {
     throw new Error("Apple Calendar credentials not configured");
   }
 
+  // P1-C4 (audit v7): decrypt at the read boundary. The Apple "access_token"
+  // column holds the Apple ID (username) and "refresh_token" holds the
+  // app-specific password — both equally sensitive.
+  const appleId = decryptToken(connection.access_token) ?? "";
+  const appPassword = decryptToken(connection.refresh_token) ?? "";
+
   const { events } = await pullAppleEvents(
-    connection.access_token, // username (Apple ID email)
-    connection.refresh_token, // app-specific password stored here
+    appleId,
+    appPassword,
     connection.caldav_url
   );
 
@@ -286,11 +327,15 @@ async function syncAppleCalendar(connection: CalendarConnection) {
 
   for (const parsed of events) {
     seenExternalIds.add(parsed.uid);
-    const kinEvent = appleEventToKinEvent(
+    const baseEvent = appleEventToKinEvent(
       parsed,
       connection.profile_id,
       connection.caldav_url
     );
+    const kinEvent = {
+      ...baseEvent,
+      ...householdSharingPatch(baseEvent.visibility, householdId),
+    };
 
     const { data: existing } = await supabase
       .from("calendar_events")
@@ -350,6 +395,12 @@ async function syncAppleCalendar(connection: CalendarConnection) {
 
 async function runConflictDetection(profileId: string) {
   const supabase = createClient();
+  // P1-C3 (audit v7): conflict rows are RLS-gated by household_id = the
+  // household primary. Use the resolved household id so a partner-side sync
+  // still writes conflicts onto the primary's household row — otherwise a
+  // partner's events would create a parallel set of conflict rows keyed to
+  // their own profile that the primary's dashboard never sees.
+  const householdId = await resolveHouseholdId(supabase, profileId);
 
   // Get all household events (shared + kid events) for the next 14 days
   const now = new Date();
@@ -358,7 +409,7 @@ async function runConflictDetection(profileId: string) {
   const { data: events } = await supabase
     .from("calendar_events")
     .select("*")
-    .or(`owner_parent_id.eq.${profileId},is_shared.eq.true,is_kid_event.eq.true`)
+    .eq("household_id", householdId)
     .gte("start_time", now.toISOString())
     .lte("start_time", twoWeeksOut.toISOString())
     .is("deleted_at", null);
@@ -371,7 +422,7 @@ async function runConflictDetection(profileId: string) {
   const { data: existing } = await supabase
     .from("calendar_conflicts")
     .select("*")
-    .eq("household_id", profileId)
+    .eq("household_id", householdId)
     .eq("resolved", false);
 
   const newConflicts = findNewConflicts(
@@ -382,7 +433,7 @@ async function runConflictDetection(profileId: string) {
   // Insert new conflicts
   for (const conflict of newConflicts) {
     await supabase.from("calendar_conflicts").insert({
-      household_id: profileId,
+      household_id: householdId,
       event_a_id: conflict.event_a.id,
       event_b_id: conflict.event_b.id,
       conflict_type: conflict.conflict_type,

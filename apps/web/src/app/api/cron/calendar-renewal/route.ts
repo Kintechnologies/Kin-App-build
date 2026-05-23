@@ -17,6 +17,13 @@
  * in pg_cron and reaches this route via the cron-dispatch edge function (see
  * supabase/migrations/059_calendar_renewal_cron.sql). Authenticates the same
  * way every other cron route does — Bearer token via isAuthorizedCron.
+ *
+ * P1-C5 (audit v7): this used to ALSO be scheduled by Vercel Cron (daily at
+ * 09 UTC). The per-connection sync claim at sync.ts:27-39 prevents concurrent
+ * SYNCS from racing, but webhook channel renewal (registerGoogleWebhook
+ * below) was NOT behind that claim — two simultaneous runs both registered
+ * fresh channels, leaking one and (worse) stopping the channel the other run
+ * just registered. pg_cron is now the single source of truth.
  */
 
 import { NextResponse } from "next/server";
@@ -28,6 +35,7 @@ import {
   refreshGoogleToken,
 } from "@/lib/calendar/google";
 import { syncCalendarForConnection } from "@/lib/calendar/sync";
+import { encryptToken, decryptToken } from "@/lib/calendar/token-crypto";
 import { randomUUID } from "crypto";
 import * as Sentry from "@sentry/nextjs";
 import { notifySlack } from "@/lib/notify";
@@ -61,21 +69,24 @@ async function refreshAccessTokenIfNeeded(
   conn: ConnectionRow
 ): Promise<string> {
   const supabase = createAdminClient();
-  let accessToken = conn.access_token ?? "";
+  // P1-C4 (audit v7): decrypt on read, encrypt on write. The helpers no-op
+  // on legacy plaintext so the function works across the migration window.
+  let accessToken = decryptToken(conn.access_token) ?? "";
 
   const expiresAt = conn.token_expires_at
     ? new Date(conn.token_expires_at).getTime()
     : 0;
   if (!accessToken || expiresAt <= Date.now()) {
-    if (!conn.refresh_token) {
+    const refreshClear = decryptToken(conn.refresh_token);
+    if (!refreshClear) {
       throw new Error("no refresh_token");
     }
-    const tokens = await refreshGoogleToken(conn.refresh_token);
+    const tokens = await refreshGoogleToken(refreshClear);
     accessToken = tokens.access_token ?? "";
     await supabase
       .from("calendar_connections")
       .update({
-        access_token: tokens.access_token,
+        access_token: encryptToken(tokens.access_token ?? null),
         token_expires_at: tokens.expiry_date
           ? new Date(tokens.expiry_date).toISOString()
           : null,

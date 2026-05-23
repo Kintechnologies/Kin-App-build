@@ -1,276 +1,135 @@
-# Kin AI Morning Briefing System
+# Kin Morning Briefing System
+
+> **P1-M1 rewrite (audit v7).** The prior version of this doc described
+> Expo push notifications, `parent_schedules` / `children_allergies` /
+> `pet_details` / `fitness_profiles` / `budget_categories`, a 6am UTC
+> daily job, and a SYSTEM_PROMPT that explicitly required opening with
+> "Morning." None of those are accurate any longer — Kin is SMS + web
+> only (no mobile app in this monorepo), the relevant tables don't
+> exist, and the system prompt now explicitly forbids "Morning." as an
+> opener. This file is the lightweight, current source of truth. The
+> code is authoritative; treat anything below that diverges from the
+> code as a doc bug worth fixing.
 
 ## Overview
 
-The morning briefing is Kin's most important feature — a personalized daily push notification synthesizing all family data into one warm, actionable message delivered at 6am.
+A daily 6 AM SMS that synthesizes the family's day into ~480 chars (≤600
+when ending with a question). The reader is a parent looking at their
+phone before the day starts — they want the one thing that requires
+action or awareness, in plain text, in under ten seconds.
 
-**Example briefing:**
-> "Morning. Leave for the gym by 5:55 — 315 is backed up, take 670. Your 9:30 team sync is in 3 hours. Your wife's 6pm runs late — you've got pickup. Practice ends at 7, bedtime is 8:30. You're $23 under grocery budget. Chipotle?"
+Delivery: outbound SMS via Twilio. Channel: per-recipient mobile phone.
+No mobile app, no push notifications.
 
-## Architecture
+## Schedule
 
-### Mobile App (`apps/mobile/lib/`)
+The briefing fan-out runs **hourly**, not once at 6 AM UTC. Each tick
+selects every household whose **local** time is 6 AM right now. A
+profile in PT receives at 6 AM PT; a profile in ET receives at 6 AM ET.
+The hourly fan-out is scheduled in pg_cron and reaches the Supabase
+edge function via the cron-dispatch shim
+(`supabase/migrations/058_subdaily_crons.sql`).
 
-#### `kin-ai.ts`
-TypeScript module for the mobile app that provides three main functions:
+## Pipeline
 
-- **`assembleFamilyContext(profileId)`** - Queries Supabase for all family data and builds a rich context block for Claude
-  - Includes profile, schedule, calendar, children (with allergies), pets, budget, meal plans, and fitness data
-  - **CRITICAL**: Always includes allergy context - non-negotiable safety requirement
-  - Respects privacy: fitness data only for the requesting parent
+1. **`supabase/functions/morning-briefing/`** — edge function entrypoint
+   invoked by the cron dispatcher. Iterates the eligible profiles and
+   calls into the shared briefing builder per profile.
+2. **`supabase/functions/_shared/briefing.ts`** — shared between the
+   morning-briefing fan-out, the per-event briefing audit, and the web
+   on-demand path (`/api/morning-briefing`). Pulls calendar events,
+   family members, routines, household context, and recent
+   coordination issues into a single prompt; calls Anthropic; runs the
+   output through `briefing-quality.ts`; writes
+   `morning_briefings.content`; dispatches via Twilio.
+3. **`supabase/functions/_shared/briefing-quality.ts`** — guards the
+   output before send. Catches sole-parent phantom-partner mentions
+   (P0-3 audit v7 reworked this from regex to semantic), catches
+   ungrounded events, and posts to Slack on quality failure. Returns a
+   grade + issue list that gets persisted on the briefing row for
+   trend analysis.
+4. **Web on-demand** — `/api/morning-briefing` exposes the same builder
+   for the dashboard "preview my briefing" button. Wraps the LLM call
+   in a 30s `AbortSignal.timeout` (P2-M5 audit v7) and pins the model
+   to `claude-sonnet-4-6-20250930` (P0-4 audit v7).
 
-- **`kinChat(profileId, message, threadId?)`** - Sends messages to Claude with full family context in system prompt
-  - Uses claude-sonnet-4-20250514 via the web API
-  - Maintains conversation history and privacy boundaries
+## Model & prompt
 
-- **`generateMorningBriefing(profileId)`** - Generates the daily morning briefing
-  - Calls `/api/morning-briefing` endpoint
-  - Returns personalized briefing text
+- Model: `claude-sonnet-4-6-20250930` (pinned date suffix at both the
+  SMS edge function and the web on-demand path).
+- System prompt: in `briefing.ts`. The directives that matter:
+  - **No greeting.** Do not open with "Good morning", "Morning.", "Hey",
+    or any greeting. Start with the substance.
+  - **No markdown, no newlines.** One run of sentences. Under 480
+    chars, or under 600 only when ending with a contextual question.
+  - **No calendar recap.** Surface implication, not inventory.
+  - **Grounding.** Every fact must trace to the context — never invent
+    an errand, deadline, departure time, or task. When the context is
+    thin, a shorter briefing is the correct briefing.
 
-#### `push-notifications.ts`
-React Native / Expo push notification setup:
+## Data the briefing reads
 
-- **`registerForPushNotifications()`** - Gets Expo push token and saves to `push_tokens` table
-  - Handles permissions requests
-  - Saves token via `/api/push-tokens` API route
+- `profiles` — primary parent + partner, household linkage, timezone.
+- `family_members` — kids, partners, pets; relationship + age. Single
+  source of truth for "does this household have a partner" (the
+  phantom-partner guard reads this directly, not the prompt).
+- `family_routines` — recurring patterns Kin has learned (school
+  drop-off times, sports nights, regular pickups).
+- `family_preferences` — confirmed prefs (preferred restaurants, etc.).
+- `household_context` — facts Kin has accumulated from chat + SMS.
+- `calendar_events` — Google + Apple synced events visible to the
+  household. P1-C3 audit v7 made cross-parent visibility work by
+  stamping `household_id` + `is_shared=true` on synced events
+  (private/confidential events stay owner-only).
+- `coordination_issues` — short-window cross-parent surfaces (conflict
+  detection, late schedule changes).
 
-- **`setupNotificationHandlers()`** - Sets up foreground and background handlers
-  - Routes notifications based on type (morning_briefing, medication_reminder, etc.)
-  - Navigates to appropriate screens when user taps notification
+## Privacy posture
 
-### Web API Routes (`apps/web/src/app/api/`)
+- Briefing prose contains kid names, school names, partner names,
+  calendar event titles, and locations. It is the most sensitive
+  surface of paying-family life.
+- `morning_briefings.content` is RLS-scoped by `profile_id`. Plans for
+  90-day TTL on `content` (NULL the column, retain grade + quality
+  signals for analytics) are tracked as P2-M3.
+- Slack alerts include `profile_id` + grade + score + issue count
+  only — never the body. Body dumps in alerts were a V6 leak vector
+  (P0-2 audit v7 closed the last sites).
 
-#### `/morning-briefing` route
-Generates and stores daily briefings.
+## Failure modes & alerts
 
-**GET** - Returns today's briefing (or generates if not exists)
-- Queries calendar events, schedule, children's activities, budget status, pet care
-- Uses Claude to generate warm, conversational briefing
-- Stores result in `morning_briefings` table
-- Returns: `{ content, deliveryStatus }`
+- **Anthropic API failure after retries** — fallback plaintext briefing
+  is sent; Slack `warning` fires with profile id only.
+- **Distance Matrix quota exhausted** — Slack `warning`, dedupe per
+  cold-start (P2-M2 still open — switch to per-hour re-arm).
+- **Quality grade ≤ C** — Slack `warning` with profile id + grade +
+  issue count. The body never appears in the alert.
+- **Per-event briefing audit failure** — Slack `warning`; never blocks
+  the next briefing.
 
-**POST** - Forces regeneration of today's briefing
-- Deletes existing briefing
-- Generates new one
-- Useful for user-triggered regeneration
+## Test endpoints
 
-Logic:
-1. Query all relevant family data for today
-2. Build context block with specific numbers (budget totals, event times, etc.)
-3. Pass to Claude with system prompt emphasizing warmth, specificity, and directness
-4. Claude generates 30-60 second briefing
-5. Store in database with delivery status
-6. Return to client
+- `/api/test/morning-briefing` — manual trigger for the on-demand
+  path. Gated by `TEST_SECRET` (V6 P1-I3 split it from `CRON_SECRET`).
+- `/api/briefing/health` — reliability checker hit by external monitor.
+  Gated by `CRON_SECRET` (P1-A4 audit v7); unauthenticated GET no
+  longer spams Twilio + Slack.
 
-#### `/push-tokens` route
-Manages push notification registration.
+## Cron jobs that touch this pipeline
 
-**POST** - Saves a push token
-- Request: `{ token, platform ("ios"|"android"|"web"), device_name? }`
-- Upserts to `push_tokens` table
-- Returns: `{ success, token_id }`
+- `morning-briefing-hourly` — pg_cron, hourly, fans out per-user-local
+  6am.
+- `briefing-audit-daily` — pg_cron, daily.
+- `calendar-renewal` — pg_cron every 6h. Vercel Cron is no longer in
+  the mix (P1-C5 audit v7 dropped it — pg_cron is the single source of
+  truth so the renewal claim race can't happen).
 
-**GET** - Returns all active push tokens for user
-- Returns: `{ tokens: [...] }`
+## Out of scope
 
-**DELETE** - Deactivates a push token (soft delete)
-- Request: `{ token }`
-- Sets `active = false`
-- Returns: `{ success }`
+- Mobile app, Expo, push notifications.
+- Allergy / pet / budget / fitness contexts.
+- The "6 AM UTC daily" job — never existed in the current pipeline.
 
-### Supabase Edge Function (`supabase/functions/morning-briefing/`)
-
-Deno/TypeScript edge function that runs daily to generate and send morning briefings.
-
-**Trigger**: Scheduled job at 6am UTC (deployable per-timezone)
-
-**Process**:
-1. Query all profiles with `onboarding_completed = true`
-2. For each profile:
-   - Check if briefing already sent today (deduplication)
-   - Generate briefing via Claude API
-   - Fetch user's active push tokens
-   - Send via Expo Push API if tokens exist
-   - Store in `morning_briefings` table with delivery status
-   - Handle errors gracefully (one failure doesn't stop others)
-
-**Environment Variables**:
-- `SUPABASE_URL` - Supabase project URL
-- `SUPABASE_SERVICE_ROLE_KEY` - Service role key (for admin access)
-- `ANTHROPIC_API_KEY` - Anthropic API key
-- `EXPO_ACCESS_TOKEN` - Expo push service access token (optional)
-
-**Response**:
-```json
-{
-  "processed": 42,
-  "succeeded": 40,
-  "failed": 2,
-  "errors": ["Error processing profile-id: ..."]
-}
-```
-
-## Database Schema
-
-### `push_tokens`
-```sql
-id UUID PRIMARY KEY
-profile_id UUID REFERENCES profiles(id)
-token TEXT NOT NULL
-platform TEXT ('ios' | 'android' | 'web')
-device_name TEXT
-active BOOLEAN DEFAULT true
-created_at TIMESTAMPTZ
-updated_at TIMESTAMPTZ
-UNIQUE(profile_id, token)
-```
-
-### `morning_briefings`
-```sql
-id UUID PRIMARY KEY
-profile_id UUID REFERENCES profiles(id)
-briefing_date DATE DEFAULT CURRENT_DATE
-content TEXT NOT NULL
-delivery_status TEXT ('generated' | 'sent' | 'failed')
-sent_at TIMESTAMPTZ
-created_at TIMESTAMPTZ
-UNIQUE(profile_id, briefing_date)
-```
-
-### `parent_schedules` (already created)
-```sql
-id UUID PRIMARY KEY
-profile_id UUID REFERENCES profiles(id)
-raw_description TEXT
-structured_data JSONB
-home_location TEXT
-work_location TEXT
-commute_mode TEXT ('drive' | 'transit' | 'walk' | 'bike' | 'remote')
-created_at TIMESTAMPTZ
-updated_at TIMESTAMPTZ
-UNIQUE(profile_id)
-```
-
-Other referenced tables (all created in migrations 013-018):
-- `children_details`, `children_allergies`, `children_activities`
-- `pet_details`, `pet_medications`, `pet_vaccinations`
-- `fitness_profiles`, `workout_sessions`
-- `budget_categories`, `budget_summary_view`
-- `calendar_events` (existing)
-
-## Kin Voice Rules (Applied in Claude System Prompt)
-
-The briefing generator enforces these rules:
-
-1. **No hedging** - Never use "I think", "perhaps", "you might want to"
-2. **Always specific** - "$23 under budget" not "under budget"; "5:55 AM" not "early morning"
-3. **One question max** - At the very end, as a warm suggestion (not interrogation)
-4. **No corporate language** - No "leverage", "optimize", "synergize"
-5. **Warm but direct** - Sound like a smart friend who knows the family
-6. **Short by default** - Readable in 30-60 seconds (roughly 4-6 sentences)
-7. **Open with "Morning"** - Then immediately the most important thing
-8. **No bullet points** - Prose format, conversational
-
-## Privacy & Safety
-
-### Allergy Context
-- **CRITICAL**: Allergy information is ALWAYS included in briefings
-- This is a non-negotiable safety requirement
-- Never omitted even if data is sparse
-
-### Fitness Data
-- Strictly private per parent (never shared with household partner)
-- Only included when generating briefing for that parent
-- Excluded from all shared family contexts
-
-### Budget Data
-- Individual spending details are private
-- Briefing shows only category totals and limits
-- Never shares one parent's line items with the other
-
-### Calendar & Schedule
-- Personal (non-shared) calendar events are private
-- Only shared household events visible to both parents
-- Kids' events always visible to both parents
-
-## Integration with Mobile App
-
-### Setup (in app initialization):
-```typescript
-import { registerForPushNotifications, setupNotificationHandlers } from './lib/push-notifications'
-
-// On app launch:
-const token = await registerForPushNotifications()
-setupNotificationHandlers()
-```
-
-### Getting Today's Briefing:
-```typescript
-import { generateMorningBriefing } from './lib/kin-ai'
-
-const briefing = await generateMorningBriefing(profileId)
-// Display to user
-```
-
-### Chat with Family Context:
-```typescript
-import { kinChat } from './lib/kin-ai'
-
-const response = await kinChat(profileId, "What should we make for dinner?")
-```
-
-## Deployment Checklist
-
-- [ ] All migration files (013-018) applied to Supabase
-- [ ] Environment variables set in Supabase Edge Function:
-  - `ANTHROPIC_API_KEY`
-  - `EXPO_ACCESS_TOKEN` (if using Expo for push)
-- [ ] Scheduled job created in Supabase (6am UTC, or per-timezone)
-- [ ] Mobile app updated with `kin-ai.ts` and `push-notifications.ts`
-- [ ] Mobile app initialized push notifications on startup
-- [ ] Web API routes deployed
-- [ ] Test end-to-end:
-  1. Register for push from mobile app
-  2. Call GET `/api/morning-briefing` manually
-  3. Verify briefing generated and stored
-  4. Test POST to regenerate
-  5. Verify token saved in `push_tokens`
-
-## Testing
-
-### Manual briefing generation:
-```bash
-curl -X GET https://your-domain.com/api/morning-briefing \
-  -H "Authorization: Bearer YOUR_ACCESS_TOKEN"
-```
-
-### Force regeneration:
-```bash
-curl -X POST https://your-domain.com/api/morning-briefing \
-  -H "Authorization: Bearer YOUR_ACCESS_TOKEN"
-```
-
-### Register push token:
-```bash
-curl -X POST https://your-domain.com/api/push-tokens \
-  -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{"token":"EXPO_TOKEN","platform":"ios","device_name":"iPhone 14"}'
-```
-
-### Test Edge Function locally:
-```bash
-supabase functions serve
-# Then invoke via POST http://localhost:54321/functions/v1/morning-briefing
-```
-
-## Future Enhancements
-
-1. **Per-timezone scheduling** - 6am in user's local timezone, not UTC
-2. **AI-driven meal suggestions** - Surface "Chipotle?" if budget allows
-3. **Weather integration** - "Take an umbrella — rain until 2pm"
-4. **Traffic integration** - Real-time commute times (not hardcoded)
-5. **Family notifications** - Joint family briefing for household
-6. **Briefing customization** - Let parents choose what's included
-7. **A/B testing** - Test different briefing styles/lengths
-8. **Analytics** - Track open rates, engagement, feedback
+For anything older than this doc, check the per-file header comments
+in `supabase/functions/_shared/briefing.ts` — those are kept current as
+fixes land.

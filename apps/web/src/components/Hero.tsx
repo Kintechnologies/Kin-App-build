@@ -137,7 +137,9 @@ export function Hero() {
             "--kin-reveal-y": "12px",
           } as CSSProperties}
         >
-          <WaitlistForm ctaText="Join the Waitlist" />
+          {/* Unified CTA copy (audit V7 P2-L5): every entry point now says
+              "Get Early Access" so the user sees one consistent verb. */}
+          <WaitlistForm ctaText="Get Early Access" />
         </div>
 
         {/* Reassurance */}

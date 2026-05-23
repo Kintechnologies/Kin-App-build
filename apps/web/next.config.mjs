@@ -1,14 +1,19 @@
 import { withSentryConfig } from "@sentry/nextjs";
 
-// V6 P1-I1: report-only CSP. Allowlist matches today's third-party surface:
+// CSP. Allowlist matches today's third-party surface:
 //   Supabase REST / realtime / storage (PostgREST + websocket)
 //   Stripe checkout + portal redirects + JS bundle
 //   Anthropic — only server-side, no browser calls, so no api.anthropic.com
 //   Sentry tunneled via /monitoring (no external host needed)
 //   Vercel analytics + Vercel preview hosts during /monitoring tunneling
 //   Google Fonts (the marketing site loads Instrument Serif)
-// Report-only for a week so we can audit unintended blocks before flipping
-// to enforcement.
+//
+// P1-I2 (audit v7): V6 shipped this as Content-Security-Policy-Report-Only
+// with a promise to flip "once production logs are clean for a week." There
+// was no report sink, so "clean" was unverifiable. We now POST violations to
+// /api/csp-report (forwards to Sentry). Set CSP_ENFORCE=1 in Vercel to flip
+// the header from Report-Only to enforced — the violation feed at
+// Sentry > Issues > "csp.violation" must be empty for 7 days first.
 const CSP_DIRECTIVES = [
   "default-src 'self'",
   // Next.js inlines a small bootstrap script; 'unsafe-inline' is required
@@ -26,7 +31,13 @@ const CSP_DIRECTIVES = [
   "frame-ancestors 'none'",
   "base-uri 'self'",
   "object-src 'none'",
+  "report-uri /api/csp-report",
 ].join("; ");
+
+const CSP_HEADER_NAME =
+  process.env.CSP_ENFORCE === "1"
+    ? "Content-Security-Policy"
+    : "Content-Security-Policy-Report-Only";
 
 // Baseline security headers applied to every response. Conservative defaults
 // per OWASP — locks framing, MIME sniffing, browser sensor APIs, and forces
@@ -45,9 +56,10 @@ const securityHeaders = [
     key: "Strict-Transport-Security",
     value: "max-age=63072000; includeSubDomains; preload",
   },
-  // Report-only first — switch to "Content-Security-Policy" once the
-  // production logs are clean for a week. (V6 P1-I1)
-  { key: "Content-Security-Policy-Report-Only", value: CSP_DIRECTIVES },
+  // Defaults to Report-Only; set CSP_ENFORCE=1 in Vercel to flip to
+  // enforced once the /api/csp-report Sentry feed is clean for a week.
+  // (P1-I2 audit v7)
+  { key: CSP_HEADER_NAME, value: CSP_DIRECTIVES },
 ];
 
 /** @type {import('next').NextConfig} */

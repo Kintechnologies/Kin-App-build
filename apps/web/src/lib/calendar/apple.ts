@@ -102,6 +102,29 @@ function parseICalEvent(
   const dtstart = vevent.getFirstPropertyValue("dtstart") as ICAL.Time;
   const allDay = dtstart?.isDate || false;
 
+  // P1-C6 (audit v7): mirror Google's noon-UTC anchor for all-day events.
+  // ICAL.Time.toJSDate() on a date-only (no time component) value returns
+  // a Date at the local midnight of the server's runtime timezone — on
+  // Vercel's UTC runtime that's UTC midnight, which renders as the PRIOR
+  // calendar day for any timezone west of UTC (HST off-by-one most
+  // frequent, but every PT/MT/CT/ET user sees a stale "yesterday" event
+  // until noon their time). Anchoring to T12:00:00Z keeps the date right
+  // for every US timezone. End date follows the same anchor.
+  const allDayInstant = (t: ICAL.Time): string => {
+    const yyyy = t.year.toString().padStart(4, "0");
+    const mm = t.month.toString().padStart(2, "0");
+    const dd = t.day.toString().padStart(2, "0");
+    return new Date(`${yyyy}-${mm}-${dd}T12:00:00.000Z`).toISOString();
+  };
+
+  const dtend = vevent.getFirstPropertyValue("dtend") as ICAL.Time | null;
+  const startTime = allDay
+    ? allDayInstant(dtstart)
+    : event.startDate.toJSDate().toISOString();
+  const endTime = allDay && dtend
+    ? allDayInstant(dtend)
+    : event.endDate.toJSDate().toISOString();
+
   const rruleProp = vevent.getFirstPropertyValue("rrule");
   const recurrenceRule = rruleProp ? rruleProp.toString() : undefined;
 
@@ -125,8 +148,8 @@ function parseICalEvent(
     title: event.summary || "(No title)",
     description: event.description || undefined,
     location: event.location || undefined,
-    startTime: event.startDate.toJSDate().toISOString(),
-    endTime: event.endDate.toJSDate().toISOString(),
+    startTime,
+    endTime,
     allDay,
     recurrenceRule,
     visibility,

@@ -86,6 +86,31 @@ describe("scrubSentryEvent", () => {
     expect(scrubbed!.user).toEqual({ id: "uid-123" });
   });
 
+  it("nukes V7 P1-P2 Kin-specific PII keys", () => {
+    const event = makeEvent({
+      extra: {
+        family_name: "Sarah Ford",
+        last_name: "Ford",
+        partner_name: "Jontae",
+        kid_names: ["Mira", "Theo"],
+        assigned_member: "Mira",
+        body: "kid name and pickup time",
+        context_notes: "shared note with location",
+        invitee_phone: "+15551234567",
+      },
+    });
+    const scrubbed = scrubSentryEvent(event)!;
+    const extra = scrubbed.extra as Record<string, unknown>;
+    expect(extra.family_name).toBe("<redacted>");
+    expect(extra.last_name).toBe("<redacted>");
+    expect(extra.partner_name).toBe("<redacted>");
+    expect(extra.kid_names).toBe("<redacted>");
+    expect(extra.assigned_member).toBe("<redacted>");
+    expect(extra.body).toBe("<redacted>");
+    expect(extra.context_notes).toBe("<redacted>");
+    expect(extra.invitee_phone).toBe("<redacted>");
+  });
+
   it("redacts exception value strings", () => {
     const event = makeEvent({
       exception: {

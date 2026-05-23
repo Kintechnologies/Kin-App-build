@@ -20,8 +20,13 @@ const EMAIL_RE = /[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/g;
 const UUID_RE =
   /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi;
 
+// P1-P2 (audit v7): the original allowlist missed several Kin-specific PII
+// keys. A captureException whose extras carried a profile row would leak
+// family_name, partner_name, body (SMS), context_notes, etc. straight to
+// Sentry. Extend the regex to cover everything we identified plus the
+// invitee_phone / kid_names / assigned_member surfaces.
 const SENSITIVE_KEY_RE =
-  /^(phone|phone_number|email|household_id|profile_id|user_id|to|from|to_number|from_number|partner_phone|partner_email|invitee_email)$/i;
+  /^(phone|phone_number|email|household_id|profile_id|user_id|to|from|to_number|from_number|partner_phone|partner_email|invitee_email|invitee_phone|access_token|refresh_token|app_password|caldav_url|google_channel_id|google_resource_id|family_name|last_name|first_name|partner_name|kid_names?|child_name|assigned_member|body|context_notes|invite_code)$/i;
 
 function redactString(s: string): string {
   return s

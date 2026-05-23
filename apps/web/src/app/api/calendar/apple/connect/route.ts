@@ -3,6 +3,8 @@ import { createClient } from "@/lib/supabase/server";
 import { getAuthenticatedUser } from "@/lib/supabase/api-auth";
 import { getAppleCalDAVClient, listAppleCalendars } from "@/lib/calendar/apple";
 import { syncCalendarForConnection } from "@/lib/calendar/sync";
+import { encryptToken } from "@/lib/calendar/token-crypto";
+import { isSameOrigin } from "@/lib/csrf";
 import type { DAVCalendar } from "tsdav";
 import * as Sentry from "@sentry/nextjs";
 
@@ -73,11 +75,14 @@ export async function POST(request: Request) {
     // the matching WHERE clause, so the legacy upsert silently overwrote or
     // errored. Handle the conflict explicitly: update if a row exists for this
     // profile/provider, else insert.
+    // P1-C4 (audit v7): both the Apple ID and app-specific password are
+    // sensitive — store them encrypted. The decrypt helper transparently
+    // handles already-encrypted legacy values during the migration window.
     const baseRow = {
       profile_id: user.id,
       provider: "apple" as const,
-      access_token: appleId,            // username
-      refresh_token: appPassword,       // app-specific password
+      access_token: encryptToken(appleId),
+      refresh_token: encryptToken(appPassword),
       caldav_url: primaryCalendar.url,
       sync_status: "idle" as const,
       enabled: true,
@@ -137,6 +142,11 @@ export async function POST(request: Request) {
 // (migration 067 + v6 P1-C4) can disconnect one account at a time. Falls back
 // to "all Apple connections for the user" for legacy callers without an id.
 export async function DELETE(request: Request) {
+  // CSRF defense-in-depth (audit V7 P2-A2): a drive-by site could otherwise
+  // trigger a DELETE that disconnects the victim's calendar.
+  if (!isSameOrigin(request)) {
+    return NextResponse.json({ error: "Bad origin" }, { status: 403 });
+  }
   const user = await getAuthenticatedUser(request);
   if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -145,21 +155,44 @@ export async function DELETE(request: Request) {
   const { searchParams } = new URL(request.url);
   const connectionId = searchParams.get("connection_id");
 
-  let query = supabase
+  // P1-C2 (audit v7): when a specific connection is targeted we must scope
+  // the events soft-delete to events from THAT connection — otherwise
+  // disconnecting one Apple account nukes events from every other Apple
+  // calendar on the profile. We look up the caldav_url first and use it as
+  // the external_calendar_id key. Without a connection_id (legacy callers)
+  // we still soft-delete all Apple events, matching the route's historical
+  // "disconnect everything Apple" behavior.
+  let caldavUrl: string | null = null;
+  if (connectionId) {
+    const { data } = await supabase
+      .from("calendar_connections")
+      .select("caldav_url")
+      .eq("id", connectionId)
+      .eq("profile_id", user.id)
+      .eq("provider", "apple")
+      .maybeSingle<{ caldav_url: string | null }>();
+    caldavUrl = data?.caldav_url ?? null;
+  }
+
+  let connDelete = supabase
     .from("calendar_connections")
     .delete()
     .eq("profile_id", user.id)
     .eq("provider", "apple");
   if (connectionId) {
-    query = query.eq("id", connectionId);
+    connDelete = connDelete.eq("id", connectionId);
   }
-  await query;
+  await connDelete;
 
-  await supabase
+  let eventDelete = supabase
     .from("calendar_events")
     .update({ deleted_at: new Date().toISOString() })
     .eq("owner_parent_id", user.id)
     .eq("external_source", "apple");
+  if (caldavUrl) {
+    eventDelete = eventDelete.eq("external_calendar_id", caldavUrl);
+  }
+  await eventDelete;
 
   return NextResponse.json({ success: true });
 }

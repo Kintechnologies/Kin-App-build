@@ -127,8 +127,10 @@ export async function POST(req: NextRequest) {
 
     if (error) {
       // Duplicate phone — treat as success. Don't re-send the confirmation.
+      // Response shape is identical to a fresh signup so enumeration via
+      // differential response bodies is closed (audit V7 P2-A1).
       if (error.code === "23505") {
-        return NextResponse.json({ success: true, message: "Already on the list" });
+        return NextResponse.json({ success: true });
       }
       Sentry.captureException(error);
       return NextResponse.json({ error: "Failed to join waitlist" }, { status: 500 });

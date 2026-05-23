@@ -16,10 +16,12 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 // ── Hoisted mock handles ──────────────────────────────────────────────────────
-const { mockGetAuthenticatedUser, mockCreateAdminClient } = vi.hoisted(() => ({
-  mockGetAuthenticatedUser: vi.fn(),
-  mockCreateAdminClient: vi.fn(),
-}));
+const { mockGetAuthenticatedUser, mockCreateAdminClient, mockIsSameOrigin } =
+  vi.hoisted(() => ({
+    mockGetAuthenticatedUser: vi.fn(),
+    mockCreateAdminClient: vi.fn(),
+    mockIsSameOrigin: vi.fn(() => true),
+  }));
 
 // ── Module mocks ──────────────────────────────────────────────────────────────
 
@@ -40,6 +42,13 @@ vi.mock("@/lib/supabase/api-auth", () => ({
 // vi.mock intercepts both static and dynamic imports.
 vi.mock("@/lib/supabase/admin", () => ({
   createAdminClient: mockCreateAdminClient,
+}));
+
+// P1-A2 (audit v7): the route now gates with isSameOrigin to block CSRF.
+// Default to "trusted" in tests so the existing scenarios still exercise
+// the original branches; the one cross-origin guard test below overrides.
+vi.mock("@/lib/csrf", () => ({
+  isSameOrigin: mockIsSameOrigin,
 }));
 
 vi.stubEnv("SUPABASE_SERVICE_ROLE_KEY", "service_role_key_xxx");
@@ -173,11 +182,19 @@ function buildAdminClient(
 describe("POST /api/invite/[code]/accept — guard conditions", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockIsSameOrigin.mockReturnValue(true);
     // Default: authenticated acceptor with the right email
     mockGetAuthenticatedUser.mockResolvedValue({
       id: ACCEPTOR_ID,
       email: ACCEPTOR_EMAIL,
     });
+  });
+
+  it("returns 403 when the request is cross-origin (P1-A2)", async () => {
+    mockIsSameOrigin.mockReturnValue(false);
+    const res = await POST(makeRequest(), makeParams());
+    expect(res.status).toBe(403);
+    expect(mockGetAuthenticatedUser).not.toHaveBeenCalled();
   });
 
   // ── Guard 1: already accepted ─────────────────────────────────────────────

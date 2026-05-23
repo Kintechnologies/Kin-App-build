@@ -10,6 +10,7 @@ import {
   registerGoogleWebhook,
 } from "@/lib/calendar/google";
 import { syncCalendarForConnection } from "@/lib/calendar/sync";
+import { encryptToken, decryptToken } from "@/lib/calendar/token-crypto";
 import { randomUUID } from "crypto";
 import { checkRateLimit, rateLimitResponse } from "@/lib/rate-limit";
 
@@ -159,14 +160,19 @@ export async function GET(request: Request) {
     // refresh token is set" — a string the audit's isRevokedTokenError check
     // doesn't recognise, so the connection silently lands in `error` with no
     // reconnect CTA.
+    // P1-C4 (audit v7): decrypt the prior row's refresh_token before reusing
+    // it; encrypt the freshly-persisted tokens. The prior row may be legacy
+    // plaintext (passthrough) or already encrypted (round-trips cleanly).
     const refreshTokenToPersist =
-      tokens.refresh_token ?? priorConnection?.refresh_token ?? null;
+      tokens.refresh_token ??
+      decryptToken(priorConnection?.refresh_token) ??
+      null;
 
     const baseRow = {
       profile_id: profileId,
       provider: "google" as const,
-      access_token: tokens.access_token,
-      refresh_token: refreshTokenToPersist,
+      access_token: encryptToken(tokens.access_token ?? null),
+      refresh_token: encryptToken(refreshTokenToPersist),
       token_expires_at: tokens.expiry_date
         ? new Date(tokens.expiry_date).toISOString()
         : null,

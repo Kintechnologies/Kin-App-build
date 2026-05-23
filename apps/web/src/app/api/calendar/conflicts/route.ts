@@ -34,8 +34,22 @@ export async function PUT(request: Request) {
 
   const { id, resolution_note } = await request.json();
 
-  if (!id) {
+  if (!id || typeof id !== "string") {
     return NextResponse.json({ error: "Conflict ID required" }, { status: 400 });
+  }
+
+  // Length-cap the free-form note (audit V7 P2-A6): this string lands in the
+  // briefing prompt, so an oversized payload balloons LLM token cost. 500
+  // chars is a comfortable single-paragraph ceiling.
+  let trimmedNote: string | null = null;
+  if (resolution_note != null) {
+    if (typeof resolution_note !== "string") {
+      return NextResponse.json(
+        { error: "resolution_note must be a string" },
+        { status: 400 }
+      );
+    }
+    trimmedNote = resolution_note.slice(0, 500);
   }
 
   const { error } = await supabase
@@ -43,7 +57,7 @@ export async function PUT(request: Request) {
     .update({
       resolved: true,
       resolved_at: new Date().toISOString(),
-      resolution_note,
+      resolution_note: trimmedNote,
     })
     .eq("id", id)
     .eq("household_id", user.id);

@@ -4,6 +4,7 @@ import Link from "next/link";
 export const metadata = {
   title: "Terms of Service — Kin",
   description: "Terms governing your use of Kin AI.",
+  alternates: { canonical: "/terms" }, // audit V7 P2-L2
 };
 
 const LAST_UPDATED = "May 22, 2026";

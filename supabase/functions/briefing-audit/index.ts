@@ -1,10 +1,18 @@
 // Briefing-audit backstop — the "by any means necessary" delivery guarantee.
 //
-// Runs once daily at 14:00 UTC (9am CT) via the pg_cron job in
-// migration 047_briefing_audit_cron.sql. By 9am CT every mainland-US timezone
-// has already passed its 6:00am morning-briefing window, so any user without a
-// briefing today was genuinely missed — a failed send, a cron that didn't
-// fire, a transient outage.
+// Runs once daily at 14:00 UTC via the pg_cron job (registered through
+// migration 072's functions_base_url() helper; originally 047/064). pg_cron
+// doesn't respect DST, so the wall-clock CT time shifts with the season:
+//   * 14:00 UTC = 08:00 CST in winter (UTC-6)
+//   * 14:00 UTC = 09:00 CDT in summer (UTC-5)
+// Audit V7 P2-I3: this is intentional and acceptable because by 14:00 UTC
+// every mainland-US timezone has already passed its 6:00am local morning-
+// briefing window in both DST modes. If we ever need 9am CT exactly, split
+// into two cron rows (`0 15 * * *` Nov–Mar, `0 14 * * *` Mar–Nov) gated by
+// a `EXTRACT(month FROM now())` predicate inside the job body.
+//
+// Any user still missing a briefing at this point was genuinely missed —
+// a failed send, a cron that didn't fire, a transient outage.
 //
 // For each missed user this function force-sends their briefing immediately
 // (same generation + Twilio retry + AI fallback path as the morning cron) and
@@ -37,6 +45,28 @@ function timingSafeEqual(a: string, b: string): boolean {
 }
 
 serve(async (req) => {
+  try {
+    return await runAudit(req);
+  } catch (err) {
+    // Top-level safety net (audit V7 P2-I4): the route already alerts on
+    // profile-load failures and missed deliveries, but any uncaught
+    // exception above would have surfaced only in Supabase logs. Slack the
+    // failure with the same severity as the other cron crit alerts so the
+    // backstop's silence never goes unnoticed.
+    const msg = err instanceof Error ? err.message : String(err);
+    try {
+      await notifySlack(`Briefing audit crashed: ${msg}`, "critical");
+    } catch {
+      /* notify is best-effort */
+    }
+    return new Response(JSON.stringify({ error: msg }), {
+      status: 500,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
+});
+
+async function runAudit(req: Request): Promise<Response> {
   if (req.method !== "POST") {
     return new Response("Method not allowed", { status: 405 });
   }
@@ -213,4 +243,4 @@ serve(async (req) => {
     status: 200,
     headers: { "Content-Type": "application/json" },
   });
-});
+}

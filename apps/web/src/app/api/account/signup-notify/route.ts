@@ -13,9 +13,15 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { logActivity } from "@/lib/activity-log";
+import { isSameOrigin } from "@/lib/csrf";
 
-export async function POST() {
+export async function POST(request: Request) {
   try {
+    // CSRF defense-in-depth (audit V7 P2-A3): closes the email-bomb race
+    // between auth setup and first activity_log insert.
+    if (!isSameOrigin(request)) {
+      return NextResponse.json({ error: "Bad origin" }, { status: 403 });
+    }
     const supabase = createClient();
     const {
       data: { user },

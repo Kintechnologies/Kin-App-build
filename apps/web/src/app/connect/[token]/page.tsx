@@ -24,6 +24,11 @@ import { getGoogleAuthUrl } from "@/lib/calendar/google";
 
 export const dynamic = "force-dynamic";
 
+// Token shape — mirrors SMS_TOKEN_RE in /api/calendar/google/callback so we
+// reject malformed tokens here (audit V7 P2-A5) rather than handing them to
+// the OAuth state round-trip and only validating downstream.
+const CONNECT_TOKEN_RE = /^[a-zA-Z0-9_-]{8,128}$/;
+
 // ─── Design tokens (inline — matches the landing page + tokens.css) ──────────
 const T = {
   bg: "#F7F3ED",
@@ -107,6 +112,19 @@ export default async function ConnectCalendarPage({
   }
 
   // ── First visit — validate token, then bounce to Google OAuth ───────────────
+  // Shape-check upstream so obviously-malformed tokens never hit the DB or
+  // get round-tripped through Google's OAuth state (audit V7 P2-A5).
+  if (!CONNECT_TOKEN_RE.test(token)) {
+    return (
+      <PageShell>
+        <NoticeCard
+          title="This link isn't valid"
+          body="It may have already been used, or it expired. Go back to your texts and reply to Kin — it can send you a new one."
+        />
+      </PageShell>
+    );
+  }
+
   const admin = createAdminClient();
   const { data: profile } = await admin
     .from("profiles")

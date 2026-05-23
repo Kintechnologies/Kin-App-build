@@ -69,7 +69,8 @@ export function WaitlistSection() {
 
         <Reveal delay={0.14}>
           <div style={{ display: "flex", justifyContent: "center" }}>
-            <WaitlistForm ctaText="Join the Waitlist" />
+            {/* Unified CTA copy (audit V7 P2-L5). */}
+            <WaitlistForm ctaText="Get Early Access" />
           </div>
         </Reveal>
       </div>
