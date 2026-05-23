@@ -190,7 +190,12 @@ function BillingPageInner() {
 
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
-  const [action, setAction] = useState<"checkout" | "portal" | null>(null);
+  // Distinct action discriminators (audit V7 P2-D4) so that the primary
+  // "Manage subscription" button and the ghost "Update card or cancel"
+  // button don't both spin at the same time when either is clicked.
+  const [action, setAction] = useState<
+    "checkout" | "portal-manage" | "portal-update" | "portal-keep" | null
+  >(null);
   const [error, setError] = useState<string | null>(null);
   const [couponCode, setCouponCode] = useState("");
   // P2-D5 (audit v6): the error message lives near the bottom of the pricing
@@ -256,8 +261,10 @@ function BillingPageInner() {
     setAction(null);
   }
 
-  async function openPortal() {
-    setAction("portal");
+  async function openPortal(
+    which: "portal-manage" | "portal-update" | "portal-keep"
+  ) {
+    setAction(which);
     setError(null);
     try {
       const res = await fetch("/api/stripe/portal", {
@@ -521,6 +528,23 @@ function BillingPageInner() {
                   outline: "none",
                 }}
               />
+              {/*
+                Inline fineprint (audit V7 P2-D7) — without it the user
+                types a code, blurs the input, clicks "Start subscription"
+                and wonders if anything happened. Tells them the code
+                applies at checkout instead of requiring a separate
+                "Apply" affordance.
+              */}
+              <p
+                style={{
+                  margin: "2px 0 0",
+                  fontSize: "11.5px",
+                  color: "rgba(44,44,40,0.5)",
+                  lineHeight: 1.4,
+                }}
+              >
+                Codes apply at checkout — no need to press anything here.
+              </p>
             </div>
           )}
 
@@ -533,16 +557,28 @@ function BillingPageInner() {
             }}
           >
             {status === "active" ? (
-              <PrimaryButton
-                onClick={openPortal}
-                loading={action === "portal"}
-              >
-                <CreditCard size={15} /> Manage subscription
-              </PrimaryButton>
+              profile?.cancel_at_period_end ? (
+                // First-class "keep my subscription" CTA (audit V7 P2-B5) so
+                // the user has a one-click path back to Active instead of
+                // having to find the option inside the Stripe portal.
+                <PrimaryButton
+                  onClick={() => openPortal("portal-keep")}
+                  loading={action === "portal-keep"}
+                >
+                  <Sparkles size={15} /> Keep my subscription
+                </PrimaryButton>
+              ) : (
+                <PrimaryButton
+                  onClick={() => openPortal("portal-manage")}
+                  loading={action === "portal-manage"}
+                >
+                  <CreditCard size={15} /> Manage subscription
+                </PrimaryButton>
+              )
             ) : status === "past_due" ? (
               <PrimaryButton
-                onClick={openPortal}
-                loading={action === "portal"}
+                onClick={() => openPortal("portal-manage")}
+                loading={action === "portal-manage"}
               >
                 <CreditCard size={15} /> Update payment method
               </PrimaryButton>
@@ -559,7 +595,10 @@ function BillingPageInner() {
             )}
 
             {status === "active" && (
-              <GhostButton onClick={openPortal} loading={action === "portal"}>
+              <GhostButton
+                onClick={() => openPortal("portal-update")}
+                loading={action === "portal-update"}
+              >
                 Update card or cancel
               </GhostButton>
             )}

@@ -243,24 +243,27 @@ async function syncGoogleCalendar(connection: CalendarConnection) {
     // nextSyncToken silently clobbers the prior good cursor, which forces the
     // next pull to do a full re-sync. Only persist when there's something to
     // persist.
+    //
+    // Per-calendar persistence (audit V7 P2-C3): write the cursor *inside*
+    // the loop so a failure on calendar N+1 doesn't lose calendars 0..N's
+    // newly-learned tokens. Without this, an outage mid-loop forces a full
+    // 6-month re-pull next run for every calendar that had already finished.
     if (
       typeof result.nextSyncToken === "string" &&
       result.nextSyncToken.trim().length > 0
     ) {
       syncTokens[cal.id] = result.nextSyncToken;
+      await supabase
+        .from("calendar_connections")
+        .update({
+          google_sync_tokens: syncTokens,
+          google_sync_token:
+            syncTokens["primary"] ?? connection.google_sync_token,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", connection.id);
     }
   }
-
-  await supabase
-    .from("calendar_connections")
-    .update({
-      google_sync_tokens: syncTokens,
-      // Keep the legacy column in lockstep with "primary" so downgrades or
-      // pre-migration consumers don't lose their cursor.
-      google_sync_token: syncTokens["primary"] ?? connection.google_sync_token,
-      updated_at: new Date().toISOString(),
-    })
-    .eq("id", connection.id);
 }
 
 // ── Apple Sync ──

@@ -4,6 +4,7 @@ import Link from "next/link";
 export const metadata = {
   title: "Privacy Policy — Kin",
   description: "How Kin collects, uses, and protects your data.",
+  alternates: { canonical: "/privacy" }, // audit V7 P2-L2
 };
 
 const LAST_UPDATED = "May 22, 2026";
@@ -157,6 +158,7 @@ export default function PrivacyPage() {
           <p>We share your data with the following service providers:</p>
           <Ul items={[
             "Supabase — database and authentication infrastructure. Data stored in the United States.",
+            "Vercel — application hosting and edge network. Request metadata (IP, user-agent) is processed at the edge; no application data is stored beyond standard server logs.",
             "Google — calendar access via Google OAuth. Subject to Google's Privacy Policy.",
             "Anthropic — AI inference for generating schedule briefings and insights.",
             "Stripe — subscription billing via Stripe Checkout and the Stripe Customer Portal. Payment card data is collected and stored by Stripe; we never see or store full card numbers.",
@@ -168,19 +170,32 @@ export default function PrivacyPage() {
           <p>We may also disclose your information if required by law, to protect the safety of our users, or in connection with a merger or acquisition (in which case you will be notified).</p>
         </Section>
 
-        <Section title="6. Google Calendar Access">
+        <Section title="6. SMS / Text Messaging (TCPA)">
+          {/* Audit V7 P2-P1: TCPA / A2P 10DLC disclosure. The SMS bot
+              correctly honors STOP and HELP keywords, but the privacy
+              policy never explained the opt-out mechanism, frequency,
+              or carrier fees. CTIA Messaging Principles require this. */}
+          <p><strong style={{ color: "var(--ink)" }}>Consent.</strong> By submitting your phone number to Kin&apos;s waitlist or onboarding flow you consent to receive recurring automated SMS messages from Kin including a daily morning briefing, pickup-risk alerts, weekly check-ins, and transactional account messages.</p>
+          <p><strong style={{ color: "var(--ink)" }}>Frequency.</strong> Typically one morning briefing per day plus occasional alerts and weekly check-ins. Frequency varies with your household&apos;s schedule.</p>
+          <p><strong style={{ color: "var(--ink)" }}>Carrier charges.</strong> Message and data rates may apply. Kin does not charge for SMS; your carrier may.</p>
+          <p><strong style={{ color: "var(--ink)" }}>Opt-out (STOP).</strong> Reply <strong style={{ color: "var(--ink)" }}>STOP</strong> to any Kin message at any time to immediately unsubscribe. You will receive one final confirmation message and no further automated SMS thereafter.</p>
+          <p><strong style={{ color: "var(--ink)" }}>Help (HELP).</strong> Reply <strong style={{ color: "var(--ink)" }}>HELP</strong> to any Kin message for assistance, or email <a href={`mailto:${EMAIL}`} style={{ color: "var(--green)", fontWeight: 500 }}>{EMAIL}</a>.</p>
+          <p><strong style={{ color: "var(--ink)" }}>Carrier support.</strong> Kin&apos;s A2P 10DLC SMS program is delivered via Twilio. Supported carriers include AT&amp;T, Verizon, T-Mobile, and most other US/Canada carriers. Delivery is not guaranteed during carrier outages.</p>
+        </Section>
+
+        <Section title="7. Google Calendar Access">
           <p>Kin requests access to your Google Calendar using OAuth 2.0. We request <strong style={{ color: "var(--ink)" }}>read-only access</strong> to view your schedule. Kin never writes to, modifies, or deletes events on your calendar.</p>
           <p><strong style={{ color: "var(--ink)" }}>Scope of use:</strong> We access only the calendars you authorize during setup. We do not share your calendar data with other users except your connected household partner(s).</p>
           <p>You can revoke Kin&apos;s access to your Google Calendar at any time from your Google Account settings at <a href="https://myaccount.google.com/permissions" target="_blank" rel="noopener noreferrer" style={{ color: "var(--green)", fontWeight: 500 }}>myaccount.google.com/permissions</a>.</p>
           <p>Kin&apos;s use of Google user data complies with the <a href="https://developers.google.com/terms/api-services-user-data-policy" target="_blank" rel="noopener noreferrer" style={{ color: "var(--green)", fontWeight: 500 }}>Google API Services User Data Policy</a>, including the Limited Use requirements.</p>
         </Section>
 
-        <Section title="7. Data Retention">
+        <Section title="8. Data Retention">
           <p>We retain your account and calendar data for as long as your account is active. If you delete your account, we will delete your personal data within 30 days, except where retention is required by law.</p>
           <p>AI interaction logs may be retained in anonymized or aggregated form for up to 12 months to improve our service.</p>
         </Section>
 
-        <Section title="8. Your Rights and Controls">
+        <Section title="9. Your Rights and Controls">
           <p><strong style={{ color: "var(--ink)" }}>Access and correction.</strong> You can view and update your account information in your dashboard at any time.</p>
           <p><strong style={{ color: "var(--ink)" }}>Deletion.</strong> To delete your account, email <a href="mailto:hello@kinai.family?subject=Delete%20my%20account" style={{ color: "var(--green)", fontWeight: 500 }}>hello@kinai.family</a> with the subject &ldquo;Delete my account&rdquo; from the email address on file. We will permanently remove your profile, household data, and calendar access within 30 days.</p>
           <p><strong style={{ color: "var(--ink)" }}>Subscription management.</strong> You can manage or cancel your subscription at any time from /dashboard/billing, which opens the Stripe Customer Portal.</p>
@@ -188,7 +203,7 @@ export default function PrivacyPage() {
           <p><strong style={{ color: "var(--ink)" }}>Calendar access.</strong> You can revoke Google Calendar access without deleting your account. Some features will be unavailable without calendar access.</p>
         </Section>
 
-        <Section title="9. GDPR Rights (EEA and UK Users)">
+        <Section title="10. GDPR Rights (EEA and UK Users)">
           <p>If you are in the European Economic Area or United Kingdom, you have additional rights under GDPR:</p>
           <Ul items={[
             "Right to access — obtain a copy of your personal data",
@@ -201,7 +216,7 @@ export default function PrivacyPage() {
           <p>Our legal basis for processing: (a) contract performance — to provide the service; (b) legitimate interests — to improve and secure the service; (c) consent — for Google Calendar access. To exercise rights, contact <a href={`mailto:${EMAIL}`} style={{ color: "var(--green)", fontWeight: 500 }}>{EMAIL}</a>.</p>
         </Section>
 
-        <Section title="10. CCPA Rights (California Residents)">
+        <Section title="11. CCPA Rights (California Residents)">
           <p>California residents have rights under the CCPA, as amended by the CPRA:</p>
           <Ul items={[
             "Right to know what personal information we collect, use, disclose, and sell",
@@ -213,22 +228,26 @@ export default function PrivacyPage() {
           <p>We do not sell or share personal information as defined by the CCPA. To submit a request, contact <a href={`mailto:${EMAIL}`} style={{ color: "var(--green)", fontWeight: 500 }}>{EMAIL}</a>.</p>
         </Section>
 
-        <Section title="11. Children's Privacy">
+        <Section title="12. Children's Privacy">
           <p>Kin is designed for use by adults managing family schedules. The Service is not directed to children under 13. We do not knowingly collect personal information from children under 13.</p>
           <p>Parents may enter information about their children (such as names and activities) as part of managing household schedules. This data is managed by the adult account holder.</p>
         </Section>
 
-        <Section title="12. Security">
-          <p>We implement encryption in transit (TLS), encryption at rest, access controls, and security monitoring to protect your data. We use Sentry for error tracking to identify and respond to issues promptly.</p>
+        <Section title="13. Security">
+          {/* Audit V7 P2-P4: name the encryption scope explicitly so the
+              "encryption at rest" claim can be verified against the
+              Supabase Postgres storage layer rather than read as a vague
+              gesture. */}
+          <p>We implement encryption in transit (TLS 1.2+), AES-256 encryption at rest via Supabase Postgres for all database storage, access controls, and security monitoring to protect your data. We use Sentry for error tracking to identify and respond to issues promptly; Sentry events are scrubbed of personal identifiers (phone, email, names, IDs) before transmission.</p>
           <p>If you discover a security vulnerability, contact <a href={`mailto:${EMAIL}`} style={{ color: "var(--green)", fontWeight: 500 }}>{EMAIL}</a>.</p>
         </Section>
 
-        <Section title="13. Changes to This Policy">
+        <Section title="14. Changes to This Policy">
           <p>We may update this Privacy Policy from time to time. We will notify you of material changes by posting the updated policy on the website and, where required by law, by email.</p>
           <p>This policy was last updated on {LAST_UPDATED}.</p>
         </Section>
 
-        <Section title="14. Contact">
+        <Section title="15. Contact">
           <p><strong style={{ color: "var(--ink)" }}>{COMPANY}</strong><br /><a href={`mailto:${EMAIL}`} style={{ color: "var(--green)", fontWeight: 500 }}>{EMAIL}</a></p>
         </Section>
       </article>

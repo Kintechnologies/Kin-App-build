@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { formatPhone } from "@/lib/format";
 import {
   Phone,
   Bell,
@@ -162,12 +163,7 @@ function InfoRow({
   );
 }
 
-function formatPhone(raw: string | null): string {
-  if (!raw) return "Not on file";
-  const digits = raw.replace(/\D/g, "").replace(/^1/, "");
-  if (digits.length !== 10) return raw;
-  return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`;
-}
+// formatPhone lifted to lib/format.ts (audit V7 P2-D6).
 
 // ── Page ──────────────────────────────────────────────────────────────────────
 

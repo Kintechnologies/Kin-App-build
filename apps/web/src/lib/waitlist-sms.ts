@@ -18,6 +18,7 @@
 
 import type { createAdminClient } from "@/lib/supabase/admin";
 import { twimlReply } from "@/lib/twilio";
+import { normalizePhone } from "@/lib/sms-access";
 import * as Sentry from "@sentry/nextjs";
 
 type AdminClient = ReturnType<typeof createAdminClient>;
@@ -46,10 +47,14 @@ export async function findPendingWaitlistReply(
   supabase: AdminClient,
   phone: string
 ): Promise<PendingWaitlistRow | null> {
+  // Defensive read-site normalization (audit V7 P2-S4): writers already
+  // normalize, but normalizing on read too prevents a class of bugs the day
+  // a new caller passes a digits-only or human-typed number.
+  const normalized = normalizePhone(phone) ?? phone;
   const { data } = await supabase
     .from("waitlist")
     .select("id, name")
-    .eq("phone", phone)
+    .eq("phone", normalized)
     .is("email", null)
     .is("sms_opted_out_at", null)
     .order("created_at", { ascending: false })

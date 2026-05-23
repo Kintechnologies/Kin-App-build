@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getAuthenticatedUser } from "@/lib/supabase/api-auth";
 import { getAppleCalDAVClient, listAppleCalendars } from "@/lib/calendar/apple";
 import { syncCalendarForConnection } from "@/lib/calendar/sync";
+import { isSameOrigin } from "@/lib/csrf";
 import type { DAVCalendar } from "tsdav";
 import * as Sentry from "@sentry/nextjs";
 
@@ -137,6 +138,11 @@ export async function POST(request: Request) {
 // (migration 067 + v6 P1-C4) can disconnect one account at a time. Falls back
 // to "all Apple connections for the user" for legacy callers without an id.
 export async function DELETE(request: Request) {
+  // CSRF defense-in-depth (audit V7 P2-A2): a drive-by site could otherwise
+  // trigger a DELETE that disconnects the victim's calendar.
+  if (!isSameOrigin(request)) {
+    return NextResponse.json({ error: "Bad origin" }, { status: 403 });
+  }
   const user = await getAuthenticatedUser(request);
   if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

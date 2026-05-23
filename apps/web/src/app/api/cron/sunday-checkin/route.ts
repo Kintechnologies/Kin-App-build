@@ -118,7 +118,11 @@ export async function GET(request: Request) {
   const errors: string[] = [];
 
   for (const profile of profiles) {
-    const tz = profile.timezone ?? "America/Los_Angeles";
+    // Audit V7 P2-E1: default to UTC for parity with engagement-nudges
+    // (which V6 P2-E3 already migrated to UTC). The previous LA default
+    // silently mis-targeted EU / India users whose timezone wasn't
+    // captured.
+    const tz = profile.timezone ?? "UTC";
     const { hour, weekday } = getLocalParts(tz);
 
     // Only Sunday, only the 2pm hour in the user's own timezone.
@@ -193,9 +197,16 @@ export async function GET(request: Request) {
     ).catch(() => {});
   }
 
-  return NextResponse.json({
-    ok: true,
-    ...results,
-    errors: errors.length > 0 ? errors : undefined,
-  });
+  // Audit V7 P2-E2: mirror engagement-nudges (V6 P1-I5) — return 500 on
+  // any failure so Vercel / cron-dispatch retries with backoff rather
+  // than swallowing the run.
+  const status = results.failed > 0 ? 500 : 200;
+  return NextResponse.json(
+    {
+      ok: results.failed === 0,
+      ...results,
+      errors: errors.length > 0 ? errors : undefined,
+    },
+    { status }
+  );
 }

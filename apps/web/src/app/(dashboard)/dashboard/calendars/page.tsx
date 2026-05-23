@@ -103,14 +103,15 @@ export default function CalendarsPage() {
   const [loading, setLoading] = useState(true);
   const [connecting, setConnecting] = useState(false);
   const [syncing, setSyncing] = useState(false);
-  // P2-D4 (audit v6): inline confirm — toggling `confirmId` flips the row's
-  // disconnect button into a two-step "Click to confirm" affordance. This is
-  // acceptable for a low-stakes destructive action on a small surface, but a
-  // proper <dialog> with focus trap + Escape-to-cancel + aria-labelledby
-  // would be more accessible (screen readers don't currently announce the
-  // confirm prompt as a modal; keyboard users can't escape it). Considered
-  // overkill for the beta — revisit when adding more destructive flows or
-  // when we add the bigger "Delete account" dialog and can share patterns.
+  // P2-D4 (audit v6) / P2-D10 (audit v7): inline confirm — toggling
+  // `confirmId` flips the row's disconnect button into a two-step "Click to
+  // confirm" affordance. Acceptable for a low-stakes destructive action on
+  // a small surface, but a proper <dialog> with focus trap + Escape-to-
+  // cancel + aria-labelledby would be more accessible (screen readers
+  // don't currently announce the confirm prompt as a modal; keyboard users
+  // can't escape it). Still considered overkill for the beta — revisit
+  // when adding more destructive flows or when the bigger "Delete account"
+  // dialog lands and patterns can be shared.
   const [confirmId, setConfirmId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -417,6 +418,30 @@ export default function CalendarsPage() {
                           ? "Sync error"
                           : relativeTime(conn.last_synced_at)}
                     </MonoLabel>
+                    {/*
+                      Surface the row's sync_error inline (audit V7 P2-D8)
+                      so the user can self-serve "what went wrong" instead
+                      of pinging support for every transient connection
+                      issue. Trimmed to fit the row width but the full
+                      string is in the native title tooltip.
+                    */}
+                    {status === "error" && conn.sync_error && (
+                      <div
+                        title={conn.sync_error}
+                        style={{
+                          marginTop: "4px",
+                          fontSize: "11.5px",
+                          color: "rgba(166,90,74,0.85)",
+                          lineHeight: 1.4,
+                          maxWidth: "100%",
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                          whiteSpace: "nowrap",
+                        }}
+                      >
+                        {conn.sync_error}
+                      </div>
+                    )}
                   </div>
                   {status === "needs_reconnect" && conn.provider === "google" && (
                     <button

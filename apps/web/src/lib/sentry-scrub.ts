@@ -21,7 +21,7 @@ const UUID_RE =
   /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi;
 
 const SENSITIVE_KEY_RE =
-  /^(phone|phone_number|email|household_id|profile_id|user_id|to|from|to_number|from_number|partner_phone|partner_email|invitee_email)$/i;
+  /^(phone|phone_number|email|household_id|profile_id|user_id|to|from|to_number|from_number|partner_phone|partner_email|invitee_email|access_token|refresh_token|app_password|caldav_url|google_channel_id|google_resource_id)$/i;
 
 function redactString(s: string): string {
   return s

@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { formatPhone, formatPhoneAsYouType } from "@/lib/format";
 import {
   Users,
   Baby,
@@ -38,11 +39,7 @@ function MonoLabel({ children }: { children: React.ReactNode }) {
   );
 }
 
-function formatPhone(raw: string): string {
-  const digits = raw.replace(/\D/g, "").replace(/^1/, "");
-  if (digits.length !== 10) return raw;
-  return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`;
-}
+// formatPhone lifted to lib/format.ts (audit V7 P2-D6).
 
 const TYPE_META: Record<
   FamilyMember["member_type"],
@@ -461,7 +458,11 @@ export default function FamilyPage() {
               inputMode="tel"
               value={phone}
               onChange={(e) => {
-                setPhone(e.target.value);
+                // Apply the same as-you-type mask the onboarding sms-setup
+                // input uses (audit V7 P2-D2) so the two surfaces feel
+                // consistent and the user can see they've typed a valid
+                // 10-digit US number before submitting.
+                setPhone(formatPhoneAsYouType(e.target.value));
                 // P2-D3 (audit v6): clear the prior error message as soon as
                 // the user starts editing — the error is for the value they
                 // *just submitted*, not the value they're now typing. Keeping

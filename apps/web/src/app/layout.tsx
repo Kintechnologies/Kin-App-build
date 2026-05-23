@@ -28,9 +28,22 @@ const geistMono = localFont({
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://kinai.family"),
-  title: "Kin — The AI that runs your household",
+  title: {
+    // P2-L1 (audit v7): when a child page sets its own `title` the layout
+    // wraps it as "<page> — Kin"; otherwise the default below renders.
+    // Without this template every subpage would either silently inherit
+    // the layout title OR override it with no brand suffix.
+    default: "Kin — The AI that runs your household",
+    template: "%s — Kin",
+  },
   description:
     "Kin is your family's AI assistant. It learns your family's patterns, coordinates everyone's schedules, and keeps you in sync — starting with a morning text.",
+  alternates: {
+    // P2-L2 (audit v7): landing/privacy/terms each set their own
+    // alternates.canonical; this root canonical covers anything that
+    // doesn't override.
+    canonical: "/",
+  },
 };
 
 export const viewport: Viewport = {

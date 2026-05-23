@@ -21,7 +21,10 @@ export async function GET(
 ) {
   try {
   const { code } = params;
-  if (!code) {
+  // Shape-check the code BEFORE the rate-limit so multi-megabyte garbage
+  // can't slip past via path-parameter abuse (audit V7 P2-A4). Invite codes
+  // are generated via nanoid/uuid-style alphabets — bound to 8–64 chars.
+  if (!code || !/^[A-Za-z0-9_-]{8,64}$/.test(code)) {
     return NextResponse.json({ valid: false, reason: "not_found" as const });
   }
 

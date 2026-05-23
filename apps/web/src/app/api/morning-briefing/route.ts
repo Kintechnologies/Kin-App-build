@@ -286,17 +286,24 @@ Return null for the entire object if there is nothing worth surfacing (§7 silen
 - Anything the family already resolved
 - Events outside the current day`;
 
-    const response = await anthropic.messages.create({
-      model: ANTHROPIC_MODEL,
-      max_tokens: 500,
-      system: systemPrompt,
-      messages: [
-        {
-          role: "user",
-          content: briefingContext,
-        },
-      ],
-    });
+    // 30s SDK timeout (audit V7 P2-M5): the @anthropic-ai/sdk default is
+    // 600s, which means a single hung request can stall the whole dashboard
+    // preview surface. Vercel cron also bounds out at 60s, so 30s gives us
+    // headroom for the parse / db write that follow.
+    const response = await anthropic.messages.create(
+      {
+        model: ANTHROPIC_MODEL,
+        max_tokens: 500,
+        system: systemPrompt,
+        messages: [
+          {
+            role: "user",
+            content: briefingContext,
+          },
+        ],
+      },
+      { timeout: 30_000 }
+    );
 
     const textBlock = response.content.find(
       (block): block is Anthropic.TextBlock => block.type === "text"

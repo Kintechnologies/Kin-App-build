@@ -120,10 +120,66 @@ export async function GET(request: Request) {
     );
   }
 
+  // 3. 90-day TTL on briefing prose (audit V7 P2-M3): morning_briefings
+  // accumulates ~1/day forever — 1825 rows over 5 years per active user —
+  // and the body contains kid names, schools, and partner names. NULL the
+  // `content` column after 90 days; quality grade / sent_at / score stay
+  // for analytics, but the PII surface ages out.
+  const ninetyDaysAgo = new Date(
+    now.getTime() - 90 * 24 * 60 * 60 * 1000
+  ).toISOString();
+  let briefingsAged = 0;
+  try {
+    const { data: aged } = await supabase
+      .from("morning_briefings")
+      .update({ content: null })
+      .lt("sent_at", ninetyDaysAgo)
+      .not("content", "is", null)
+      .select("id");
+    briefingsAged = aged?.length ?? 0;
+  } catch (err) {
+    Sentry.captureException(err);
+  }
+
+  // 4. Expired-invite PII purge (audit V7 P2-P3): household_invites retains
+  // the invitee_email / invitee_phone of someone who never accepted (and
+  // never consented to long-term retention of their contact info). Sweep
+  // any invite that's either past its expires_at or accepted, leaving
+  // accepted=true rows older than 30 days as just the accepted_at audit
+  // trail with the PII fields nulled out.
+  let invitesPurged = 0;
+  try {
+    const thirtyDaysAgo = new Date(
+      now.getTime() - 30 * 24 * 60 * 60 * 1000
+    ).toISOString();
+    // Hard-delete invites that expired without being accepted.
+    const { data: deletedExpired } = await supabase
+      .from("household_invites")
+      .delete()
+      .lt("expires_at", now.toISOString())
+      .eq("accepted", false)
+      .select("id");
+    invitesPurged += deletedExpired?.length ?? 0;
+    // Scrub PII columns on accepted invites older than 30 days; keep the
+    // audit row but null the recipient contact fields.
+    const { data: scrubbed } = await supabase
+      .from("household_invites")
+      .update({ invitee_email: null, invitee_phone: null })
+      .lt("accepted_at", thirtyDaysAgo)
+      .eq("accepted", true)
+      .not("invitee_email", "is", null)
+      .select("id");
+    invitesPurged += scrubbed?.length ?? 0;
+  } catch (err) {
+    Sentry.captureException(err);
+  }
+
   return NextResponse.json({
     reminders_sent: remindersSent,
     reminders_eligible: reminderUsers?.length || 0,
     accounts_deleted: deletedCount,
+    briefings_aged_out: briefingsAged,
+    invites_purged: invitesPurged,
     timestamp: now.toISOString(),
   });
 }

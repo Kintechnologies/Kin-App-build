@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getAuthenticatedUser } from "@/lib/supabase/api-auth";
+import { resolveHouseholdId } from "@/lib/household-context";
 
 // GET /api/calendar/events — list events for the current user
 export async function GET(request: Request) {
@@ -73,12 +74,17 @@ export async function POST(request: Request) {
     );
   }
 
+  // Stamp the household primary's id, not the caller's (audit V7 P2-C4).
+  // Partner accounts otherwise create events keyed to partner.id, which
+  // disappears from the primary's household-scoped briefing query.
+  const householdId = await resolveHouseholdId(supabase, user.id);
+
   const { data: event, error } = await supabase
     .from("calendar_events")
     .insert({
       profile_id: user.id,
       owner_parent_id: user.id,
-      household_id: user.id,
+      household_id: householdId,
       title,
       description,
       location,

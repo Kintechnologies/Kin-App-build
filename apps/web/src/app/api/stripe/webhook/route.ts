@@ -21,6 +21,7 @@ import Stripe from "stripe";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import * as Sentry from "@sentry/nextjs";
 import { notifySlack } from "@/lib/notify";
+import { STRIPE_API_VERSION } from "@/lib/stripe";
 
 // Stripe SDK relies on Node's crypto for webhook signature verification.
 export const runtime = "nodejs";
@@ -37,7 +38,7 @@ function getAdminSupabase() {
 
 function getStripe() {
   return new Stripe(process.env.STRIPE_SECRET_KEY!, {
-    apiVersion: "2026-02-25.clover",
+    apiVersion: STRIPE_API_VERSION,
   });
 }
 
@@ -50,7 +51,8 @@ type SubscriptionStatus = "trial" | "active" | "past_due" | "canceled";
  * checkout.session.completed).
  */
 function mapStripeSubscriptionStatus(
-  status: Stripe.Subscription.Status
+  status: Stripe.Subscription.Status,
+  eventType?: string
 ): SubscriptionStatus | null {
   switch (status) {
     case "active":
@@ -63,6 +65,19 @@ function mapStripeSubscriptionStatus(
     case "canceled":
       return "canceled";
     default:
+      // paused / incomplete / incomplete_expired all fall through. Drop a
+      // breadcrumb (audit V7 P2-B3) so when a profile gets stuck in an
+      // unexpected status we can correlate which Stripe event-type caused
+      // the no-op map.
+      Sentry.addBreadcrumb({
+        category: "stripe.webhook",
+        level: "info",
+        message: "Unhandled subscription status mapped to null",
+        data: {
+          event_type: eventType ?? "(unknown)",
+          subscription_status: status,
+        },
+      });
       return null;
   }
 }
@@ -90,15 +105,37 @@ async function setStatus(
   const patch: Record<string, unknown> = { subscription_status: status };
   if (customerId) patch.stripe_customer_id = customerId;
 
+  // Webhook race (audit V7 P2-B1): the auth.users → profiles trigger can lag
+  // the first checkout.session.completed by a few hundred ms, in which case
+  // an `update().eq("id", userId)` silently affects zero rows and the user
+  // is left as `trial` despite paying. Use `.select("id")` to get rowCount
+  // back and breadcrumb when nothing matched so we can audit failures.
   if (userId) {
-    await supabase.from("profiles").update(patch).eq("id", userId);
+    const { data } = await supabase
+      .from("profiles")
+      .update(patch)
+      .eq("id", userId)
+      .select("id");
+    if (!data || data.length === 0) {
+      Sentry.captureMessage(
+        "Stripe webhook: setStatus matched 0 rows by userId — profile trigger may be lagging",
+        "warning"
+      );
+    }
     return;
   }
   if (customerId) {
-    await supabase
+    const { data } = await supabase
       .from("profiles")
       .update({ subscription_status: status })
-      .eq("stripe_customer_id", customerId);
+      .eq("stripe_customer_id", customerId)
+      .select("id");
+    if (!data || data.length === 0) {
+      Sentry.captureMessage(
+        "Stripe webhook: setStatus matched 0 rows by customerId",
+        "warning"
+      );
+    }
     return;
   }
   if (customerEmail) {
@@ -293,7 +330,10 @@ export async function POST(request: Request) {
             ? subscription.customer
             : subscription.customer?.id ?? null;
 
-        const mapped = mapStripeSubscriptionStatus(subscription.status);
+        const mapped = mapStripeSubscriptionStatus(
+          subscription.status,
+          event.type
+        );
         if (mapped) {
           // P2-D1 (audit v6): persist current_period_end so the billing UI
           // can render the renewal/cancel date inline (migration 076).

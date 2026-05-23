@@ -11,6 +11,7 @@ import {
   Menu,
   X,
   LogOut,
+  Loader2,
   type LucideIcon,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
@@ -72,6 +73,10 @@ export default function SidebarNav() {
   const [name, setName] = useState<string | null>(null);
   const [email, setEmail] = useState<string | null>(null);
   const [timezone, setTimezone] = useState<string | null>(null);
+  // Local loading state so the sidebar sign-out matches the Settings page's
+  // sign-out affordance (audit V7 P2-D3) — without it the button feels
+  // unresponsive while the auth round-trip flies.
+  const [signingOut, setSigningOut] = useState(false);
 
   useEffect(() => {
     setCountdown(nextBriefCountdown(timezone));
@@ -113,10 +118,16 @@ export default function SidebarNav() {
   useEffect(() => { setMobileOpen(false); }, [pathname]);
 
   async function handleSignOut() {
-    const supabase = createClient();
-    await supabase.auth.signOut();
-    router.push("/signin");
-    router.refresh();
+    if (signingOut) return;
+    setSigningOut(true);
+    try {
+      const supabase = createClient();
+      await supabase.auth.signOut();
+      router.push("/signin");
+      router.refresh();
+    } finally {
+      setSigningOut(false);
+    }
   }
 
   const initial = (name || email || "K").charAt(0).toUpperCase();
@@ -137,7 +148,10 @@ export default function SidebarNav() {
               padding: "9px 12px",
               borderRadius: 8,
               color: isActive ? "var(--sage)" : "var(--warm-72)",
-              background: isActive ? "var(--sage-12)" : "transparent",
+              // Deeper active background (audit V7 P2-D1): --sage-12 sat
+              // very close to the warm-06 hover state, making "you are here"
+              // hard to read. --sage-20 gives a clear contrast jump.
+              background: isActive ? "var(--sage-20)" : "transparent",
               border: isActive ? "0.5px solid var(--hair-sage)" : "0.5px solid transparent",
               fontSize: 13.5,
               fontWeight: isActive ? 500 : 400,
@@ -289,29 +303,38 @@ export default function SidebarNav() {
       </div>
       <button
         onClick={handleSignOut}
-        aria-label="Sign out"
+        disabled={signingOut}
+        aria-label={signingOut ? "Signing out" : "Sign out"}
+        aria-busy={signingOut || undefined}
         title="Sign out"
         style={{
           background: "transparent",
           border: "none",
           color: "var(--warm-40)",
-          cursor: "pointer",
+          cursor: signingOut ? "wait" : "pointer",
           padding: 6,
           borderRadius: 6,
           display: "flex",
           alignItems: "center",
           transition: "color 160ms ease, background 160ms ease",
+          opacity: signingOut ? 0.6 : 1,
         }}
         onMouseEnter={(e) => {
+          if (signingOut) return;
           e.currentTarget.style.color = "var(--warm)";
           e.currentTarget.style.background = "var(--warm-06)";
         }}
         onMouseLeave={(e) => {
+          if (signingOut) return;
           e.currentTarget.style.color = "var(--warm-40)";
           e.currentTarget.style.background = "transparent";
         }}
       >
-        <LogOut size={14} />
+        {signingOut ? (
+          <Loader2 size={14} className="animate-spin" />
+        ) : (
+          <LogOut size={14} />
+        )}
       </button>
     </div>
   );

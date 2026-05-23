@@ -128,6 +128,18 @@ export async function createOnboardingProfile(
   supabase: AdminClient,
   fromNumber: string
 ): Promise<OnboardingProfile | null> {
+  // ── Phone identity convention (audit V7 P2-S7) ──────────────────────────
+  // Two different shapes of the same number live in two places:
+  //   • auth.users.phone           — digits-only ("14155550117"). Supabase
+  //                                  Auth strips non-digits internally and
+  //                                  rejects a leading "+".
+  //   • profiles.phone_number      — E.164 ("+14155550117"). Twilio webhooks
+  //                                  always hand us E.164 and the briefing
+  //                                  fan-out / opt-out paths match on this
+  //                                  form, so the profile column is the
+  //                                  canonical user-facing identifier.
+  // Cross-table joins on phone MUST normalize one side; do not compare
+  // auth.users.phone to profiles.phone_number directly.
   const phoneDigits = fromNumber.replace(/[^\d]/g, "");
   if (!phoneDigits) return null;
 

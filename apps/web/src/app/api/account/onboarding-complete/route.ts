@@ -24,6 +24,15 @@ import { dispatchPartnerInvite } from "@/lib/partner-invite";
 import { checkRateLimit, rateLimitResponse } from "@/lib/rate-limit";
 import { isSameOrigin } from "@/lib/csrf";
 
+/** Mask all but the last 4 digits — preserves "did you mean this number?" UX
+ *  without leaking the full phone to the client. P1-P4 (audit v7). */
+function maskPhone(phone: string): string {
+  const digits = phone.replace(/\D/g, "");
+  if (digits.length < 4) return "•••••••";
+  const last4 = digits.slice(-4);
+  return `••• ••• ${last4}`;
+}
+
 interface ProfileRow {
   family_name: string | null;
   phone_number: string | null;
@@ -75,23 +84,46 @@ export async function POST(request: Request) {
       const message =
         `Hey ${firstName}! This is Kin. I'll be sending you a morning briefing to ` +
         `help coordinate your family's day. Your first one arrives tomorrow at 6am. ` +
-        `If you ever need anything, just text me back.`;
+        `If you ever need anything, just text me back. Reply STOP to opt out.`;
 
-      try {
-        await sendSms(profile.phone_number, message);
-        await admin
-          .from("profiles")
-          .update({ welcome_sms_sent_at: new Date().toISOString() })
-          .eq("id", user.id);
-        await admin.from("sms_conversations").insert({
-          profile_id: user.id,
-          direction: "outbound",
-          body: message,
-          from_number: process.env.TWILIO_PHONE_NUMBER ?? "",
-          to_number: profile.phone_number,
-        });
+      // Claim the welcome-SMS slot BEFORE sending (audit V7 P2-S5):
+      // conditional UPDATE returning the id means the SMS-onboarding race
+      // can't double-send when both paths reach the gate within the same
+      // tick. We rollback the timestamp on send failure so a retry can try
+      // again rather than getting silently latched.
+      const claimedAt = new Date().toISOString();
+      const { data: claimed } = await admin
+        .from("profiles")
+        .update({ welcome_sms_sent_at: claimedAt })
+        .eq("id", user.id)
+        .is("welcome_sms_sent_at", null)
+        .select("id");
+      const wonClaim = !!(claimed && claimed.length > 0);
+      if (!wonClaim) {
+        // The other path already sent — nothing more to do here.
         welcomeSmsSent = true;
+      }
+      try {
+        if (wonClaim) {
+          await sendSms(profile.phone_number, message);
+          await admin.from("sms_conversations").insert({
+            profile_id: user.id,
+            direction: "outbound",
+            body: message,
+            from_number: process.env.TWILIO_PHONE_NUMBER ?? "",
+            to_number: profile.phone_number,
+          });
+          welcomeSmsSent = true;
+        }
       } catch (err) {
+        // Release the claim so a retry can pick it up.
+        if (wonClaim) {
+          await admin
+            .from("profiles")
+            .update({ welcome_sms_sent_at: null })
+            .eq("id", user.id)
+            .eq("welcome_sms_sent_at", claimedAt);
+        }
         console.error("Welcome SMS failed:", err);
         Sentry.captureException(err);
         welcomeSmsFailed = true;
@@ -108,6 +140,13 @@ export async function POST(request: Request) {
     // ── 2. Partner invite (phone channel) ─────────────────────────────────────
     // Only the primary parent invites — a profile already linked into a
     // household (household_id set) is the partner and must not re-invite.
+    //
+    // P1-P4 (audit v7): we return the masked partner phone to the client so
+    // the /onboarding/done page can show "We texted *** *** -1234" without
+    // ever storing the full phone in sessionStorage (where any same-origin
+    // script could read it). The masking confirms the user typed the right
+    // number without leaking the digits.
+    let partnerPhoneMasked: string | null = null;
     if (profile.partner_phone_pending && !profile.household_id) {
       try {
         await dispatchPartnerInvite({
@@ -117,6 +156,7 @@ export async function POST(request: Request) {
           partnerPhone: profile.partner_phone_pending,
         });
         partnerInvited = true;
+        partnerPhoneMasked = maskPhone(profile.partner_phone_pending);
       } catch (err) {
         console.error("Partner invite dispatch failed:", err);
       }
@@ -127,7 +167,13 @@ export async function POST(request: Request) {
         .eq("id", user.id);
     }
 
-    return NextResponse.json({ ok: true, welcomeSmsSent, welcomeSmsFailed, partnerInvited });
+    return NextResponse.json({
+      ok: true,
+      welcomeSmsSent,
+      welcomeSmsFailed,
+      partnerInvited,
+      partnerPhone: partnerPhoneMasked,
+    });
   } catch (err) {
     // Non-fatal for the user — never block onboarding completion. But the
     // outer catch must still report to Sentry, otherwise welcome-SMS failures

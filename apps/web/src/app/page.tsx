@@ -47,6 +47,9 @@ export const metadata: Metadata = {
       "Kin watches your family's schedule and tells you what matters — before you have to figure it out yourself.",
     images: [OG_IMAGE.url],
   },
+  // Pin the canonical so syndication/preview routes don't accidentally fan
+  // out into separate indexed copies (audit V7 P2-L2).
+  alternates: { canonical: "/" },
 };
 
 export default function Home() {
