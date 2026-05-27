@@ -32,3 +32,9 @@ next-env.d.ts
 # testing
 coverage/
 .claude/worktrees/
+
+# abandoned mobile app (Kin is SMS + web only)
+apps/mobile/
+
+# supabase local state
+supabase/.temp/
