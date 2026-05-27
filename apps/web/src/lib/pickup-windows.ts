@@ -15,6 +15,7 @@ import { SupabaseClient } from "@supabase/supabase-js";
 import Anthropic from "@anthropic-ai/sdk";
 import { getAnthropicClient, ANTHROPIC_MODEL } from "@/lib/anthropic";
 import { sendSms } from "@/lib/twilio";
+import { ensureStopFooterMonthly } from "@/lib/sms-utils";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -385,11 +386,21 @@ export async function sendAlertSms(
   // not delivered.
   if (parent.optedOutAt) return false;
   try {
-    await sendSms(parent.phone, body);
+    // A2P 10DLC carrier-audit standards require recurring outbound messages
+    // to carry opt-out instructions periodically. The footer is appended at
+    // the send site so the logged sms_conversations row matches what was
+    // actually delivered. Scaled to monthly cadence — the footer lands once
+    // per 30 days per recipient instead of on every alert.
+    const bodyWithFooter = await ensureStopFooterMonthly(
+      supabase,
+      parent.phone,
+      body
+    );
+    await sendSms(parent.phone, bodyWithFooter);
     await supabase.from("sms_conversations").insert({
       profile_id: parent.id,
       direction: "outbound",
-      body,
+      body: bodyWithFooter,
       from_number: process.env.TWILIO_PHONE_NUMBER ?? "",
       to_number: parent.phone,
     });

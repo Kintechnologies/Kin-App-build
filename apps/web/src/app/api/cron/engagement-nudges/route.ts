@@ -36,7 +36,7 @@ import { isAuthorizedCron } from "@/lib/cron-auth";
 import { generateKinMessage } from "@/lib/generate-nudge";
 import { notifySlack } from "@/lib/notify";
 import { expireUnpaidTrials } from "@/lib/billing/expire-trials";
-import { ensureStopFooter } from "@/lib/sms-utils";
+import { ensureStopFooterMonthly } from "@/lib/sms-utils";
 
 type AdminClient = ReturnType<typeof createAdminClient>;
 
@@ -156,7 +156,7 @@ async function sendNudge(
   nudgeKey: string,
   body: string
 ): Promise<void> {
-  body = ensureStopFooter(body);
+  body = await ensureStopFooterMonthly(supabase, profile.phone_number, body);
   await sendSms(profile.phone_number as string, body);
 
   await supabase.from("sms_conversations").insert({

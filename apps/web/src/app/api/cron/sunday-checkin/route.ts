@@ -29,7 +29,7 @@ import { sendSms } from "@/lib/twilio";
 import { isAuthorizedCron } from "@/lib/cron-auth";
 import { generateKinMessage } from "@/lib/generate-nudge";
 import { notifySlack } from "@/lib/notify";
-import { ensureStopFooter } from "@/lib/sms-utils";
+import { ensureStopFooterMonthly } from "@/lib/sms-utils";
 
 interface CheckinProfile {
   id: string;
@@ -151,7 +151,13 @@ export async function GET(request: Request) {
     // template emits STOP, so the footer is appended at the send site
     // (idempotent — no-op if the body already mentions STOP). The logged
     // sms_conversations row matches what was actually delivered.
-    const message = ensureStopFooter(await checkinMessage(profile.family_name));
+    // Scaled to monthly cadence — the footer lands once per 30 days per
+    // recipient instead of on every check-in.
+    const message = await ensureStopFooterMonthly(
+      supabase,
+      profile.phone_number,
+      await checkinMessage(profile.family_name)
+    );
 
     try {
       await sendSms(profile.phone_number, message);

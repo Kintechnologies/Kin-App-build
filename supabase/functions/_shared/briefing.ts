@@ -24,7 +24,7 @@ import {
   quickQualityCheck,
   scoreBriefing,
 } from "./briefing-quality.ts";
-import { ensureStopFooter } from "./sms-utils.ts";
+import { ensureStopFooterMonthly } from "./sms-utils.ts";
 
 const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
 const supabaseServiceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -1417,7 +1417,14 @@ export async function deliverBriefing(
     // forbids closing language, so the footer is appended at the send site
     // (idempotent — no-op if the body already mentions STOP). The persisted
     // morning_briefings.content row matches what was actually delivered.
-    const textWithFooter = ensureStopFooter(text);
+    // Scaled to monthly cadence — the footer lands once per 30 days per
+    // recipient instead of on every briefing, since carrier audits only
+    // require periodic re-disclosure of the opt-out instruction.
+    const textWithFooter = await ensureStopFooterMonthly(
+      supabase,
+      profile.phone_number,
+      text
+    );
     await sendSmsWithRetry(profile.phone_number, textWithFooter);
     await logSms(profile.id, "outbound", textWithFooter, profile.phone_number);
 
