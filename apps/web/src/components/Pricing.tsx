@@ -65,7 +65,7 @@ export function Pricing() {
             letterSpacing: "-0.2px",
           }}
         >
-          Simple monthly pricing during early access.
+          14-day free trial. Month-to-month. Cancel anytime.
         </p>
       </Reveal>
 
@@ -151,6 +151,17 @@ export function Pricing() {
               /mo
             </span>
           </div>
+          <p
+            style={{
+              marginTop: "10px",
+              fontSize: "13px",
+              color: "var(--green)",
+              fontWeight: 500,
+              letterSpacing: "-0.1px",
+            }}
+          >
+            First 14 days free.
+          </p>
         </div>
 
         <ul
@@ -290,7 +301,7 @@ export function Pricing() {
               background: "var(--clay)",
             }}
           />
-          Early access — month-to-month, cancel anytime
+          14-day trial · month-to-month · cancel anytime
         </div>
       </div>
     </section>

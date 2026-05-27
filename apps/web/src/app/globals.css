@@ -197,6 +197,75 @@ body {
   }
 }
 
+/* Hero split layout. Two-column on wide screens, single column under 980px.
+   Inline styles can't express container-aware breakpoints cleanly, so the
+   responsive collapse lives here. */
+.marketing .kin-hero-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 0.92fr);
+  gap: clamp(40px, 6vw, 88px);
+  align-items: center;
+  width: 100%;
+  max-width: 1180px;
+}
+.marketing .kin-hero-copy {
+  text-align: left;
+  align-items: flex-start;
+}
+.marketing .kin-hero-phone {
+  display: flex;
+  justify-content: center;
+}
+@media (max-width: 980px) {
+  .marketing .kin-hero-grid {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 56px;
+  }
+  .marketing .kin-hero-copy {
+    text-align: center;
+    align-items: center;
+  }
+  .marketing .kin-hero-copy h1,
+  .marketing .kin-hero-copy p {
+    text-align: center;
+  }
+}
+
+/* Hairline rule we reach for in a few sections — keep one definition. */
+.marketing .kin-hairline {
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    var(--border-2),
+    transparent
+  );
+}
+
+/* WhyDifferent comparison grid — three columns on desktop, stacks below 720px
+   so each row reads top-down: label, calendar, Kin. */
+.marketing .kin-compare-row,
+.marketing .kin-compare-head {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+}
+@media (max-width: 720px) {
+  .marketing .kin-compare-head {
+    display: none;
+  }
+  .marketing .kin-compare-row {
+    grid-template-columns: 1fr;
+  }
+  .marketing .kin-compare-row > * {
+    border-left: none !important;
+    border-top: 1px solid var(--border);
+  }
+  .marketing .kin-compare-row > *:first-child {
+    border-top: none;
+    font-weight: 600;
+  }
+}
+
 /* Auth surface utilities. Moved here from inline <style dangerouslySetInnerHTML>
    blocks in (auth)/signin/page.tsx and (auth)/signup/page.tsx (v5 P2-Sec1):
    static strings were never an XSS risk, but scanners flag the attribute on

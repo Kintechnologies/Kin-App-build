@@ -2,10 +2,9 @@ import type { Metadata } from "next";
 import { Nav } from "@/components/Nav";
 import { Hero } from "@/components/Hero";
 import { Relatability } from "@/components/Relatability";
+import { WhyDifferent } from "@/components/WhyDifferent";
 import { OutcomeCards } from "@/components/OutcomeCards";
 import { HouseholdMemory } from "@/components/HouseholdMemory";
-import { WhyDifferent } from "@/components/WhyDifferent";
-import { BriefingDemo } from "@/components/BriefingDemo";
 import { Capabilities } from "@/components/Capabilities";
 import { Pricing } from "@/components/Pricing";
 import { WaitlistSection } from "@/components/WaitlistSection";
@@ -135,12 +134,15 @@ export default function Home() {
         dangerouslySetInnerHTML={{ __html: JSON.stringify(FAQ_JSON_LD) }}
       />
       <Nav />
+      {/* Story arc: problem-in-action (hero phone) → emotional resonance
+          (Relatability) → why this isn't a calendar (WhyDifferent) → what
+          Kin actually does (OutcomeCards) → how it learns (HouseholdMemory) →
+          everything it watches (Capabilities) → price → CTA. */}
       <Hero />
       <Relatability />
+      <WhyDifferent />
       <OutcomeCards />
       <HouseholdMemory />
-      <WhyDifferent />
-      <BriefingDemo />
       <Capabilities />
       <Pricing />
       <WaitlistSection />
