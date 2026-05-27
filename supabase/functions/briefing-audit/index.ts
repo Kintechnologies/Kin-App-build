@@ -31,6 +31,7 @@ import {
   getLocalDate,
   resolveTimezone,
   deliverBriefing,
+  generateBriefing,
   notifySlack,
   type BriefingProfile,
 } from "../_shared/briefing.ts";
@@ -135,6 +136,8 @@ async function runAudit(req: Request): Promise<Response> {
     missed: 0,
     recovered: 0,
     stillFailed: 0,
+    degradedRetried: 0,
+    degradedUpgraded: 0,
     errors: [] as string[],
   };
   const missedNames: string[] = [];
@@ -171,6 +174,7 @@ async function runAudit(req: Request): Promise<Response> {
 
     let claimed = !!insertAttempt.data;
     let alreadySent = false;
+    let degradedRetry = false;
 
     if (!claimed) {
       // Row exists — try to atomically flip 'failed' → 'generated' to claim.
@@ -183,6 +187,25 @@ async function runAudit(req: Request): Promise<Response> {
         .select("id")
         .maybeSingle();
       claimed = !!flipped;
+
+      if (!claimed) {
+        // V8: also pick up 'degraded' rows for an AI-only retry. The user
+        // already received the plaintext fallback SMS this morning, so we
+        // do NOT re-send — we only upgrade the persisted content if Claude
+        // comes back online. Atomic CAS prevents concurrent retries.
+        const { data: flippedDegraded } = await supabase
+          .from("morning_briefings")
+          .update({ delivery_status: "generated" })
+          .eq("profile_id", profile.id)
+          .eq("briefing_date", briefingDate)
+          .eq("delivery_status", "degraded")
+          .select("id")
+          .maybeSingle();
+        if (flippedDegraded) {
+          claimed = true;
+          degradedRetry = true;
+        }
+      }
 
       if (!claimed) {
         // Row is either 'sent' (already delivered) or 'generated' (another
@@ -203,6 +226,59 @@ async function runAudit(req: Request): Promise<Response> {
       }
       // 'generated' with another invocation holding the claim: silently skip;
       // the audit re-runs daily and the in-flight original will land 'sent'.
+      continue;
+    }
+
+    if (degradedRetry) {
+      // AI-only retry path. The SMS already went out this morning with the
+      // plaintext fallback; here we only attempt to regenerate higher-quality
+      // content and overwrite the persisted row. No SMS, no nudge mutation,
+      // no quality scoring — this is a backfill of the stored briefing.
+      results.degradedRetried++;
+      try {
+        let daysSinceCreated = 0;
+        if (profile.created_at) {
+          daysSinceCreated = Math.floor(
+            (Date.now() - new Date(profile.created_at).getTime()) / 86_400_000
+          );
+        }
+        const appendPaymentNudge =
+          !profile.billing_exempt &&
+          profile.subscription_status === "trial" &&
+          daysSinceCreated >= 14;
+        const gen = await generateBriefing(
+          profile.id,
+          profile.family_name,
+          profile.last_name,
+          tz,
+          appendPaymentNudge
+        );
+        if (!gen.degraded) {
+          await supabase
+            .from("morning_briefings")
+            .update({ content: gen.text, delivery_status: "sent" })
+            .eq("profile_id", profile.id)
+            .eq("briefing_date", briefingDate);
+          results.degradedUpgraded++;
+        } else {
+          // AI still down — return the row to 'degraded' so the next day's
+          // audit will retry. Leave content alone (the plaintext that was
+          // actually sent stays the source of truth).
+          await supabase
+            .from("morning_briefings")
+            .update({ delivery_status: "degraded" })
+            .eq("profile_id", profile.id)
+            .eq("briefing_date", briefingDate);
+        }
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        await supabase
+          .from("morning_briefings")
+          .update({ delivery_status: "degraded" })
+          .eq("profile_id", profile.id)
+          .eq("briefing_date", briefingDate);
+        results.errors.push(`${profile.id} (degraded-retry): ${msg}`);
+      }
       continue;
     }
 

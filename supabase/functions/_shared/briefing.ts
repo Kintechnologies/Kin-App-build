@@ -1450,12 +1450,16 @@ export async function deliverBriefing(
       }
     }
 
+    // V8: mark plaintext-fallback rows as 'degraded' so the daily audit
+    // backstop can pick them up and re-attempt AI generation. The user has
+    // already received the plaintext SMS; the audit upgrade is content-only
+    // (no re-send) to avoid double-texting.
     await supabase.from("morning_briefings").upsert(
       {
         profile_id: profile.id,
         briefing_date: briefingDate,
         content: textWithFooter,
-        delivery_status: "sent",
+        delivery_status: degraded ? "degraded" : "sent",
         sent_at: new Date().toISOString(),
         quality_score: score?.score ?? null,
         quality_grade: score?.grade ?? null,
